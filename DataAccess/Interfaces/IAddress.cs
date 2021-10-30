@@ -1,12 +1,18 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace DataAccess.Interfaces
 {
     public interface IAddress
     {
-        Guid Id { get; set; }
+        public Guid Id { get; set; }
+
+        public List<Guid> UsedBy { get; }
+
         string Country { get; set; }
+
         string Line1 { get; set; }
+
         string Line2 { get; set; }
     }
 }

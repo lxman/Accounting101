@@ -22,5 +22,10 @@ namespace DataAccess
         {
             return store.GetCollection<IAddress>(CollectionNames.Addresses)?.FindById(id);
         }
+
+        public static bool? Delete(this IDataStore store, Guid id)
+        {
+            return store.GetCollection<IAddress>(CollectionNames.Addresses)?.Delete(id);
+        }
     }
 }

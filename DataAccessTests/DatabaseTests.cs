@@ -89,7 +89,10 @@ namespace DataAccessTests
                     State = "NC",
                     Zip = "28904"
                 };
-                Client c = new();
+                Client c = new()
+                {
+                    BusinessName = "JordanSoft"
+                };
                 IDataStore store = scope.Resolve<IDataStore>();
                 Guid nameId = store.Create(name);
                 _ = nameId.Should().NotBeEmpty();

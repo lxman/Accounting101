@@ -1,11 +1,14 @@
 ﻿using DataAccess.Interfaces;
 using System;
+using System.Collections.Generic;
 
 namespace DataAccess.Models
 {
     public class UsAddress : IAddress
     {
         public Guid Id { get; set; }
+
+        public List<Guid> UsedBy { get; } = new();
 
         public string Line1 { get; set; }
 

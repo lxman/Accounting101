@@ -1,10 +1,13 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace DataAccess.Models
 {
     public class PersonName
     {
         public Guid Id { get; set; }
+
+        public List<Guid> UsedBy { get; } = new();
 
         public string Prefix { get; set; }
 
