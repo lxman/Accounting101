@@ -1,4 +1,5 @@
-﻿using Accounting101.Common;
+﻿using System;
+using Accounting101.Common;
 using Accounting101.Main.Properties;
 using Accounting101.Main.ViewModels;
 using Accounting101.Main.Views;
@@ -44,6 +45,9 @@ namespace Accounting101.Main
     {
         public static Bootstrapper Default { get; protected set; }
 
+        private static IDataStore DataStore;
+        private static IContainer Container;
+
         public static void Run()
         {
             Default = new Bootstrapper();
@@ -55,7 +59,6 @@ namespace Accounting101.Main
         }
 
         private const string StateVersion = "1.0";
-        private IContainer Container;
 
         public virtual void RunCore()
         {
@@ -83,24 +86,17 @@ namespace Accounting101.Main
         {
             Manager.GetRegion(Regions.Documents).VisualSerializationMode = VisualSerializationMode.PerKey;
             Manager.Register(Regions.MainWindow, new Module(AppModules.Main, MainViewModel.Create, typeof(MainView)));
-            Manager.Register(Regions.Navigation, new Module(AppModules.Module1, () => new NavigationItem("Module1")));
-            Manager.Register(Regions.Navigation, new Module(AppModules.Module2, () => new NavigationItem("Module2")));
+            RegisterModule(AppModules.Module1, typeof(ModuleView));
+            RegisterModule(AppModules.Module2, typeof(ModuleView));
+            RegisterModule(AppModules.Clients, typeof(ClientsView));
+        }
+
+        private void RegisterModule(string name, Type t)
+        {
+            Manager.Register(Regions.Navigation, new Module(name, () => new NavigationItem(name)));
             Manager.Register(
                 Regions.Documents,
-                new Module(
-                    AppModules.Module1,
-                    () => ModuleViewModel.Create(
-                        "Module1",
-                        Container.Resolve<IDataStore>()),
-                    typeof(ModuleView)));
-            Manager.Register(
-                Regions.Documents,
-                new Module(
-                    AppModules.Module2,
-                    () => ModuleViewModel.Create(
-                        "Module2",
-                        Container.Resolve<IDataStore>()),
-                    typeof(ModuleView)));
+                new Module(name, () => ModuleViewModel.Create(name, DataStore), t));
         }
 
         protected virtual void ConfigureServices()
@@ -108,6 +104,7 @@ namespace Accounting101.Main
             var builder = new ContainerBuilder();
             builder.Register(c => new DataStore()).As<IDataStore>();
             Container = builder.Build();
+            DataStore = Container.Resolve<IDataStore>();
         }
 
         protected virtual bool RestoreState()
@@ -125,6 +122,7 @@ namespace Accounting101.Main
             Manager.Inject(Regions.MainWindow, AppModules.Main);
             Manager.Inject(Regions.Navigation, AppModules.Module1);
             Manager.Inject(Regions.Navigation, AppModules.Module2);
+            Manager.Inject(Regions.Navigation, AppModules.Clients);
         }
 
         protected virtual void ConfigureNavigation()

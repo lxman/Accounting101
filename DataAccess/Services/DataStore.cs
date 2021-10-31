@@ -11,7 +11,7 @@ namespace DataAccess.Services
 
         public DataStore()
         {
-            Db = new LiteDatabase(ConnectionString.ConnString);
+            Db ??= new LiteDatabase(ConnectionString.ConnString);
         }
 
         public LiteDatabase? Instance()

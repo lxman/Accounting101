@@ -1,4 +1,4 @@
-﻿<UserControl x:Class="Accounting101.Modules.Views.Clients"
+﻿<UserControl x:Class="Accounting101.Modules.Views.ClientsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"

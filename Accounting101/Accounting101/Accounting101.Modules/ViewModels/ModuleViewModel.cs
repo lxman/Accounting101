@@ -1,18 +1,19 @@
 ﻿using Accounting101.Common;
+using DataAccess.Services.Interfaces;
 using DevExpress.Mvvm;
 using DevExpress.Mvvm.POCO;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
-using DataAccess;
-using DataAccess.Services.Interfaces;
 
 namespace Accounting101.Modules.ViewModels
 {
     public class ModuleViewModel : IDocumentModule, ISupportState<ModuleViewModel.Info>
     {
         public string Caption { get; private set; }
+
         public virtual bool IsActive { get; set; }
+
         public ObservableCollection<DataItem> Items { get; private set; }
 
         private static IDataStore DataStore;
@@ -25,6 +26,7 @@ namespace Accounting101.Modules.ViewModels
                 Caption = caption,
             });
         }
+
         protected ModuleViewModel()
         {
             Items = new ObservableCollection<DataItem>();
@@ -35,11 +37,13 @@ namespace Accounting101.Modules.ViewModels
         }
 
         #region Serialization
+
         [Serializable]
         public class Info
         {
             public string Caption { get; set; }
         }
+
         Info ISupportState<Info>.SaveState()
         {
             return new Info()
@@ -47,12 +51,15 @@ namespace Accounting101.Modules.ViewModels
                 Caption = Caption,
             };
         }
+
         void ISupportState<Info>.RestoreState(Info state)
         {
             Caption = state.Caption;
         }
-        #endregion
+
+        #endregion Serialization
     }
+
     public class DataItem
     {
         public int Id { get; set; }
