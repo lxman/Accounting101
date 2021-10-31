@@ -6,7 +6,7 @@ using System;
 
 namespace Accounting101.Modules.ViewModels
 {
-    public class SettingsViewModel : IDocumentModule, ISupportState<SettingsViewModel.Info>
+    public class SettingsViewModel : IDocumentModule, ISupportState<SettingsViewModel.Info>, ISupportServices
     {
         public string Caption { get; private set; }
 
@@ -14,6 +14,14 @@ namespace Accounting101.Modules.ViewModels
 
         public DelegateCommand ChoosePath { get; private set; }
 
+        IServiceContainer ISupportServices.ServiceContainer => ServiceContainer;
+
+        protected IServiceContainer ServiceContainer
+        {
+            get { return ServiceContainerInternal ??= new ServiceContainer(this); }
+        }
+
+        private IServiceContainer ServiceContainerInternal;
         private static ISettingsStore SettingsStore;
 
         private ISaveFileDialogService FileDialogService => this.GetService<ISaveFileDialogService>();
@@ -38,6 +46,7 @@ namespace Accounting101.Modules.ViewModels
         {
             if (FileDialogService.ShowDialog())
             {
+                var tmp = FileDialogService.File;
             }
         }
 
