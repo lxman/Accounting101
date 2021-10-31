@@ -12,9 +12,15 @@ namespace Accounting101.Modules.ViewModels
 
         public virtual bool IsActive { get; set; }
 
+        public DelegateCommand ChoosePath { get; private set; }
+
         private static ISettingsStore SettingsStore;
 
-        public static SettingsViewModel Create(string caption, ISettingsStore store)
+        private ISaveFileDialogService FileDialogService => this.GetService<ISaveFileDialogService>();
+
+        public static SettingsViewModel Create(
+            string caption,
+            ISettingsStore store)
         {
             SettingsStore = store;
             return ViewModelSource.Create(() => new SettingsViewModel()
@@ -25,6 +31,14 @@ namespace Accounting101.Modules.ViewModels
 
         public SettingsViewModel()
         {
+            ChoosePath = new DelegateCommand(SetPath);
+        }
+
+        private void SetPath()
+        {
+            if (FileDialogService.ShowDialog())
+            {
+            }
         }
 
         #region Serialization
