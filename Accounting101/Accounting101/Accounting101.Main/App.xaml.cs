@@ -1,5 +1,4 @@
-﻿using System;
-using Accounting101.Common;
+﻿using Accounting101.Common;
 using Accounting101.Main.Properties;
 using Accounting101.Main.ViewModels;
 using Accounting101.Main.Views;
@@ -12,6 +11,7 @@ using DevExpress.Mvvm;
 using DevExpress.Mvvm.ModuleInjection;
 using DevExpress.Mvvm.UI;
 using DevExpress.Xpf.Core;
+using System;
 using System.ComponentModel;
 using System.Windows;
 using AppModules = Accounting101.Common.Modules;
