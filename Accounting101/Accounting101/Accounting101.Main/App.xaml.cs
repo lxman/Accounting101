@@ -45,8 +45,9 @@ namespace Accounting101.Main
     {
         public static Bootstrapper Default { get; protected set; }
 
-        private static IDataStore DataStore;
         private static IContainer Container;
+        private static IDataStore DataStore;
+        private static ISettingsStore SettingsStore;
 
         public static void Run()
         {
@@ -88,7 +89,8 @@ namespace Accounting101.Main
             Manager.Register(Regions.MainWindow, new Module(AppModules.Main, MainViewModel.Create, typeof(MainView)));
             RegisterModule(AppModules.Module1, typeof(ModuleView));
             RegisterModule(AppModules.Module2, typeof(ModuleView));
-            RegisterModule(AppModules.Clients, typeof(ClientsView));
+            RegisterClients(AppModules.Clients, typeof(ClientsView));
+            RegisterSettings(AppModules.Settings, typeof(SettingsView));
         }
 
         private void RegisterModule(string name, Type t)
@@ -99,12 +101,30 @@ namespace Accounting101.Main
                 new Module(name, () => ModuleViewModel.Create(name, DataStore), t));
         }
 
+        private void RegisterClients(string name, Type t)
+        {
+            Manager.Register(Regions.Navigation, new Module(name, () => new NavigationItem(name)));
+            Manager.Register(
+                Regions.Documents,
+                new Module(name, () => ClientsViewModel.Create(name, DataStore), t));
+        }
+
+        private void RegisterSettings(string name, Type t)
+        {
+            Manager.Register(Regions.Navigation, new Module(name, () => new NavigationItem(name)));
+            Manager.Register(
+                Regions.Documents,
+                new Module(name, () => SettingsViewModel.Create(name, SettingsStore), t));
+        }
+
         protected virtual void ConfigureServices()
         {
-            var builder = new ContainerBuilder();
+            ContainerBuilder builder = new ContainerBuilder();
             builder.Register(c => new DataStore()).As<IDataStore>();
+            builder.Register(c => new SettingsStore()).As<ISettingsStore>();
             Container = builder.Build();
             DataStore = Container.Resolve<IDataStore>();
+            SettingsStore = Container.Resolve<ISettingsStore>();
         }
 
         protected virtual bool RestoreState()
@@ -123,6 +143,7 @@ namespace Accounting101.Main
             Manager.Inject(Regions.Navigation, AppModules.Module1);
             Manager.Inject(Regions.Navigation, AppModules.Module2);
             Manager.Inject(Regions.Navigation, AppModules.Clients);
+            Manager.Inject(Regions.Navigation, AppModules.Settings);
         }
 
         protected virtual void ConfigureNavigation()

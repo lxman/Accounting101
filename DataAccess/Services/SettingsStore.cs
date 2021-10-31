@@ -1,17 +1,19 @@
 ﻿using DataAccess.Services.Interfaces;
 using LiteDB;
 using System;
+using System.IO;
 
 namespace DataAccess.Services
 {
-    public class DataStore : IDataStore, IDisposable
+    public class SettingsStore : ISettingsStore
     {
         private readonly LiteDatabase? Db;
         private bool DisposedValue;
+        private readonly string SettingsPath = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
 
-        public DataStore()
+        public SettingsStore()
         {
-            Db ??= new LiteDatabase(ConnectionString.ConnString);
+            Db ??= new LiteDatabase($"Filename={Path.Combine(SettingsPath, "Settings")};Password=1234;");
         }
 
         public LiteDatabase? Instance()
