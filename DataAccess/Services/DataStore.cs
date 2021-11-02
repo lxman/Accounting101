@@ -6,12 +6,19 @@ namespace DataAccess.Services
 {
     public class DataStore : IDataStore, IDisposable
     {
+        public static event EventHandler<ChangeEventArgs> StoreChanged;
+
         private readonly LiteDatabase? Db;
         private bool DisposedValue;
 
         public DataStore()
         {
             Db ??= new LiteDatabase(ConnectionString.ConnString);
+        }
+
+        public static void NotifyChange(Type t)
+        {
+            StoreChanged?.Invoke(null, new ChangeEventArgs {ChangedType = t});
         }
 
         public LiteDatabase? Instance()

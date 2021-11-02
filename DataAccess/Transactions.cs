@@ -19,12 +19,14 @@ namespace DataAccess
 
             Account credAcct = accts.FindOne(a => a.Id == tx.CreditAccount);
             Account debAcct = accts.FindOne(a => a.Id == tx.DebitAccount);
-            return credAcct is null
+            Guid result = credAcct is null
                 || debAcct is null
                 || tx.When < credAcct.Posted
                 || tx.When < debAcct.Posted
                 ? Guid.Empty
                 : store.GetCollection<Transaction>(CollectionNames.Transactions)?.Insert(tx).AsGuid ?? Guid.Empty;
+            if (result != Guid.Empty) store.NotifyChanged(typeof(Transactions));
+            return result;
         }
 
         public static List<Transaction> BulkInsert(IDataStore store, List<Transaction> txs, bool verify = false)
@@ -61,7 +63,8 @@ namespace DataAccess
             {
                 toInsert.AddRange(txs);
             }
-            _ = (store.GetCollection<Transaction>(CollectionNames.Transactions)?.InsertBulk(toInsert));
+            int? result = (store.GetCollection<Transaction>(CollectionNames.Transactions)?.InsertBulk(toInsert));
+            if (result > 0) store.NotifyChanged(typeof(Transactions));
             return invalid;
         }
 

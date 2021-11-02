@@ -18,7 +18,9 @@ namespace DataAccess
             }
 
             acct.Info = infoId;
-            return store.GetCollection<Account>(CollectionNames.Accounts)?.Insert(acct).AsGuid ?? Guid.Empty;
+            Guid result = store.GetCollection<Account>(CollectionNames.Accounts)?.Insert(acct).AsGuid ?? Guid.Empty;
+            if (result != Guid.Empty) store.NotifyChanged(typeof(Accounts));
+            return result;
         }
 
         public static Guid Create(this IDataStore store, AccountWInfo acct)
@@ -30,7 +32,9 @@ namespace DataAccess
             }
 
             acct.Info.Id = infoId;
-            return store.GetCollection<Account>(CollectionNames.Accounts)?.Insert(new Account(acct)).AsGuid ?? Guid.Empty;
+            Guid result = store.GetCollection<Account>(CollectionNames.Accounts)?.Insert(new Account(acct)).AsGuid ?? Guid.Empty;
+            if (result != Guid.Empty) store.NotifyChanged(typeof(Accounts));
+            return result;
         }
 
         public static void BulkInsert(this IDataStore store, List<AccountWInfo> accts)
@@ -40,7 +44,8 @@ namespace DataAccess
             {
                 a.Info.Id = infos?.Insert(a.Info).AsGuid ?? Guid.Empty;
             });
-            _ = store.GetCollection<Account>(CollectionNames.Accounts)?.InsertBulk(accts.Select(a => new Account(a)));
+            int? result = store.GetCollection<Account>(CollectionNames.Accounts)?.InsertBulk(accts.Select(a => new Account(a)));
+            if (result > 0) store.NotifyChanged(typeof(Accounts));
         }
 
         public static AccountWInfo? FindByName(this IDataStore store, string name)

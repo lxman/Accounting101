@@ -9,7 +9,9 @@ namespace DataAccess
     {
         public static Guid Create(this IDataStore store, Setting setting)
         {
-            return store.GetCollection<Setting>(CollectionNames.Settings)?.Insert(setting).AsGuid ?? Guid.Empty;
+            Guid result = store.GetCollection<Setting>(CollectionNames.Settings)?.Insert(setting).AsGuid ?? Guid.Empty;
+            if (result != Guid.Empty) store.NotifyChanged(typeof(Settings));
+            return result;
         }
 
         public static IEnumerable<Setting> Find(this IDataStore store, string key)
@@ -19,7 +21,8 @@ namespace DataAccess
 
         public static void Remove(this IDataStore store, string key)
         {
-            _ = store.GetCollection<Setting>(CollectionNames.Settings)?.DeleteMany(s => s.Key == key);
+            int? result = store.GetCollection<Setting>(CollectionNames.Settings)?.DeleteMany(s => s.Key == key);
+            if (result > 0) store.NotifyChanged(typeof(Settings));
         }
     }
 }

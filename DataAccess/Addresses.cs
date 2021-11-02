@@ -10,12 +10,15 @@ namespace DataAccess
     {
         public static Guid Create(this IDataStore store, IAddress address)
         {
-            return store.GetCollection<IAddress>(CollectionNames.Addresses)?.Insert(address).AsGuid ?? Guid.Empty;
+            Guid result = store.GetCollection<IAddress>(CollectionNames.Addresses)?.Insert(address).AsGuid ?? Guid.Empty;
+            if (result != Guid.Empty) store.NotifyChanged(typeof(Addresses));
+            return result;
         }
 
         public static void BulkInsert(this IDataStore store, IEnumerable<IAddress> addresses)
         {
-            store.GetCollection<IAddress>(CollectionNames.Addresses)?.InsertBulk(addresses);
+            int? result = store.GetCollection<IAddress>(CollectionNames.Addresses)?.InsertBulk(addresses);
+            if (result > 0) store.NotifyChanged(typeof(Addresses));
         }
 
         public static IAddress? FindById(this IDataStore store, Guid id)
@@ -25,7 +28,9 @@ namespace DataAccess
 
         public static bool? Delete(this IDataStore store, Guid id)
         {
-            return store.GetCollection<IAddress>(CollectionNames.Addresses)?.Delete(id);
+            bool? result = store.GetCollection<IAddress>(CollectionNames.Addresses)?.Delete(id);
+            if (result is not null && (bool)result) store.NotifyChanged(typeof(Addresses));
+            return result;
         }
     }
 }

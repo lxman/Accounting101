@@ -9,12 +9,15 @@ namespace DataAccess
     {
         public static Guid Create(this IDataStore store, Client c)
         {
-            return store.GetCollection<Client>(CollectionNames.Clients)?.Insert(c).AsGuid ?? Guid.Empty;
+            Guid result = store.GetCollection<Client>(CollectionNames.Clients)?.Insert(c).AsGuid ?? Guid.Empty;
+            if (result != Guid.Empty) store.NotifyChanged(typeof(Clients));
+            return result;
         }
 
         public static void BulkInsert(this IDataStore store, IEnumerable<Client> clients)
         {
-            store.GetCollection<Client>(CollectionNames.Clients)?.InsertBulk(clients);
+            int? result = store.GetCollection<Client>(CollectionNames.Clients)?.InsertBulk(clients);
+            if (result > 0) store.NotifyChanged(typeof(Clients));
         }
 
         public static Client? FindById(this IDataStore store, Guid id)
