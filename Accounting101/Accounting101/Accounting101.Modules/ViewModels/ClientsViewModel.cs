@@ -3,6 +3,7 @@ using DataAccess.Services.Interfaces;
 using DevExpress.Mvvm;
 using DevExpress.Mvvm.POCO;
 using System;
+using DataAccess.Services;
 
 namespace Accounting101.Modules.ViewModels
 {
@@ -17,10 +18,16 @@ namespace Accounting101.Modules.ViewModels
         public static ClientsViewModel Create(string caption, IDataStore dataStore)
         {
             DataStore = dataStore;
+            DataStore.StoreChanged += StoreChanged;
             return ViewModelSource.Create(() => new ClientsViewModel()
             {
-                Caption = caption,
+                Caption = caption
             });
+        }
+
+        private static void StoreChanged(object? source, ChangeEventArgs e)
+        {
+
         }
 
         public ClientsViewModel()

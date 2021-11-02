@@ -23,7 +23,7 @@ namespace Accounting101.Modules.ViewModels
             DataStore = dataStore;
             return ViewModelSource.Create(() => new ModuleViewModel()
             {
-                Caption = caption,
+                Caption = caption
             });
         }
 
