@@ -8,6 +8,7 @@
         public const string Clients = "Clients";
         public const string Employees = "Employees";
         public const string PersonNames = "PersonNames";
+        public const string Settings = "Settings";
         public const string Transactions = "Transactions";
     }
 }

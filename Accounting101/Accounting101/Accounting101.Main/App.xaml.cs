@@ -47,7 +47,6 @@ namespace Accounting101.Main
 
         private static IContainer Container;
         private static IDataStore DataStore;
-        private static ISettingsStore SettingsStore;
 
         public static void Run()
         {
@@ -114,17 +113,15 @@ namespace Accounting101.Main
             Manager.Register(Regions.Navigation, new Module(name, () => new NavigationItem(name)));
             Manager.Register(
                 Regions.Documents,
-                new Module(name, () => SettingsViewModel.Create(name, SettingsStore), t));
+                new Module(name, () => SettingsViewModel.Create(name, DataStore), t));
         }
 
         protected virtual void ConfigureServices()
         {
             ContainerBuilder builder = new ContainerBuilder();
             builder.Register(c => new DataStore()).As<IDataStore>();
-            builder.Register(c => new SettingsStore()).As<ISettingsStore>();
             Container = builder.Build();
             DataStore = Container.Resolve<IDataStore>();
-            SettingsStore = Container.Resolve<ISettingsStore>();
         }
 
         protected virtual bool RestoreState()

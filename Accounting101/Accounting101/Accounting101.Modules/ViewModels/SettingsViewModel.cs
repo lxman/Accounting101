@@ -12,8 +12,6 @@ namespace Accounting101.Modules.ViewModels
 
         public virtual bool IsActive { get; set; }
 
-        public DelegateCommand ChoosePath { get; private set; }
-
         IServiceContainer ISupportServices.ServiceContainer => ServiceContainer;
 
         protected IServiceContainer ServiceContainer
@@ -22,15 +20,13 @@ namespace Accounting101.Modules.ViewModels
         }
 
         private IServiceContainer ServiceContainerInternal;
-        private static ISettingsStore SettingsStore;
-
-        private ISaveFileDialogService FileDialogService => this.GetService<ISaveFileDialogService>();
+        private static IDataStore DataStore;
 
         public static SettingsViewModel Create(
             string caption,
-            ISettingsStore store)
+            IDataStore store)
         {
-            SettingsStore = store;
+            DataStore = store;
             return ViewModelSource.Create(() => new SettingsViewModel()
             {
                 Caption = caption,
@@ -39,15 +35,6 @@ namespace Accounting101.Modules.ViewModels
 
         public SettingsViewModel()
         {
-            ChoosePath = new DelegateCommand(SetPath);
-        }
-
-        private void SetPath()
-        {
-            if (FileDialogService.ShowDialog())
-            {
-                var tmp = FileDialogService.File;
-            }
         }
 
         #region Serialization
