@@ -25,6 +25,11 @@ namespace DataAccess
             return store.GetCollection<Client>(CollectionNames.Clients)?.FindById(id);
         }
 
+        public static IEnumerable<Client>? All(this IDataStore store)
+        {
+            return store.GetCollection<Client>(CollectionNames.Clients)?.FindAll();
+        }
+
         public static bool? Delete(this IDataStore store, Guid id)
         {
             return store.GetCollection<Client>(CollectionNames.Clients)?.Delete(id);

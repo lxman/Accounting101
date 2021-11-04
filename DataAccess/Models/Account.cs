@@ -6,6 +6,8 @@ namespace DataAccess.Models
     {
         public Guid Id { get; set; } = Guid.NewGuid();
 
+        public Guid Client { get; set; }
+
         public Guid Info { get; set; }
 
         public decimal StartBalance { get; set; }

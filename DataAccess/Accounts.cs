@@ -66,5 +66,20 @@ namespace DataAccess
 
             return new AccountWInfo(a, info);
         }
+
+        public static IEnumerable<AccountWInfo>? ForClient(this IDataStore store, Guid id)
+        {
+            IEnumerable<Account>? accts = store.GetCollection<Account>(CollectionNames.Accounts)
+                ?.Find(a => a.Client == id);
+            if (accts is null) return null;
+            ILiteCollection<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfos);
+            if (infos is null) return null;
+            List<AccountWInfo> acctsWInfos = new();
+            accts.ToList().ForEach(a =>
+            {
+                acctsWInfos.Add(new AccountWInfo(a, infos.FindOne(i => i.Id == a.Info)));
+            });
+            return acctsWInfos;
+        }
     }
 }
