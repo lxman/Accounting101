@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
              xmlns:dxmvvm="http://schemas.devexpress.com/winfx/2008/xaml/mvvm"
              xmlns:ViewModels="clr-namespace:Accounting101.Modules.ViewModels"
              mc:Ignorable="d"
@@ -10,6 +11,35 @@
 <UserControl.DataContext>
     <ViewModels:ClientsViewModel/>
 </UserControl.DataContext>
-    <Grid>
-    </Grid>
+    <dx:DXTabControl>
+        <dx:DXTabControl.Effect>
+            <DropShadowEffect/>
+        </dx:DXTabControl.Effect>
+        <dx:DXTabItem Header="Current">
+            <dx:DXTabItem.Effect>
+                <DropShadowEffect/>
+            </dx:DXTabItem.Effect>
+            <ComboBox
+                x:Name="ClientList"
+                Height="50"
+                VerticalAlignment="Top"
+                IsReadOnly="True"
+                ItemsSource="{Binding Clients}"
+                DisplayMemberPath="BusinessName">
+                <ComboBox.Effect>
+                    <DropShadowEffect/>
+                </ComboBox.Effect>
+            </ComboBox>
+        </dx:DXTabItem>
+        <dx:DXTabItem Header="Add">
+            <dx:DXTabItem.Effect>
+                <DropShadowEffect/>
+            </dx:DXTabItem.Effect>
+            <dx:DXTabControl>
+                <dx:DXTabItem Header="Business Name">
+                    <TextBox Height="50" VerticalAlignment="Top" />
+                </dx:DXTabItem>
+            </dx:DXTabControl>
+        </dx:DXTabItem>
+    </dx:DXTabControl>
 </UserControl>

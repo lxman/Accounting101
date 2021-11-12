@@ -3,6 +3,11 @@ using DataAccess.Services.Interfaces;
 using DevExpress.Mvvm;
 using DevExpress.Mvvm.POCO;
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Linq;
+using DataAccess;
+using DataAccess.Models;
 using DataAccess.Services;
 
 namespace Accounting101.Modules.ViewModels
@@ -13,12 +18,16 @@ namespace Accounting101.Modules.ViewModels
 
         public virtual bool IsActive { get; set; }
 
+        public static ObservableCollection<Client> Clients { get; private set; } = new();
+
         private static IDataStore DataStore;
 
         public static ClientsViewModel Create(string caption, IDataStore dataStore)
         {
             DataStore = dataStore;
             DataStore.StoreChanged += StoreChanged;
+            List<Client> clients = DataStore.All()?.ToList() ?? new List<Client>();
+            clients.ForEach(Clients.Add);
             return ViewModelSource.Create(() => new ClientsViewModel()
             {
                 Caption = caption

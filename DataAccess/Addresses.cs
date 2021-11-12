@@ -21,6 +21,11 @@ namespace DataAccess
             if (result > 0) store.NotifyChanged(typeof(Addresses));
         }
 
+        public static IEnumerable<IAddress>? All(IDataStore store)
+        {
+            return store.GetCollection<IAddress>(CollectionNames.Addresses)?.FindAll();
+        }
+
         public static IAddress? FindById(this IDataStore store, Guid id)
         {
             return store.GetCollection<IAddress>(CollectionNames.Addresses)?.FindById(id);

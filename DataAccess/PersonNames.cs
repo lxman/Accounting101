@@ -20,6 +20,11 @@ namespace DataAccess
             if (result > 0) store.NotifyChanged(typeof(PersonNames));
         }
 
+        public static IEnumerable<PersonName>? All(IDataStore store)
+        {
+            return store.GetCollection<PersonName>(CollectionNames.PersonNames)?.FindAll();
+        }
+
         public static PersonName? FindById(this IDataStore store, Guid id)
         {
             return store.GetCollection<PersonName>(CollectionNames.PersonNames)?.FindById(id);

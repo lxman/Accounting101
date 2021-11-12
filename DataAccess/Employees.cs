@@ -20,6 +20,11 @@ namespace DataAccess
             if (result > 0) store.NotifyChanged(typeof(Employees));
         }
 
+        public static IEnumerable<Employee>? All(IDataStore store)
+        {
+            return store.GetCollection<Employee>(CollectionNames.Employees)?.FindAll();
+        }
+
         public static Employee? FindById(this IDataStore store, Guid id)
         {
             return store.GetCollection<Employee>(CollectionNames.Employees)?.FindById(id);
