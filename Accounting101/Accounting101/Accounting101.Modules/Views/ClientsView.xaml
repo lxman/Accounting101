@@ -4,21 +4,17 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:dx="http://schemas.devexpress.com/winfx/2008/xaml/core"
+             xmlns:dxdo="http://schemas.devexpress.com/winfx/2008/xaml/docking"
              xmlns:dxmvvm="http://schemas.devexpress.com/winfx/2008/xaml/mvvm"
              xmlns:ViewModels="clr-namespace:Accounting101.Modules.ViewModels"
+             xmlns:common="clr-namespace:Accounting101.Common;assembly=Accounting101.Common"
              mc:Ignorable="d"
              d:DesignHeight="300" d:DesignWidth="300">
 <UserControl.DataContext>
     <ViewModels:ClientsViewModel/>
 </UserControl.DataContext>
     <dx:DXTabControl>
-        <dx:DXTabControl.Effect>
-            <DropShadowEffect/>
-        </dx:DXTabControl.Effect>
         <dx:DXTabItem Header="Current">
-            <dx:DXTabItem.Effect>
-                <DropShadowEffect/>
-            </dx:DXTabItem.Effect>
             <ComboBox
                 x:Name="ClientList"
                 Height="50"
@@ -32,12 +28,23 @@
             </ComboBox>
         </dx:DXTabItem>
         <dx:DXTabItem Header="Add">
-            <dx:DXTabItem.Effect>
-                <DropShadowEffect/>
-            </dx:DXTabItem.Effect>
             <dx:DXTabControl>
                 <dx:DXTabItem Header="Business Name">
-                    <TextBox Height="50" VerticalAlignment="Top" />
+                    <TextBox Height="50" VerticalAlignment="Top">
+                        <TextBox.Effect>
+                            <DropShadowEffect/>
+                        </TextBox.Effect>
+                    </TextBox>
+                </dx:DXTabItem>
+                <dx:DXTabItem Header="Address">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition />
+                        </Grid.RowDefinitions>
+                        <CheckBox Grid.Row="0">Foreign</CheckBox>
+                        <dxdo:LayoutPanel Grid.Row="1" Name="ClientAddress" dxmvvm:UIRegion.Region="{x:Static common:Regions.ClientAddress}"/>
+                    </Grid>
                 </dx:DXTabItem>
             </dx:DXTabControl>
         </dx:DXTabItem>
