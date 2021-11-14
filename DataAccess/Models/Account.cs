@@ -18,7 +18,6 @@ namespace DataAccess.Models
 
         public Account()
         {
-            
         }
 
         public Account(AccountWInfo acct)

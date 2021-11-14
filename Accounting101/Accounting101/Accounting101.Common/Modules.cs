@@ -11,5 +11,9 @@
         public static string Module2 => "Module2";
 
         public static string Settings => "Settings";
+
+        public static string UsAddress => "UsAddress";
+
+        public static string ForeignAddress => "ForeignAddress";
     }
 }

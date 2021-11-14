@@ -13,8 +13,8 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <dxe:ComboBoxEdit x:Name="ChartSelector" Grid.Row="0" />
-        <dxc:ChartControl x:Name="Chart" Grid.Row="1" >
-            <dxc:XYDiagram2D x:Name="Diagram"/>
+        <dxc:ChartControl x:Name="Chart" Grid.Row="1">
+            <dxc:XYDiagram2D x:Name="Diagram" />
         </dxc:ChartControl>
     </Grid>
 </Window>

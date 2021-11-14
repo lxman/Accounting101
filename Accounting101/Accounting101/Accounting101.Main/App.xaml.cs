@@ -90,6 +90,8 @@ namespace Accounting101.Main
             RegisterModule(AppModules.Module2, typeof(ModuleView));
             RegisterClients(AppModules.Clients, typeof(ClientsView));
             RegisterSettings(AppModules.Settings, typeof(SettingsView));
+            RegisterUsAddress(AppModules.UsAddress, typeof(UsAddressView));
+            RegisterForeignAddress(AppModules.ForeignAddress, typeof(ForeignAddressView));
         }
 
         private void RegisterModule(string name, Type t)
@@ -114,6 +116,22 @@ namespace Accounting101.Main
             Manager.Register(
                 Regions.Documents,
                 new Module(name, () => SettingsViewModel.Create(name, DataStore), t));
+        }
+
+        private void RegisterUsAddress(string name, Type t)
+        {
+            Manager.Register(Regions.ClientAddress, new Module(name, () => new NavigationItem(name)));
+            Manager.Register(
+                Regions.ClientAddress,
+                new Module(name, () => UsAddressViewModel.Create(DataStore), t));
+        }
+
+        private void RegisterForeignAddress(string name, Type t)
+        {
+            Manager.Register(Regions.ClientAddress, new Module(name, () => new NavigationItem(name)));
+            Manager.Register(
+                Regions.ClientAddress,
+                new Module(name, () => ForeignAddressViewModel.Create(DataStore), t));
         }
 
         protected virtual void ConfigureServices()
@@ -141,6 +159,8 @@ namespace Accounting101.Main
             Manager.Inject(Regions.Navigation, AppModules.Module2);
             Manager.Inject(Regions.Navigation, AppModules.Clients);
             Manager.Inject(Regions.Navigation, AppModules.Settings);
+            Manager.Inject(Regions.ClientAddress, AppModules.UsAddress);
+            Manager.Inject(Regions.ClientAddress, AppModules.ForeignAddress);
         }
 
         protected virtual void ConfigureNavigation()

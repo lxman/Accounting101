@@ -3,11 +3,11 @@
 namespace Accounting101.Modules.Views
 {
     /// <summary>
-    /// Interaction logic for UsAddressView.xaml
+    /// Interaction logic for ForeignAddressView.xaml
     /// </summary>
-    public partial class UsAddressView : UserControl
+    public partial class ForeignAddressView : UserControl
     {
-        public UsAddressView()
+        public ForeignAddressView()
         {
             InitializeComponent();
         }

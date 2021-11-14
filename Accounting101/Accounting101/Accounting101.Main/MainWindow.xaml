@@ -7,5 +7,4 @@
         xmlns:dxr="http://schemas.devexpress.com/winfx/2008/xaml/ribbon"
         Title="Modular Application" Height="800" Width="1000"
         dxmvvm:UIRegion.Region="{x:Static common:Regions.MainWindow}">
-
 </dx:ThemedWindow>

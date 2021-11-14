@@ -1,7 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using LiteDB;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using LiteDB;
 
 namespace ZipDataParser
 {

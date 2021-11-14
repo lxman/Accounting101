@@ -17,6 +17,7 @@ namespace Accounting101.Tests
             Assert.IsNull(Manager.GetRegion(Regions.Documents).GetViewModel(AppModules.Module1));
             Assert.IsNull(Manager.GetRegion(Regions.Documents).GetViewModel(AppModules.Module2));
         }
+
         [Test]
         public void Navigation()
         {
@@ -35,6 +36,7 @@ namespace Accounting101.Tests
             Assert.AreEqual(AppModules.Module1, Manager.GetRegion(Regions.Navigation).SelectedKey);
         }
     }
+
     [TestFixture, Category("Functional"), Apartment(ApartmentState.STA)]
     public class FunctionalNavigationTests : BaseTestFixture
     {

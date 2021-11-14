@@ -18,7 +18,7 @@ namespace DataAccess.Services
 
         public void NotifyChange(Type t)
         {
-            StoreChanged?.Invoke(null, new ChangeEventArgs {ChangedType = t});
+            StoreChanged?.Invoke(null, new ChangeEventArgs { ChangedType = t });
         }
 
         public LiteDatabase? Instance()

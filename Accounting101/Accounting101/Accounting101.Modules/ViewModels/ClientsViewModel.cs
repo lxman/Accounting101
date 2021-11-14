@@ -1,4 +1,7 @@
 ﻿using Accounting101.Common;
+using DataAccess;
+using DataAccess.Models;
+using DataAccess.Services;
 using DataAccess.Services.Interfaces;
 using DevExpress.Mvvm;
 using DevExpress.Mvvm.POCO;
@@ -6,9 +9,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using DataAccess;
-using DataAccess.Models;
-using DataAccess.Services;
 
 namespace Accounting101.Modules.ViewModels
 {
@@ -28,7 +28,7 @@ namespace Accounting101.Modules.ViewModels
             DataStore.StoreChanged += StoreChanged;
             List<Client> clients = DataStore.All()?.ToList() ?? new List<Client>();
             clients.ForEach(Clients.Add);
-            return ViewModelSource.Create(() => new ClientsViewModel()
+            return ViewModelSource.Create(() => new ClientsViewModel
             {
                 Caption = caption
             });
@@ -36,7 +36,6 @@ namespace Accounting101.Modules.ViewModels
 
         private static void StoreChanged(object? source, ChangeEventArgs e)
         {
-
         }
 
         public ClientsViewModel()

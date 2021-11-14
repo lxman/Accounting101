@@ -1,5 +1,4 @@
-﻿
-namespace Accounting101.Common
+﻿namespace Accounting101.Common
 {
     public interface IDocumentModule
     {
