@@ -34,13 +34,13 @@ namespace AccountTests
             {
                 var store = scope.Resolve<IDataStore>();
                 DateTime start = DateTime.Now;
-                List<AccountWInfo> accounts = [];
+                List<AccountWithInfo> accounts = [];
                 for (var x = 0; x < 500; x++)
                 {
                     Account acct = new();
                     AccountInfo info = new() { Name = $"Test{x}" };
                     acct.IsDebitAccount = _random.Next(0, 2) > 0;
-                    accounts.Add(new AccountWInfo(acct, info));
+                    accounts.Add(new AccountWithInfo(acct, info));
                 }
                 store.BulkInsert(accounts);
                 TimeSpan ts = DateTime.Now - start;
@@ -59,8 +59,8 @@ namespace AccountTests
                     }
 
                     when = when.AddMilliseconds(1);
-                    AccountWInfo? credAcct = accounts.Find(a => a.Info.Name == $"Test{creditAcct}");
-                    AccountWInfo? debAcct = accounts.Find(a => a.Info.Name == $"Tests{debitAcct}");
+                    AccountWithInfo? credAcct = accounts.Find(a => a.Info.Name == $"Test{creditAcct}");
+                    AccountWithInfo? debAcct = accounts.Find(a => a.Info.Name == $"Tests{debitAcct}");
                     Transaction tx = new(credAcct?.Id ?? Guid.Empty, debAcct?.Id ?? Guid.Empty, _random.Next(-100, 100), when);
                     txs.Add(tx);
                     if (txs.Count % 1000 == 0)

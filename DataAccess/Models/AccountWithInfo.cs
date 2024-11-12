@@ -2,7 +2,7 @@
 
 namespace DataAccess.Models
 {
-    public class AccountWInfo
+    public class AccountWithInfo
     {
         public Guid Id { get; set; }
 
@@ -14,7 +14,7 @@ namespace DataAccess.Models
 
         public DateTime Posted { get; set; }
 
-        public AccountWInfo(Account acct, AccountInfo info)
+        public AccountWithInfo(Account acct, AccountInfo info)
         {
             Id = acct.Id;
             Info = info;

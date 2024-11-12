@@ -20,7 +20,7 @@ namespace DataAccess.Models
         {
         }
 
-        public Account(AccountWInfo acct)
+        public Account(AccountWithInfo acct)
         {
             Id = acct.Id;
             Info = acct.Info.Id;

@@ -23,7 +23,7 @@ namespace DataAccess
             return result;
         }
 
-        public static Guid Create(this IDataStore store, AccountWInfo acct)
+        public static Guid Create(this IDataStore store, AccountWithInfo acct)
         {
             Guid infoId = store.GetCollection<AccountInfo>(CollectionNames.AccountInfos)?.Insert(acct.Info).AsGuid ?? Guid.Empty;
             if (infoId == Guid.Empty)
@@ -37,7 +37,7 @@ namespace DataAccess
             return result;
         }
 
-        public static void BulkInsert(this IDataStore store, List<AccountWInfo> accts)
+        public static void BulkInsert(this IDataStore store, List<AccountWithInfo> accts)
         {
             ILiteCollection<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfos);
             accts.ForEach(a =>
@@ -48,7 +48,7 @@ namespace DataAccess
             if (result > 0) store.NotifyChanged(typeof(Accounts));
         }
 
-        public static AccountWInfo? FindByName(this IDataStore store, string name)
+        public static AccountWithInfo? FindByName(this IDataStore store, string name)
         {
             ILiteCollection<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfos);
             AccountInfo? info = infos?.FindOne(i => i.Name == name) ?? null;
@@ -64,20 +64,20 @@ namespace DataAccess
                 return null;
             }
 
-            return new AccountWInfo(a, info);
+            return new AccountWithInfo(a, info);
         }
 
-        public static IEnumerable<AccountWInfo>? ForClient(this IDataStore store, Guid id)
+        public static IEnumerable<AccountWithInfo>? ForClient(this IDataStore store, Guid id)
         {
             IEnumerable<Account>? accts = store.GetCollection<Account>(CollectionNames.Accounts)
                 ?.Find(a => a.Client == id);
             if (accts is null) return null;
             ILiteCollection<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfos);
             if (infos is null) return null;
-            List<AccountWInfo> acctsWInfos = [];
+            List<AccountWithInfo> acctsWInfos = [];
             accts.ToList().ForEach(a =>
             {
-                acctsWInfos.Add(new AccountWInfo(a, infos.FindOne(i => i.Id == a.Info)));
+                acctsWInfos.Add(new AccountWithInfo(a, infos.FindOne(i => i.Id == a.Info)));
             });
             return acctsWInfos;
         }

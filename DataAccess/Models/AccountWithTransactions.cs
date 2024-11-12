@@ -5,13 +5,13 @@ using LiteDB;
 
 namespace DataAccess.Models
 {
-    public class AccountWTransactions : Account
+    public class AccountWithTransactions : Account
     {
         public List<Transaction> Transactions { get; }
 
         private readonly IDataStore _dataStore;
 
-        public AccountWTransactions(IDataStore dataStore)
+        public AccountWithTransactions(IDataStore dataStore)
         {
             _dataStore = dataStore;
             ILiteCollection<Transaction>? txDb = _dataStore.GetCollection<Transaction>(CollectionNames.Transactions);
