@@ -6,7 +6,7 @@ namespace DataAccess.Models
     {
         public Guid Id { get; protected set; } = Guid.NewGuid();
 
-        public BaseAccountingTypes Type { get; set; }
+        public BaseAccountTypes Type { get; set; }
 
         public Guid ClientId { get; set; }
 
@@ -14,7 +14,7 @@ namespace DataAccess.Models
 
         public decimal StartBalance { get; set; }
 
-        public bool IsDebitAccount => Type is BaseAccountingTypes.Asset or BaseAccountingTypes.Expense;
+        public bool IsDebitAccount => Type is BaseAccountTypes.Asset or BaseAccountTypes.Expense;
 
         public DateTime Created { get; set; } = DateTime.UtcNow;
 

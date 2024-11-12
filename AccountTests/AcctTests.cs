@@ -37,14 +37,14 @@ namespace AccountTests
                 {
                     Account acct = new();
                     AccountInfo info = new() { Name = $"TestDebit{x}" };
-                    acct.Type = (BaseAccountingTypes)_random.Next(0, 2);
+                    acct.Type = (BaseAccountTypes)_random.Next(0, 2);
                     accounts.Add(new AccountWithInfo(acct, info));
                 }
                 for (var x = 0; x < 500; x++)
                 {
                     Account acct = new();
                     AccountInfo info = new() { Name = $"TestCredit{x}" };
-                    acct.Type = (BaseAccountingTypes)(_random.Next(0, 3) + 2);
+                    acct.Type = (BaseAccountTypes)(_random.Next(0, 3) + 2);
                     accounts.Add(new AccountWithInfo(acct, info));
                 }
                 store.BulkInsert(accounts);
