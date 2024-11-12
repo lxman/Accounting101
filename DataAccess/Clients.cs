@@ -25,7 +25,7 @@ namespace DataAccess
             return store.GetCollection<Client>(CollectionNames.Clients)?.FindById(id);
         }
 
-        public static IEnumerable<Client>? All(this IDataStore store)
+        public static IEnumerable<Client>? All(this IDataStore? store)
         {
             return store.GetCollection<Client>(CollectionNames.Clients)?.FindAll();
         }

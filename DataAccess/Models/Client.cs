@@ -6,7 +6,7 @@ namespace DataAccess.Models
     {
         public Guid Id { get; set; }
 
-        public string BusinessName { get; set; }
+        public string BusinessName { get; set; } = string.Empty;
 
         public Guid Name { get; set; }
 

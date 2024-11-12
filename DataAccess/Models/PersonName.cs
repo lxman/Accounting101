@@ -7,7 +7,7 @@ namespace DataAccess.Models
     {
         public Guid Id { get; set; }
 
-        public List<Guid> UsedBy { get; } = new();
+        public List<Guid> UsedBy { get; } = [];
 
         public string Prefix { get; set; }
 

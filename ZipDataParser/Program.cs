@@ -1,7 +1,8 @@
-﻿using LiteDB;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using LiteDB;
+// ReSharper disable StringLiteralTypo
 
 namespace ZipDataParser
 {
@@ -10,7 +11,7 @@ namespace ZipDataParser
         private static void Main(string[] args)
         {
             List<string> data = File.ReadAllLines("ziplist5.txt").ToList();
-            List<Entry> entries = new();
+            List<Entry> entries = [];
             data.ForEach(d =>
             {
                 string[] parts = d.Split(',');
@@ -19,7 +20,7 @@ namespace ZipDataParser
                     City = parts[0],
                     State = parts[1],
                     Zip = parts[2],
-                    FIPS = parts[3],
+                    Fips = parts[3],
                     County = parts[4]
                 };
                 entries.Add(e);

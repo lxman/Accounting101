@@ -1,6 +1,6 @@
-﻿using DataAccess.Interfaces;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using DataAccess.Interfaces;
 
 namespace DataAccess.Models
 {
@@ -8,7 +8,7 @@ namespace DataAccess.Models
     {
         public Guid Id { get; set; }
 
-        public List<Guid> UsedBy { get; } = new();
+        public List<Guid> UsedBy { get; } = [];
 
         public string Line1 { get; set; }
 

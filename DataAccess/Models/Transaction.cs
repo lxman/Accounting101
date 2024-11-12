@@ -1,4 +1,5 @@
 ﻿using System;
+// ReSharper disable ConvertToPrimaryConstructor
 
 namespace DataAccess.Models
 {

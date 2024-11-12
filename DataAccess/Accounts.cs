@@ -1,9 +1,9 @@
-﻿using DataAccess.Models;
-using DataAccess.Services.Interfaces;
-using LiteDB;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using DataAccess.Models;
+using DataAccess.Services.Interfaces;
+using LiteDB;
 
 namespace DataAccess
 {
@@ -74,7 +74,7 @@ namespace DataAccess
             if (accts is null) return null;
             ILiteCollection<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfos);
             if (infos is null) return null;
-            List<AccountWInfo> acctsWInfos = new();
+            List<AccountWInfo> acctsWInfos = [];
             accts.ToList().ForEach(a =>
             {
                 acctsWInfos.Add(new AccountWInfo(a, infos.FindOne(i => i.Id == a.Info)));

@@ -14,7 +14,7 @@ namespace DataAccess.Models
 
         public bool IsDebitAccount { get; set; }
 
-        public DateTime Posted { get; set; } = DateTime.UtcNow;
+        public DateTime Created { get; set; } = DateTime.UtcNow;
 
         public Account()
         {
@@ -26,7 +26,7 @@ namespace DataAccess.Models
             Info = acct.Info.Id;
             StartBalance = acct.StartBalance;
             IsDebitAccount = acct.IsDebitAccount;
-            Posted = acct.Posted;
+            Created = acct.Posted;
         }
     }
 }

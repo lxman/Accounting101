@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using Autofac;
 using DataAccess;
 using DataAccess.Interfaces;
@@ -5,31 +7,26 @@ using DataAccess.Models;
 using DataAccess.Services;
 using DataAccess.Services.Interfaces;
 using FluentAssertions;
-using System;
-using System.IO;
 using Xunit;
-using IContainer = Autofac.IContainer;
 
 namespace DataAccessTests
 {
     public class DatabaseTests
     {
-        private readonly IContainer Container;
-        private const string DbFile = @"C:\temp\Accounts.db";
+        private readonly IContainer _container;
+        private readonly string _dbFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "XUnitTest.db");
 
         public DatabaseTests()
         {
-            ContainerBuilder? builder = new ContainerBuilder();
-            _ = builder.RegisterType<DataStore>()
-                .As<IDataStore>()
-                .SingleInstance();
-            Container = builder.Build();
+            var builder = new ContainerBuilder();
+            _ = builder.RegisterInstance<IDataStore>(new DataStore($"FileName={_dbFile};"));
+            _container = builder.Build();
         }
 
         [Fact]
         public void AccountTests()
         {
-            using (ILifetimeScope scope = Container.BeginLifetimeScope())
+            using (ILifetimeScope scope = _container.BeginLifetimeScope())
             {
                 Account acct = new();
                 AccountInfo info = new()
@@ -39,41 +36,41 @@ namespace DataAccessTests
                 acct.StartBalance = 0;
                 Guid id = scope.Resolve<IDataStore>().Create(acct, info);
                 _ = id.Should().NotBeEmpty();
-                bool result = File.Exists(DbFile);
+                bool result = File.Exists(_dbFile);
                 _ = result.Should().BeTrue();
                 scope.Resolve<IDataStore>().Dispose();
             }
-            File.Delete(DbFile);
+            File.Delete(_dbFile);
         }
 
         [Fact]
         public void TransactionTests()
         {
-            using (ILifetimeScope scope = Container.BeginLifetimeScope())
+            using (ILifetimeScope scope = _container.BeginLifetimeScope())
             {
                 Account acctCredit = new();
                 Account acctDebit = new();
                 AccountInfo infoCredit = new() { Name = "Credit Account" };
                 AccountInfo infoDebit = new() { Name = "Debit Account" };
-                IDataStore store = scope.Resolve<IDataStore>();
+                var store = scope.Resolve<IDataStore>();
                 Guid idCredit = store.Create(acctCredit, infoCredit);
                 _ = idCredit.Should().NotBeEmpty();
                 Guid idDebit = store.Create(acctDebit, infoDebit);
                 _ = idDebit.Should().NotBeEmpty();
-                bool result = File.Exists(DbFile);
+                bool result = File.Exists(_dbFile);
                 _ = result.Should().BeTrue();
                 Transaction tx = new(idCredit, idDebit, 0, DateTime.Now);
-                Guid txId = Transactions.Create(store, tx);
+                var txId = store.CreateTransaction(tx);
                 _ = txId.Should().NotBeEmpty();
                 store.Dispose();
             }
-            File.Delete(DbFile);
+            File.Delete(_dbFile);
         }
 
         [Fact]
         public void ClientTests()
         {
-            using (ILifetimeScope scope = Container.BeginLifetimeScope())
+            using (ILifetimeScope scope = _container.BeginLifetimeScope())
             {
                 PersonName name = new()
                 {
@@ -93,12 +90,12 @@ namespace DataAccessTests
                 {
                     BusinessName = "JordanSoft"
                 };
-                IDataStore store = scope.Resolve<IDataStore>();
+                var store = scope.Resolve<IDataStore>();
                 Guid nameId = store.Create(name);
                 _ = nameId.Should().NotBeEmpty();
                 Guid addressId = store.Create(address);
                 _ = addressId.Should().NotBeEmpty();
-                bool result = File.Exists(DbFile);
+                bool result = File.Exists(_dbFile);
                 _ = result.Should().BeTrue();
                 c.Name = nameId;
                 c.Address = addressId;
@@ -106,7 +103,7 @@ namespace DataAccessTests
                 _ = clientId.Should().NotBeEmpty();
                 store.Dispose();
             }
-            File.Delete(DbFile);
+            File.Delete(_dbFile);
         }
     }
 }

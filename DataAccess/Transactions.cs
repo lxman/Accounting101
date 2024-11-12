@@ -1,15 +1,15 @@
-﻿using DataAccess.Models;
-using DataAccess.Services.Interfaces;
-using LiteDB;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using DataAccess.Models;
+using DataAccess.Services.Interfaces;
+using LiteDB;
 
 namespace DataAccess
 {
     public static class Transactions
     {
-        public static Guid Create(IDataStore store, Transaction tx)
+        public static Guid CreateTransaction(this IDataStore store, Transaction tx)
         {
             ILiteCollection<Account>? accts = store.GetCollection<Account>(CollectionNames.Accounts);
             if (accts is null)
@@ -21,15 +21,15 @@ namespace DataAccess
             Account debAcct = accts.FindOne(a => a.Id == tx.DebitAccount);
             Guid result = credAcct is null
                 || debAcct is null
-                || tx.When < credAcct.Posted
-                || tx.When < debAcct.Posted
+                || tx.When < credAcct.Created
+                || tx.When < debAcct.Created
                 ? Guid.Empty
                 : store.GetCollection<Transaction>(CollectionNames.Transactions)?.Insert(tx).AsGuid ?? Guid.Empty;
             if (result != Guid.Empty) store.NotifyChanged(typeof(Transactions));
             return result;
         }
 
-        public static List<Transaction> BulkInsert(IDataStore store, List<Transaction> txs, bool verify = false)
+        public static List<Transaction> BulkInsertTransactions(this IDataStore store, List<Transaction> txs, bool verify = false)
         {
             ILiteCollection<Account>? accts = store.GetCollection<Account>(CollectionNames.Accounts);
             if (accts is null)
@@ -37,8 +37,8 @@ namespace DataAccess
                 return txs;
             }
 
-            List<Transaction> toInsert = new();
-            List<Transaction> invalid = new();
+            List<Transaction> toInsert = [];
+            List<Transaction> invalid = [];
             if (verify)
             {
                 txs.ForEach(t =>
@@ -47,8 +47,8 @@ namespace DataAccess
                     Account debAcct = accts.FindOne(a => a.Id == t.DebitAccount);
                     if (credAcct is null
                         || debAcct is null
-                        || t.When < credAcct.Posted
-                        || t.When < debAcct.Posted
+                        || t.When < credAcct.Created
+                        || t.When < debAcct.Created
                     )
                     {
                         invalid.Add(t);
@@ -68,10 +68,16 @@ namespace DataAccess
             return invalid;
         }
 
-        public static List<Transaction>? ForAccount(IDataStore store, Guid acct)
+        public static List<Transaction>? TransactionsForAccount(this IDataStore store, Guid acct)
         {
             return store.GetCollection<Transaction>(CollectionNames.Transactions)
                 ?.Find(t => t.CreditAccount == acct || t.DebitAccount == acct).ToList();
+        }
+
+        public static List<Transaction>? TransactionsForAccount(this IDataStore store, Guid acct, DateTime start, DateTime end)
+        {
+            return store.GetCollection<Transaction>(CollectionNames.Transactions)
+                ?.Find(t => (t.CreditAccount == acct || t.DebitAccount == acct) && t.When >= start && t.When <= end).ToList();
         }
     }
 }

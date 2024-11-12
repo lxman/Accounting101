@@ -20,7 +20,7 @@ namespace DataAccess.Models
             Info = info;
             StartBalance = acct.StartBalance;
             IsDebitAccount = acct.IsDebitAccount;
-            Posted = acct.Posted;
+            Posted = acct.Created;
         }
     }
 }

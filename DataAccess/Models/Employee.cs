@@ -7,7 +7,7 @@ namespace DataAccess.Models
     {
         public Guid Id { get; set; }
 
-        public List<Guid> Clients { get; } = new();
+        public List<Guid> Clients { get; } = [];
 
         public Guid Name { get; set; }
 

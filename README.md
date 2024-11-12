@@ -1,5 +1,17 @@
 # Accounting101
 
-This project is intended for professional accountants and is based on double entry bookkeeping principles. Currently the beginnings of the database as well as the front end are in place. The UI will be built using DevExpress WPF MVVM components so to participate in development it will be necessary to have a license for them.
+So it's been some time since I have revisited this project and I've found that DevExpress has broken DI. Therefore the front end has been removed. I will be focusing on development of the accounting engine based on first principles that I have learned over my years in accounting projects.
 
-I have spent the last six years working on a commercial accounting product and one of my main goals here is to set up the design to overcome some poor decisions that were made in that product's design. I do not have any sort of NDA or Non-Compete in place so there are no covenant violations that I am aware of. Plus, this product will be based on completely different tech than that product.
+I have spent a number of years working on commercial accounting products and one of my main goals here is to avoid some poor decisions that were made in the design of those products.
+
+Some brief notes of some principles that I have learned:
+
+1. Without the proper concepts clearly set out before the first line of code is written, accounting is hard.
+
+2. The farther you go down the path of #1 without a clear understanding of the concepts, the harder it gets.
+
+3. Accounting is fractal. (Coastline measurement problem)
+
+4. Beginning to record balances with every transaction is the beginning of the death of your accounting system.
+
+5. P&L and Balance Sheets are the calculus of the accounting world. If your project cannot produce accurate and repeatable P&L and Balance Sheets, you are not doing accounting. All you are doing is adding and subtracting numbers. That is not accounting.

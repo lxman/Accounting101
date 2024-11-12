@@ -1,6 +1,6 @@
-﻿using DataAccess.Services.Interfaces;
+﻿using System;
+using DataAccess.Services.Interfaces;
 using LiteDB;
-using System;
 
 namespace DataAccess.Services
 {
@@ -8,34 +8,33 @@ namespace DataAccess.Services
     {
         public event EventHandler<ChangeEventArgs> StoreChanged;
 
-        private readonly LiteDatabase? Db;
-        private bool DisposedValue;
+        private readonly LiteDatabase? _db;
+        private bool _disposedValue;
 
         public DataStore()
         {
-            Db ??= new LiteDatabase(ConnectionString.ConnString);
+            _db ??= new LiteDatabase(ConnectionString.ConnString);
+        }
+
+        public DataStore(string connString)
+        {
+            _db ??= new LiteDatabase(connString);
         }
 
         public void NotifyChange(Type t)
         {
-            StoreChanged?.Invoke(null, new ChangeEventArgs { ChangedType = t });
+            StoreChanged(null, new ChangeEventArgs { ChangedType = t });
         }
 
-        public LiteDatabase? Instance()
-        {
-            return Db;
-        }
+        public LiteDatabase? Instance() => _db;
 
-        public ILiteCollection<T>? GetCollection<T>(string name)
-        {
-            return Db?.GetCollection<T>(name);
-        }
+        public ILiteCollection<T>? GetCollection<T>(string name) => _db?.GetCollection<T>(name);
 
         public BsonValue AddItem<T>(T item)
         {
-            if (Db?.CollectionExists(typeof(T).Name) ?? false)
+            if (_db?.CollectionExists(typeof(T).Name) ?? false)
             {
-                return Db?.GetCollection<T>()?.Insert(item) ?? false;
+                return _db?.GetCollection<T>()?.Insert(item) ?? false;
             }
 
             return false;
@@ -43,17 +42,17 @@ namespace DataAccess.Services
 
         protected virtual void Dispose(bool disposing)
         {
-            if (DisposedValue)
+            if (_disposedValue)
             {
                 return;
             }
 
             if (disposing)
             {
-                Db?.Dispose();
+                _db?.Dispose();
             }
 
-            DisposedValue = true;
+            _disposedValue = true;
         }
 
         public void Dispose()

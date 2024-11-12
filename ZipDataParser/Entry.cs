@@ -10,7 +10,7 @@
 
         public string AreaCode { get; set; }
 
-        public string FIPS { get; set; }
+        public string Fips { get; set; }
 
         public string County { get; set; }
     }
