@@ -2,8 +2,8 @@
 public enum BaseAccountingTypes
 {
     Asset,
+    Expense,
     Liability,
     Equity,
-    Revenue,
-    Expense
+    Revenue
 }

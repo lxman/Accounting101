@@ -17,7 +17,7 @@ namespace DataAccess
                 return Guid.Empty;
             }
 
-            acct.Info = infoId;
+            acct.InfoId = infoId;
             Guid result = store.GetCollection<Account>(CollectionNames.Accounts)?.Insert(acct).AsGuid ?? Guid.Empty;
             if (result != Guid.Empty) store.NotifyChanged(typeof(Accounts));
             return result;
@@ -58,7 +58,7 @@ namespace DataAccess
             }
 
             ILiteCollection<Account>? accts = store.GetCollection<Account>(CollectionNames.Accounts);
-            Account? a = accts?.FindOne(a => a.Info == info.Id);
+            Account? a = accts?.FindOne(a => a.InfoId == info.Id);
             if (a is null)
             {
                 return null;
@@ -70,14 +70,14 @@ namespace DataAccess
         public static IEnumerable<AccountWithInfo>? ForClient(this IDataStore store, Guid id)
         {
             IEnumerable<Account>? accts = store.GetCollection<Account>(CollectionNames.Accounts)
-                ?.Find(a => a.Client == id);
+                ?.Find(a => a.ClientId == id);
             if (accts is null) return null;
             ILiteCollection<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfos);
             if (infos is null) return null;
             List<AccountWithInfo> acctsWInfos = [];
             accts.ToList().ForEach(a =>
             {
-                acctsWInfos.Add(new AccountWithInfo(a, infos.FindOne(i => i.Id == a.Info)));
+                acctsWInfos.Add(new AccountWithInfo(a, infos.FindOne(i => i.Id == a.InfoId)));
             });
             return acctsWInfos;
         }

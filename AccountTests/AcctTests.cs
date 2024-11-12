@@ -16,14 +16,12 @@ namespace AccountTests
     {
         private readonly Random _random = new(DateTime.Now.Millisecond);
         private readonly IContainer _container;
-        private readonly string _dbFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Accounts.db");
+        private readonly string _dbFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), $"XUnitTest_{Guid.NewGuid()}.db");
 
         public AcctTests()
         {
             var builder = new ContainerBuilder();
-            _ = builder.RegisterType<DataStore>()
-                .As<IDataStore>()
-                .SingleInstance();
+            _ = builder.RegisterInstance<IDataStore>(new DataStore($"FileName={_dbFile};"));
             _container = builder.Build();
         }
 
@@ -38,15 +36,22 @@ namespace AccountTests
                 for (var x = 0; x < 500; x++)
                 {
                     Account acct = new();
-                    AccountInfo info = new() { Name = $"Test{x}" };
-                    acct.IsDebitAccount = _random.Next(0, 2) > 0;
+                    AccountInfo info = new() { Name = $"TestDebit{x}" };
+                    acct.Type = (BaseAccountingTypes)_random.Next(0, 2);
+                    accounts.Add(new AccountWithInfo(acct, info));
+                }
+                for (var x = 0; x < 500; x++)
+                {
+                    Account acct = new();
+                    AccountInfo info = new() { Name = $"TestCredit{x}" };
+                    acct.Type = (BaseAccountingTypes)(_random.Next(0, 3) + 2);
                     accounts.Add(new AccountWithInfo(acct, info));
                 }
                 store.BulkInsert(accounts);
                 TimeSpan ts = DateTime.Now - start;
-                Debug.WriteLine($"Creation of initial accounts took {ts.TotalMilliseconds} ms.");
+                Debug.WriteLine($"Creation of initial 1000 accounts took {ts.TotalMilliseconds} ms.");
                 start = DateTime.Now;
-                ts.Milliseconds.Should().BeLessThan(8000);
+                ts.TotalMilliseconds.Should().BeLessThan(8000);
                 DateTime when = DateTime.Now;
                 List<Transaction> txs = [];
                 for (var x = 0; x < 100000; x++)
@@ -59,8 +64,8 @@ namespace AccountTests
                     }
 
                     when = when.AddMilliseconds(1);
-                    AccountWithInfo? credAcct = accounts.Find(a => a.Info.Name == $"Test{creditAcct}");
-                    AccountWithInfo? debAcct = accounts.Find(a => a.Info.Name == $"Tests{debitAcct}");
+                    AccountWithInfo? credAcct = accounts.Find(a => a.Info.Name == $"TestCredit{creditAcct}");
+                    AccountWithInfo? debAcct = accounts.Find(a => a.Info.Name == $"TestDebit{debitAcct}");
                     Transaction tx = new(credAcct?.Id ?? Guid.Empty, debAcct?.Id ?? Guid.Empty, _random.Next(-100, 100), when);
                     txs.Add(tx);
                     if (txs.Count % 1000 == 0)

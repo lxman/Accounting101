@@ -4,15 +4,17 @@ namespace DataAccess.Models
 {
     public class Account
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
+        public Guid Id { get; protected set; } = Guid.NewGuid();
 
-        public Guid Client { get; set; }
+        public BaseAccountingTypes Type { get; set; }
 
-        public Guid Info { get; set; }
+        public Guid ClientId { get; set; }
+
+        public Guid InfoId { get; set; }
 
         public decimal StartBalance { get; set; }
 
-        public bool IsDebitAccount { get; set; }
+        public bool IsDebitAccount => Type is BaseAccountingTypes.Asset or BaseAccountingTypes.Expense;
 
         public DateTime Created { get; set; } = DateTime.UtcNow;
 
@@ -23,10 +25,11 @@ namespace DataAccess.Models
         public Account(AccountWithInfo acct)
         {
             Id = acct.Id;
-            Info = acct.Info.Id;
+            Type = acct.Type;
+            ClientId = acct.ClientId;
+            InfoId = acct.InfoId;
             StartBalance = acct.StartBalance;
-            IsDebitAccount = acct.IsDebitAccount;
-            Created = acct.Posted;
+            Created = acct.Created;
         }
     }
 }

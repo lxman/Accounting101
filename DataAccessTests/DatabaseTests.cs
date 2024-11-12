@@ -14,7 +14,7 @@ namespace DataAccessTests
     public class DatabaseTests
     {
         private readonly IContainer _container;
-        private readonly string _dbFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "XUnitTest.db");
+        private readonly string _dbFile = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), $"XUnitTest_{Guid.NewGuid()}.db");
 
         public DatabaseTests()
         {
@@ -60,7 +60,7 @@ namespace DataAccessTests
                 bool result = File.Exists(_dbFile);
                 _ = result.Should().BeTrue();
                 Transaction tx = new(idCredit, idDebit, 0, DateTime.Now);
-                var txId = store.CreateTransaction(tx);
+                Guid txId = store.CreateTransaction(tx);
                 _ = txId.Should().NotBeEmpty();
                 store.Dispose();
             }
