@@ -9,7 +9,7 @@ namespace DataAccess
 {
     public static class Accounts
     {
-        public static Guid Create(this IDataStore store, Account acct, AccountInfo info)
+        public static Guid CreateAccount(this IDataStore store, Account acct, AccountInfo info)
         {
             Guid infoId = store.GetCollection<AccountInfo>(CollectionNames.AccountInfos)?.Insert(info).AsGuid ?? Guid.Empty;
             if (infoId == Guid.Empty)
@@ -23,7 +23,7 @@ namespace DataAccess
             return result;
         }
 
-        public static Guid Create(this IDataStore store, AccountWithInfo acct)
+        public static Guid CreateAccount(this IDataStore store, AccountWithInfo acct)
         {
             Guid infoId = store.GetCollection<AccountInfo>(CollectionNames.AccountInfos)?.Insert(acct.Info).AsGuid ?? Guid.Empty;
             if (infoId == Guid.Empty)
@@ -37,7 +37,7 @@ namespace DataAccess
             return result;
         }
 
-        public static void BulkInsert(this IDataStore store, List<AccountWithInfo> accts)
+        public static void BulkInsertAccounts(this IDataStore store, List<AccountWithInfo> accts)
         {
             ILiteCollection<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfos);
             accts.ForEach(a =>
@@ -48,7 +48,7 @@ namespace DataAccess
             if (result > 0) store.NotifyChanged(typeof(Accounts));
         }
 
-        public static AccountWithInfo? FindByName(this IDataStore store, string name)
+        public static AccountWithInfo? FindAccountByName(this IDataStore store, string name)
         {
             ILiteCollection<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfos);
             AccountInfo? info = infos?.FindOne(i => i.Name == name) ?? null;
@@ -67,7 +67,7 @@ namespace DataAccess
             return new AccountWithInfo(a, info);
         }
 
-        public static IEnumerable<AccountWithInfo>? ForClient(this IDataStore store, Guid id)
+        public static IEnumerable<AccountWithInfo>? AccountsForClient(this IDataStore store, Guid id)
         {
             IEnumerable<Account>? accts = store.GetCollection<Account>(CollectionNames.Accounts)
                 ?.Find(a => a.ClientId == id);

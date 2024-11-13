@@ -34,7 +34,7 @@ namespace DataAccessTests
                     Name = "Test"
                 };
                 acct.StartBalance = 0;
-                Guid id = scope.Resolve<IDataStore>().Create(acct, info);
+                Guid id = scope.Resolve<IDataStore>().CreateAccount(acct, info);
                 _ = id.Should().NotBeEmpty();
                 bool result = File.Exists(_dbFile);
                 _ = result.Should().BeTrue();
@@ -53,9 +53,9 @@ namespace DataAccessTests
                 AccountInfo infoCredit = new() { Name = "Credit Account" };
                 AccountInfo infoDebit = new() { Name = "Debit Account" };
                 var store = scope.Resolve<IDataStore>();
-                Guid idCredit = store.Create(acctCredit, infoCredit);
+                Guid idCredit = store.CreateAccount(acctCredit, infoCredit);
                 _ = idCredit.Should().NotBeEmpty();
-                Guid idDebit = store.Create(acctDebit, infoDebit);
+                Guid idDebit = store.CreateAccount(acctDebit, infoDebit);
                 _ = idDebit.Should().NotBeEmpty();
                 bool result = File.Exists(_dbFile);
                 _ = result.Should().BeTrue();
@@ -91,15 +91,15 @@ namespace DataAccessTests
                     BusinessName = "JordanSoft"
                 };
                 var store = scope.Resolve<IDataStore>();
-                Guid nameId = store.Create(name);
+                Guid nameId = store.CreateName(name);
                 _ = nameId.Should().NotBeEmpty();
-                Guid addressId = store.Create(address);
+                Guid addressId = store.CreateAddress(address);
                 _ = addressId.Should().NotBeEmpty();
                 bool result = File.Exists(_dbFile);
                 _ = result.Should().BeTrue();
                 c.NameId = nameId;
                 c.AddressId = addressId;
-                Guid clientId = store.Create(c);
+                Guid clientId = store.CreateClient(c);
                 _ = clientId.Should().NotBeEmpty();
                 store.Dispose();
             }

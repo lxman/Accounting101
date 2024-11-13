@@ -47,7 +47,7 @@ namespace AccountTests
                     acct.Type = (BaseAccountTypes)(_random.Next(0, 3) + 2);
                     accounts.Add(new AccountWithInfo(acct, info));
                 }
-                store.BulkInsert(accounts);
+                store.BulkInsertAccounts(accounts);
                 TimeSpan ts = DateTime.Now - start;
                 Debug.WriteLine($"Creation of initial 1000 accounts took {ts.TotalMilliseconds} ms.");
                 start = DateTime.Now;

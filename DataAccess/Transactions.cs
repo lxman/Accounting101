@@ -74,7 +74,7 @@ namespace DataAccess
                 ?.Find(t => t.CreditAccountId == acct || t.DebitAccountIds == acct).ToList();
         }
 
-        public static List<Transaction>? TransactionsForAccount(this IDataStore store, Guid acct, DateTime start, DateTime end)
+        public static List<Transaction>? TransactionsForAccountByDate(this IDataStore store, Guid acct, DateTime start, DateTime end)
         {
             return store.GetCollection<Transaction>(CollectionNames.Transactions)
                 ?.Find(t => (t.CreditAccountId == acct || t.DebitAccountIds == acct) && t.When >= start && t.When <= end).ToList();
