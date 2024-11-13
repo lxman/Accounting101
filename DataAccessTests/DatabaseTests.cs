@@ -97,8 +97,8 @@ namespace DataAccessTests
                 _ = addressId.Should().NotBeEmpty();
                 bool result = File.Exists(_dbFile);
                 _ = result.Should().BeTrue();
-                c.Name = nameId;
-                c.Address = addressId;
+                c.NameId = nameId;
+                c.AddressId = addressId;
                 Guid clientId = store.Create(c);
                 _ = clientId.Should().NotBeEmpty();
                 store.Dispose();

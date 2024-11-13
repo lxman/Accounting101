@@ -17,8 +17,8 @@ namespace DataAccess
                 return Guid.Empty;
             }
 
-            Account credAcct = accts.FindOne(a => a.Id == tx.CreditAccount);
-            Account debAcct = accts.FindOne(a => a.Id == tx.DebitAccount);
+            Account credAcct = accts.FindOne(a => a.Id == tx.CreditAccountId);
+            Account debAcct = accts.FindOne(a => a.Id == tx.DebitAccountIds);
             Guid result = credAcct is null
                 || debAcct is null
                 || tx.When < credAcct.Created
@@ -43,8 +43,8 @@ namespace DataAccess
             {
                 txs.ForEach(t =>
                 {
-                    Account credAcct = accts.FindOne(a => a.Id == t.CreditAccount);
-                    Account debAcct = accts.FindOne(a => a.Id == t.DebitAccount);
+                    Account credAcct = accts.FindOne(a => a.Id == t.CreditAccountId);
+                    Account debAcct = accts.FindOne(a => a.Id == t.DebitAccountIds);
                     if (credAcct is null
                         || debAcct is null
                         || t.When < credAcct.Created
@@ -71,13 +71,13 @@ namespace DataAccess
         public static List<Transaction>? TransactionsForAccount(this IDataStore store, Guid acct)
         {
             return store.GetCollection<Transaction>(CollectionNames.Transactions)
-                ?.Find(t => t.CreditAccount == acct || t.DebitAccount == acct).ToList();
+                ?.Find(t => t.CreditAccountId == acct || t.DebitAccountIds == acct).ToList();
         }
 
         public static List<Transaction>? TransactionsForAccount(this IDataStore store, Guid acct, DateTime start, DateTime end)
         {
             return store.GetCollection<Transaction>(CollectionNames.Transactions)
-                ?.Find(t => (t.CreditAccount == acct || t.DebitAccount == acct) && t.When >= start && t.When <= end).ToList();
+                ?.Find(t => (t.CreditAccountId == acct || t.DebitAccountIds == acct) && t.When >= start && t.When <= end).ToList();
         }
     }
 }

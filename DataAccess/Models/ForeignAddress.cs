@@ -8,7 +8,7 @@ namespace DataAccess.Models
     {
         public Guid Id { get; set; }
 
-        public List<Guid> UsedBy { get; } = [];
+        public List<Guid> UsedByIds { get; } = [];
 
         public string Country { get; set; }
 

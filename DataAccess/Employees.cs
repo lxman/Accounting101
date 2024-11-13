@@ -32,7 +32,7 @@ namespace DataAccess
 
         public static IEnumerable<Employee> ForClient(this IDataStore store, Guid clientId)
         {
-            return store.GetCollection<Employee>(CollectionNames.Employees)?.Find(e => e.Clients.Contains(clientId)) ??
+            return store.GetCollection<Employee>(CollectionNames.Employees)?.Find(e => e.ClientIds.Contains(clientId)) ??
                    new List<Employee>();
         }
     }

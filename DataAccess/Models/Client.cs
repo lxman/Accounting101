@@ -8,8 +8,8 @@ namespace DataAccess.Models
 
         public string BusinessName { get; set; } = string.Empty;
 
-        public Guid Name { get; set; }
+        public Guid NameId { get; set; }
 
-        public Guid Address { get; set; }
+        public Guid AddressId { get; set; }
     }
 }

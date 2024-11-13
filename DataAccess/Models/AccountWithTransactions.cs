@@ -16,7 +16,7 @@ namespace DataAccess.Models
             _dataStore = dataStore;
             ILiteCollection<Transaction>? txDb = _dataStore.GetCollection<Transaction>(CollectionNames.Transactions);
             if (txDb is null) return;
-            Transactions = txDb.FindAll().Where(tx => tx.DebitAccount == Id || tx.CreditAccount == Id).ToList();
+            Transactions = txDb.FindAll().Where(tx => tx.DebitAccountIds == Id || tx.CreditAccountId == Id).ToList();
         }
     }
 }

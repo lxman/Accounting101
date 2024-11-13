@@ -7,10 +7,10 @@ namespace DataAccess.Models
     {
         public Guid Id { get; set; }
 
-        public List<Guid> Clients { get; } = [];
+        public List<Guid> ClientIds { get; } = [];
 
-        public Guid Name { get; set; }
+        public Guid NameId { get; set; }
 
-        public Guid Address { get; set; }
+        public Guid AddressId { get; set; }
     }
 }

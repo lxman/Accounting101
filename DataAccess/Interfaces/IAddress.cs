@@ -7,7 +7,7 @@ namespace DataAccess.Interfaces
     {
         public Guid Id { get; set; }
 
-        public List<Guid> UsedBy { get; }
+        public List<Guid> UsedByIds { get; }
 
         string Country { get; set; }
 
