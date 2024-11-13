@@ -18,7 +18,7 @@ namespace DataAccessTests
 
         public DatabaseTests()
         {
-            var builder = new ContainerBuilder();
+            ContainerBuilder builder = new();
             _ = builder.RegisterInstance<IDataStore>(new DataStore($"FileName={_dbFile};"));
             _container = builder.Build();
         }
@@ -52,7 +52,7 @@ namespace DataAccessTests
                 Account acctDebit = new();
                 AccountInfo infoCredit = new() { Name = "Credit Account" };
                 AccountInfo infoDebit = new() { Name = "Debit Account" };
-                var store = scope.Resolve<IDataStore>();
+                IDataStore store = scope.Resolve<IDataStore>();
                 Guid idCredit = store.CreateAccount(acctCredit, infoCredit);
                 _ = idCredit.Should().NotBeEmpty();
                 Guid idDebit = store.CreateAccount(acctDebit, infoDebit);
@@ -90,7 +90,7 @@ namespace DataAccessTests
                 {
                     BusinessName = "JordanSoft"
                 };
-                var store = scope.Resolve<IDataStore>();
+                IDataStore store = scope.Resolve<IDataStore>();
                 Guid nameId = store.CreateName(name);
                 _ = nameId.Should().NotBeEmpty();
                 Guid addressId = store.CreateAddress(address);

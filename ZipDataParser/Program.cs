@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using LiteDB;
+
 // ReSharper disable StringLiteralTypo
 
 namespace ZipDataParser

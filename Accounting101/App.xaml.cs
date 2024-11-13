@@ -16,7 +16,7 @@ namespace Accounting101
 
         public App()
         {
-            var services = new ServiceCollection();
+            ServiceCollection services = new();
             services.AddSingleton<IDataStore, DataStore>();
             services.AddSingleton<MainWindow>();
             services.AddSingleton<MainWindowViewModel>();
@@ -24,7 +24,7 @@ namespace Accounting101
             services.AddSingleton<CreateClientViewModel>();
             _serviceProvider = services.BuildServiceProvider();
 
-            var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
+            MainWindow? mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
             mainWindow?.Show();
         }
 

@@ -1,7 +1,7 @@
-﻿using DataAccess.Models;
-using DataAccess.Services.Interfaces;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using DataAccess.Models;
+using DataAccess.Services.Interfaces;
 
 namespace DataAccess
 {

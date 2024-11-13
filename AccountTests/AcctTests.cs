@@ -20,7 +20,7 @@ namespace AccountTests
 
         public AcctTests()
         {
-            var builder = new ContainerBuilder();
+            ContainerBuilder builder = new();
             _ = builder.RegisterInstance<IDataStore>(new DataStore($"FileName={_dbFile};"));
             _container = builder.Build();
         }
@@ -30,17 +30,17 @@ namespace AccountTests
         {
             using (ILifetimeScope scope = _container.BeginLifetimeScope())
             {
-                var store = scope.Resolve<IDataStore>();
+                IDataStore store = scope.Resolve<IDataStore>();
                 DateTime start = DateTime.Now;
                 List<AccountWithInfo> accounts = [];
-                for (var x = 0; x < 500; x++)
+                for (int x = 0; x < 500; x++)
                 {
                     Account acct = new();
                     AccountInfo info = new() { Name = $"TestDebit{x}" };
                     acct.Type = (BaseAccountTypes)_random.Next(0, 2);
                     accounts.Add(new AccountWithInfo(acct, info));
                 }
-                for (var x = 0; x < 500; x++)
+                for (int x = 0; x < 500; x++)
                 {
                     Account acct = new();
                     AccountInfo info = new() { Name = $"TestCredit{x}" };
@@ -54,7 +54,7 @@ namespace AccountTests
                 ts.TotalMilliseconds.Should().BeLessThan(8000);
                 DateTime when = DateTime.Now;
                 List<Transaction> txs = [];
-                for (var x = 0; x < 100000; x++)
+                for (int x = 0; x < 100000; x++)
                 {
                     int creditAcct = _random.Next(0, 500);
                     int debitAcct = _random.Next(0, 500);
