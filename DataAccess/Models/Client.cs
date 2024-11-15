@@ -8,7 +8,7 @@ namespace DataAccess.Models
 
         public string BusinessName { get; set; } = string.Empty;
 
-        public Guid NameId { get; set; }
+        public Guid PersonNameId { get; set; }
 
         public Guid AddressId { get; set; }
     }

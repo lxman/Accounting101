@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using DataAccess.Data;
+using DataAccess.ZipCodeData;
 using LiteDB;
 
 namespace DataAccess.Models

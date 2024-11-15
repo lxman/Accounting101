@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using Accounting101.ViewModels;
 using DataAccess.Services.Interfaces;
 
 namespace Accounting101
@@ -14,6 +15,7 @@ namespace Accounting101
         {
             _dataStore = store;
             InitializeComponent();
+            DataContext = new MainWindowViewModel(_dataStore);
         }
     }
 }

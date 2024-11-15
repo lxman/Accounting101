@@ -1,4 +1,4 @@
-﻿namespace DataAccess.Data
+﻿namespace DataAccess.ZipCodeData
 {
     public class Entry
     {

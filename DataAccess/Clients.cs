@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 
@@ -34,6 +35,13 @@ namespace DataAccess
         public static IEnumerable<Client>? AllClients(this IDataStore? store)
         {
             return store.GetCollection<Client>(CollectionNames.Clients)?.FindAll();
+        }
+
+        public static IEnumerable<ClientWithInfo>? AllClientsWithInfos(this IDataStore store)
+        {
+            return store.GetCollection<Client>(CollectionNames.Clients)
+                ?.FindAll()
+                .Select(c => new ClientWithInfo(store, c));
         }
 
         public static bool? DeleteClient(this IDataStore store, Guid id)

@@ -4,7 +4,9 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Accounting101"
+        xmlns:viewModels="clr-namespace:Accounting101.ViewModels"
         mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance viewModels:MainWindowViewModel}"
         Title="Accounting 101" Height="450" Width="800">
     <Grid>
         <Grid.RowDefinitions>
@@ -18,10 +20,10 @@
                     <MenuItem Header="_Open" />
                     <MenuItem Header="_Save" />
                     <Separator />
-                    <MenuItem Header="_Exit" />
+                    <MenuItem Header="_Exit" Command="{Binding ExitCommand}" CommandParameter="ApplicationCommands.Close" />
                 </MenuItem>
             </Menu>
         </DockPanel>
-        <Frame Grid.Row="1" Name="PageContent" />
+        <Frame Grid.Row="1" Name="PageContent" Content="{Binding ClientListControl}" />
     </Grid>
 </Window>
