@@ -1,0 +1,5 @@
+﻿Business defines the accounting business.
+
+A business has clients and clients have accounts.
+
+Clients may also have employees.

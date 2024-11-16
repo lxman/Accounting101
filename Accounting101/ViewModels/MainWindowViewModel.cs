@@ -10,6 +10,8 @@ namespace Accounting101.ViewModels
     {
         public ClientListControl ClientListControl { get; }
 
+        public ICommand NewCommand { get; }
+
         public ICommand ExitCommand { get; }
 
         public MainWindowViewModel(IDataStore dataStore)
