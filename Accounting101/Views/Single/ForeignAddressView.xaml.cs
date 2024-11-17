@@ -3,11 +3,11 @@
 namespace Accounting101.Views.Single
 {
     /// <summary>
-    /// Interaction logic for EmployeeControl.xaml
+    /// Interaction logic for ForeignAddressView.xaml
     /// </summary>
-    public partial class EmployeeControl : UserControl
+    public partial class ForeignAddressView : UserControl
     {
-        public EmployeeControl()
+        public ForeignAddressView()
         {
             InitializeComponent();
         }

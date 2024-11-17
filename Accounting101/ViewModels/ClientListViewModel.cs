@@ -5,11 +5,11 @@ using DataAccess.Services.Interfaces;
 
 namespace Accounting101.ViewModels
 {
-    public class ClientListControlViewModel
+    public class ClientListViewModel
     {
         public ReadOnlyObservableCollection<ClientWithInfo> Clients { get; }
 
-        public ClientListControlViewModel(IDataStore dataStore)
+        public ClientListViewModel(IDataStore dataStore)
         {
             IEnumerable<ClientWithInfo>? clients = dataStore.AllClientsWithInfos();
             Clients = clients is not null

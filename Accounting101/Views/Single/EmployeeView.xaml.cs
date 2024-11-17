@@ -3,11 +3,11 @@
 namespace Accounting101.Views.Single
 {
     /// <summary>
-    /// Interaction logic for PersonNameControl.xaml
+    /// Interaction logic for EmployeeView.xaml
     /// </summary>
-    public partial class PersonNameControl : UserControl
+    public partial class EmployeeView : UserControl
     {
-        public PersonNameControl()
+        public EmployeeView()
         {
             InitializeComponent();
         }

@@ -1,6 +1,6 @@
 ﻿namespace Accounting101.ViewModels
 {
-    public class EmployeeControlViewModel
+    public class USAddressViewModel
     {
     }
 }

@@ -8,7 +8,7 @@ namespace Accounting101.ViewModels
 {
     public class MainWindowViewModel
     {
-        public ClientListControl ClientListControl { get; }
+        public ClientListView ClientListView { get; }
 
         public ICommand NewCommand { get; }
 
@@ -16,7 +16,7 @@ namespace Accounting101.ViewModels
 
         public MainWindowViewModel(IDataStore dataStore)
         {
-            ClientListControl = new ClientListControl(dataStore);
+            ClientListView = new ClientListView(dataStore);
             ExitCommand = new DelegateCommand(() => Application.Current.Shutdown());
         }
     }

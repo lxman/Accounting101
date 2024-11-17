@@ -6,18 +6,18 @@ using DataAccess.Services.Interfaces;
 namespace Accounting101.Views.List
 {
     /// <summary>
-    /// Interaction logic for ClientListControl.xaml
+    /// Interaction logic for ClientListView.xaml
     /// </summary>
-    public partial class ClientListControl : UserControl
+    public partial class ClientListView : UserControl
     {
-        public ClientListControl(IDataStore dataStore)
+        public ClientListView(IDataStore dataStore)
         {
             InitializeComponent();
-            ClientListControlViewModel viewModel = new(dataStore);
+            ClientListViewModel viewModel = new(dataStore);
             DataContext = viewModel;
             viewModel.Clients.ToList().ForEach(c =>
             {
-                ClientList.Children.Add(new ClientControl(dataStore, c.Id));
+                ClientList.Children.Add(new ClientView(dataStore, c.Id));
             });
         }
     }

@@ -5,12 +5,26 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Accounting101.Controls"
              mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800"
+             d:DesignHeight="25" d:DesignWidth="800"
              DataContext="{Binding RelativeSource={RelativeSource Self}}">
     <Grid>
-        <StackPanel>
-            <Label x:Name="Label" Content="{Binding LabelContent}" />
-            <TextBlock x:Name="TextBlock" Text="{Binding TextBlockContent}" Padding="10, 0, 0, 0" />
-        </StackPanel>            
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Label
+            Grid.Column="0"
+            x:Name="Label"
+            Padding="5, 5, 5, 0"
+            Content="{Binding LabelContent}"
+            d:Content="Label:"
+            d:Background="White" />
+        <TextBlock
+            Grid.Column="1"
+            x:Name="TextBlock"
+            Padding="5"
+            Text="{Binding TextBlockContent}"
+            d:Text="TextBlock"
+            d:Background="White" />
     </Grid>
 </UserControl>

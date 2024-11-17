@@ -4,11 +4,11 @@ using DataAccess.Services.Interfaces;
 
 namespace Accounting101.ViewModels
 {
-    public class ClientControlViewModel
+    public class ClientViewModel
     {
         public ClientWithInfo? Client { get; }
 
-        public ClientControlViewModel(IDataStore dataStore, ClientWithInfo client)
+        public ClientViewModel(IDataStore dataStore, ClientWithInfo client)
         {
             Client = dataStore.GetClientWithInfo(client.Id);
         }

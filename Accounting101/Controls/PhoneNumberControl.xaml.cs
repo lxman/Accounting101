@@ -8,7 +8,7 @@ namespace Accounting101.Controls
     /// </summary>
     public partial class PhoneNumberControl : UserControl
     {
-        public string LabelContent { get; set; } = "Phone Number";
+        public string LabelContent { get; set; } = "Phone Number:";
 
         public string PhoneNumber
         {

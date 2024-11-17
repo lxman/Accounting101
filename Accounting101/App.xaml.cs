@@ -18,7 +18,7 @@ namespace Accounting101
             services.AddSingleton<IDataStore, DataStore>();
             services.AddSingleton<MainWindow>();
             services.AddSingleton<MainWindowViewModel>();
-            services.AddTransient<ClientListControl>();
+            services.AddTransient<ClientListView>();
             IServiceProvider serviceProvider = services.BuildServiceProvider();
 
             MainWindow? mainWindow = serviceProvider.GetRequiredService<MainWindow>();

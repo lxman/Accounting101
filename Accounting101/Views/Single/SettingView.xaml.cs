@@ -3,11 +3,11 @@
 namespace Accounting101.Views.Single
 {
     /// <summary>
-    /// Interaction logic for USAddressControl.xaml
+    /// Interaction logic for SettingView.xaml
     /// </summary>
-    public partial class USAddressControl : UserControl
+    public partial class SettingView : UserControl
     {
-        public USAddressControl()
+        public SettingView()
         {
             InitializeComponent();
         }
