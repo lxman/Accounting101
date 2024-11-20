@@ -9,13 +9,10 @@ namespace Accounting101
     /// </summary>
     public partial class MainWindow : Window
     {
-        private readonly IDataStore _dataStore;
-
-        public MainWindow(IDataStore store)
+        public MainWindow(IDataStore dataStore)
         {
-            _dataStore = store;
             InitializeComponent();
-            DataContext = new MainWindowViewModel(_dataStore);
+            DataContext = new MainWindowViewModel(dataStore);
         }
     }
 }

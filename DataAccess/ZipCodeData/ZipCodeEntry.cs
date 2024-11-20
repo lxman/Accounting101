@@ -1,6 +1,6 @@
-﻿namespace ZipDataParser
+﻿namespace DataAccess.ZipCodeData
 {
-    public class Entry
+    public class ZipCodeEntry
     {
         public string City { get; set; }
 

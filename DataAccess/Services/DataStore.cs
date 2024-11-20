@@ -1,5 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Data;
+using System.IO;
+using System.Linq;
+using DataAccess.Models;
 using DataAccess.Services.Interfaces;
+using DataAccess.ZipCodeData;
 using LiteDB;
 
 namespace DataAccess.Services
@@ -14,11 +20,13 @@ namespace DataAccess.Services
         public DataStore()
         {
             _db ??= new LiteDatabase(ConnectionString.ConnString);
+            if (_db is null || !InitZipCodeData()) throw new DataException("Error setting up database");
         }
 
         public DataStore(string connString)
         {
             _db ??= new LiteDatabase(connString);
+            if (_db is null || !InitZipCodeData()) throw new DataException("Error setting up database");
         }
 
         public void NotifyChange(Type t)
@@ -29,6 +37,11 @@ namespace DataAccess.Services
         public LiteDatabase? Instance() => _db;
 
         public ILiteCollection<T>? GetCollection<T>(string name) => _db?.GetCollection<T>(name);
+
+        public Business GetBusiness()
+        {
+            return _db?.GetCollection<Business>()?.FindAll().First() ?? new Business();
+        }
 
         public BsonValue AddItem<T>(T item)
         {
@@ -59,6 +72,30 @@ namespace DataAccess.Services
         {
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
+        }
+
+        private bool InitZipCodeData()
+        {
+            List<string> data = File.ReadAllLines("ziplist5.txt").ToList();
+            List<ZipCodeEntry> entries = [];
+            data.ForEach(d =>
+            {
+                string[] parts = d.Split(',');
+                ZipCodeEntry e = new()
+                {
+                    City = parts[0],
+                    State = parts[1],
+                    Zip = parts[2],
+                    AreaCode = parts[3],
+                    Fips = parts[4],
+                    County = parts[5]
+                };
+                entries.Add(e);
+            });
+            ILiteCollection<ZipCodeEntry>? zipCollection = _db?.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo);
+            if (zipCollection is null) return false;
+            zipCollection.InsertBulk(entries);
+            return true;
         }
     }
 }

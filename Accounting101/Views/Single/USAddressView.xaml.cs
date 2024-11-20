@@ -1,4 +1,6 @@
 ﻿using System.Windows.Controls;
+using Accounting101.ViewModels;
+using DataAccess.Services.Interfaces;
 
 namespace Accounting101.Views.Single
 {
@@ -7,9 +9,10 @@ namespace Accounting101.Views.Single
     /// </summary>
     public partial class USAddressView : UserControl
     {
-        public USAddressView()
+        public USAddressView(IDataStore dataStore, Guid id)
         {
             InitializeComponent();
+            DataContext = new USAddressViewModel(dataStore, id);
         }
     }
 }

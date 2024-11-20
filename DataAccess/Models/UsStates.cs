@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
+using DataAccess.Services.Interfaces;
 using DataAccess.ZipCodeData;
 using LiteDB;
 
@@ -9,12 +10,10 @@ namespace DataAccess.Models
     {
         public List<string> States { get; }
 
-        public UsStates()
+        public UsStates(IDataStore dataStore)
         {
-            LiteDatabase db = new(@"Data\ZipInfo.db");
-            ILiteCollection<Entry> entries = db.GetCollection<Entry>("ZipInfo");
-            States = entries.FindAll().Select(e => e.State).Distinct().ToList();
-            db.Dispose();
+            ILiteCollection<ZipCodeEntry>? zipEntries = dataStore.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo);
+            States = zipEntries?.FindAll().Select(e => e.State).Distinct().ToList() ?? [];
         }
     }
 }

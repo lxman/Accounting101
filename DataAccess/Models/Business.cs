@@ -1,6 +1,6 @@
 ﻿using DataAccess.Interfaces;
 
-namespace DataAccess
+namespace DataAccess.Models
 {
     public class Business
     {
