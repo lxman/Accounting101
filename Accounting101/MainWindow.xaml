@@ -24,6 +24,6 @@
                 </MenuItem>
             </Menu>
         </DockPanel>
-        <Frame Grid.Row="1" Name="PageContent" />
+        <Frame Grid.Row="1" Content="{Binding PageContent}" />
     </Grid>
 </Window>

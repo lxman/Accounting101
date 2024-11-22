@@ -18,20 +18,27 @@
         <controls:TextBoxWithLabelControl
             Grid.Row="0"
             LabelContent="Name:"
-            TextBoxContent="{Binding Business.Name}"
+            TextBoxText="{Binding Business.Name}"
             d:LabelContent="Name:"
-            d:TextBoxContent="Some Business" />
+            d:TextBoxText="My Business" />
         <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <Label Grid.Column="0" Content="Foreign" />
+            <Label Grid.Row="0" Grid.Column="0" Content="Foreign" />
             <CheckBox
+                Grid.Row="0"
                 Grid.Column="1"
                 Margin="5"
                 IsThreeState="False"
                 IsChecked="{Binding ForeignCheckboxState, Mode=TwoWay}" />
+            <Frame Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Content="{Binding AddressView, UpdateSourceTrigger=PropertyChanged}" />
         </Grid>
     </Grid>
 </UserControl>

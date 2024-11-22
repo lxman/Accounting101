@@ -13,6 +13,7 @@ namespace Accounting101.Dialogs
         public GetPasswordDialog()
         {
             InitializeComponent();
+            PasswordBox.Focus();
         }
 
         private void PasswordBoxKeyDown(object sender, KeyEventArgs e)

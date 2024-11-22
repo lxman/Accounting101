@@ -1,10 +1,22 @@
-﻿using DataAccess.Models;
+﻿using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using System.Windows.Controls;
+using Accounting101.Views.Create;
+using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 
 namespace Accounting101.ViewModels
 {
-    public class CreateBusinessViewModel
+    public class CreateBusinessViewModel : INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public UserControl AddressView
+        {
+            get => _addressView;
+            private set => SetField(ref _addressView, value);
+        }
+
         public bool ForeignCheckboxState
         {
             get => _foreignCheckboxState;
@@ -15,22 +27,18 @@ namespace Accounting101.ViewModels
             }
         }
 
-        public Business Business
-        {
-            get => _business;
-            set => _business = value;
-        }
+        public Business Business { get; set; }
 
         private bool _foreignCheckboxState;
-        private Business _business;
+        private readonly IDataStore _dataStore;
+        private UserControl _addressView;
 
         public CreateBusinessViewModel(IDataStore dataStore)
         {
-            _business = dataStore.GetBusiness();
-            if (_business.Address is ForeignAddress)
-            {
-                _foreignCheckboxState = true;
-            }
+            _dataStore = dataStore;
+            Business? found = _dataStore.GetBusiness();
+            Business ??= found ?? new Business();
+            _foreignCheckboxState = Business.Address is ForeignAddress;
         }
 
         private void ForeignCheckboxChangeState(bool state)
@@ -42,7 +50,21 @@ namespace Accounting101.ViewModels
             else
             {
                 Business.Address = new UsAddress();
+                AddressView = new CreateUSAddressView(_dataStore);
             }
+        }
+
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        protected bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (EqualityComparer<T>.Default.Equals(field, value)) return false;
+            field = value;
+            OnPropertyChanged(propertyName);
+            return true;
         }
     }
 }

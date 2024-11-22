@@ -4,10 +4,8 @@ using System.Windows;
 using Accounting101.Dialogs;
 using Accounting101.ViewModels;
 using Accounting101.Views.List;
-using DataAccess.Models;
 using DataAccess.Services;
 using DataAccess.Services.Interfaces;
-using LiteDB;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 #pragma warning disable CS8618, CS9264
@@ -26,6 +24,7 @@ namespace Accounting101
 
         public App()
         {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
             if (GetRegistryStatus())
             {
                 Setup setup = new();
@@ -52,6 +51,7 @@ namespace Accounting101
                             _password = e;
                         }
                     };
+                    getPasswordDialog.ShowDialog();
                 }
             }
 
@@ -74,15 +74,12 @@ namespace Accounting101
                 {
                     Directory.CreateDirectory(filePath);
                 }
-                LiteDatabase db = new(DataAccess.ConnectionString.ConnString);
-                db.Dispose();
             }
 
             ServiceCollection services = new();
             services.AddSingleton<IDataStore, DataStore>();
             services.AddSingleton<MainWindow>();
             services.AddSingleton<MainWindowViewModel>();
-            services.AddSingleton<UsStates>();
             services.AddTransient<ClientListView>();
             IServiceProvider serviceProvider = services.BuildServiceProvider();
 

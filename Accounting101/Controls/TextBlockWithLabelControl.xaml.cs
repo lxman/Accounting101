@@ -1,4 +1,5 @@
-﻿using System.Windows.Controls;
+﻿using System.Windows;
+using System.Windows.Controls;
 
 namespace Accounting101.Controls
 {
@@ -7,9 +8,23 @@ namespace Accounting101.Controls
     /// </summary>
     public partial class TextBlockWithLabelControl : UserControl
     {
-        public string LabelContent { get; set; } = "Label";
+        public static readonly DependencyProperty LabelContentProperty = DependencyProperty.Register(nameof(LabelContent),
+            typeof(string), typeof(TextBlockWithLabelControl), new PropertyMetadata(null));
 
-        public string TextBlockContent { get; set; } = "TextBlock";
+        public string LabelContent
+        {
+            get => (string)GetValue(LabelContentProperty);
+            set => SetValue(LabelContentProperty, value);
+        }
+
+        public static readonly DependencyProperty TextBlockContentProperty = DependencyProperty.Register(nameof(TextBlockContent),
+            typeof(string), typeof(TextBlockWithLabelControl), new PropertyMetadata(null));
+
+        public string TextBlockContent
+        {
+            get => (string)GetValue(TextBlockContentProperty);
+            set => SetValue(TextBlockContentProperty, value);
+        }
 
         public TextBlockWithLabelControl()
         {

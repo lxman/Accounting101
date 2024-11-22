@@ -14,5 +14,11 @@ namespace Accounting101
             InitializeComponent();
             DataContext = new MainWindowViewModel(dataStore);
         }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            base.OnClosed(e);
+            Application.Current.Shutdown();
+        }
     }
 }

@@ -7,6 +7,7 @@ using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using DataAccess.ZipCodeData;
 using LiteDB;
+#pragma warning disable CS8618, CS9264
 
 namespace DataAccess.Services
 {
@@ -20,9 +21,15 @@ namespace DataAccess.Services
         public DataStore()
         {
             _db ??= new LiteDatabase(ConnectionString.ConnString);
-            if (_db is null || !InitZipCodeData()) throw new DataException("Error setting up database");
+            if (_db is null) throw new DataException("Error setting up database");
+            if (ZipCodeEntryCount() == 0) InitZipCodeData();
         }
 
+        /// <summary>
+        /// Constructor for unit testing purposes
+        /// </summary>
+        /// <param name="connString"></param>
+        /// <exception cref="DataException"></exception>
         public DataStore(string connString)
         {
             _db ??= new LiteDatabase(connString);
@@ -38,9 +45,23 @@ namespace DataAccess.Services
 
         public ILiteCollection<T>? GetCollection<T>(string name) => _db?.GetCollection<T>(name);
 
-        public Business GetBusiness()
+        public Business? GetBusiness()
         {
-            return _db?.GetCollection<Business>()?.FindAll().First() ?? new Business();
+            List<Business> businesses = _db?.GetCollection<Business>()?.FindAll().ToList() ?? [];
+            return businesses.Count == 1 ? businesses[0] : null;
+        }
+
+        public List<string> GetStates()
+        {
+            ILiteCollection<ZipCodeEntry>? collection = _db?.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo);
+            if (collection is null)
+            {
+                throw new DataException("Error accessing the ZipCodeEntry collection.");
+            }
+
+            List<string> states = collection.Query().Select(x => x.State).ToList().Distinct().ToList();
+
+            return states;
         }
 
         public BsonValue AddItem<T>(T item)
@@ -74,9 +95,14 @@ namespace DataAccess.Services
             GC.SuppressFinalize(this);
         }
 
+        private int ZipCodeEntryCount()
+        {
+            return _db?.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo).Count() ?? 0;
+        }
+
         private bool InitZipCodeData()
         {
-            List<string> data = File.ReadAllLines("ziplist5.txt").ToList();
+            List<string> data = File.ReadAllLines(@"ZipCodeData\ziplist5.txt").ToList();
             List<ZipCodeEntry> entries = [];
             data.ForEach(d =>
             {
@@ -93,7 +119,10 @@ namespace DataAccess.Services
                 entries.Add(e);
             });
             ILiteCollection<ZipCodeEntry>? zipCollection = _db?.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo);
-            if (zipCollection is null) return false;
+            if (zipCollection is null)
+            {
+                return false;
+            }
             zipCollection.InsertBulk(entries);
             return true;
         }

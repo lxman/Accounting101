@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using DataAccess.Models;
 using LiteDB;
 
@@ -14,7 +15,9 @@ namespace DataAccess.Services.Interfaces
 
         ILiteCollection<T>? GetCollection<T>(string name);
 
-        Business GetBusiness();
+        Business? GetBusiness();
+
+        List<string> GetStates();
 
         BsonValue AddItem<T>(T item);
 
