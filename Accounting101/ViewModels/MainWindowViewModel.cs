@@ -12,6 +12,8 @@ namespace Accounting101.ViewModels
 
         public ICommand NewCommand { get; }
 
+        public ICommand SaveCommand { get; }
+
         public ICommand ExitCommand { get; }
 
         private readonly IDataStore _dataStore;

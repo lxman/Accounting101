@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using Accounting101.Views.Create;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
+#pragma warning disable CS8618, CS9264
 
 namespace Accounting101.ViewModels
 {
@@ -39,6 +40,14 @@ namespace Accounting101.ViewModels
             Business? found = _dataStore.GetBusiness();
             Business ??= found ?? new Business();
             _foreignCheckboxState = Business.Address is ForeignAddress;
+            if (_foreignCheckboxState)
+            {
+                AddressView = new CreateForeignAddressView();
+            }
+            else
+            {
+                AddressView = new CreateUSAddressView(_dataStore);
+            }
         }
 
         private void ForeignCheckboxChangeState(bool state)
@@ -46,6 +55,7 @@ namespace Accounting101.ViewModels
             if (state)
             {
                 Business.Address = new ForeignAddress();
+                AddressView = new CreateForeignAddressView();
             }
             else
             {

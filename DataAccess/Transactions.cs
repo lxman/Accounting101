@@ -11,7 +11,7 @@ namespace DataAccess
     {
         public static Guid CreateTransaction(this IDataStore store, Transaction tx)
         {
-            ILiteCollection<Account>? accts = store.GetCollection<Account>(CollectionNames.Accounts);
+            ILiteCollection<Account>? accts = store.GetCollection<Account>(CollectionNames.Account);
             if (accts is null)
             {
                 return Guid.Empty;
@@ -24,14 +24,14 @@ namespace DataAccess
                 || tx.When < credAcct.Created
                 || tx.When < debAcct.Created
                 ? Guid.Empty
-                : store.GetCollection<Transaction>(CollectionNames.Transactions)?.Insert(tx).AsGuid ?? Guid.Empty;
+                : store.GetCollection<Transaction>(CollectionNames.Transaction)?.Insert(tx).AsGuid ?? Guid.Empty;
             if (result != Guid.Empty) store.NotifyChanged(typeof(Transactions));
             return result;
         }
 
         public static List<Transaction> BulkInsertTransactions(this IDataStore store, List<Transaction> txs, bool verify = false)
         {
-            ILiteCollection<Account>? accts = store.GetCollection<Account>(CollectionNames.Accounts);
+            ILiteCollection<Account>? accts = store.GetCollection<Account>(CollectionNames.Account);
             if (accts is null)
             {
                 return txs;
@@ -63,20 +63,20 @@ namespace DataAccess
             {
                 toInsert.AddRange(txs);
             }
-            int? result = (store.GetCollection<Transaction>(CollectionNames.Transactions)?.InsertBulk(toInsert));
+            int? result = (store.GetCollection<Transaction>(CollectionNames.Transaction)?.InsertBulk(toInsert));
             if (result > 0) store.NotifyChanged(typeof(Transactions));
             return invalid;
         }
 
         public static List<Transaction>? TransactionsForAccount(this IDataStore store, Guid acct)
         {
-            return store.GetCollection<Transaction>(CollectionNames.Transactions)
+            return store.GetCollection<Transaction>(CollectionNames.Transaction)
                 ?.Find(t => t.CreditAccountId == acct || t.DebitAccountIds == acct).ToList();
         }
 
         public static List<Transaction>? TransactionsForAccountByDate(this IDataStore store, Guid acct, DateTime start, DateTime end)
         {
-            return store.GetCollection<Transaction>(CollectionNames.Transactions)
+            return store.GetCollection<Transaction>(CollectionNames.Transaction)
                 ?.Find(t => (t.CreditAccountId == acct || t.DebitAccountIds == acct) && t.When >= start && t.When <= end).ToList();
         }
     }

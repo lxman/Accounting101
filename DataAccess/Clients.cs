@@ -10,43 +10,43 @@ namespace DataAccess
     {
         public static Guid CreateClient(this IDataStore store, Client c)
         {
-            Guid result = store.GetCollection<Client>(CollectionNames.Clients)?.Insert(c).AsGuid ?? Guid.Empty;
+            Guid result = store.GetCollection<Client>(CollectionNames.Client)?.Insert(c).AsGuid ?? Guid.Empty;
             if (result != Guid.Empty) store.NotifyChanged(typeof(Clients));
             return result;
         }
 
         public static ClientWithInfo? GetClientWithInfo(this IDataStore store, Guid id)
         {
-            Client? c = store.GetCollection<Client>(CollectionNames.Clients)?.FindById(id);
+            Client? c = store.GetCollection<Client>(CollectionNames.Client)?.FindById(id);
             return c is null ? null : new ClientWithInfo(store, c);
         }
 
         public static void BulkInsertClients(this IDataStore store, IEnumerable<Client> clients)
         {
-            int? result = store.GetCollection<Client>(CollectionNames.Clients)?.InsertBulk(clients);
+            int? result = store.GetCollection<Client>(CollectionNames.Client)?.InsertBulk(clients);
             if (result > 0) store.NotifyChanged(typeof(Clients));
         }
 
         public static Client? FindClientById(this IDataStore store, Guid id)
         {
-            return store.GetCollection<Client>(CollectionNames.Clients)?.FindById(id);
+            return store.GetCollection<Client>(CollectionNames.Client)?.FindById(id);
         }
 
         public static IEnumerable<Client>? AllClients(this IDataStore? store)
         {
-            return store.GetCollection<Client>(CollectionNames.Clients)?.FindAll();
+            return store.GetCollection<Client>(CollectionNames.Client)?.FindAll();
         }
 
         public static IEnumerable<ClientWithInfo>? AllClientsWithInfos(this IDataStore store)
         {
-            return store.GetCollection<Client>(CollectionNames.Clients)
+            return store.GetCollection<Client>(CollectionNames.Client)
                 ?.FindAll()
                 .Select(c => new ClientWithInfo(store, c));
         }
 
         public static bool? DeleteClient(this IDataStore store, Guid id)
         {
-            return store.GetCollection<Client>(CollectionNames.Clients)?.Delete(id);
+            return store.GetCollection<Client>(CollectionNames.Client)?.Delete(id);
         }
     }
 }

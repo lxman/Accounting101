@@ -5,8 +5,8 @@ namespace DataAccess.Models
 {
     public class ClientWithInfo(IDataStore dataStore, Client c) : Client
     {
-        public PersonName? Name { get; set; } = dataStore.GetCollection<PersonName>(CollectionNames.PersonNames)?.FindById(c.PersonNameId);
+        public PersonName? Name { get; set; } = dataStore.GetCollection<PersonName>(CollectionNames.PersonName)?.FindById(c.PersonNameId);
 
-        public IAddress? Address { get; set; } = dataStore.GetCollection<IAddress>(CollectionNames.Addresses)?.FindById(c.AddressId);
+        public IAddress? Address { get; set; } = dataStore.GetCollection<IAddress>(CollectionNames.Address)?.FindById(c.AddressId);
     }
 }
