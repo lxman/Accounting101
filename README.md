@@ -15,3 +15,5 @@ Some brief notes of some principles that I have learned:
 4. Beginning to record balances with every transaction is the beginning of the death of your accounting system.
 
 5. P&L and Balance Sheets are the calculus of the accounting world. If your project cannot produce accurate and repeatable P&L and Balance Sheets, you are not doing accounting. All you are doing is adding and subtracting numbers. That is not accounting.
+
+6. There MUST be one single source of truth. The purpose of accounting is to measure account balances over time (voltmeter vs. oscilloscope). There MUST be one place you can go to in order to repeatably ask the question "What is the balance of account X at time Y."

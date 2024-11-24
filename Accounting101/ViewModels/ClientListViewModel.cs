@@ -5,7 +5,7 @@ using DataAccess.Services.Interfaces;
 
 namespace Accounting101.ViewModels
 {
-    public class ClientListViewModel
+    public class ClientListViewModel : BaseViewModel
     {
         public ReadOnlyObservableCollection<ClientWithInfo> Clients { get; }
 

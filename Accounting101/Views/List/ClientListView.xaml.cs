@@ -12,9 +12,9 @@ namespace Accounting101.Views.List
     {
         public ClientListView(IDataStore dataStore)
         {
-            InitializeComponent();
             ClientListViewModel viewModel = new(dataStore);
             DataContext = viewModel;
+            InitializeComponent();
             viewModel.Clients.ToList().ForEach(c =>
             {
                 ClientList.Children.Add(new ClientView(dataStore, c.Id));

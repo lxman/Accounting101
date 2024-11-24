@@ -1,4 +1,5 @@
 ﻿using System.Windows.Controls;
+using Accounting101.ViewModels;
 using DataAccess.Services.Interfaces;
 
 namespace Accounting101.Views.Create
@@ -7,6 +8,7 @@ namespace Accounting101.Views.Create
     {
         public CreateUSAddressView(IDataStore dataStore)
         {
+            DataContext = new USAddressViewModel(dataStore);
             InitializeComponent();
             StateSelector.ComboItems = dataStore.GetStates().Order().Cast<object>().ToList();
         }

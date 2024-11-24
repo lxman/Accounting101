@@ -1,17 +1,15 @@
-﻿using System.ComponentModel;
-using System.Runtime.CompilerServices;
-using System.Windows.Controls;
+﻿using System.Windows.Controls;
+using Accounting101.Interfaces;
 using Accounting101.Views.Create;
+using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101.ViewModels
 {
-    public class CreateBusinessViewModel : INotifyPropertyChanged
+    public class CreateBusinessViewModel : BaseViewModel, ISavable
     {
-        public event PropertyChangedEventHandler? PropertyChanged;
-
         public UserControl AddressView
         {
             get => _addressView;
@@ -28,8 +26,13 @@ namespace Accounting101.ViewModels
             }
         }
 
-        public Business Business { get; set; }
+        public Business Business
+        {
+            get => _business;
+            set => SetField(ref _business, value);
+        }
 
+        private Business _business;
         private bool _foreignCheckboxState;
         private readonly IDataStore _dataStore;
         private UserControl _addressView;
@@ -42,12 +45,21 @@ namespace Accounting101.ViewModels
             _foreignCheckboxState = Business.Address is ForeignAddress;
             if (_foreignCheckboxState)
             {
+                Business.Address = new ForeignAddress();
                 AddressView = new CreateForeignAddressView();
             }
             else
             {
+                Business.Address = new UsAddress();
                 AddressView = new CreateUSAddressView(_dataStore);
             }
+        }
+
+        public bool Save()
+        {
+            Guid addressId = _dataStore.CreateAddress(Business.Address);
+            _dataStore.CreateBusiness(Business);
+            return false;
         }
 
         private void ForeignCheckboxChangeState(bool state)
@@ -62,19 +74,6 @@ namespace Accounting101.ViewModels
                 Business.Address = new UsAddress();
                 AddressView = new CreateUSAddressView(_dataStore);
             }
-        }
-
-        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-
-        protected bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
-        {
-            if (EqualityComparer<T>.Default.Equals(field, value)) return false;
-            field = value;
-            OnPropertyChanged(propertyName);
-            return true;
         }
     }
 }

@@ -45,6 +45,13 @@ namespace DataAccess.Services
 
         public ILiteCollection<T>? GetCollection<T>(string name) => _db?.GetCollection<T>(name);
 
+        public bool CreateBusiness(Business business)
+        {
+            if (_db is null) return false;
+            _db.GetCollection<Business>().Insert(business);
+            return true;
+        }
+
         public Business? GetBusiness()
         {
             List<Business> businesses = _db?.GetCollection<Business>()?.FindAll().ToList() ?? [];

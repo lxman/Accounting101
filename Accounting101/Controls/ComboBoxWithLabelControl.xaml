@@ -16,12 +16,14 @@
             Grid.Column="0"
             Padding="10"
             MinWidth="100"
+            MaxHeight="31"
             Content="{Binding LabelContent}"
             d:Content="State:"
             d:Background="White" />
         <ComboBox
             Grid.Column="1"
             MinWidth="50"
+            MaxHeight="31"
             ItemsSource="{Binding ComboItems}"
             SelectedItem="{Binding SelectedItem}" />
     </Grid>

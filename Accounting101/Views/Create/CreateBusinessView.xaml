@@ -16,7 +16,7 @@
         <controls:TextBoxWithLabelControl
             Grid.Row="0"
             LabelContent="Name:"
-            TextBoxText="{Binding Business.Name}"
+            TextBoxText="{Binding Business.Name, UpdateSourceTrigger=LostFocus}"
             d:LabelContent="Name:"
             d:TextBoxText="My Business" />
         <Grid Grid.Row="1">

@@ -15,6 +15,8 @@ namespace DataAccess.Services.Interfaces
 
         ILiteCollection<T>? GetCollection<T>(string name);
 
+        bool CreateBusiness(Business business);
+
         Business? GetBusiness();
 
         List<string> GetStates();

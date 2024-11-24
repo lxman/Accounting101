@@ -18,7 +18,7 @@
                 <MenuItem Header="_File">
                     <MenuItem Header="_New" />
                     <MenuItem Header="_Open" />
-                    <MenuItem Header="_Save" />
+                    <MenuItem Header="_Save" Command="{Binding SaveCommand}" CommandParameter="ApplicationCommands.Save" />
                     <Separator />
                     <MenuItem Header="_Exit" Command="{Binding ExitCommand}" CommandParameter="ApplicationCommands.Close" />
                 </MenuItem>

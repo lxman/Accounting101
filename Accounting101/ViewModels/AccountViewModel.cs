@@ -1,6 +1,6 @@
 ﻿namespace Accounting101.ViewModels
 {
-    public class AccountViewModel
+    public class AccountViewModel : BaseViewModel
     {
     }
 }

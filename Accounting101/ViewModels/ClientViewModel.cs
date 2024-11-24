@@ -4,7 +4,7 @@ using DataAccess.Services.Interfaces;
 
 namespace Accounting101.ViewModels
 {
-    public class ClientViewModel
+    public class ClientViewModel : BaseViewModel
     {
         public ClientWithInfo? Client { get; }
 

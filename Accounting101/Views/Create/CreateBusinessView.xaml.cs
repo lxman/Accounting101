@@ -11,8 +11,8 @@ namespace Accounting101.Views.Create
     {
         public CreateBusinessView(IDataStore dataStore)
         {
-            InitializeComponent();
             DataContext = new CreateBusinessViewModel(dataStore);
+            InitializeComponent();
         }
     }
 }

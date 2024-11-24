@@ -3,10 +3,11 @@ using System.Windows.Input;
 using Accounting101.Commands;
 using Accounting101.Views.Create;
 using DataAccess.Services.Interfaces;
+#pragma warning disable CS8618, CS9264
 
 namespace Accounting101.ViewModels
 {
-    public class MainWindowViewModel
+    public class MainWindowViewModel : BaseViewModel
     {
         public object PageContent { get; }
 
@@ -21,10 +22,16 @@ namespace Accounting101.ViewModels
         public MainWindowViewModel(IDataStore dataStore)
         {
             _dataStore = dataStore;
-            ExitCommand = new DelegateCommand(() => Application.Current.Shutdown());
+            ExitCommand = new DelegateCommand(() =>
+            {
+                Application.Current.Shutdown();
+            });
             if (!BusinessCreated())
             {
-                PageContent = new CreateBusinessView(_dataStore);
+                CreateBusinessView createBusinessView = new(_dataStore);
+                CreateBusinessViewModel createBusinessViewModel = (CreateBusinessViewModel)createBusinessView.DataContext;
+                PageContent = createBusinessView;
+                SaveCommand = new DelegateCommand(() => createBusinessViewModel.Save());
             }
         }
 
