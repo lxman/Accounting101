@@ -6,7 +6,7 @@
              xmlns:local="clr-namespace:Accounting101.Controls"
              mc:Ignorable="d" 
              d:DesignHeight="40" d:DesignWidth="800"
-             DataContext="{Binding RelativeSource={RelativeSource Self}}">
+             x:Name="Self">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
@@ -14,17 +14,16 @@
         </Grid.ColumnDefinitions>
         <Label
             Grid.Column="0"
-            Padding="10"
             MinWidth="100"
             MaxHeight="31"
-            Content="{Binding LabelContent}"
+            Content="{Binding LabelContent, ElementName=Self, Mode=TwoWay}"
             d:Content="State:"
             d:Background="White" />
         <ComboBox
             Grid.Column="1"
             MinWidth="50"
             MaxHeight="31"
-            ItemsSource="{Binding ComboItems}"
-            SelectedItem="{Binding SelectedItem}" />
+            ItemsSource="{Binding ComboItems, ElementName=Self}"
+            SelectedItem="{Binding SelectedItem, ElementName=Self}" />
     </Grid>
 </UserControl>

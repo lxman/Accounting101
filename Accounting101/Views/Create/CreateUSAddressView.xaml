@@ -24,33 +24,34 @@
             Grid.Column="0"
             Grid.ColumnSpan="3"
             LabelContent="Line 1:"
-            TextBoxText="{Binding Address.Line1}"
+            TextBoxText="{Binding Address.Line1, Mode=TwoWay}"
             d:LabelContent="Line 1:" />
         <controls:TextBoxWithLabelControl
             Grid.Row="1"
             Grid.Column="0"
             Grid.ColumnSpan="3"
             LabelContent="Line 2:"
-            TextBoxText="{Binding Address.Line2}"
+            TextBoxText="{Binding Address.Line2, Mode=TwoWay}"
             d:LabelContent="Line 2:" />
         <controls:TextBoxWithLabelControl
             Grid.Row="2"
             Grid.Column="0"
             MinWidth="200"
             LabelContent="City:"
-            TextBoxText="{Binding Address.City}" />
+            TextBoxText="{Binding Address.City, Mode=TwoWay}" />
         <controls:ComboBoxWithLabelControl
             x:Name="StateSelector"
             Grid.Row="2"
             Grid.Column="1"
             LabelContent="State:"
-            SelectedItem="{Binding Address.State}"
+            ComboItems="{Binding States}"
+            SelectedItem="{Binding Address.State, Mode=TwoWay}"
             d:Background="White"
             d:Content="State:"/>
         <controls:TextBoxWithLabelControl
             Grid.Row="2"
             Grid.Column="2"
             LabelContent="Zip:"
-            TextBoxText="{Binding Address.Zip}" />
+            TextBoxText="{Binding Address.Zip, Mode=TwoWay}" />
     </Grid>
 </UserControl>

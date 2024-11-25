@@ -8,6 +8,8 @@ namespace Accounting101.ViewModels
     {
         public UsAddress Address { get; set; }
 
+        public List<object> States { get; }
+
         public USAddressViewModel(IDataStore dataStore, Guid? id = null)
         {
             if (id.HasValue)
@@ -18,6 +20,7 @@ namespace Accounting101.ViewModels
             {
                 Address = new UsAddress();
             }
+            States = dataStore.GetStates().Order().Cast<object>().ToList();
         }
     }
 }

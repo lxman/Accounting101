@@ -10,7 +10,6 @@ namespace Accounting101.Views.Create
         {
             DataContext = new USAddressViewModel(dataStore);
             InitializeComponent();
-            StateSelector.ComboItems = dataStore.GetStates().Order().Cast<object>().ToList();
         }
     }
 }

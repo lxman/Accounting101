@@ -23,7 +23,7 @@
             Grid.Column="1"
             x:Name="TextBlock"
             Padding="5, 4, 5, 5"
-            Text="{Binding TextBoxText, ElementName=Self}"
+            Text="{Binding TextBoxText, ElementName=Self, UpdateSourceTrigger=PropertyChanged}"
             d:Text="TextBox"
             d:Background="White" />
     </Grid>

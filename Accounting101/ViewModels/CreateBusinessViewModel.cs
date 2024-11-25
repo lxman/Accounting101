@@ -26,13 +26,13 @@ namespace Accounting101.ViewModels
             }
         }
 
-        public Business Business
+        public Business? Business
         {
             get => _business;
             set => SetField(ref _business, value);
         }
 
-        private Business _business;
+        private Business? _business;
         private bool _foreignCheckboxState;
         private readonly IDataStore _dataStore;
         private UserControl _addressView;
@@ -45,19 +45,19 @@ namespace Accounting101.ViewModels
             _foreignCheckboxState = Business.Address is ForeignAddress;
             if (_foreignCheckboxState)
             {
-                Business.Address = new ForeignAddress();
                 AddressView = new CreateForeignAddressView();
+                Business.Address = (AddressView.DataContext as ForeignAddressViewModel)!.Address;
             }
             else
             {
-                Business.Address = new UsAddress();
                 AddressView = new CreateUSAddressView(_dataStore);
+                Business.Address = (AddressView.DataContext as USAddressViewModel)!.Address;
             }
         }
 
         public bool Save()
         {
-            Guid addressId = _dataStore.CreateAddress(Business.Address);
+            _ = _dataStore.CreateAddress(Business!.Address);
             _dataStore.CreateBusiness(Business);
             return false;
         }
@@ -66,12 +66,12 @@ namespace Accounting101.ViewModels
         {
             if (state)
             {
-                Business.Address = new ForeignAddress();
+                Business!.Address = new ForeignAddress();
                 AddressView = new CreateForeignAddressView();
             }
             else
             {
-                Business.Address = new UsAddress();
+                Business!.Address = new UsAddress();
                 AddressView = new CreateUSAddressView(_dataStore);
             }
         }

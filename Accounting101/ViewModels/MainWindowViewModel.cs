@@ -24,6 +24,7 @@ namespace Accounting101.ViewModels
             _dataStore = dataStore;
             ExitCommand = new DelegateCommand(() =>
             {
+                _dataStore.Dispose();
                 Application.Current.Shutdown();
             });
             if (!BusinessCreated())
