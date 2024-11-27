@@ -32,6 +32,7 @@ namespace DataAccess
             }
 
             acct.Info.Id = infoId;
+            acct.InfoId = infoId;
             Guid result = store.GetCollection<Account>(CollectionNames.Account)?.Insert(new Account(acct)).AsGuid ?? Guid.Empty;
             if (result != Guid.Empty) store.NotifyChanged(typeof(Accounts));
             return result;

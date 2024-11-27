@@ -35,8 +35,7 @@ namespace DataAccess.CoATemplates
                 new(new Account { ClientId = c.Id, Type = BaseAccountTypes.Expense, StartBalance = 0 }, new AccountInfo { Name = "Advertising Expense", CoAId = "610" }),
                 new(new Account { ClientId = c.Id, Type = BaseAccountTypes.Expense, StartBalance = 0 }, new AccountInfo { Name = "Depreciation Expense", CoAId = "750" })
             ];
-            ChartOfAccounts? coa = new() { NumberingBasis = CoANumberingBasis.Hundreds, Accounts = accounts };
-            return coa;
+            return new ChartOfAccounts { NumberingBasis = CoANumberingBasis.Hundreds, Accounts = accounts };
         }
     }
 }

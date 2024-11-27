@@ -21,6 +21,7 @@ namespace Accounting101
         private string _password;
         private bool _protected;
         private readonly bool _createDb;
+        private readonly IServiceProvider _services;
 
         public App()
         {
@@ -82,9 +83,17 @@ namespace Accounting101
             services.AddSingleton<MainWindowViewModel>();
             services.AddTransient<ClientListView>();
             IServiceProvider serviceProvider = services.BuildServiceProvider();
+            _services = serviceProvider;
 
             MainWindow mainWindow = serviceProvider.GetRequiredService<MainWindow>();
             mainWindow.Show();
+        }
+
+        protected override void OnExit(ExitEventArgs e)
+        {
+            IDataStore? dataStore = (IDataStore?)_services.GetService(typeof(IDataStore));
+            dataStore?.Dispose();
+            base.OnExit(e);
         }
 
         private void SetupPasswordSetEvent(object? sender, string e)

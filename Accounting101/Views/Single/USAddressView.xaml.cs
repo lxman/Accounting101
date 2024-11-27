@@ -11,8 +11,8 @@ namespace Accounting101.Views.Single
     {
         public USAddressView(IDataStore dataStore, Guid id)
         {
-            InitializeComponent();
             DataContext = new USAddressViewModel(dataStore, id);
+            InitializeComponent();
         }
     }
 }

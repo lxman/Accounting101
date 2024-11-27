@@ -11,5 +11,17 @@ namespace DataAccess.Models
         public Guid PersonNameId { get; set; }
 
         public Guid AddressId { get; set; }
+
+        public Client()
+        {
+        }
+
+        public Client(Client c)
+        {
+            Id = c.Id;
+            BusinessName = c.BusinessName;
+            PersonNameId = c.PersonNameId;
+            AddressId = c.AddressId;
+        }
     }
 }

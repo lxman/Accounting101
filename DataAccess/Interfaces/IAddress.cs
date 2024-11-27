@@ -14,5 +14,7 @@ namespace DataAccess.Interfaces
         string Line1 { get; set; }
 
         string Line2 { get; set; }
+
+        string ToString();
     }
 }

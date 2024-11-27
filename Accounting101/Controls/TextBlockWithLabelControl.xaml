@@ -5,8 +5,8 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Accounting101.Controls"
              mc:Ignorable="d" 
-             d:DesignHeight="25" d:DesignWidth="800"
-             DataContext="{Binding RelativeSource={RelativeSource Self}}">
+             x:Name="Self"
+             d:DesignHeight="25" d:DesignWidth="800">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
@@ -16,14 +16,14 @@
             Grid.Column="0"
             x:Name="Label"
             Padding="5, 5, 5, 0"
-            Content="{Binding LabelContent}"
+            Content="{Binding LabelContent, ElementName=Self}"
             d:Content="Label:"
             d:Background="White" />
         <TextBlock
             Grid.Column="1"
             x:Name="TextBlock"
             Padding="5"
-            Text="{Binding TextBlockContent}"
+            Text="{Binding TextBlockContent, ElementName=Self}"
             d:Text="TextBlock"
             d:Background="White" />
     </Grid>
