@@ -5,6 +5,8 @@ using System.Windows.Media;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
+using Microsoft.VisualStudio.Threading;
+
 #pragma warning disable VSTHRD002
 
 namespace Accounting101.Views.Single
@@ -22,10 +24,10 @@ namespace Accounting101.Views.Single
 
         public string Address => Client.Address?.ToString() ?? string.Empty;
 
-        public ClientView(IDataStore dataStore, Guid clientId)
+        public ClientView(IDataStore dataStore, JoinableTaskFactory taskFactory, Guid clientId)
         {
             DataContext = this;
-            Client = dataStore.GetClientWithInfoAsync(clientId).GetAwaiter().GetResult() ?? new ClientWithInfo(dataStore, new Client());
+            Client = taskFactory.Run(() => dataStore.GetClientWithInfoAsync(clientId)) ?? new ClientWithInfo(dataStore, new Client());
             InitializeComponent();
         }
 

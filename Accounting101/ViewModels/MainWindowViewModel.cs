@@ -39,16 +39,16 @@ namespace Accounting101.ViewModels
                 _dataStore.Dispose();
                 Application.Current.Shutdown();
             });
-            if (!BusinessCreatedAsync().GetAwaiter().GetResult())
+            if (!taskFactory.Run(BusinessCreatedAsync))
             {
                 CreateBusinessView createBusinessView = new(_dataStore, taskFactory);
                 CreateBusinessViewModel createBusinessViewModel = (CreateBusinessViewModel)createBusinessView.DataContext;
                 PageContent = createBusinessView;
                 SaveCommand = new DelegateCommand(async void () => await createBusinessViewModel.SaveAsync());
             }
-            if (!ClientsExistAsync().GetAwaiter().GetResult())
+            if (!taskFactory.Run(ClientsExistAsync))
             {
-                CreateClientView createClientView = new(_dataStore);
+                CreateClientView createClientView = new(_dataStore, taskFactory);
                 CreateClientViewModel createClientViewModel = (CreateClientViewModel)createClientView.DataContext;
                 PageContent = createClientView;
                 SaveCommand = new DelegateCommand(async void () => await createClientViewModel.SaveAsync());

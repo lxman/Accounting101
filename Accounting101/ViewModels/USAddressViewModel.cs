@@ -1,6 +1,7 @@
 ﻿using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
+using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.ViewModels
 {
@@ -10,17 +11,17 @@ namespace Accounting101.ViewModels
 
         public List<object> States { get; }
 
-        public USAddressViewModel(IDataStore dataStore, Guid? id = null)
+        public USAddressViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory, Guid? id = null)
         {
             if (id.HasValue)
             {
-                Address = (dataStore.FindAddressByIdAsync(id.Value).GetAwaiter().GetResult() as UsAddress) ?? new UsAddress();
+                Address = (taskFactory.Run(() => dataStore.FindAddressByIdAsync(id.Value)) as UsAddress) ?? new UsAddress();
             }
             else
             {
                 Address = new UsAddress();
             }
-            States = dataStore.GetStatesAsync().GetAwaiter().GetResult().Order().Cast<object>().ToList();
+            States = taskFactory.Run(dataStore.GetStatesAsync).Order().Cast<object>().ToList();
         }
     }
 }

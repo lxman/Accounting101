@@ -4,6 +4,8 @@ using Accounting101.Views.Create;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
+using Microsoft.VisualStudio.Threading;
+
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 #pragma warning disable CS8604 // Possible null reference argument.
 #pragma warning disable CS8618, CS9264
@@ -45,13 +47,14 @@ namespace Accounting101.ViewModels
         private UserControl _addressView;
         private bool _foreignCheckboxState;
         private readonly IDataStore _dataStore;
+        private readonly JoinableTaskFactory _taskFactory;
 
-        public CreateClientViewModel(IDataStore dataStore)
+        public CreateClientViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory)
         {
             _dataStore = dataStore;
             _client = new Client();
             _personName = new PersonName();
-            AddressView = new CreateUSAddressView(_dataStore);
+            AddressView = new CreateUSAddressView(_dataStore, taskFactory);
         }
 
         private void ForeignCheckboxChangeState(bool state)
@@ -62,7 +65,7 @@ namespace Accounting101.ViewModels
             }
             else
             {
-                AddressView = new CreateUSAddressView(_dataStore);
+                AddressView = new CreateUSAddressView(_dataStore, _taskFactory);
             }
         }
 

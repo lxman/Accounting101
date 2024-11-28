@@ -21,7 +21,7 @@ namespace Accounting101.Views.List
             InitializeComponent();
             viewModel.Clients.ToList().ForEach(c =>
             {
-                ClientList.Children.Add(new ClientView(dataStore, c.Id));
+                ClientList.Children.Add(new ClientView(dataStore, taskFactory, c.Id));
             });
             foreach (UIElement element in ClientList.Children)
             {

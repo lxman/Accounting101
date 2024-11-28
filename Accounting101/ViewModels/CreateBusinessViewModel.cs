@@ -38,10 +38,12 @@ namespace Accounting101.ViewModels
         private bool _foreignCheckboxState;
         private readonly IDataStore _dataStore;
         private UserControl _addressView;
+        private readonly JoinableTaskFactory _taskFactory;
 
         public CreateBusinessViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory)
         {
             _dataStore = dataStore;
+            _taskFactory = taskFactory;
             Business? found = taskFactory.Run(() => _dataStore.GetBusinessAsync());
             Business ??= found ?? new Business();
             _foreignCheckboxState = Business.Address is ForeignAddress;
@@ -52,7 +54,7 @@ namespace Accounting101.ViewModels
             }
             else
             {
-                AddressView = new CreateUSAddressView(_dataStore);
+                AddressView = new CreateUSAddressView(_dataStore, taskFactory);
                 Business.Address = (AddressView.DataContext as USAddressViewModel)!.Address;
             }
         }
@@ -74,7 +76,7 @@ namespace Accounting101.ViewModels
             else
             {
                 Business!.Address = new UsAddress();
-                AddressView = new CreateUSAddressView(_dataStore);
+                AddressView = new CreateUSAddressView(_dataStore, _taskFactory);
             }
         }
     }
