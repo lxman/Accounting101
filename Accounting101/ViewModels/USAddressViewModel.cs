@@ -14,13 +14,13 @@ namespace Accounting101.ViewModels
         {
             if (id.HasValue)
             {
-                Address = (dataStore.FindAddressById(id.Value) as UsAddress) ?? new UsAddress();
+                Address = (dataStore.FindAddressByIdAsync(id.Value).GetAwaiter().GetResult() as UsAddress) ?? new UsAddress();
             }
             else
             {
                 Address = new UsAddress();
             }
-            States = dataStore.GetStates().Order().Cast<object>().ToList();
+            States = dataStore.GetStatesAsync().GetAwaiter().GetResult().Order().Cast<object>().ToList();
         }
     }
 }

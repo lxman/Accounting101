@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using Accounting101.ViewModels;
 using Accounting101.Views.Single;
 using DataAccess.Services.Interfaces;
+using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.Views.List
 {
@@ -13,14 +14,13 @@ namespace Accounting101.Views.List
     {
         public event EventHandler<Guid>? ClientChosen;
 
-        public ClientListView(IDataStore dataStore)
+        public ClientListView(IDataStore dataStore, JoinableTaskFactory taskFactory)
         {
-            ClientListViewModel viewModel = new(dataStore);
+            ClientListViewModel viewModel = new(dataStore, taskFactory);
             DataContext = viewModel;
             InitializeComponent();
             viewModel.Clients.ToList().ForEach(c =>
             {
-                ClientView cv = new(dataStore, c.Id);
                 ClientList.Children.Add(new ClientView(dataStore, c.Id));
             });
             foreach (UIElement element in ClientList.Children)

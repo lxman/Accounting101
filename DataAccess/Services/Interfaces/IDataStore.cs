@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using DataAccess.Models;
 using LiteDB;
+using LiteDB.Async;
 
 namespace DataAccess.Services.Interfaces
 {
@@ -11,17 +13,17 @@ namespace DataAccess.Services.Interfaces
 
         void NotifyChanged(Type t) { }
 
-        LiteDatabase? Instance();
+        LiteDatabaseAsync? Instance();
 
-        ILiteCollection<T>? GetCollection<T>(string name);
+        ILiteCollectionAsync<T>? GetCollection<T>(string name);
 
-        bool CreateBusiness(Business business);
+        Task<bool> CreateBusinessAsync(Business business);
 
-        Business? GetBusiness();
+        Task<Business?> GetBusinessAsync();
 
-        List<string> GetStates();
+        Task<List<string>> GetStatesAsync();
 
-        BsonValue AddItem<T>(T item);
+        Task<BsonValue> AddItemAsync<T>(T item);
 
         void Dispose();
     }

@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using DataAccess.ZipCodeData;
 using LiteDB;
+using LiteDB.Async;
+
 #pragma warning disable CS8618, CS9264
 
 namespace DataAccess.Services
@@ -15,14 +18,15 @@ namespace DataAccess.Services
     {
         public event EventHandler<ChangeEventArgs> StoreChanged;
 
-        private readonly LiteDatabase? _db;
+        private readonly LiteDatabaseAsync? _db;
         private bool _disposedValue;
 
         public DataStore()
         {
-            _db ??= new LiteDatabase(ConnectionString.ConnString);
+            _db = new LiteDatabaseAsync(ConnectionString.ConnString);
+            //_db ??= new LiteDatabase(ConnectionString.ConnString);
             if (_db is null) throw new DataException("Error setting up database");
-            if (ZipCodeEntryCount() == 0) InitZipCodeData();
+            if (ZipCodeEntryCountAsync().GetAwaiter().GetResult() == 0) InitZipCodeDataAsync().GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -32,8 +36,8 @@ namespace DataAccess.Services
         /// <exception cref="DataException"></exception>
         public DataStore(string connString)
         {
-            _db ??= new LiteDatabase(connString);
-            if (_db is null || !InitZipCodeData()) throw new DataException("Error setting up database");
+            _db ??= new LiteDatabaseAsync(connString);
+            if (_db is null || !InitZipCodeDataAsync().GetAwaiter().GetResult()) throw new DataException("Error setting up database");
         }
 
         public void NotifyChange(Type t)
@@ -41,41 +45,41 @@ namespace DataAccess.Services
             StoreChanged(null, new ChangeEventArgs { ChangedType = t });
         }
 
-        public LiteDatabase? Instance() => _db;
+        public LiteDatabaseAsync? Instance() => _db;
 
-        public ILiteCollection<T>? GetCollection<T>(string name) => _db?.GetCollection<T>(name);
+        public ILiteCollectionAsync<T>? GetCollection<T>(string name) => _db?.GetCollection<T>(name);
 
-        public bool CreateBusiness(Business business)
+        public async Task<bool> CreateBusinessAsync(Business business)
         {
             if (_db is null) return false;
-            _db.GetCollection<Business>().Insert(business);
+            await _db.GetCollection<Business>().InsertAsync(business);
             return true;
         }
 
-        public Business? GetBusiness()
+        public async Task<Business?> GetBusinessAsync()
         {
-            List<Business> businesses = _db?.GetCollection<Business>()?.FindAll().ToList() ?? [];
+            List<Business> businesses = (await _db?.GetCollection<Business>()?.FindAllAsync()!).ToList() ?? [];
             return businesses.Count == 1 ? businesses[0] : null;
         }
 
-        public List<string> GetStates()
+        public async Task<List<string>> GetStatesAsync()
         {
-            ILiteCollection<ZipCodeEntry>? collection = _db?.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo);
+            ILiteCollectionAsync<ZipCodeEntry>? collection = _db?.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo);
             if (collection is null)
             {
                 throw new DataException("Error accessing the ZipCodeEntry collection.");
             }
 
-            List<string> states = collection.Query().Select(x => x.State).ToList().Distinct().ToList();
+            List<string> states = (await collection.Query().Select(x => x.State).ToListAsync()).Distinct().ToList();
 
             return states;
         }
 
-        public BsonValue AddItem<T>(T item)
+        public async Task<BsonValue> AddItemAsync<T>(T item)
         {
-            if (_db?.CollectionExists(typeof(T).Name) ?? false)
+            if (await _db?.CollectionExistsAsync(typeof(T).Name)!)
             {
-                return _db?.GetCollection<T>()?.Insert(item) ?? false;
+                return await _db?.GetCollection<T>()?.InsertAsync(item)! ?? false;
             }
 
             return false;
@@ -102,14 +106,14 @@ namespace DataAccess.Services
             GC.SuppressFinalize(this);
         }
 
-        private int ZipCodeEntryCount()
+        private async Task<int> ZipCodeEntryCountAsync()
         {
-            return _db?.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo).Count() ?? 0;
+            return await _db?.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo).CountAsync()!;
         }
 
-        private bool InitZipCodeData()
+        private async Task<bool> InitZipCodeDataAsync()
         {
-            List<string> data = File.ReadAllLines(@"ZipCodeData\ziplist5.txt").ToList();
+            List<string> data = (await File.ReadAllLinesAsync(@"ZipCodeData\ziplist5.txt")).ToList();
             List<ZipCodeEntry> entries = [];
             data.ForEach(d =>
             {
@@ -125,12 +129,12 @@ namespace DataAccess.Services
                 };
                 entries.Add(e);
             });
-            ILiteCollection<ZipCodeEntry>? zipCollection = _db?.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo);
+            ILiteCollectionAsync<ZipCodeEntry>? zipCollection = _db?.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo);
             if (zipCollection is null)
             {
                 return false;
             }
-            zipCollection.InsertBulk(entries);
+            await zipCollection.InsertBulkAsync(entries);
             return true;
         }
     }

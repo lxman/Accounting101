@@ -4,6 +4,8 @@ using Accounting101.Views.Create;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
+using Microsoft.VisualStudio.Threading;
+
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101.ViewModels
@@ -37,10 +39,10 @@ namespace Accounting101.ViewModels
         private readonly IDataStore _dataStore;
         private UserControl _addressView;
 
-        public CreateBusinessViewModel(IDataStore dataStore)
+        public CreateBusinessViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory)
         {
             _dataStore = dataStore;
-            Business? found = _dataStore.GetBusiness();
+            Business? found = taskFactory.Run(() => _dataStore.GetBusinessAsync());
             Business ??= found ?? new Business();
             _foreignCheckboxState = Business.Address is ForeignAddress;
             if (_foreignCheckboxState)
@@ -55,10 +57,10 @@ namespace Accounting101.ViewModels
             }
         }
 
-        public bool Save()
+        public async Task<bool> SaveAsync()
         {
-            _ = _dataStore.CreateAddress(Business!.Address);
-            _dataStore.CreateBusiness(Business);
+            _ = await _dataStore.CreateAddressAsync(Business!.Address);
+            await _dataStore.CreateBusinessAsync(Business);
             return false;
         }
 

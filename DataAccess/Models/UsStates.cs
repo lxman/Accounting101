@@ -2,7 +2,7 @@
 using System.Linq;
 using DataAccess.Services.Interfaces;
 using DataAccess.ZipCodeData;
-using LiteDB;
+using LiteDB.Async;
 
 namespace DataAccess.Models
 {
@@ -12,8 +12,8 @@ namespace DataAccess.Models
 
         public UsStates(IDataStore dataStore)
         {
-            ILiteCollection<ZipCodeEntry>? zipEntries = dataStore.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo);
-            States = zipEntries?.FindAll().Select(e => e.State).Distinct().ToList() ?? [];
+            ILiteCollectionAsync<ZipCodeEntry>? zipEntries = dataStore.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo);
+            States = zipEntries?.FindAllAsync().GetAwaiter().GetResult().Select(e => e.State).Distinct().ToList() ?? [];
         }
     }
 }

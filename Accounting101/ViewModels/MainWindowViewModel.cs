@@ -5,6 +5,9 @@ using Accounting101.Views.Create;
 using Accounting101.Views.List;
 using DataAccess;
 using DataAccess.Services.Interfaces;
+using Microsoft.VisualStudio.Threading;
+
+#pragma warning disable VSTHRD002
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101.ViewModels
@@ -25,31 +28,33 @@ namespace Accounting101.ViewModels
 
         private readonly IDataStore _dataStore;
         private object _pageContent;
+        private readonly JoinableTaskFactory _taskFactory;
 
-        public MainWindowViewModel(IDataStore dataStore)
+        public MainWindowViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory)
         {
             _dataStore = dataStore;
+            _taskFactory = taskFactory;
             ExitCommand = new DelegateCommand(() =>
             {
                 _dataStore.Dispose();
                 Application.Current.Shutdown();
             });
-            if (!BusinessCreated())
+            if (!BusinessCreatedAsync().GetAwaiter().GetResult())
             {
-                CreateBusinessView createBusinessView = new(_dataStore);
+                CreateBusinessView createBusinessView = new(_dataStore, taskFactory);
                 CreateBusinessViewModel createBusinessViewModel = (CreateBusinessViewModel)createBusinessView.DataContext;
                 PageContent = createBusinessView;
-                SaveCommand = new DelegateCommand(() => createBusinessViewModel.Save());
+                SaveCommand = new DelegateCommand(async void () => await createBusinessViewModel.SaveAsync());
             }
-            if (!ClientsExist())
+            if (!ClientsExistAsync().GetAwaiter().GetResult())
             {
                 CreateClientView createClientView = new(_dataStore);
                 CreateClientViewModel createClientViewModel = (CreateClientViewModel)createClientView.DataContext;
                 PageContent = createClientView;
-                SaveCommand = new DelegateCommand(() => createClientViewModel.Save());
+                SaveCommand = new DelegateCommand(async void () => await createClientViewModel.SaveAsync());
             }
 
-            ClientListView clientListView = new(_dataStore);
+            ClientListView clientListView = new(_dataStore, taskFactory);
             clientListView.ClientChosen += (sender, id) =>
             {
                 ClientChosen(id);
@@ -59,18 +64,17 @@ namespace Accounting101.ViewModels
 
         private void ClientChosen(Guid id)
         {
-            PageContent = new ClientAccountsView(_dataStore, id);
-            // Switch to individual client
+            PageContent = new ClientAccountsView(_dataStore, _taskFactory, id);
         }
 
-        private bool BusinessCreated()
+        private async Task<bool> BusinessCreatedAsync()
         {
-            return _dataStore.GetBusiness() is not null;
+            return (await _dataStore.GetBusinessAsync()) is not null;
         }
 
-        private bool ClientsExist()
+        private async Task<bool> ClientsExistAsync()
         {
-            return _dataStore.AllClients()?.Any() ?? false;
+            return (await _dataStore.AllClientsAsync())?.Any() ?? false;
         }
     }
 }

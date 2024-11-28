@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Threading.Tasks;
 using Autofac;
 using DataAccess;
 using DataAccess.Models;
@@ -26,9 +27,9 @@ namespace AccountTests
         }
 
         [Fact]
-        public void AccountTests()
+        public async Task AccountTests()
         {
-            using (ILifetimeScope scope = _container.BeginLifetimeScope())
+            await using (ILifetimeScope scope = _container.BeginLifetimeScope())
             {
                 IDataStore store = scope.Resolve<IDataStore>();
                 DateTime start = DateTime.Now;
@@ -47,7 +48,7 @@ namespace AccountTests
                     acct.Type = (BaseAccountTypes)(_random.Next(0, 3) + 2);
                     accounts.Add(new AccountWithInfo(acct, info));
                 }
-                store.BulkInsertAccounts(accounts);
+                await store.BulkInsertAccountsAsync(accounts);
                 TimeSpan ts = DateTime.Now - start;
                 Debug.WriteLine($"Creation of initial 1000 accounts took {ts.TotalMilliseconds} ms.");
                 start = DateTime.Now;
@@ -76,7 +77,7 @@ namespace AccountTests
                 ts = DateTime.Now - start;
                 Debug.WriteLine($"Creating 100,000 transactions took {ts.TotalMilliseconds} ms.");
                 start = DateTime.Now;
-                store.BulkInsertTransactions(txs);
+                await store.BulkInsertTransactionsAsync(txs);
                 ts = DateTime.Now - start;
                 Debug.WriteLine($"Inserting 100,000 transactions took {ts.TotalMilliseconds} ms.");
                 store.Dispose();

@@ -1,52 +1,60 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
+using LiteDB.Async;
 
 namespace DataAccess
 {
     public static class Clients
     {
-        public static Guid CreateClient(this IDataStore store, Client c)
+        public static async Task<Guid> CreateClientAsync(this IDataStore store, Client c)
         {
-            Guid result = store.GetCollection<Client>(CollectionNames.Client)?.Insert(c).AsGuid ?? Guid.Empty;
+            ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
+            Guid result = (await collection?.InsertAsync(c)!)?.AsGuid ?? Guid.Empty;
             if (result != Guid.Empty) store.NotifyChanged(typeof(Clients));
             return result;
         }
 
-        public static ClientWithInfo? GetClientWithInfo(this IDataStore store, Guid id)
+        public static async Task<ClientWithInfo?> GetClientWithInfoAsync(this IDataStore store, Guid id)
         {
-            Client? c = store.GetCollection<Client>(CollectionNames.Client)?.FindById(id);
+            ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
+            Client? c = await collection?.FindByIdAsync(id)!;
             return c is null ? null : new ClientWithInfo(store, c);
         }
 
-        public static void BulkInsertClients(this IDataStore store, IEnumerable<Client> clients)
+        public static async Task BulkInsertClientsAsync(this IDataStore store, IEnumerable<Client> clients)
         {
-            int? result = store.GetCollection<Client>(CollectionNames.Client)?.InsertBulk(clients);
+            ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
+            int result = await collection?.InsertBulkAsync(clients)!;
             if (result > 0) store.NotifyChanged(typeof(Clients));
         }
 
-        public static Client? FindClientById(this IDataStore store, Guid id)
+        public static async Task<Client?> FindClientByIdAsync(this IDataStore store, Guid id)
         {
-            return store.GetCollection<Client>(CollectionNames.Client)?.FindById(id);
+            ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
+            return await collection?.FindByIdAsync(id)!;
         }
 
-        public static IEnumerable<Client>? AllClients(this IDataStore? store)
+        public static async Task<IEnumerable<Client>?> AllClientsAsync(this IDataStore? store)
         {
-            return store.GetCollection<Client>(CollectionNames.Client)?.FindAll();
+            ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
+            return await collection?.FindAllAsync()!;
         }
 
-        public static IEnumerable<ClientWithInfo>? AllClientsWithInfos(this IDataStore store)
+        public static async Task<IEnumerable<ClientWithInfo>?> AllClientsWithInfosAsync(this IDataStore store)
         {
-            return store.GetCollection<Client>(CollectionNames.Client)
-                ?.FindAll()
-                .Select(c => new ClientWithInfo(store, c));
+            ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
+            IEnumerable<Client>? clients = await collection?.FindAllAsync()!;
+            return clients?.Select(c => new ClientWithInfo(store, c));
         }
 
-        public static bool? DeleteClient(this IDataStore store, Guid id)
+        public static async Task<bool?> DeleteClientAsync(this IDataStore store, Guid id)
         {
-            return store.GetCollection<Client>(CollectionNames.Client)?.Delete(id);
+            ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
+            return await collection?.DeleteAsync(id)!;
         }
     }
 }

@@ -5,9 +5,6 @@ using Microsoft.Win32;
 
 namespace Accounting101
 {
-    /// <summary>
-    /// Interaction logic for Setup.xaml
-    /// </summary>
     public partial class Setup : Window
     {
         public event EventHandler<string>? PasswordSetEvent;

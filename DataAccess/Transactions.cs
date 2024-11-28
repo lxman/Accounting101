@@ -1,37 +1,38 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
-using LiteDB;
+using LiteDB.Async;
 
 namespace DataAccess
 {
     public static class Transactions
     {
-        public static Guid CreateTransaction(this IDataStore store, Transaction tx)
+        public static async Task<Guid> CreateTransactionAsync(this IDataStore store, Transaction tx)
         {
-            ILiteCollection<Account>? accts = store.GetCollection<Account>(CollectionNames.Account);
+            ILiteCollectionAsync<Account>? accts = store.GetCollection<Account>(CollectionNames.Account);
             if (accts is null)
             {
                 return Guid.Empty;
             }
 
-            Account credAcct = accts.FindOne(a => a.Id == tx.CreditAccountId);
-            Account debAcct = accts.FindOne(a => a.Id == tx.DebitAccountIds);
+            Account credAcct = await accts.FindOneAsync(a => a.Id == tx.CreditAccountId);
+            Account debAcct = await accts.FindOneAsync(a => a.Id == tx.DebitAccountIds);
             Guid result = credAcct is null
                 || debAcct is null
                 || tx.When < credAcct.Created
                 || tx.When < debAcct.Created
                 ? Guid.Empty
-                : store.GetCollection<Transaction>(CollectionNames.Transaction)?.Insert(tx).AsGuid ?? Guid.Empty;
+                : (await store.GetCollection<Transaction>(CollectionNames.Transaction)?.InsertAsync(tx)!).AsGuid;
             if (result != Guid.Empty) store.NotifyChanged(typeof(Transactions));
             return result;
         }
 
-        public static List<Transaction> BulkInsertTransactions(this IDataStore store, List<Transaction> txs, bool verify = false)
+        public static async Task<List<Transaction>> BulkInsertTransactionsAsync(this IDataStore store, List<Transaction> txs, bool verify = false)
         {
-            ILiteCollection<Account>? accts = store.GetCollection<Account>(CollectionNames.Account);
+            ILiteCollectionAsync<Account>? accts = store.GetCollection<Account>(CollectionNames.Account);
             if (accts is null)
             {
                 return txs;
@@ -41,10 +42,10 @@ namespace DataAccess
             List<Transaction> invalid = [];
             if (verify)
             {
-                txs.ForEach(t =>
+                foreach (Transaction t in txs)
                 {
-                    Account credAcct = accts.FindOne(a => a.Id == t.CreditAccountId);
-                    Account debAcct = accts.FindOne(a => a.Id == t.DebitAccountIds);
+                    Account credAcct = await accts.FindOneAsync(a => a.Id == t.CreditAccountId);
+                    Account debAcct = await accts.FindOneAsync(a => a.Id == t.DebitAccountIds);
                     if (credAcct is null
                         || debAcct is null
                         || t.When < credAcct.Created
@@ -57,27 +58,27 @@ namespace DataAccess
                     {
                         toInsert.Add(t);
                     }
-                });
+                }
             }
             else
             {
                 toInsert.AddRange(txs);
             }
-            int? result = (store.GetCollection<Transaction>(CollectionNames.Transaction)?.InsertBulk(toInsert));
+            int? result = await store.GetCollection<Transaction>(CollectionNames.Transaction)?.InsertBulkAsync(toInsert)!;
             if (result > 0) store.NotifyChanged(typeof(Transactions));
             return invalid;
         }
 
-        public static List<Transaction>? TransactionsForAccount(this IDataStore store, Guid acct)
+        public static async Task<List<Transaction>?> TransactionsForAccountAsync(this IDataStore store, Guid acct)
         {
-            return store.GetCollection<Transaction>(CollectionNames.Transaction)
-                ?.Find(t => t.CreditAccountId == acct || t.DebitAccountIds == acct).ToList();
+            return (await store.GetCollection<Transaction>(CollectionNames.Transaction)
+                ?.FindAsync(t => t.CreditAccountId == acct || t.DebitAccountIds == acct)!).ToList();
         }
 
-        public static List<Transaction>? TransactionsForAccountByDate(this IDataStore store, Guid acct, DateTime start, DateTime end)
+        public static async Task<List<Transaction>?> TransactionsForAccountByDateAsync(this IDataStore store, Guid acct, DateTime start, DateTime end)
         {
-            return store.GetCollection<Transaction>(CollectionNames.Transaction)
-                ?.Find(t => (t.CreditAccountId == acct || t.DebitAccountIds == acct) && t.When >= start && t.When <= end).ToList();
+            return (await store.GetCollection<Transaction>(CollectionNames.Transaction)
+                ?.FindAsync(t => (t.CreditAccountId == acct || t.DebitAccountIds == acct) && t.When >= start && t.When <= end)!).ToList();
         }
     }
 }

@@ -3,9 +3,6 @@ using System.Windows.Controls;
 
 namespace Accounting101.Controls
 {
-    /// <summary>
-    /// Interaction logic for TextBlockWithLabelControl.xaml
-    /// </summary>
     public partial class TextBlockWithLabelControl : UserControl
     {
         public static readonly DependencyProperty LabelContentProperty = DependencyProperty.Register(nameof(LabelContent),

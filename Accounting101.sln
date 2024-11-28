@@ -19,8 +19,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiteDB", "..\LiteDB\LiteDB\LiteDB.csproj", "{6F89732F-5E88-414F-8357-CDB62B5A54F5}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -91,18 +89,6 @@ Global
 		{413574D1-C821-4381-916C-EB586F6036EC}.Release|x64.Build.0 = Release|Any CPU
 		{413574D1-C821-4381-916C-EB586F6036EC}.Release|x86.ActiveCfg = Release|Any CPU
 		{413574D1-C821-4381-916C-EB586F6036EC}.Release|x86.Build.0 = Release|Any CPU
-		{6F89732F-5E88-414F-8357-CDB62B5A54F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{6F89732F-5E88-414F-8357-CDB62B5A54F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{6F89732F-5E88-414F-8357-CDB62B5A54F5}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{6F89732F-5E88-414F-8357-CDB62B5A54F5}.Debug|x64.Build.0 = Debug|Any CPU
-		{6F89732F-5E88-414F-8357-CDB62B5A54F5}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{6F89732F-5E88-414F-8357-CDB62B5A54F5}.Debug|x86.Build.0 = Debug|Any CPU
-		{6F89732F-5E88-414F-8357-CDB62B5A54F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{6F89732F-5E88-414F-8357-CDB62B5A54F5}.Release|Any CPU.Build.0 = Release|Any CPU
-		{6F89732F-5E88-414F-8357-CDB62B5A54F5}.Release|x64.ActiveCfg = Release|Any CPU
-		{6F89732F-5E88-414F-8357-CDB62B5A54F5}.Release|x64.Build.0 = Release|Any CPU
-		{6F89732F-5E88-414F-8357-CDB62B5A54F5}.Release|x86.ActiveCfg = Release|Any CPU
-		{6F89732F-5E88-414F-8357-CDB62B5A54F5}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

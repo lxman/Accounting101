@@ -3,9 +3,6 @@ using PhoneNumbers;
 
 namespace Accounting101.Controls
 {
-    /// <summary>
-    /// Interaction logic for PhoneNumberControl.xaml
-    /// </summary>
     public partial class PhoneNumberControl : UserControl
     {
         public string LabelContent { get; set; } = "Phone Number:";

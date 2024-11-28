@@ -3,9 +3,6 @@ using System.Windows.Input;
 
 namespace Accounting101.Dialogs
 {
-    /// <summary>
-    /// Interaction logic for GetPasswordDialog.xaml
-    /// </summary>
     public partial class GetPasswordDialog : Window
     {
         public event EventHandler<string>? PasswordEntered;

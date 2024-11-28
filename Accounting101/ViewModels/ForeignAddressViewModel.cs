@@ -12,13 +12,12 @@ namespace Accounting101.ViewModels
         {
             if (id.HasValue)
             {
-                Address = (dataStore.FindAddressById(id.Value) as ForeignAddress) ?? new ForeignAddress();
+                Address = (dataStore.FindAddressByIdAsync(id.Value).GetAwaiter().GetResult() as ForeignAddress) ?? new ForeignAddress();
             }
             else
             {
                 Address = new ForeignAddress();
             }
-            Address.Line1 = "123 Main St";
         }
     }
 }

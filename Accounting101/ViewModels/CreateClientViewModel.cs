@@ -4,6 +4,8 @@ using Accounting101.Views.Create;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+#pragma warning disable CS8604 // Possible null reference argument.
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101.ViewModels
@@ -64,15 +66,15 @@ namespace Accounting101.ViewModels
             }
         }
 
-        public bool Save()
+        public async Task<bool> SaveAsync()
         {
-            Guid personNameId = _dataStore.CreateName(_personName);
+            Guid personNameId = await _dataStore.CreateNameAsync(_personName);
             Guid addressId = _foreignCheckboxState
-                ? _dataStore.CreateAddress(((ForeignAddressViewModel)AddressView.DataContext).Address)
-                : _dataStore.CreateAddress(((USAddressViewModel)AddressView.DataContext).Address);
+                ? await _dataStore.CreateAddressAsync(((ForeignAddressViewModel)AddressView.DataContext).Address)
+                : await _dataStore.CreateAddressAsync(((USAddressViewModel)AddressView.DataContext).Address);
             _client.AddressId = addressId;
             _client.PersonNameId = personNameId;
-            return _dataStore.CreateClient(_client) != Guid.Empty;
+            return (await _dataStore.CreateClientAsync(_client)) != Guid.Empty;
         }
     }
 }

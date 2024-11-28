@@ -5,6 +5,7 @@ using System.Windows.Media;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
+#pragma warning disable VSTHRD002
 
 namespace Accounting101.Views.Single
 {
@@ -24,7 +25,7 @@ namespace Accounting101.Views.Single
         public ClientView(IDataStore dataStore, Guid clientId)
         {
             DataContext = this;
-            Client = dataStore.GetClientWithInfo(clientId) ?? new ClientWithInfo(dataStore, new Client());
+            Client = dataStore.GetClientWithInfoAsync(clientId).GetAwaiter().GetResult() ?? new ClientWithInfo(dataStore, new Client());
             InitializeComponent();
         }
 

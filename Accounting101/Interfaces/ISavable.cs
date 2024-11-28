@@ -2,6 +2,6 @@
 {
     public interface ISavable
     {
-        bool Save();
+        Task<bool> SaveAsync();
     }
 }

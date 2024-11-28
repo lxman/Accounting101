@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using Autofac;
 using DataAccess;
 using DataAccess.Interfaces;
@@ -24,9 +25,9 @@ namespace DataAccessTests
         }
 
         [Fact]
-        public void AccountTests()
+        public async Task AccountTests()
         {
-            using (ILifetimeScope scope = _container.BeginLifetimeScope())
+            await using (ILifetimeScope scope = _container.BeginLifetimeScope())
             {
                 Account acct = new();
                 AccountInfo info = new()
@@ -34,7 +35,7 @@ namespace DataAccessTests
                     Name = "Test"
                 };
                 acct.StartBalance = 0;
-                Guid id = scope.Resolve<IDataStore>().CreateAccount(acct, info);
+                Guid id = await scope.Resolve<IDataStore>().CreateAccountAsync(acct, info);
                 _ = id.Should().NotBeEmpty();
                 bool result = File.Exists(_dbFile);
                 _ = result.Should().BeTrue();
@@ -44,23 +45,23 @@ namespace DataAccessTests
         }
 
         [Fact]
-        public void TransactionTests()
+        public async Task TransactionTests()
         {
-            using (ILifetimeScope scope = _container.BeginLifetimeScope())
+            await using (ILifetimeScope scope = _container.BeginLifetimeScope())
             {
                 Account acctCredit = new();
                 Account acctDebit = new();
                 AccountInfo infoCredit = new() { Name = "Credit Account" };
                 AccountInfo infoDebit = new() { Name = "Debit Account" };
                 IDataStore store = scope.Resolve<IDataStore>();
-                Guid idCredit = store.CreateAccount(acctCredit, infoCredit);
+                Guid idCredit = await store.CreateAccountAsync(acctCredit, infoCredit);
                 _ = idCredit.Should().NotBeEmpty();
-                Guid idDebit = store.CreateAccount(acctDebit, infoDebit);
+                Guid idDebit = await store.CreateAccountAsync(acctDebit, infoDebit);
                 _ = idDebit.Should().NotBeEmpty();
                 bool result = File.Exists(_dbFile);
                 _ = result.Should().BeTrue();
                 Transaction tx = new(idCredit, idDebit, 0, DateTime.Now);
-                Guid txId = store.CreateTransaction(tx);
+                Guid txId = await store.CreateTransactionAsync(tx);
                 _ = txId.Should().NotBeEmpty();
                 store.Dispose();
             }
@@ -68,9 +69,9 @@ namespace DataAccessTests
         }
 
         [Fact]
-        public void ClientTests()
+        public async Task ClientTests()
         {
-            using (ILifetimeScope scope = _container.BeginLifetimeScope())
+            await using (ILifetimeScope scope = _container.BeginLifetimeScope())
             {
                 PersonName name = new()
                 {
@@ -91,15 +92,15 @@ namespace DataAccessTests
                     BusinessName = "JordanSoft"
                 };
                 IDataStore store = scope.Resolve<IDataStore>();
-                Guid nameId = store.CreateName(name);
+                Guid nameId = await store.CreateNameAsync(name);
                 _ = nameId.Should().NotBeEmpty();
-                Guid addressId = store.CreateAddress(address);
+                Guid addressId = await store.CreateAddressAsync(address);
                 _ = addressId.Should().NotBeEmpty();
                 bool result = File.Exists(_dbFile);
                 _ = result.Should().BeTrue();
                 c.PersonNameId = nameId;
                 c.AddressId = addressId;
-                Guid clientId = store.CreateClient(c);
+                Guid clientId = await store.CreateClientAsync(c);
                 _ = clientId.Should().NotBeEmpty();
                 store.Dispose();
             }

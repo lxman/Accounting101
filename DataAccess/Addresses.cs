@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using DataAccess.Interfaces;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
@@ -8,32 +9,32 @@ namespace DataAccess
 {
     public static class Addresses
     {
-        public static Guid CreateAddress(this IDataStore store, IAddress address)
+        public static async Task<Guid> CreateAddressAsync(this IDataStore store, IAddress address)
         {
-            Guid result = store.GetCollection<IAddress>(CollectionNames.Address)?.Insert(address).AsGuid ?? Guid.Empty;
+            Guid result = (await store.GetCollection<IAddress>(CollectionNames.Address)?.InsertAsync(address)!).AsGuid;
             if (result != Guid.Empty) store.NotifyChanged(typeof(Addresses));
             return result;
         }
 
-        public static void BulkInsertAddresses(this IDataStore store, IEnumerable<IAddress> addresses)
+        public static async Task BulkInsertAddressesAsync(this IDataStore store, IEnumerable<IAddress> addresses)
         {
-            int? result = store.GetCollection<IAddress>(CollectionNames.Address)?.InsertBulk(addresses);
+            int? result = await store.GetCollection<IAddress>(CollectionNames.Address)?.InsertBulkAsync(addresses)!;
             if (result > 0) store.NotifyChanged(typeof(Addresses));
         }
 
-        public static IEnumerable<IAddress>? AllAddresses(IDataStore store)
+        public static async Task<IEnumerable<IAddress>?> AllAddressesAsync(IDataStore store)
         {
-            return store.GetCollection<IAddress>(CollectionNames.Address)?.FindAll();
+            return await store.GetCollection<IAddress>(CollectionNames.Address)?.FindAllAsync()!;
         }
 
-        public static IAddress? FindAddressById(this IDataStore store, Guid id)
+        public static async Task<IAddress?> FindAddressByIdAsync(this IDataStore store, Guid id)
         {
-            return store.GetCollection<IAddress>(CollectionNames.Address)?.FindById(id);
+            return await store.GetCollection<IAddress>(CollectionNames.Address)?.FindByIdAsync(id)!;
         }
 
-        public static bool? DeleteAddress(this IDataStore store, Guid id)
+        public static async Task<bool?> DeleteAddressAsync(this IDataStore store, Guid id)
         {
-            bool? result = store.GetCollection<IAddress>(CollectionNames.Address)?.Delete(id);
+            bool? result = await store.GetCollection<IAddress>(CollectionNames.Address)?.DeleteAsync(id)!;
             if (result is not null && (bool)result) store.NotifyChanged(typeof(Addresses));
             return result;
         }

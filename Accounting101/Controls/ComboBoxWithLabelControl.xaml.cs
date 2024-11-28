@@ -3,9 +3,6 @@ using System.Windows.Controls;
 
 namespace Accounting101.Controls
 {
-    /// <summary>
-    /// Interaction logic for ComboBoxWithLabelControl.xaml
-    /// </summary>
     public partial class ComboBoxWithLabelControl : UserControl
     {
         public static readonly DependencyProperty LabelContentProperty = DependencyProperty.Register(nameof(LabelContent),
