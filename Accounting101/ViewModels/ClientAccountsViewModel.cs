@@ -5,6 +5,7 @@ using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
+
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101.ViewModels
@@ -30,7 +31,7 @@ namespace Accounting101.ViewModels
         public ClientAccountsViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory, Guid clientId)
         {
             Client = taskFactory.Run(() => dataStore.GetClientWithInfoAsync(clientId)) ?? throw new ArgumentException($"Client with id {clientId} not found.");
-            Accounts = taskFactory.Run(() => dataStore.AccountsForClientAsync(clientId))?.Select(a => new AccountWithInfoFlat(a)).ToList() ?? [];
+            Accounts = taskFactory.Run(() => dataStore.AccountsForClientAsync(clientId))?.Select(a => new AccountWithInfoFlat(dataStore, taskFactory, a)).ToList() ?? [];
             if (Accounts.Count == 0)
             {
                 Grid createAccountGrid = new();
@@ -48,7 +49,7 @@ namespace Accounting101.ViewModels
                     Account account = new() { ClientId = clientId, Type = BaseAccountTypes.Liability };
                     AccountInfo accountInfo = new() { CoAId = "100", Name = "Checking" };
                     taskFactory.Run(() => dataStore.CreateAccountAsync(new AccountWithInfo(account, accountInfo) { ClientId = clientId }));
-                    Accounts = taskFactory.Run(() => dataStore.AccountsForClientAsync(clientId))?.Select(a => new AccountWithInfoFlat(a)).ToList() ?? [];
+                    Accounts = taskFactory.Run(() => dataStore.AccountsForClientAsync(clientId))?.Select(a => new AccountWithInfoFlat(dataStore, taskFactory, a)).ToList() ?? [];
                     AccountsList = new DataGrid { ItemsSource = Accounts };
                 };
                 Button createCoAButton = new() { Content = "Create Chart of Accounts", Width = 150 };
@@ -57,7 +58,7 @@ namespace Accounting101.ViewModels
                 createCoAButton.Click += (sender, e) =>
                 {
                     dataStore.CreateChart(AvailableCoAs.SmallBusiness, Client);
-                    Accounts = taskFactory.Run(() => dataStore.AccountsForClientAsync(clientId))?.Select(a => new AccountWithInfoFlat(a)).ToList() ?? [];
+                    Accounts = taskFactory.Run(() => dataStore.AccountsForClientAsync(clientId))?.Select(a => new AccountWithInfoFlat(dataStore, taskFactory, a)).ToList() ?? [];
                     AccountsList = new DataGrid { ItemsSource = Accounts };
                 };
                 AccountsList = createAccountGrid;
@@ -66,6 +67,12 @@ namespace Accounting101.ViewModels
             {
                 Accounts = Accounts.OrderBy(a => a.CoAId).ToList();
                 AccountsList = new DataGrid();
+                ((DataGrid)AccountsList).SelectionChanged += (sender, e) =>
+                {
+                    if (((DataGrid)AccountsList).SelectedItem is AccountWithInfoFlat account)
+                    {
+                    }
+                };
                 ((DataGrid)AccountsList).ItemsSource = Accounts;
             }
         }

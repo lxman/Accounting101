@@ -5,9 +5,6 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.Views.Single
 {
-    /// <summary>
-    /// Interaction logic for USAddressView.xaml
-    /// </summary>
     public partial class USAddressView : UserControl
     {
         public USAddressView(IDataStore dataStore, JoinableTaskFactory taskFactory, Guid id)

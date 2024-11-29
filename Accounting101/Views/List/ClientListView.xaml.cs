@@ -7,9 +7,6 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.Views.List
 {
-    /// <summary>
-    /// Interaction logic for ClientListView.xaml
-    /// </summary>
     public partial class ClientListView : UserControl
     {
         public event EventHandler<Guid>? ClientChosen;

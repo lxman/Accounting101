@@ -1,13 +1,11 @@
 ﻿using System.Windows.Controls;
+using DataAccess.Models;
 
 namespace Accounting101.Views.Single
 {
-    /// <summary>
-    /// Interaction logic for AccountView.xaml
-    /// </summary>
     public partial class AccountView : UserControl
     {
-        public AccountView()
+        public AccountView(AccountWithTransactions a)
         {
             InitializeComponent();
         }

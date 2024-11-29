@@ -15,6 +15,7 @@ namespace DataAccess
                     ChartOfAccounts accts = SmallBusiness.CreateCoA(c);
                     accts.Accounts.ForEach(a => dataStore.CreateAccountAsync(a));
                     break;
+
                 default:
                     throw new ArgumentException($"CoA type {type} not found.");
                     break;

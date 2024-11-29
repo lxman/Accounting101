@@ -5,9 +5,6 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.Views.List
 {
-    /// <summary>
-    /// Interaction logic for CoAView.xaml
-    /// </summary>
     public partial class ClientAccountsView : UserControl
     {
         public ClientAccountsView(IDataStore dataStore, JoinableTaskFactory taskFactory, Guid clientId)

@@ -80,5 +80,45 @@ namespace DataAccess
             });
             return acctsWInfos;
         }
+
+        public static async Task<decimal> GetAccountBalanceAsync(this IDataStore store, Guid id)
+        {
+            Account? acct = await store.GetCollection<Account>(CollectionNames.Account)?.FindByIdAsync(id)!;
+            if (acct is null) return 0;
+            List<Transaction>? transactions = await store.TransactionsForAccountAsync(acct.Id);
+            if (transactions is null) return 0;
+            decimal balance = 0;
+            bool isDebit = acct.IsDebitAccount;
+            transactions.ForEach((t) =>
+            {
+                if (isDebit)
+                {
+                    if (t.DebitAccountId == acct.Id) balance += t.Amount;
+                    else
+                    {
+                        balance -= t.Amount;
+                    }
+                }
+                else
+                {
+                    if (t.DebitAccountId == acct.Id) balance -= t.Amount;
+                    else
+                    {
+                        balance += t.Amount;
+                    }
+                }
+            });
+            return balance;
+        }
+
+        public static async Task<AccountWithInfo?> GetAccountWithInfoAsync(this IDataStore store, Guid id)
+        {
+            Account? acct = await store.GetCollection<Account>(CollectionNames.Account)?.FindByIdAsync(id)!;
+            if (acct is null) return null;
+            AccountInfo? info = await store.GetCollection<AccountInfo>(CollectionNames.AccountInfo)?.FindByIdAsync(acct.InfoId)!;
+            return info is null
+                ? null
+                : new AccountWithInfo(acct, info);
+        }
     }
 }

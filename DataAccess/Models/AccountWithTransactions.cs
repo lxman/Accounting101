@@ -3,6 +3,8 @@ using System.Linq;
 using DataAccess.Services.Interfaces;
 using LiteDB.Async;
 
+#pragma warning disable CS8618, CS9264
+
 namespace DataAccess.Models
 {
     public class AccountWithTransactions : Account
@@ -16,7 +18,7 @@ namespace DataAccess.Models
             _dataStore = dataStore;
             ILiteCollectionAsync<Transaction>? txDb = _dataStore.GetCollection<Transaction>(CollectionNames.Transaction);
             if (txDb is null) return;
-            Transactions = txDb.FindAllAsync().GetAwaiter().GetResult().Where(tx => tx.DebitAccountIds == Id || tx.CreditAccountId == Id).ToList();
+            Transactions = txDb.FindAllAsync().GetAwaiter().GetResult().Where(tx => tx.DebitAccountId == Id || tx.CreditAccountId == Id).ToList();
         }
     }
 }

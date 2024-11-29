@@ -19,7 +19,7 @@ namespace DataAccess
             }
 
             Account credAcct = await accts.FindOneAsync(a => a.Id == tx.CreditAccountId);
-            Account debAcct = await accts.FindOneAsync(a => a.Id == tx.DebitAccountIds);
+            Account debAcct = await accts.FindOneAsync(a => a.Id == tx.DebitAccountId);
             Guid result = credAcct is null
                 || debAcct is null
                 || tx.When < credAcct.Created
@@ -45,7 +45,7 @@ namespace DataAccess
                 foreach (Transaction t in txs)
                 {
                     Account credAcct = await accts.FindOneAsync(a => a.Id == t.CreditAccountId);
-                    Account debAcct = await accts.FindOneAsync(a => a.Id == t.DebitAccountIds);
+                    Account debAcct = await accts.FindOneAsync(a => a.Id == t.DebitAccountId);
                     if (credAcct is null
                         || debAcct is null
                         || t.When < credAcct.Created
@@ -72,13 +72,13 @@ namespace DataAccess
         public static async Task<List<Transaction>?> TransactionsForAccountAsync(this IDataStore store, Guid acct)
         {
             return (await store.GetCollection<Transaction>(CollectionNames.Transaction)
-                ?.FindAsync(t => t.CreditAccountId == acct || t.DebitAccountIds == acct)!).ToList();
+                ?.FindAsync(t => t.CreditAccountId == acct || t.DebitAccountId == acct)!).ToList();
         }
 
         public static async Task<List<Transaction>?> TransactionsForAccountByDateAsync(this IDataStore store, Guid acct, DateTime start, DateTime end)
         {
             return (await store.GetCollection<Transaction>(CollectionNames.Transaction)
-                ?.FindAsync(t => (t.CreditAccountId == acct || t.DebitAccountIds == acct) && t.When >= start && t.When <= end)!).ToList();
+                ?.FindAsync(t => (t.CreditAccountId == acct || t.DebitAccountId == acct) && t.When >= start && t.When <= end)!).ToList();
         }
     }
 }

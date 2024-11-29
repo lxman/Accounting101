@@ -11,9 +11,6 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.Views.Single
 {
-    /// <summary>
-    /// Interaction logic for ClientView.xaml
-    /// </summary>
     public partial class ClientView : UserControl
     {
         public event EventHandler<Guid>? ClientChosen;

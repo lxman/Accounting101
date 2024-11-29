@@ -1,12 +1,23 @@
 ﻿<UserControl x:Class="Accounting101.Views.Single.TransactionView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             xmlns:local="clr-namespace:Accounting101.Views"
-             mc:Ignorable="d" 
-             d:DesignHeight="450" d:DesignWidth="800">
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:viewModels="clr-namespace:Accounting101.ViewModels"
+             mc:Ignorable="d"
+             d:DesignHeight="450" d:DesignWidth="800"
+             d:Background="White"
+             d:DataContext="{d:DesignInstance viewModels:TransactionViewModel}">
     <Grid>
-            
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <TextBlock Grid.Column="0" Text="{Binding Transaction.When}" d:Text="10/01/2004" />
+        <Frame Grid.Column="1" Content="{Binding Account1}" NavigationUIVisibility="Hidden" />
+        <Frame Grid.Column="2" Content="{Binding Account2}" NavigationUIVisibility="Hidden" />
+        <TextBlock Grid.Column="3" Text="{Binding Transaction.Amount, StringFormat=c}" d:Text="$12.00" />
     </Grid>
 </UserControl>

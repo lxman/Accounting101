@@ -8,13 +8,11 @@ using DataAccess.Services;
 using DataAccess.Services.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
+
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101
 {
-    /// <summary>
-    /// Interaction logic for App.xaml
-    /// </summary>
     public partial class App : Application
     {
         private string _dbLocation;

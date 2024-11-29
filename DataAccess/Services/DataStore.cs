@@ -24,7 +24,6 @@ namespace DataAccess.Services
         public DataStore()
         {
             _db = new LiteDatabaseAsync(ConnectionString.ConnString);
-            //_db ??= new LiteDatabase(ConnectionString.ConnString);
             if (_db is null) throw new DataException("Error setting up database");
             if (ZipCodeEntryCountAsync().GetAwaiter().GetResult() == 0) InitZipCodeDataAsync().GetAwaiter().GetResult();
         }
