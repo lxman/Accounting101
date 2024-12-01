@@ -1,6 +1,7 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using Accounting101.Models;
+using Accounting101.Views.Single;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
@@ -71,6 +72,9 @@ namespace Accounting101.ViewModels
                 {
                     if (((DataGrid)AccountsList).SelectedItem is AccountWithInfoFlat account)
                     {
+                        AccountWithTransactions awt = new(dataStore, account.Id);
+                        AccountWithInfo awi = taskFactory.Run(() => dataStore.GetAccountWithInfoAsync(account.Id))!;
+                        AccountsList = new AccountView(awt, account, awi);
                     }
                 };
                 ((DataGrid)AccountsList).ItemsSource = Accounts;

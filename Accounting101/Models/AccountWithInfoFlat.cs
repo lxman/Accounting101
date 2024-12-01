@@ -7,6 +7,8 @@ namespace Accounting101.Models
 {
     public class AccountWithInfoFlat(IDataStore dataStore, JoinableTaskFactory taskFactory, AccountWithInfo accountWithInfo)
     {
+        public Guid Id = accountWithInfo.Id;
+
         public string Name { get; } = accountWithInfo.Info.Name;
 
         public string CoAId { get; } = accountWithInfo.Info.CoAId;

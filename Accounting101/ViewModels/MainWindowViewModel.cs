@@ -44,14 +44,14 @@ namespace Accounting101.ViewModels
                 CreateBusinessView createBusinessView = new(_dataStore, taskFactory);
                 CreateBusinessViewModel createBusinessViewModel = (CreateBusinessViewModel)createBusinessView.DataContext;
                 PageContent = createBusinessView;
-                SaveCommand = new DelegateCommand(async void () => await createBusinessViewModel.SaveAsync());
+                SaveCommand = new DelegateCommand(() => BusinessViewSave(createBusinessViewModel));
             }
             if (!taskFactory.Run(ClientsExistAsync))
             {
                 CreateClientView createClientView = new(_dataStore, taskFactory);
                 CreateClientViewModel createClientViewModel = (CreateClientViewModel)createClientView.DataContext;
                 PageContent = createClientView;
-                SaveCommand = new DelegateCommand(async void () => await createClientViewModel.SaveAsync());
+                SaveCommand = new DelegateCommand(() => ClientViewSave(createClientViewModel));
             }
 
             ClientListView clientListView = new(_dataStore, taskFactory);
@@ -60,6 +60,16 @@ namespace Accounting101.ViewModels
                 ClientChosen(id);
             };
             PageContent = clientListView;
+        }
+
+        private void BusinessViewSave(CreateBusinessViewModel m)
+        {
+            _taskFactory.Run(m.SaveAsync);
+        }
+
+        private void ClientViewSave(CreateClientViewModel m)
+        {
+            _taskFactory.Run(m.SaveAsync);
         }
 
         private void ClientChosen(Guid id)

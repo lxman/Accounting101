@@ -9,11 +9,11 @@ namespace Accounting101.Controls
 
         public string CoAId { get; }
 
-        public DateTime Created { get; }
+        public DateOnly Created { get; }
 
         public string DebitCredit { get; }
 
-        public new string Name { get; }
+        public string AccountName { get; }
 
         public decimal StartBalance { get; }
 
@@ -21,15 +21,15 @@ namespace Accounting101.Controls
 
         public AccountHeaderControl(AccountWithInfoFlat a)
         {
-            DataContext = this;
-            InitializeComponent();
             CurrentBalance = a.Balance;
             CoAId = a.CoAId;
-            Created = a.Created;
+            Created = DateOnly.FromDateTime(a.Created);
             DebitCredit = a.IsDebitAccount ? "Debit Account" : "Credit Account";
-            Name = a.Name;
+            AccountName = a.Name;
             StartBalance = a.StartBalance;
             Type = a.Type;
+            DataContext = this;
+            InitializeComponent();
         }
     }
 }

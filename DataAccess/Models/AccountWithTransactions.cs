@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using DataAccess.Services.Interfaces;
 using LiteDB.Async;
@@ -13,9 +14,10 @@ namespace DataAccess.Models
 
         private readonly IDataStore _dataStore;
 
-        public AccountWithTransactions(IDataStore dataStore)
+        public AccountWithTransactions(IDataStore dataStore, Guid id)
         {
             _dataStore = dataStore;
+            Id = id;
             ILiteCollectionAsync<Transaction>? txDb = _dataStore.GetCollection<Transaction>(CollectionNames.Transaction);
             if (txDb is null) return;
             Transactions = txDb.FindAllAsync().GetAwaiter().GetResult().Where(tx => tx.DebitAccountId == Id || tx.CreditAccountId == Id).ToList();

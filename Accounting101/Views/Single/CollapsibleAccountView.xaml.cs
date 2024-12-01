@@ -6,9 +6,9 @@ namespace Accounting101.Views.Single
 {
     public partial class CollapsibleAccountView : UserControl
     {
-        public CollapsibleAccountView(AccountWithInfo a, bool isCredit)
+        public CollapsibleAccountView(AccountWithInfo a)
         {
-            DataContext = new CollapsibleAccountViewModel(a, isCredit);
+            DataContext = new CollapsibleAccountViewModel(a);
             InitializeComponent();
         }
     }

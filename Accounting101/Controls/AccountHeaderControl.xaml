@@ -23,7 +23,7 @@
             Grid.Column="0"
             Grid.Row="0"
             LabelContent="Name:"
-            TextBlockContent="{Binding Name}" />
+            TextBlockContent="{Binding AccountName}" />
         <local:TextBlockWithLabelControl
             Grid.Column="1"
             Grid.Row="0"
@@ -42,17 +42,17 @@
         <local:TextBlockWithLabelControl
             Grid.Column="0"
             Grid.Row="1"
-            LabelContent="Current Balance:"
+            LabelContent="Start Balance:"
             TextBlockContent="{Binding StartBalance, StringFormat=c}" />
         <local:TextBlockWithLabelControl
             Grid.Column="1"
             Grid.Row="1"
-            LabelContent="Current Balance:"
+            LabelContent="Created:"
             TextBlockContent="{Binding Created}" />
         <local:TextBlockWithLabelControl
             Grid.Column="2"
             Grid.Row="1"
-            LabelContent="Current Balance:"
+            LabelContent="Account Type:"
             TextBlockContent="{Binding DebitCredit}" />
     </Grid>
 </UserControl>

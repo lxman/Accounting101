@@ -31,13 +31,13 @@ namespace Accounting101.ViewModels
                             ?? throw new ArgumentException($"Account with id {t.DebitAccountId} not found.");
             if (CreditAccount.Id == relativeAccountId)
             {
-                Account1 = new CollapsibleAccountView(CreditAccount, !CreditAccount.IsDebitAccount);
-                Account2 = new CollapsibleAccountView(DebitAccount, !DebitAccount.IsDebitAccount);
+                Account1 = new CollapsibleAccountView(CreditAccount);
+                Account2 = new CollapsibleAccountView(DebitAccount);
             }
             else
             {
-                Account1 = new CollapsibleAccountView(DebitAccount, !DebitAccount.IsDebitAccount);
-                Account2 = new CollapsibleAccountView(CreditAccount, !CreditAccount.IsDebitAccount);
+                Account1 = new CollapsibleAccountView(DebitAccount);
+                Account2 = new CollapsibleAccountView(CreditAccount);
             }
         }
     }
