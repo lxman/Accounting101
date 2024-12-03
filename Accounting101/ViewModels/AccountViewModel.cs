@@ -9,13 +9,13 @@ namespace Accounting101.ViewModels
     {
         public AccountHeaderControl AccountHeaderControl { get; }
 
-        public ObservableCollection<LedgerLine> Transactions { get; }
+        public ObservableCollection<LedgerLineControl> Transactions { get; }
 
         public AccountViewModel(AccountWithTransactions f, AccountWithInfoFlat a, AccountWithInfo awi)
         {
             AccountHeaderControl = new AccountHeaderControl(a);
             decimal balance = a.StartBalance;
-            List<LedgerLine> lines = [];
+            List<LedgerLineControl> lines = [];
             f.Transactions.ForEach(t =>
             {
                 if (t.CreditAccountId == a.Id)
@@ -28,9 +28,9 @@ namespace Accounting101.ViewModels
                     if (a.IsDebitAccount) balance += t.Amount;
                     else balance -= t.Amount;
                 }
-                lines.Add(new LedgerLine(awi, t, balance));
+                lines.Add(new LedgerLineControl(awi, t, balance));
             });
-            Transactions = new ObservableCollection<LedgerLine>(lines);
+            Transactions = new ObservableCollection<LedgerLineControl>(lines);
         }
     }
 }

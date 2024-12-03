@@ -74,7 +74,7 @@ namespace Accounting101.ViewModels
                     {
                         AccountWithTransactions awt = new(dataStore, account.Id);
                         AccountWithInfo awi = taskFactory.Run(() => dataStore.GetAccountWithInfoAsync(account.Id))!;
-                        AccountsList = new AccountView(awt, account, awi);
+                        AccountsList = new AccountView(dataStore, taskFactory, awt, account, awi);
                     }
                 };
                 ((DataGrid)AccountsList).ItemsSource = Accounts;

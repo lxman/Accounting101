@@ -7,7 +7,7 @@ namespace Accounting101.Controls
     /// <summary>
     /// Interaction logic for LedgerLine.xaml
     /// </summary>
-    public partial class LedgerLine : UserControl
+    public partial class LedgerLineControl : UserControl
     {
         public DateOnly Date { get; }
 
@@ -17,7 +17,7 @@ namespace Accounting101.Controls
 
         public CollapsibleAccountView OtherAccount { get; }
 
-        public LedgerLine(AccountWithInfo a, Transaction t, decimal balance)
+        public LedgerLineControl(AccountWithInfo a, Transaction t, decimal balance)
         {
             Date = DateOnly.FromDateTime(t.When);
             Balance = balance;
