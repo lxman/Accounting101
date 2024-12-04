@@ -93,7 +93,7 @@ namespace DataAccess
             {
                 if (isDebit)
                 {
-                    if (t.DebitAccountId == acct.Id) balance += t.Amount;
+                    if (t.DebitedAccountId == acct.Id) balance += t.Amount;
                     else
                     {
                         balance -= t.Amount;
@@ -101,7 +101,7 @@ namespace DataAccess
                 }
                 else
                 {
-                    if (t.DebitAccountId == acct.Id) balance -= t.Amount;
+                    if (t.DebitedAccountId == acct.Id) balance -= t.Amount;
                     else
                     {
                         balance += t.Amount;

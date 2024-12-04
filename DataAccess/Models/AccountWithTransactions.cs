@@ -12,15 +12,12 @@ namespace DataAccess.Models
     {
         public List<Transaction> Transactions { get; }
 
-        private readonly IDataStore _dataStore;
-
         public AccountWithTransactions(IDataStore dataStore, Guid id)
         {
-            _dataStore = dataStore;
             Id = id;
-            ILiteCollectionAsync<Transaction>? txDb = _dataStore.GetCollection<Transaction>(CollectionNames.Transaction);
+            ILiteCollectionAsync<Transaction>? txDb = dataStore.GetCollection<Transaction>(CollectionNames.Transaction);
             if (txDb is null) return;
-            Transactions = txDb.FindAllAsync().GetAwaiter().GetResult().Where(tx => tx.DebitAccountId == Id || tx.CreditAccountId == Id).ToList();
+            Transactions = txDb.FindAllAsync().GetAwaiter().GetResult().Where(tx => tx.DebitedAccountId == Id || tx.CreditedAccountId == Id).ToList();
         }
     }
 }

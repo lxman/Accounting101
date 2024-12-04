@@ -8,8 +8,6 @@ namespace Accounting101.ViewModels
 {
     public class CreateTransactionViewModel
     {
-        public Transaction Transaction { get; set; }
-
         public DateTime When { get; set; }
 
         public decimal Amount { get; set; }
@@ -20,7 +18,6 @@ namespace Accounting101.ViewModels
 
         private Guid _debitingAccountId;
         private Guid _creditingAccountId;
-        private readonly Guid _referenceAccountId;
 
         public CreateTransactionViewModel(
             IDataStore dataStore,
@@ -28,12 +25,16 @@ namespace Accounting101.ViewModels
             Guid clientId,
             Guid acctId)
         {
-            _referenceAccountId = acctId;
             When = DateTime.Today;
             CreditingAccountPicker = new AccountPickerControl(dataStore, taskFactory, clientId, acctId);
             CreditingAccountPicker.AccountSelected += CreditingAccountChosen;
             DebitingAccountPicker = new AccountPickerControl(dataStore, taskFactory, clientId, acctId);
             DebitingAccountPicker.AccountSelected += DebitingAccountChosen;
+        }
+
+        public Transaction CreateTransaction()
+        {
+            return new Transaction(_creditingAccountId, _debitingAccountId, Amount, When);
         }
 
         private void CreditingAccountChosen(object? sender, Guid accountId)

@@ -25,19 +25,19 @@ namespace Accounting101.ViewModels
             Guid relativeAccountId)
         {
             Transaction = t;
-            CreditAccount = taskFactory.Run(() => dataStore.GetAccountWithInfoAsync(t.CreditAccountId))
-                            ?? throw new ArgumentException($"Account with id {t.CreditAccountId} not found.");
-            DebitAccount = taskFactory.Run(() => dataStore.GetAccountWithInfoAsync(t.DebitAccountId))
-                            ?? throw new ArgumentException($"Account with id {t.DebitAccountId} not found.");
+            CreditAccount = taskFactory.Run(() => dataStore.GetAccountWithInfoAsync(t.CreditedAccountId))
+                            ?? throw new ArgumentException($"Account with id {t.CreditedAccountId} not found.");
+            DebitAccount = taskFactory.Run(() => dataStore.GetAccountWithInfoAsync(t.DebitedAccountId))
+                            ?? throw new ArgumentException($"Account with id {t.DebitedAccountId} not found.");
             if (CreditAccount.Id == relativeAccountId)
             {
-                Account1 = new CollapsibleAccountView(CreditAccount);
-                Account2 = new CollapsibleAccountView(DebitAccount);
+                Account1 = new CollapsibleAccountView(CreditAccount, t.CreditedAccountId == CreditAccount.Id);
+                Account2 = new CollapsibleAccountView(DebitAccount, t.CreditedAccountId == DebitAccount.Id);
             }
             else
             {
-                Account1 = new CollapsibleAccountView(DebitAccount);
-                Account2 = new CollapsibleAccountView(CreditAccount);
+                Account1 = new CollapsibleAccountView(DebitAccount, t.CreditedAccountId == DebitAccount.Id);
+                Account2 = new CollapsibleAccountView(CreditAccount, t.CreditedAccountId == CreditAccount.Id);
             }
         }
     }

@@ -17,12 +17,12 @@ namespace Accounting101.Controls
 
         public CollapsibleAccountView OtherAccount { get; }
 
-        public LedgerLineControl(AccountWithInfo a, Transaction t, decimal balance)
+        public LedgerLineControl(Transaction t, decimal balance, AccountWithInfo otherAccount)
         {
             Date = DateOnly.FromDateTime(t.When);
             Balance = balance;
             Amount = t.Amount;
-            OtherAccount = new CollapsibleAccountView(a);
+            OtherAccount = new CollapsibleAccountView(otherAccount, t.CreditedAccountId == otherAccount.Id);
             DataContext = this;
             InitializeComponent();
         }

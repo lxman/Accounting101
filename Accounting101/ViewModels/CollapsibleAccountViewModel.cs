@@ -2,9 +2,9 @@
 
 namespace Accounting101.ViewModels
 {
-    public class CollapsibleAccountViewModel(AccountWithInfo a)
+    public class CollapsibleAccountViewModel(AccountWithInfo a, bool isCredited)
     {
-        public string Header => !Account.IsDebitAccount ? "Credit Account" : "Debit Account";
+        public string Header => !isCredited ? "Debited Account" : "Credited Account";
 
         public AccountWithInfo Account { get; } = a;
     }

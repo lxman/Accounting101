@@ -3,6 +3,7 @@ using System.Windows.Input;
 using Accounting101.Models;
 using Accounting101.ViewModels;
 using Accounting101.Views.Create;
+using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
@@ -14,6 +15,7 @@ namespace Accounting101.Views.Single
         private readonly IDataStore _dataStore;
         private readonly JoinableTaskFactory _taskFactory;
         private readonly AccountWithInfo _awi;
+        private readonly AccountWithInfoFlat _f;
 
         public AccountView(
             IDataStore dataStore,
@@ -24,8 +26,9 @@ namespace Accounting101.Views.Single
         {
             _dataStore = dataStore;
             _taskFactory = taskFactory;
+            _f = f;
             _awi = awi;
-            DataContext = new AccountViewModel(a, f, awi);
+            DataContext = new AccountViewModel(_dataStore, _taskFactory, a, f, awi);
             InitializeComponent();
         }
 
@@ -34,10 +37,15 @@ namespace Accounting101.Views.Single
             CreateTransactionView createTransactionView = new(_dataStore, _taskFactory, _awi.ClientId, _awi.Id);
             UtilityDialog utilityDialog = new(createTransactionView) { Height = 100 };
             utilityDialog.ShowDialog();
-            if (utilityDialog.DialogResult == true)
+            if (utilityDialog.DialogResult != true)
             {
-                AccountViewModel avm = (AccountViewModel)DataContext;
+                return;
             }
+
+            CreateTransactionViewModel ctvm = (CreateTransactionViewModel)createTransactionView.DataContext;
+            Transaction transaction = ctvm.CreateTransaction();
+            _taskFactory.Run(() => _dataStore.CreateTransactionAsync(transaction));
+            DataContext = new AccountViewModel(_dataStore, _taskFactory, new AccountWithTransactions(_dataStore, _awi.Id), _f, _awi);
         }
     }
 }

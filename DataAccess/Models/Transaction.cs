@@ -8,18 +8,18 @@ namespace DataAccess.Models
     {
         public Guid Id { get; set; }
 
-        public Guid CreditAccountId { get; }
+        public Guid CreditedAccountId { get; }
 
-        public Guid DebitAccountId { get; }
+        public Guid DebitedAccountId { get; }
 
         public decimal Amount { get; }
 
         public DateTime When { get; }
 
-        public Transaction(Guid creditAccountId, Guid debitAccountId, decimal amount, DateTime when)
+        public Transaction(Guid creditedAccountId, Guid debitedAccountId, decimal amount, DateTime when)
         {
-            CreditAccountId = creditAccountId;
-            DebitAccountId = debitAccountId;
+            CreditedAccountId = creditedAccountId;
+            DebitedAccountId = debitedAccountId;
             Amount = amount;
             When = when;
         }

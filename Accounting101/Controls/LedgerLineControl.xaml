@@ -15,8 +15,8 @@
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
-        <TextBlock Grid.Column="0" Text="{Binding Date}" />
-        <TextBlock Grid.Column="1" Text="{Binding Balance, StringFormat=c}" />
+        <TextBlock Grid.Column="0" MinWidth="100" Text="{Binding Date}" />
+        <TextBlock Grid.Column="1" MinWidth="100" Text="{Binding Balance, StringFormat=c}" />
         <TextBlock Grid.Column="2" Text="{Binding Amount, StringFormat=c}" />
         <ContentControl Grid.Column="3" Content="{Binding OtherAccount}" />
     </Grid>
