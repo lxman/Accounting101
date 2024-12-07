@@ -13,7 +13,7 @@ namespace DataAccess
         {
             ILiteCollectionAsync<PersonName>? collection = store.GetCollection<PersonName>(CollectionNames.PersonName);
             Guid result = (await collection?.InsertAsync(name)!)?.AsGuid ?? Guid.Empty;
-            if (result != Guid.Empty) store.NotifyChanged(typeof(PersonNames));
+            if (result != Guid.Empty) store.NotifyChange(typeof(PersonName), ChangeType.Created);
             return result;
         }
 
@@ -21,7 +21,7 @@ namespace DataAccess
         {
             ILiteCollectionAsync<PersonName>? collection = store.GetCollection<PersonName>(CollectionNames.PersonName);
             int result = await collection?.InsertBulkAsync(names)!;
-            if (result > 0) store.NotifyChanged(typeof(PersonNames));
+            if (result > 0) store.NotifyChange(typeof(PersonNames), ChangeType.Created);
         }
 
         public static async Task<IEnumerable<PersonName>?> AllNamesAsync(this IDataStore store)

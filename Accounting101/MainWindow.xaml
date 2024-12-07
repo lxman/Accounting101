@@ -7,6 +7,9 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance viewModels:MainWindowViewModel}"
         Title="Accounting 101" Height="450" Width="800">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -15,11 +18,22 @@
         <DockPanel Grid.Row="0">
             <Menu>
                 <MenuItem Header="_File">
-                    <MenuItem Header="_New" />
+                    <MenuItem
+                        Header="_New"
+                        Command="{Binding NewCommand}"
+                        CommandParameter="ApplicationCommands.New"
+                        Visibility="{Binding ShowNewCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     <MenuItem Header="_Open" />
-                    <MenuItem Header="_Save" Command="{Binding SaveCommand}" CommandParameter="ApplicationCommands.Save" />
+                    <MenuItem
+                        Header="_Save"
+                        Command="{Binding SaveCommand}"
+                        CommandParameter="ApplicationCommands.Save"
+                        Visibility="{Binding ShowSaveCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     <Separator />
-                    <MenuItem Header="_Exit" Command="{Binding ExitCommand}" CommandParameter="ApplicationCommands.Close" />
+                    <MenuItem
+                        Header="_Exit"
+                        Command="{Binding ExitCommand}"
+                        CommandParameter="ApplicationCommands.Close" />
                 </MenuItem>
             </Menu>
         </DockPanel>

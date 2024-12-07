@@ -16,7 +16,7 @@ namespace DataAccess.Services
 {
     public class DataStore : IDataStore, IDisposable
     {
-        public event EventHandler<ChangeEventArgs> StoreChanged;
+        public event EventHandler<ChangeEventArgs>? StoreChanged;
 
         private readonly LiteDatabaseAsync? _db;
         private bool _disposedValue;
@@ -39,9 +39,9 @@ namespace DataAccess.Services
             if (_db is null || !InitZipCodeDataAsync().GetAwaiter().GetResult()) throw new DataException("Error setting up database");
         }
 
-        public void NotifyChange(Type t)
+        public void NotifyChange(Type t, ChangeType ct)
         {
-            StoreChanged(null, new ChangeEventArgs { ChangedType = t });
+            StoreChanged?.Invoke(this, new ChangeEventArgs { ChangedType = t });
         }
 
         public LiteDatabaseAsync? Instance() => _db;
@@ -52,6 +52,7 @@ namespace DataAccess.Services
         {
             if (_db is null) return false;
             await _db.GetCollection<Business>().InsertAsync(business);
+            NotifyChange(typeof(Business), ChangeType.Created);
             return true;
         }
 
@@ -72,16 +73,6 @@ namespace DataAccess.Services
             List<string> states = (await collection.Query().Select(x => x.State).ToListAsync()).Distinct().ToList();
 
             return states;
-        }
-
-        public async Task<BsonValue> AddItemAsync<T>(T item)
-        {
-            if (await _db?.CollectionExistsAsync(typeof(T).Name)!)
-            {
-                return await _db?.GetCollection<T>()?.InsertAsync(item)! ?? false;
-            }
-
-            return false;
         }
 
         protected virtual void Dispose(bool disposing)

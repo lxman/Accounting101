@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="libphonenumber-csharp" Version="8.13.50" />
+    <PackageReference Include="libphonenumber-csharp" Version="8.13.51" />
     <PackageReference Include="MessagePack" Version="2.5.192" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
     <PackageReference Include="Microsoft.VisualStudio.Utilities" Version="17.12.40391" />

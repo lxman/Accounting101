@@ -20,7 +20,7 @@ namespace DataAccess
 
             acct.InfoId = infoId;
             Guid result = (await store.GetCollection<Account>(CollectionNames.Account)?.InsertAsync(acct)!).AsGuid;
-            if (result != Guid.Empty) store.NotifyChanged(typeof(Accounts));
+            if (result != Guid.Empty) store.NotifyChange(typeof(Account), ChangeType.Created);
             return result;
         }
 
@@ -35,7 +35,7 @@ namespace DataAccess
             acct.Info.Id = infoId;
             acct.InfoId = infoId;
             Guid result = (await store.GetCollection<Account>(CollectionNames.Account)?.InsertAsync(new Account(acct))!).AsGuid;
-            if (result != Guid.Empty) store.NotifyChanged(typeof(Accounts));
+            if (result != Guid.Empty) store.NotifyChange(typeof(Account), ChangeType.Created);
             return result;
         }
 
@@ -47,7 +47,7 @@ namespace DataAccess
                 a.Info.Id = infos?.InsertAsync(a.Info).GetAwaiter().GetResult().AsGuid ?? Guid.Empty;
             });
             int? result = await store.GetCollection<Account>(CollectionNames.Account)?.InsertBulkAsync(accts.Select(a => new Account(a)))!;
-            if (result > 0) store.NotifyChanged(typeof(Accounts));
+            if (result > 0) store.NotifyChange(typeof(Accounts), ChangeType.Created);
         }
 
         public static async Task<AccountWithInfo?> FindAccountByNameAsync(this IDataStore store, string name)

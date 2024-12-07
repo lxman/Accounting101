@@ -9,25 +9,25 @@ namespace DataAccess
 {
     public static class Settings
     {
-        public static async Task<Guid> CreateAsync(this IDataStore store, Setting setting)
+        public static async Task<Guid> CreateSettingAsync(this IDataStore store, Setting setting)
         {
             ILiteCollectionAsync<Setting>? collection = store.GetCollection<Setting>(CollectionNames.Setting);
             Guid result = (await collection?.InsertAsync(setting)!).AsGuid;
-            if (result != Guid.Empty) store.NotifyChanged(typeof(Settings));
+            if (result != Guid.Empty) store.NotifyChange(typeof(Setting), ChangeType.Created);
             return result;
         }
 
-        public static async Task<IEnumerable<Setting>> FindAsync(this IDataStore store, string key)
+        public static async Task<IEnumerable<Setting>> FindSettingAsync(this IDataStore store, string key)
         {
             ILiteCollectionAsync<Setting>? collection = store.GetCollection<Setting>(CollectionNames.Setting);
             return await collection?.FindAsync(s => s.Key == key)! ?? new List<Setting>();
         }
 
-        public static async Task RemoveAsync(this IDataStore store, string key)
+        public static async Task RemoveSettingAsync(this IDataStore store, string key)
         {
             ILiteCollectionAsync<Setting>? collection = store.GetCollection<Setting>(CollectionNames.Setting);
             int result = await collection?.DeleteManyAsync(s => s.Key == key)!;
-            if (result > 0) store.NotifyChanged(typeof(Settings));
+            if (result > 0) store.NotifyChange(typeof(Setting), ChangeType.Deleted);
         }
     }
 }

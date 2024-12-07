@@ -14,7 +14,7 @@ namespace DataAccess
         {
             ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
             Guid result = (await collection?.InsertAsync(c)!)?.AsGuid ?? Guid.Empty;
-            if (result != Guid.Empty) store.NotifyChanged(typeof(Clients));
+            if (result != Guid.Empty) store.NotifyChange(typeof(Client), ChangeType.Created);
             return result;
         }
 
@@ -29,7 +29,7 @@ namespace DataAccess
         {
             ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
             int result = await collection?.InsertBulkAsync(clients)!;
-            if (result > 0) store.NotifyChanged(typeof(Clients));
+            if (result > 0) store.NotifyChange(typeof(Clients), ChangeType.Created);
         }
 
         public static async Task<Client?> FindClientByIdAsync(this IDataStore store, Guid id)
@@ -54,6 +54,7 @@ namespace DataAccess
         public static async Task<bool?> DeleteClientAsync(this IDataStore store, Guid id)
         {
             ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
+            store.NotifyChange(typeof(Client), ChangeType.Deleted);
             return await collection?.DeleteAsync(id)!;
         }
     }

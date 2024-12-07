@@ -13,7 +13,8 @@ namespace DataAccess
             {
                 case AvailableCoAs.SmallBusiness:
                     ChartOfAccounts accts = SmallBusiness.CreateCoA(c);
-                    accts.Accounts.ForEach(a => dataStore.CreateAccountAsync(a));
+                    accts.Accounts.ForEach(a => dataStore.CreateAccountAsync(a).GetAwaiter().GetResult());
+                    dataStore.NotifyChange(typeof(Accounts), ChangeType.Created);
                     break;
 
                 default:

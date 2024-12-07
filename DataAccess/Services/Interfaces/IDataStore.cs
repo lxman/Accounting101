@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using DataAccess.Models;
-using LiteDB;
 using LiteDB.Async;
 
 namespace DataAccess.Services.Interfaces
@@ -11,7 +10,7 @@ namespace DataAccess.Services.Interfaces
     {
         event EventHandler<ChangeEventArgs> StoreChanged;
 
-        void NotifyChanged(Type t) { }
+        void NotifyChange(Type t, ChangeType ct);
 
         LiteDatabaseAsync? Instance();
 
@@ -22,8 +21,6 @@ namespace DataAccess.Services.Interfaces
         Task<Business?> GetBusinessAsync();
 
         Task<List<string>> GetStatesAsync();
-
-        Task<BsonValue> AddItemAsync<T>(T item);
 
         void Dispose();
     }

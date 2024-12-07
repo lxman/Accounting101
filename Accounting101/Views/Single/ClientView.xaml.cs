@@ -28,6 +28,13 @@ namespace Accounting101.Views.Single
             InitializeComponent();
         }
 
+        public ClientView(IDataStore dataStore, JoinableTaskFactory taskFactory, Client client)
+        {
+            DataContext = this;
+            Client = new ClientWithInfo(dataStore, client);
+            InitializeComponent();
+        }
+
         private void OnFocused()
         {
             ClientItem.Background = new SolidColorBrush(Colors.LightGray);

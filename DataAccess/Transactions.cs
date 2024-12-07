@@ -26,7 +26,7 @@ namespace DataAccess
                 || tx.When < debAcct.Created
                 ? Guid.Empty
                 : (await store.GetCollection<Transaction>(CollectionNames.Transaction)?.InsertAsync(tx)!).AsGuid;
-            if (result != Guid.Empty) store.NotifyChanged(typeof(Transactions));
+            if (result != Guid.Empty) store.NotifyChange(typeof(Transaction), ChangeType.Created);
             return result;
         }
 
@@ -65,7 +65,7 @@ namespace DataAccess
                 toInsert.AddRange(txs);
             }
             int? result = await store.GetCollection<Transaction>(CollectionNames.Transaction)?.InsertBulkAsync(toInsert)!;
-            if (result > 0) store.NotifyChanged(typeof(Transactions));
+            if (result > 0) store.NotifyChange(typeof(Transactions), ChangeType.Created);
             return invalid;
         }
 

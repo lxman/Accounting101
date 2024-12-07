@@ -12,14 +12,14 @@ namespace DataAccess
         public static async Task<Guid> CreateAddressAsync(this IDataStore store, IAddress address)
         {
             Guid result = (await store.GetCollection<IAddress>(CollectionNames.Address)?.InsertAsync(address)!).AsGuid;
-            if (result != Guid.Empty) store.NotifyChanged(typeof(Addresses));
+            if (result != Guid.Empty) store.NotifyChange(typeof(IAddress), ChangeType.Created);
             return result;
         }
 
         public static async Task BulkInsertAddressesAsync(this IDataStore store, IEnumerable<IAddress> addresses)
         {
             int? result = await store.GetCollection<IAddress>(CollectionNames.Address)?.InsertBulkAsync(addresses)!;
-            if (result > 0) store.NotifyChanged(typeof(Addresses));
+            if (result > 0) store.NotifyChange(typeof(Addresses), ChangeType.Created);
         }
 
         public static async Task<IEnumerable<IAddress>?> AllAddressesAsync(IDataStore store)
@@ -35,7 +35,7 @@ namespace DataAccess
         public static async Task<bool?> DeleteAddressAsync(this IDataStore store, Guid id)
         {
             bool? result = await store.GetCollection<IAddress>(CollectionNames.Address)?.DeleteAsync(id)!;
-            if (result is not null && (bool)result) store.NotifyChanged(typeof(Addresses));
+            if (result is not null && (bool)result) store.NotifyChange(typeof(IAddress), ChangeType.Created);
             return result;
         }
     }

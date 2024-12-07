@@ -24,7 +24,7 @@ namespace Accounting101.ViewModels
             AccountHeaderControl = new AccountHeaderControl(a);
             decimal balance = a.StartBalance;
             List<LedgerLineControl> lines = [];
-            f.Transactions.ForEach(t =>
+            f.Transactions.OrderBy(t => t.When).ToList().ForEach(t =>
             {
                 Guid otherAccountId = t.DebitedAccountId == a.Id ? t.CreditedAccountId : t.DebitedAccountId;
                 AccountWithInfo otherAccount = taskFactory.Run(() => dataStore.GetAccountWithInfoAsync(otherAccountId))!;
