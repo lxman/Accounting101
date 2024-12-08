@@ -16,14 +16,30 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <DockPanel Grid.Row="0">
-            <Menu>
+            <Menu DataContext="{Binding MenuViewModel}">
                 <MenuItem Header="_File">
                     <MenuItem
                         Header="_New"
                         Command="{Binding NewCommand}"
                         CommandParameter="ApplicationCommands.New"
-                        Visibility="{Binding ShowNewCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                    <MenuItem Header="_Open" />
+                        Visibility="{Binding ShowNewCommand, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <MenuItem
+                            Header="_Business"
+                            Command="{Binding NewBusinessCommand}"
+                            Visibility="{Binding ShowNewBusinessCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <MenuItem
+                            Header="_Client"
+                            Command="{Binding NewClientCommand}"
+                            Visibility="{Binding ShowNewClientCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <MenuItem
+                            Header="_Account"
+                            Command="{Binding NewAccountCommand}"
+                            Visibility="{Binding ShowNewAccountCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <MenuItem
+                            Header="_Transaction"
+                            Command="{Binding NewTransactionCommand}"
+                            Visibility="{Binding ShowNewTransactionCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    </MenuItem>
                     <MenuItem
                         Header="_Save"
                         Command="{Binding SaveCommand}"
