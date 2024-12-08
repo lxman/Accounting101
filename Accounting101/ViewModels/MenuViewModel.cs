@@ -6,6 +6,7 @@ using DataAccess.Models;
 using DataAccess.Services;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
+#pragma warning disable CS8618, CS9264
 
 namespace Accounting101.ViewModels
 {
@@ -61,6 +62,39 @@ namespace Accounting101.ViewModels
 
         public ICommand ExitCommand { get; }
 
+        public bool BusinessExists
+        {
+            private get => _businessExists;
+            set
+            {
+                _businessExists = value;
+                ChangeMenuState();
+            }
+        }
+
+        public bool ClientExists
+        {
+            private get => _clientExists;
+            set
+            {
+                _clientExists = value;
+                ChangeMenuState();
+            }
+        }
+
+        public bool AccountExists
+        {
+            private get => _accountExists;
+            set
+            {
+                _accountExists = value;
+                ChangeMenuState();
+            }
+        }
+
+        private bool _businessExists;
+        private bool _clientExists;
+        private bool _accountExists;
         private bool _showNewCommand = true;
         private bool _showNewBusinessCommand;
         private bool _showNewClientCommand;
@@ -82,28 +116,65 @@ namespace Accounting101.ViewModels
             });
         }
 
-        private static void StoreChanged(object? sender, ChangeEventArgs e)
+        private void ChangeMenuState()
+        {
+            switch (BusinessExists)
+            {
+                case false:
+                    ShowNewBusinessCommand = true;
+                    ShowNewClientCommand = false;
+                    ShowNewAccountCommand = false;
+                    ShowNewTransactionCommand = false;
+                    break;
+                case true
+                    when !ClientExists && !AccountExists:
+                    ShowNewBusinessCommand = false;
+                    ShowNewClientCommand = true;
+                    ShowNewAccountCommand = false;
+                    ShowNewTransactionCommand = false;
+                    break;
+                case true
+                    when ClientExists && !AccountExists:
+                    ShowNewBusinessCommand = false;
+                    ShowNewClientCommand = true;
+                    ShowNewAccountCommand = true;
+                    ShowNewTransactionCommand = false;
+                    break;
+                case true
+                    when ClientExists && AccountExists:
+                    ShowNewBusinessCommand = false;
+                    ShowNewClientCommand = true;
+                    ShowNewAccountCommand = true;
+                    ShowNewTransactionCommand = true;
+                    break;
+            }
+        }
+
+        private void StoreChanged(object? sender, ChangeEventArgs e)
         {
             if (e.ChangeType == ChangeType.Created)
             {
                 if (e.ChangedType == typeof(Business))
                 {
+                    BusinessExists = true;
                 }
                 else if (e.ChangedType == typeof(Client))
                 {
+                    ClientExists = true;
                 }
 
                 else if (e.ChangedType == typeof(Clients))
                 {
-
+                    ClientExists = true;
                 }
                 else if (e.ChangedType == typeof(Account))
                 {
+                    AccountExists = true;
                 }
 
                 else if (e.ChangedType == typeof(Accounts))
                 {
-
+                    AccountExists = true;
                 }
                 else if (e.ChangedType == typeof(Transaction))
                 {
@@ -139,6 +210,7 @@ namespace Accounting101.ViewModels
                 {
                 }
             }
+            ChangeMenuState();
         }
     }
 }

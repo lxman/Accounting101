@@ -31,20 +31,34 @@ namespace Accounting101.ViewModels
             MenuViewModel = new MenuViewModel(dataStore, taskFactory);
             if (!taskFactory.Run(BusinessExistsAsync))
             {
-                CreateBusinessView createBusinessView = new(_dataStore, taskFactory);
-                CreateBusinessViewModel createBusinessViewModel = (CreateBusinessViewModel)createBusinessView.DataContext;
-                PageContent = createBusinessView;
-                MenuViewModel.SaveCommand = new DelegateCommand(() => BusinessViewSave(createBusinessViewModel));
+                PresentBusinessCreateScreen();
             }
             if (!taskFactory.Run(ClientExistsAsync))
             {
-                CreateClientView createClientView = new(_dataStore, taskFactory);
-                CreateClientViewModel createClientViewModel = (CreateClientViewModel)createClientView.DataContext;
-                PageContent = createClientView;
-                MenuViewModel.SaveCommand = new DelegateCommand(() => ClientViewSave(createClientViewModel));
+                PresentClientCreateScreen();
             }
+            PresentClientListView();
+        }
 
-            ClientListView clientListView = new(_dataStore, taskFactory);
+        private void PresentBusinessCreateScreen()
+        {
+            CreateBusinessView createBusinessView = new(_dataStore, _taskFactory);
+            CreateBusinessViewModel createBusinessViewModel = (CreateBusinessViewModel)createBusinessView.DataContext;
+            PageContent = createBusinessView;
+            MenuViewModel.SaveCommand = new DelegateCommand(() => BusinessViewSave(createBusinessViewModel));
+        }
+
+        private void PresentClientCreateScreen()
+        {
+            CreateClientView createClientView = new(_dataStore, _taskFactory);
+            CreateClientViewModel createClientViewModel = (CreateClientViewModel)createClientView.DataContext;
+            PageContent = createClientView;
+            MenuViewModel.SaveCommand = new DelegateCommand(() => ClientViewSave(createClientViewModel));
+        }
+
+        private void PresentClientListView()
+        {
+            ClientListView clientListView = new(_dataStore, _taskFactory);
             clientListView.ClientChosen += (sender, id) =>
             {
                 ClientChosen(id);
@@ -69,12 +83,16 @@ namespace Accounting101.ViewModels
 
         private async Task<bool> BusinessExistsAsync()
         {
-            return (await _dataStore.GetBusinessAsync()) is not null;
+            bool businessExists = (await _dataStore.GetBusinessAsync()) is not null;
+            MenuViewModel.BusinessExists = businessExists;
+            return businessExists;
         }
 
         private async Task<bool> ClientExistsAsync()
         {
-            return (await _dataStore.AllClientsAsync())?.Any() ?? false;
+            bool clientExists = (await _dataStore.AllClientsAsync())?.Any() ?? false;
+            MenuViewModel.ClientExists = clientExists;
+            return clientExists;
         }
     }
 }
