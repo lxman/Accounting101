@@ -52,9 +52,10 @@ namespace Accounting101.ViewModels
         public CreateClientViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory)
         {
             _dataStore = dataStore;
+            _taskFactory = taskFactory;
             _client = new Client();
             _personName = new PersonName();
-            AddressView = new CreateUSAddressView(_dataStore, taskFactory);
+            AddressView = new CreateUSAddressView(_dataStore, _taskFactory);
         }
 
         private void ForeignCheckboxChangeState(bool state)

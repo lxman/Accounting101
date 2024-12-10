@@ -20,7 +20,6 @@
                 <MenuItem Header="_File">
                     <MenuItem
                         Header="_New"
-                        Command="{Binding NewCommand}"
                         CommandParameter="ApplicationCommands.New"
                         Visibility="{Binding ShowNewCommand, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <MenuItem

@@ -28,7 +28,11 @@ namespace Accounting101.ViewModels
         {
             _dataStore = dataStore;
             _taskFactory = taskFactory;
-            MenuViewModel = new MenuViewModel(dataStore, taskFactory);
+            MenuViewModel = new MenuViewModel(_dataStore);
+            MenuViewModel.CreateBusiness += (sender, args) => PresentBusinessCreateScreen();
+            MenuViewModel.CreateClient += (sender, args) => PresentClientCreateScreen();
+            MenuViewModel.CreateAccount += (sender, args) => PresentAccountCreateScreen();
+            MenuViewModel.CreateTransaction += (sender, args) => PresentTransactionCreateScreen();
             if (!taskFactory.Run(BusinessExistsAsync))
             {
                 PresentBusinessCreateScreen();
@@ -54,6 +58,15 @@ namespace Accounting101.ViewModels
             CreateClientViewModel createClientViewModel = (CreateClientViewModel)createClientView.DataContext;
             PageContent = createClientView;
             MenuViewModel.SaveCommand = new DelegateCommand(() => ClientViewSave(createClientViewModel));
+        }
+
+        private void PresentAccountCreateScreen()
+        {
+
+        }
+
+        private void PresentTransactionCreateScreen()
+        {
         }
 
         private void PresentClientListView()

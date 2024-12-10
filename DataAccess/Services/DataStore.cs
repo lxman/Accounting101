@@ -20,6 +20,7 @@ namespace DataAccess.Services
 
         private readonly LiteDatabaseAsync? _db;
         private bool _disposedValue;
+        private List<string>? _statesCached;
 
         public DataStore()
         {
@@ -64,15 +65,16 @@ namespace DataAccess.Services
 
         public async Task<List<string>> GetStatesAsync()
         {
+            if (_statesCached?.Count > 0) return _statesCached;
             ILiteCollectionAsync<ZipCodeEntry>? collection = _db?.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo);
             if (collection is null)
             {
                 throw new DataException("Error accessing the ZipCodeEntry collection.");
             }
 
-            List<string> states = (await collection.Query().Select(x => x.State).ToListAsync()).Distinct().ToList();
+            _statesCached = (await collection.Query().Select(x => x.State).ToListAsync()).Distinct().ToList();
 
-            return states;
+            return _statesCached;
         }
 
         protected virtual void Dispose(bool disposing)

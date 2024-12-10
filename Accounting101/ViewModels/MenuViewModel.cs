@@ -5,14 +5,16 @@ using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services;
 using DataAccess.Services.Interfaces;
-using Microsoft.VisualStudio.Threading;
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101.ViewModels
 {
     public class MenuViewModel : BaseViewModel
     {
-        public ICommand NewCommand { get; }
+        public event EventHandler? CreateBusiness;
+        public event EventHandler? CreateClient;
+        public event EventHandler? CreateAccount;
+        public event EventHandler? CreateTransaction;
 
         public bool ShowNewCommand
         {
@@ -102,13 +104,15 @@ namespace Accounting101.ViewModels
         private bool _showNewTransactionCommand;
         private bool _showSaveCommand;
         private readonly IDataStore _dataStore;
-        private readonly JoinableTaskFactory _taskFactory;
 
-        public MenuViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory)
+        public MenuViewModel(IDataStore dataStore)
         {
             _dataStore = dataStore;
             _dataStore.StoreChanged += StoreChanged;
-            _taskFactory = taskFactory;
+            NewBusinessCommand = new DelegateCommand(() => CreateBusiness?.Invoke(this, EventArgs.Empty));
+            NewClientCommand = new DelegateCommand(() => CreateClient?.Invoke(this, EventArgs.Empty));
+            NewAccountCommand = new DelegateCommand(() => CreateAccount?.Invoke(this, EventArgs.Empty));
+            NewTransactionCommand = new DelegateCommand(() => CreateTransaction?.Invoke(this, EventArgs.Empty));
             ExitCommand = new DelegateCommand(() =>
             {
                 _dataStore.Dispose();
