@@ -5,6 +5,7 @@ using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services;
 using DataAccess.Services.Interfaces;
+
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101.ViewModels
@@ -12,8 +13,11 @@ namespace Accounting101.ViewModels
     public class MenuViewModel : BaseViewModel
     {
         public event EventHandler? CreateBusiness;
+
         public event EventHandler? CreateClient;
+
         public event EventHandler? CreateAccount;
+
         public event EventHandler? CreateTransaction;
 
         public bool ShowNewCommand
@@ -130,6 +134,7 @@ namespace Accounting101.ViewModels
                     ShowNewAccountCommand = false;
                     ShowNewTransactionCommand = false;
                     break;
+
                 case true
                     when !ClientExists && !AccountExists:
                     ShowNewBusinessCommand = false;
@@ -137,6 +142,7 @@ namespace Accounting101.ViewModels
                     ShowNewAccountCommand = false;
                     ShowNewTransactionCommand = false;
                     break;
+
                 case true
                     when ClientExists && !AccountExists:
                     ShowNewBusinessCommand = false;
@@ -144,6 +150,7 @@ namespace Accounting101.ViewModels
                     ShowNewAccountCommand = true;
                     ShowNewTransactionCommand = false;
                     break;
+
                 case true
                     when ClientExists && AccountExists:
                     ShowNewBusinessCommand = false;
@@ -166,7 +173,6 @@ namespace Accounting101.ViewModels
                 {
                     ClientExists = true;
                 }
-
                 else if (e.ChangedType == typeof(Clients))
                 {
                     ClientExists = true;
@@ -175,7 +181,6 @@ namespace Accounting101.ViewModels
                 {
                     AccountExists = true;
                 }
-
                 else if (e.ChangedType == typeof(Accounts))
                 {
                     AccountExists = true;
@@ -191,12 +196,10 @@ namespace Accounting101.ViewModels
             {
                 if (e.ChangedType == typeof(Transactions))
                 {
-
                 }
 
                 if (e.ChangedType == typeof(Transaction))
                 {
-
                 }
                 if (e.ChangedType == typeof(Accounts))
                 {

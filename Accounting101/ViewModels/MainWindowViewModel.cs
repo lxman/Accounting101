@@ -62,7 +62,6 @@ namespace Accounting101.ViewModels
 
         private void PresentAccountCreateScreen()
         {
-
         }
 
         private void PresentTransactionCreateScreen()
