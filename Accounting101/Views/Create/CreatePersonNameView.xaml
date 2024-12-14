@@ -3,11 +3,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:controls="clr-namespace:Accounting101.Controls"
-             xmlns:viewModels="clr-namespace:Accounting101.ViewModels"
+             xmlns:create="clr-namespace:Accounting101.Views.Create"
+             xmlns:models="clr-namespace:DataAccess.Models;assembly=DataAccess"
              mc:Ignorable="d"
-             d:DataContext="{d:DesignInstance viewModels:PersonNameViewModel}"
-             d:DesignHeight="160" d:DesignWidth="800"
+             d:DataContext="{d:DesignInstance models:PersonName}"
+             d:DesignHeight="157" d:DesignWidth="800"
              d:Background="White">
     <Grid>
         <Grid.RowDefinitions>
@@ -18,26 +18,50 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
         <Label Grid.Row="0" Content="Contact Name" />
-        <controls:TextBoxWithLabelControl
+        <Label
             Grid.Row="1"
-            LabelContent="Prefix:"
-            TextBoxText="{Binding PersonName.Prefix, Mode=TwoWay}" />
-        <controls:TextBoxWithLabelControl
+            Grid.Column="0"
+            Content="Prefix:" />
+        <TextBox
+            Grid.Row="1"
+            Grid.Column="1"
+            Text="{Binding Prefix, UpdateSourceTrigger=PropertyChanged}" />
+        <Label
             Grid.Row="2"
-            LabelContent="First:"
-            TextBoxText="{Binding PersonName.First, Mode=TwoWay}" />
-        <controls:TextBoxWithLabelControl
+            Grid.Column="0"
+            Content="First:" />
+        <TextBox
+            Grid.Row="2"
+            Grid.Column="1"
+            Text="{Binding First, UpdateSourceTrigger=PropertyChanged}" />
+        <Label
             Grid.Row="3"
-            LabelContent="Middle:"
-            TextBoxText="{Binding PersonName.Middle, Mode=TwoWay}" />
-        <controls:TextBoxWithLabelControl
+            Grid.Column="0"
+            Content="Middle:" />
+        <TextBox
+            Grid.Row="3"
+            Grid.Column="1"
+            Text="{Binding Middle, UpdateSourceTrigger=PropertyChanged}" />
+        <Label
             Grid.Row="4"
-            LabelContent="Last:"
-            TextBoxText="{Binding PersonName.Last, Mode=TwoWay}" />
-        <controls:TextBoxWithLabelControl
+            Grid.Column="0"
+            Content="Last:" />
+        <TextBox
+            Grid.Row="4"
+            Grid.Column="1"
+            Text="{Binding Last, UpdateSourceTrigger=PropertyChanged}" />
+        <Label
             Grid.Row="5"
-            LabelContent="Suffix:"
-            TextBoxText="{Binding PersonName.Suffix, Mode=TwoWay}" />
+            Grid.Column="0"
+            Content="Suffix:" />
+        <TextBox
+            Grid.Row="5"
+            Grid.Column="1"
+            Text="{Binding Suffix, UpdateSourceTrigger=PropertyChanged}" />
     </Grid>
 </UserControl>

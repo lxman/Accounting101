@@ -7,6 +7,7 @@
              xmlns:controls="clr-namespace:Accounting101.Controls"
              xmlns:viewModels="clr-namespace:Accounting101.ViewModels"
              mc:Ignorable="d"
+             d:Background="White"
              d:DataContext="{d:DesignInstance viewModels:CreateClientViewModel}"
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
@@ -21,8 +22,7 @@
             TextBoxText="{Binding Client.BusinessName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
             d:LabelContent="Business Name:"
             d:TextBoxText="My Business" />
-        <local:CreatePersonNameView
-            Grid.Row="1" />
+        <local:CreatePersonNameView Grid.Row="1" DataContext="{Binding PersonName}" />
         <Grid Grid.Row="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />

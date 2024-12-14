@@ -1,6 +1,7 @@
 ﻿using System.Windows.Controls;
-using Accounting101.Interfaces;
+using Accounting101.Messages;
 using Accounting101.Views.Create;
+using CommunityToolkit.Mvvm.Messaging;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
@@ -10,7 +11,7 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.ViewModels
 {
-    public class CreateBusinessViewModel : BaseViewModel, ISavable
+    public class CreateBusinessViewModel : BaseViewModel, IRecipient<SaveMessage>
     {
         public UserControl AddressView
         {
@@ -42,10 +43,11 @@ namespace Accounting101.ViewModels
 
         public CreateBusinessViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory)
         {
+            WeakReferenceMessenger.Default.Register(this);
             _dataStore = dataStore;
             _taskFactory = taskFactory;
             Business? found = taskFactory.Run(() => _dataStore.GetBusinessAsync());
-            Business ??= found ?? new Business();
+            Business ??= found ?? new Business { Name = string.Empty };
             _foreignCheckboxState = Business.Address is ForeignAddress;
             if (_foreignCheckboxState)
             {
@@ -59,11 +61,21 @@ namespace Accounting101.ViewModels
             }
         }
 
+        public void Receive(SaveMessage message)
+        {
+            if (message.Value != WindowType.CreateBusiness)
+            {
+                return;
+            }
+            _taskFactory.Run(SaveAsync);
+            Messenger.Send(new ChangeScreenMessage(WindowType.CreateClient));
+        }
+
         public async Task<bool> SaveAsync()
         {
             _ = await _dataStore.CreateAddressAsync(Business!.Address);
             await _dataStore.CreateBusinessAsync(Business);
-            return false;
+            return true;
         }
 
         private void ForeignCheckboxChangeState(bool state)

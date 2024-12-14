@@ -22,6 +22,10 @@ namespace DataAccess.Services.Interfaces
 
         Task<List<string>> GetStatesAsync();
 
+        string GetDbLocation();
+
+        void ClearRegistry();
+
         void Dispose();
     }
 }

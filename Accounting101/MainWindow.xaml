@@ -6,7 +6,8 @@
         xmlns:viewModels="clr-namespace:Accounting101.ViewModels"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance viewModels:MainWindowViewModel}"
-        Title="Accounting 101" Height="450" Width="800">
+        Title="Accounting 101" Height="450" Width="800"
+        x:Name="Self">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
     </Window.Resources>
@@ -44,17 +45,30 @@
                         Command="{Binding SaveCommand}"
                         CommandParameter="ApplicationCommands.Save"
                         Visibility="{Binding ShowSaveCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <MenuItem
+                        Header="_Delete"
+                        Visibility="{Binding ShowDeleteCommand, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <MenuItem
+                            Header="_Business"
+                            Command="{Binding DeleteBusinessCommand}"
+                            Visibility="{Binding ShowDeleteBusinessCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <MenuItem
+                            Header="_Client"
+                            Command="{Binding DeleteClientCommand}"
+                            Visibility="{Binding ShowDeleteClientCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    </MenuItem>
                     <Separator />
                     <MenuItem
                         Header="_Exit"
                         Command="{Binding ExitCommand}"
                         CommandParameter="ApplicationCommands.Close" />
-                </MenuItem>
+                    </MenuItem>
             </Menu>
         </DockPanel>
-        <Frame
+        <ContentControl
+            x:Name="ScreenDisplayControl"
             Grid.Row="1"
-            NavigationUIVisibility="Hidden"
-            Content="{Binding PageContent}" />
+            DataContext="{Binding ElementName=Self}"
+            Content="{Binding CurrentScreen}" />
     </Grid>
 </Window>

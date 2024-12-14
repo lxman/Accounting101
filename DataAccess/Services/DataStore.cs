@@ -7,8 +7,9 @@ using System.Threading.Tasks;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using DataAccess.ZipCodeData;
-using LiteDB;
 using LiteDB.Async;
+using Microsoft.Win32;
+#pragma warning disable CA1416
 
 #pragma warning disable CS8618, CS9264
 
@@ -48,6 +49,21 @@ namespace DataAccess.Services
         public LiteDatabaseAsync? Instance() => _db;
 
         public ILiteCollectionAsync<T>? GetCollection<T>(string name) => _db?.GetCollection<T>(name);
+
+        public string GetDbLocation()
+        {
+            RegistryKey softwareKey = Registry.CurrentUser.OpenSubKey("Software")!;
+            RegistryKey? jsKey = softwareKey.OpenSubKey("JordanSoft");
+            RegistryKey? a101Key = jsKey?.OpenSubKey("Accounting101");
+            return a101Key?.GetValue("DbLocation") as string ?? string.Empty;
+        }
+
+        public void ClearRegistry()
+        {
+            RegistryKey softwareKey = Registry.CurrentUser.OpenSubKey("Software")!;
+            RegistryKey? jsKey = softwareKey.OpenSubKey("JordanSoft", true);
+            jsKey?.DeleteSubKeyTree("Accounting101");
+        }
 
         public async Task<bool> CreateBusinessAsync(Business business)
         {

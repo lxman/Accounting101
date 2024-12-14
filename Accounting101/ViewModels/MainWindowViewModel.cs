@@ -1,7 +1,4 @@
-﻿using Accounting101.Commands;
-using Accounting101.Views.Create;
-using Accounting101.Views.List;
-using DataAccess;
+﻿using DataAccess;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 
@@ -12,52 +9,66 @@ namespace Accounting101.ViewModels
 {
     public class MainWindowViewModel : BaseViewModel
     {
+        public WindowType InitialScreen { get; private set; }
+
         public MenuViewModel MenuViewModel { get; }
 
-        public object PageContent
-        {
-            get => _pageContent;
-            set => SetField(ref _pageContent, value);
-        }
-
         private readonly IDataStore _dataStore;
-        private object _pageContent;
-        private readonly JoinableTaskFactory _taskFactory;
 
-        public MainWindowViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory)
+        public MainWindowViewModel(
+            IDataStore dataStore,
+            JoinableTaskFactory taskFactory,
+            MenuViewModel menuViewModel)
         {
             _dataStore = dataStore;
-            _taskFactory = taskFactory;
-            MenuViewModel = new MenuViewModel(_dataStore);
-            MenuViewModel.CreateBusiness += (sender, args) => PresentBusinessCreateScreen();
-            MenuViewModel.CreateClient += (sender, args) => PresentClientCreateScreen();
-            MenuViewModel.CreateAccount += (sender, args) => PresentAccountCreateScreen();
-            MenuViewModel.CreateTransaction += (sender, args) => PresentTransactionCreateScreen();
+            MenuViewModel = menuViewModel;
             if (!taskFactory.Run(BusinessExistsAsync))
             {
                 PresentBusinessCreateScreen();
             }
-            if (!taskFactory.Run(ClientExistsAsync))
+            else if (!taskFactory.Run(ClientExistsAsync))
             {
                 PresentClientCreateScreen();
             }
-            PresentClientListView();
+            else
+            {
+                PresentClientListView();
+            }
         }
 
         private void PresentBusinessCreateScreen()
         {
-            CreateBusinessView createBusinessView = new(_dataStore, _taskFactory);
-            CreateBusinessViewModel createBusinessViewModel = (CreateBusinessViewModel)createBusinessView.DataContext;
-            PageContent = createBusinessView;
-            MenuViewModel.SaveCommand = new DelegateCommand(() => BusinessViewSave(createBusinessViewModel));
+            MenuViewModel.ShowNewBusinessCommand = true;
+            MenuViewModel.ShowNewClientCommand = false;
+            MenuViewModel.ShowNewAccountCommand = false;
+            MenuViewModel.ShowNewTransactionCommand = false;
+            MenuViewModel.ShowSaveCommand = true;
+            InitialScreen = WindowType.CreateBusiness;
         }
 
         private void PresentClientCreateScreen()
         {
-            CreateClientView createClientView = new(_dataStore, _taskFactory);
-            CreateClientViewModel createClientViewModel = (CreateClientViewModel)createClientView.DataContext;
-            PageContent = createClientView;
-            MenuViewModel.SaveCommand = new DelegateCommand(() => ClientViewSave(createClientViewModel));
+            MenuViewModel.ShowNewBusinessCommand = false;
+            MenuViewModel.ShowDeleteCommand = true;
+            MenuViewModel.ShowDeleteBusinessCommand = true;
+            MenuViewModel.ShowNewClientCommand = true;
+            MenuViewModel.ShowNewAccountCommand = false;
+            MenuViewModel.ShowNewTransactionCommand = false;
+            MenuViewModel.ShowSaveCommand = true;
+            InitialScreen = WindowType.CreateClient;
+        }
+
+        private void PresentClientListView()
+        {
+            MenuViewModel.ShowNewBusinessCommand = false;
+            MenuViewModel.ShowDeleteCommand = true;
+            MenuViewModel.ShowDeleteBusinessCommand = true;
+            MenuViewModel.ShowDeleteClientCommand = true;
+            MenuViewModel.ShowNewClientCommand = true;
+            MenuViewModel.ShowNewAccountCommand = true;
+            MenuViewModel.ShowNewTransactionCommand = false;
+            MenuViewModel.ShowSaveCommand = true;
+            InitialScreen = WindowType.ClientList;
         }
 
         private void PresentAccountCreateScreen()
@@ -68,42 +79,15 @@ namespace Accounting101.ViewModels
         {
         }
 
-        private void PresentClientListView()
-        {
-            ClientListView clientListView = new(_dataStore, _taskFactory);
-            clientListView.ClientChosen += (sender, id) =>
-            {
-                ClientChosen(id);
-            };
-            PageContent = clientListView;
-        }
-
-        private void BusinessViewSave(CreateBusinessViewModel m)
-        {
-            _taskFactory.Run(m.SaveAsync);
-        }
-
-        private void ClientViewSave(CreateClientViewModel m)
-        {
-            _taskFactory.Run(m.SaveAsync);
-        }
-
-        private void ClientChosen(Guid id)
-        {
-            PageContent = new ClientAccountsView(_dataStore, _taskFactory, id);
-        }
-
         private async Task<bool> BusinessExistsAsync()
         {
-            bool businessExists = (await _dataStore.GetBusinessAsync()) is not null;
-            MenuViewModel.BusinessExists = businessExists;
+            bool businessExists = await _dataStore.GetBusinessAsync() is not null;
             return businessExists;
         }
 
         private async Task<bool> ClientExistsAsync()
         {
             bool clientExists = (await _dataStore.AllClientsAsync())?.Any() ?? false;
-            MenuViewModel.ClientExists = clientExists;
             return clientExists;
         }
     }

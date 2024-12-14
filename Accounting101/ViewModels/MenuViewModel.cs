@@ -1,6 +1,10 @@
-﻿using System.Windows;
+﻿using System.IO;
+using System.Windows;
 using System.Windows.Input;
 using Accounting101.Commands;
+using Accounting101.Dialogs;
+using Accounting101.Messages;
+using CommunityToolkit.Mvvm.Messaging;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services;
@@ -19,6 +23,8 @@ namespace Accounting101.ViewModels
         public event EventHandler? CreateAccount;
 
         public event EventHandler? CreateTransaction;
+
+        public event EventHandler? DeleteClient;
 
         public bool ShowNewCommand
         {
@@ -58,7 +64,29 @@ namespace Accounting101.ViewModels
             set => SetField(ref _showNewTransactionCommand, value);
         }
 
-        public ICommand SaveCommand { get; set; }
+        public bool ShowDeleteCommand
+        {
+            get => _showDeleteCommand;
+            set => SetField(ref _showDeleteCommand, value);
+        }
+
+        public ICommand DeleteBusinessCommand { get; }
+
+        public bool ShowDeleteBusinessCommand
+        {
+            get => _showDeleteBusinessCommand;
+            set => SetField(ref _showDeleteBusinessCommand, value);
+        }
+
+        public ICommand DeleteClientCommand { get; }
+
+        public bool ShowDeleteClientCommand
+        {
+            get => _showDeleteClientCommand;
+            set => SetField(ref _showDeleteClientCommand, value);
+        }
+
+        public ICommand SaveCommand { get; }
 
         public bool ShowSaveCommand
         {
@@ -98,6 +126,8 @@ namespace Accounting101.ViewModels
             }
         }
 
+        public WindowType ActiveWindow { private get; set; }
+
         private bool _businessExists;
         private bool _clientExists;
         private bool _accountExists;
@@ -106,6 +136,9 @@ namespace Accounting101.ViewModels
         private bool _showNewClientCommand;
         private bool _showNewAccountCommand;
         private bool _showNewTransactionCommand;
+        private bool _showDeleteCommand;
+        private bool _showDeleteBusinessCommand;
+        private bool _showDeleteClientCommand;
         private bool _showSaveCommand;
         private readonly IDataStore _dataStore;
 
@@ -117,6 +150,15 @@ namespace Accounting101.ViewModels
             NewClientCommand = new DelegateCommand(() => CreateClient?.Invoke(this, EventArgs.Empty));
             NewAccountCommand = new DelegateCommand(() => CreateAccount?.Invoke(this, EventArgs.Empty));
             NewTransactionCommand = new DelegateCommand(() => CreateTransaction?.Invoke(this, EventArgs.Empty));
+            DeleteBusinessCommand = new DelegateCommand(DeleteBusiness);
+            DeleteClientCommand = new DelegateCommand(() => DeleteClient?.Invoke(this, EventArgs.Empty));
+            SaveCommand = new DelegateCommand(() => Messenger.Send(new SaveMessage(
+                ActiveWindow switch
+                {
+                    WindowType.CreateBusiness => WindowType.CreateBusiness,
+                    WindowType.CreateClient => WindowType.CreateClient,
+                    _ => WindowType.ClientList
+                })));
             ExitCommand = new DelegateCommand(() =>
             {
                 _dataStore.Dispose();
@@ -135,25 +177,31 @@ namespace Accounting101.ViewModels
                     ShowNewTransactionCommand = false;
                     break;
 
-                case true
-                    when !ClientExists && !AccountExists:
+                case true when !ClientExists && !AccountExists:
                     ShowNewBusinessCommand = false;
+                    ShowDeleteCommand = true;
+                    ShowDeleteBusinessCommand = true;
+                    ShowDeleteClientCommand = false;
                     ShowNewClientCommand = true;
                     ShowNewAccountCommand = false;
                     ShowNewTransactionCommand = false;
                     break;
 
-                case true
-                    when ClientExists && !AccountExists:
+                case true when ClientExists && !AccountExists:
                     ShowNewBusinessCommand = false;
+                    ShowDeleteCommand = true;
+                    ShowDeleteBusinessCommand = true;
+                    ShowDeleteClientCommand = true;
                     ShowNewClientCommand = true;
                     ShowNewAccountCommand = true;
                     ShowNewTransactionCommand = false;
                     break;
 
-                case true
-                    when ClientExists && AccountExists:
+                case true when ClientExists && AccountExists:
                     ShowNewBusinessCommand = false;
+                    ShowDeleteCommand = true;
+                    ShowDeleteBusinessCommand = true;
+                    ShowDeleteClientCommand = true;
                     ShowNewClientCommand = true;
                     ShowNewAccountCommand = true;
                     ShowNewTransactionCommand = true;
@@ -213,11 +261,22 @@ namespace Accounting101.ViewModels
                 if (e.ChangedType == typeof(Client))
                 {
                 }
-                if (e.ChangedType == typeof(Business))
-                {
-                }
             }
             ChangeMenuState();
+        }
+
+        private void DeleteBusiness()
+        {
+            DeleteBusinessDialog deleteBusinessDialog = new();
+            if (deleteBusinessDialog.ShowDialog() != true)
+            {
+                return;
+            }
+            _dataStore.Dispose();
+            string dbLocation = _dataStore.GetDbLocation();
+            File.Delete(dbLocation);
+            _dataStore.ClearRegistry();
+            Application.Current.Shutdown(0);
         }
     }
 }

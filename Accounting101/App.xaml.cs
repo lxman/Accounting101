@@ -3,10 +3,10 @@ using System.IO;
 using System.Windows;
 using Accounting101.Dialogs;
 using Accounting101.ViewModels;
-using Accounting101.Views.List;
 using DataAccess.Services;
 using DataAccess.Services.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.VisualStudio.Threading;
 using Microsoft.Win32;
 
 #pragma warning disable CS8618, CS9264
@@ -19,12 +19,12 @@ namespace Accounting101
         private string _password;
         private bool _protected;
         private readonly bool _createDb;
-        private readonly IServiceProvider _services;
+        private readonly ServiceProvider _services;
 
         public App()
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
-            if (GetRegistryStatus())
+            if (!DbRegistrationStatus())
             {
                 Setup setup = new();
                 setup.PasswordSetEvent += SetupPasswordSetEvent;
@@ -54,7 +54,7 @@ namespace Accounting101
                 }
             }
 
-            _ = GetRegistryStatus();
+            _ = DbRegistrationStatus();
             DataAccess.ConnectionString.ConnString = $"FileName={_dbLocation};";
             if (!string.IsNullOrWhiteSpace(_password))
             {
@@ -75,15 +75,17 @@ namespace Accounting101
                 }
             }
 
+            JoinableTaskFactory taskFactory = new(new JoinableTaskCollection(new JoinableTaskContext()));
+
             ServiceCollection services = new();
             services.AddSingleton<IDataStore, DataStore>();
-            services.AddSingleton<MainWindow>();
+            services.AddSingleton(taskFactory);
+            services.AddSingleton<MenuViewModel>();
             services.AddSingleton<MainWindowViewModel>();
-            services.AddTransient<ClientListView>();
-            IServiceProvider serviceProvider = services.BuildServiceProvider();
-            _services = serviceProvider;
+            services.AddSingleton<MainWindow>();
+            _services = services.BuildServiceProvider();
 
-            MainWindow mainWindow = serviceProvider.GetRequiredService<MainWindow>();
+            MainWindow mainWindow = _services.GetRequiredService<MainWindow>();
             mainWindow.Show();
         }
 
@@ -99,19 +101,19 @@ namespace Accounting101
             _password = e;
         }
 
-        private bool GetRegistryStatus()
+        private bool DbRegistrationStatus()
         {
             RegistryKey softwareKey = Registry.CurrentUser.OpenSubKey("Software")!;
             RegistryKey? jsKey = softwareKey.OpenSubKey("JordanSoft");
             RegistryKey? a101Key = jsKey?.OpenSubKey("Accounting101");
             if (a101Key is null)
             {
-                return true;
+                return false;
             }
 
             _dbLocation = a101Key.GetValue("DbLocation")?.ToString() ?? string.Empty;
             _protected = (string?)a101Key.GetValue("Protected") == "True";
-            return false;
+            return true;
         }
     }
 }
