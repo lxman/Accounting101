@@ -65,6 +65,8 @@ namespace Accounting101
                 case WindowType.ClientList:
                     PresentClientListView();
                     break;
+                case WindowType.ClientAccountList:
+                    break;
                 case WindowType.CreateAccount:
                     PresentAccountCreateScreen();
                     break;
@@ -95,7 +97,7 @@ namespace Accounting101
         private void PresentClientListView()
         {
             ClientListView clientListView = new(_dataStore, _taskFactory);
-            clientListView!.ClientChosen += (sender, id) =>
+            clientListView.ClientChosen += (sender, id) =>
             {
                 ClientChosen(id);
             };

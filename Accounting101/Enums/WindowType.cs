@@ -6,6 +6,7 @@ public enum WindowType
     CreateBusiness,
     CreateClient,
     ClientList,
+    ClientAccountList,
     CreateAccount,
     CreateTransaction
 }

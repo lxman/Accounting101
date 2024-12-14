@@ -25,7 +25,7 @@
                     <TextBlock Focusable="False" Text="{Binding Address}" Padding="5, 0, 0, 0" />
                 </StackPanel>
             </Border>
-            <Frame x:Name="AccountsFrame" Content="{Binding AccountsList}" />
+            <ContentControl x:Name="AccountsFrame" Content="{Binding AccountsList}" />
         </StackPanel>
     </Grid>
 </UserControl>

@@ -147,7 +147,7 @@ namespace Accounting101.ViewModels
             _dataStore = dataStore;
             _dataStore.StoreChanged += StoreChanged;
             NewBusinessCommand = new DelegateCommand(() => CreateBusiness?.Invoke(this, EventArgs.Empty));
-            NewClientCommand = new DelegateCommand(() => CreateClient?.Invoke(this, EventArgs.Empty));
+            NewClientCommand = new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.CreateClient)));
             NewAccountCommand = new DelegateCommand(() => CreateAccount?.Invoke(this, EventArgs.Empty));
             NewTransactionCommand = new DelegateCommand(() => CreateTransaction?.Invoke(this, EventArgs.Empty));
             DeleteBusinessCommand = new DelegateCommand(DeleteBusiness);
