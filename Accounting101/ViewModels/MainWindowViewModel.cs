@@ -14,6 +14,7 @@ namespace Accounting101.ViewModels
         public MenuViewModel MenuViewModel { get; }
 
         private readonly IDataStore _dataStore;
+        private readonly JoinableTaskFactory _taskFactory;
 
         public MainWindowViewModel(
             IDataStore dataStore,
@@ -21,12 +22,13 @@ namespace Accounting101.ViewModels
             MenuViewModel menuViewModel)
         {
             _dataStore = dataStore;
+            _taskFactory = taskFactory;
             MenuViewModel = menuViewModel;
-            if (!taskFactory.Run(BusinessExistsAsync))
+            if (!_taskFactory.Run(BusinessExistsAsync))
             {
                 PresentBusinessCreateScreen();
             }
-            else if (!taskFactory.Run(ClientExistsAsync))
+            else if (!_taskFactory.Run(ClientExistsAsync))
             {
                 PresentClientCreateScreen();
             }
@@ -34,6 +36,11 @@ namespace Accounting101.ViewModels
             {
                 PresentClientListView();
             }
+        }
+
+        public void DeleteClient(Guid id)
+        {
+            _taskFactory.Run(() => _dataStore.DeleteClientAsync(id));
         }
 
         private void PresentBusinessCreateScreen()
@@ -51,7 +58,7 @@ namespace Accounting101.ViewModels
             MenuViewModel.ShowNewBusinessCommand = false;
             MenuViewModel.ShowDeleteCommand = true;
             MenuViewModel.ShowDeleteBusinessCommand = true;
-            MenuViewModel.ShowNewClientCommand = true;
+            MenuViewModel.ShowNewClientCommand = false;
             MenuViewModel.ShowNewAccountCommand = false;
             MenuViewModel.ShowNewTransactionCommand = false;
             MenuViewModel.ShowSaveCommand = true;
@@ -63,7 +70,7 @@ namespace Accounting101.ViewModels
             MenuViewModel.ShowNewBusinessCommand = false;
             MenuViewModel.ShowDeleteCommand = true;
             MenuViewModel.ShowDeleteBusinessCommand = true;
-            MenuViewModel.ShowDeleteClientCommand = true;
+            MenuViewModel.ShowDeleteClientCommand = false;
             MenuViewModel.ShowNewClientCommand = true;
             MenuViewModel.ShowNewAccountCommand = true;
             MenuViewModel.ShowNewTransactionCommand = false;

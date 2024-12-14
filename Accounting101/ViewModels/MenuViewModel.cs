@@ -16,14 +16,6 @@ namespace Accounting101.ViewModels
 {
     public class MenuViewModel : BaseViewModel
     {
-        public event EventHandler? CreateBusiness;
-
-        public event EventHandler? CreateClient;
-
-        public event EventHandler? CreateAccount;
-
-        public event EventHandler? CreateTransaction;
-
         public event EventHandler? DeleteClient;
 
         public bool ShowNewCommand
@@ -146,10 +138,10 @@ namespace Accounting101.ViewModels
         {
             _dataStore = dataStore;
             _dataStore.StoreChanged += StoreChanged;
-            NewBusinessCommand = new DelegateCommand(() => CreateBusiness?.Invoke(this, EventArgs.Empty));
-            NewClientCommand = new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.CreateClient)));
-            NewAccountCommand = new DelegateCommand(() => CreateAccount?.Invoke(this, EventArgs.Empty));
-            NewTransactionCommand = new DelegateCommand(() => CreateTransaction?.Invoke(this, EventArgs.Empty));
+            NewBusinessCommand = new DelegateCommand(() => { });
+            NewClientCommand = new DelegateCommand(() => { });
+            NewAccountCommand = new DelegateCommand(() => { });
+            NewTransactionCommand = new DelegateCommand(() => { });
             DeleteBusinessCommand = new DelegateCommand(DeleteBusiness);
             DeleteClientCommand = new DelegateCommand(() => DeleteClient?.Invoke(this, EventArgs.Empty));
             SaveCommand = new DelegateCommand(() => Messenger.Send(new SaveMessage(

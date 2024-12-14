@@ -14,6 +14,7 @@ namespace Accounting101.ViewModels
     public class CreateClientViewModel : BaseViewModel, IRecipient<SaveMessage>
     {
         public event EventHandler? ClientCreated;
+
         public UserControl AddressView
         {
             get => _addressView;

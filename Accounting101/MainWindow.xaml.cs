@@ -6,6 +6,7 @@ using Accounting101.Views.List;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
+
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101
@@ -28,12 +29,14 @@ namespace Accounting101
         private bool _initialScreenSet;
         private readonly MainWindowViewModel _mainWindowViewModel;
         private readonly MenuViewModel _menuViewModel;
+        private Guid _currentClientId;
 
         public MainWindow(IDataStore dataStore, MainWindowViewModel vm)
         {
             WeakReferenceMessenger.Default.Register(this);
             _mainWindowViewModel = vm;
             _menuViewModel = vm.MenuViewModel;
+            _menuViewModel.DeleteClient += DeleteClient;
             _taskFactory = new JoinableTaskFactory(new JoinableTaskCollection(new JoinableTaskContext()));
             _dataStore = dataStore;
             DataContext = vm;
@@ -59,20 +62,26 @@ namespace Accounting101
                 case WindowType.CreateBusiness:
                     PresentBusinessCreateScreen();
                     break;
+
                 case WindowType.CreateClient:
                     PresentClientCreateScreen();
                     break;
+
                 case WindowType.ClientList:
                     PresentClientListView();
                     break;
+
                 case WindowType.ClientAccountList:
                     break;
+
                 case WindowType.CreateAccount:
                     PresentAccountCreateScreen();
                     break;
+
                 case WindowType.CreateTransaction:
                     PresentTransactionCreateScreen();
                     break;
+
                 default:
                     throw new ArgumentOutOfRangeException(nameof(type), type, null);
             }
@@ -96,9 +105,11 @@ namespace Accounting101
 
         private void PresentClientListView()
         {
+            _menuViewModel.ShowDeleteClientCommand = false;
             ClientListView clientListView = new(_dataStore, _taskFactory);
             clientListView.ClientChosen += (sender, id) =>
             {
+                _currentClientId = id;
                 ClientChosen(id);
             };
             CurrentScreen = clientListView;
@@ -117,10 +128,13 @@ namespace Accounting101
         private void ClientChosen(Guid id)
         {
             CurrentScreen = new ClientAccountsView(_dataStore, _taskFactory, id);
+            _menuViewModel.ShowDeleteClientCommand = true;
         }
 
-        private void DeleteClient()
+        private void DeleteClient(object? sender, EventArgs e)
         {
+            _mainWindowViewModel.DeleteClient(_currentClientId);
+            PresentClientListView();
         }
 
         private void SetInitialScreen(object screen)
