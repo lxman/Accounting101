@@ -37,11 +37,10 @@
                 Margin="5"
                 IsThreeState="False"
                 IsChecked="{Binding ForeignCheckboxState, Mode=TwoWay}" />
-            <Frame
+            <ContentControl
                 Grid.Row="1"
                 Grid.Column="0"
                 Grid.ColumnSpan="3"
-                NavigationUIVisibility="Hidden"
                 IsTabStop="False"
                 Content="{Binding AddressView, UpdateSourceTrigger=PropertyChanged}" />
         </Grid>

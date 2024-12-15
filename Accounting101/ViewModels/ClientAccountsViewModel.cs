@@ -1,7 +1,9 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using Accounting101.Messages;
 using Accounting101.Models;
 using Accounting101.Views.Single;
+using CommunityToolkit.Mvvm.Messaging;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
@@ -81,6 +83,11 @@ namespace Accounting101.ViewModels
                 ((DataGrid)AccountsList).SelectionChanged += SelectionChangedHandler;
                 ((DataGrid)AccountsList).ItemsSource = Accounts;
             }
+        }
+
+        public void SwitchToClientList()
+        {
+            Messenger.Send(new ChangeScreenMessage(WindowType.ClientList));
         }
 
         private void SelectionChangedHandler(object sender, SelectionChangedEventArgs e)

@@ -6,6 +6,7 @@
              xmlns:viewModels="clr-namespace:Accounting101.ViewModels"
              mc:Ignorable="d"
              MouseRightButtonDown="AccountViewMouseRightButtonDown"
+             MouseLeftButtonDown="AccountViewMouseLeftButtonDown"
              d:Background="White"
              d:DataContext="{d:DesignInstance viewModels:AccountViewModel}"
              d:DesignHeight="450" d:DesignWidth="800">

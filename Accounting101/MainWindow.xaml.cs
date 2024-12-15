@@ -72,6 +72,7 @@ namespace Accounting101
                     break;
 
                 case WindowType.ClientAccountList:
+                    PresentClientAccountListView();
                     break;
 
                 case WindowType.CreateAccount:
@@ -115,6 +116,11 @@ namespace Accounting101
             CurrentScreen = clientListView;
             SetInitialScreen(clientListView);
             _menuViewModel.ActiveWindow = WindowType.ClientList;
+        }
+
+        private void PresentClientAccountListView()
+        {
+            ClientChosen(_currentClientId);
         }
 
         private void PresentAccountCreateScreen()

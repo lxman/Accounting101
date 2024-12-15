@@ -63,6 +63,10 @@
                         Command="{Binding ExitCommand}"
                         CommandParameter="ApplicationCommands.Close" />
                     </MenuItem>
+                <MenuItem Header="_Reports">
+                    <MenuItem Header="_Balance Sheet" />
+                    <MenuItem Header="_Profit and Loss" />
+                </MenuItem>
             </Menu>
         </DockPanel>
         <ContentControl

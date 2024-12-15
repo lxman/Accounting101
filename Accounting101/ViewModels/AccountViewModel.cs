@@ -1,6 +1,8 @@
 ﻿using System.Collections.ObjectModel;
 using Accounting101.Controls;
+using Accounting101.Messages;
 using Accounting101.Models;
+using CommunityToolkit.Mvvm.Messaging;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
@@ -41,6 +43,11 @@ namespace Accounting101.ViewModels
                 lines.Add(new LedgerLineControl(t, balance, otherAccount));
             });
             Transactions = new ObservableCollection<LedgerLineControl>(lines);
+        }
+
+        public void ShowClientAccountsView()
+        {
+            Messenger.Send(new ChangeScreenMessage(WindowType.ClientAccountList));
         }
     }
 }

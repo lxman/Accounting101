@@ -16,6 +16,7 @@ namespace Accounting101.Views.Single
         private readonly JoinableTaskFactory _taskFactory;
         private readonly AccountWithInfo _awi;
         private readonly AccountWithInfoFlat _f;
+        private readonly AccountViewModel _accountViewModel;
 
         public AccountView(
             IDataStore dataStore,
@@ -28,7 +29,8 @@ namespace Accounting101.Views.Single
             _taskFactory = taskFactory;
             _f = f;
             _awi = awi;
-            DataContext = new AccountViewModel(_dataStore, _taskFactory, a, f, awi);
+            _accountViewModel = new AccountViewModel(dataStore, taskFactory, a, f, awi);
+            DataContext = _accountViewModel;
             InitializeComponent();
         }
 
@@ -46,6 +48,11 @@ namespace Accounting101.Views.Single
             Transaction transaction = ctvm.CreateTransaction();
             _taskFactory.Run(() => _dataStore.CreateTransactionAsync(transaction));
             DataContext = new AccountViewModel(_dataStore, _taskFactory, new AccountWithTransactions(_dataStore, _awi.Id), _f, _awi);
+        }
+
+        private void AccountViewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            _accountViewModel.ShowClientAccountsView();
         }
     }
 }

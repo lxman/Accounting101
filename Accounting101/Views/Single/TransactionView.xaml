@@ -16,8 +16,8 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <TextBlock Grid.Column="0" Text="{Binding Transaction.When}" d:Text="10/01/2004" />
-        <Frame Grid.Column="1" Content="{Binding Account1}" NavigationUIVisibility="Hidden" />
-        <Frame Grid.Column="2" Content="{Binding Account2}" NavigationUIVisibility="Hidden" />
+        <ContentControl Grid.Column="1" Content="{Binding Account1}" />
+        <ContentControl Grid.Column="2" Content="{Binding Account2}" />
         <TextBlock Grid.Column="3" Text="{Binding Transaction.Amount, StringFormat=c}" d:Text="$12.00" />
     </Grid>
 </UserControl>
