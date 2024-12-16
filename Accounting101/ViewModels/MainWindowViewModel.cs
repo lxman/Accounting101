@@ -50,31 +50,39 @@ namespace Accounting101.ViewModels
             MenuViewModel.ShowNewAccountCommand = false;
             MenuViewModel.ShowNewTransactionCommand = false;
             MenuViewModel.ShowSaveCommand = true;
+            MenuViewModel.ShowEditMenu = false;
+            MenuViewModel.ShowReportsMenu = false;
             InitialScreen = WindowType.CreateBusiness;
         }
 
         private void PresentClientCreateScreen()
         {
             MenuViewModel.ShowNewBusinessCommand = false;
-            MenuViewModel.ShowDeleteCommand = true;
+            MenuViewModel.ShowDeleteMenu = true;
             MenuViewModel.ShowDeleteBusinessCommand = true;
             MenuViewModel.ShowNewClientCommand = false;
             MenuViewModel.ShowNewAccountCommand = false;
             MenuViewModel.ShowNewTransactionCommand = false;
             MenuViewModel.ShowSaveCommand = true;
+            MenuViewModel.ShowEditMenu = true;
+            MenuViewModel.ShowEditBusinessCommand = true;
+            MenuViewModel.ShowReportsMenu = false;
             InitialScreen = WindowType.CreateClient;
         }
 
         private void PresentClientListView()
         {
             MenuViewModel.ShowNewBusinessCommand = false;
-            MenuViewModel.ShowDeleteCommand = true;
+            MenuViewModel.ShowDeleteMenu = true;
             MenuViewModel.ShowDeleteBusinessCommand = true;
             MenuViewModel.ShowDeleteClientCommand = false;
             MenuViewModel.ShowNewClientCommand = true;
             MenuViewModel.ShowNewAccountCommand = true;
             MenuViewModel.ShowNewTransactionCommand = false;
             MenuViewModel.ShowSaveCommand = true;
+            MenuViewModel.ShowEditMenu = true;
+            MenuViewModel.ShowEditBusinessCommand = true;
+            MenuViewModel.ShowReportsMenu = false;
             InitialScreen = WindowType.ClientList;
         }
 

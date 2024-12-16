@@ -3,6 +3,7 @@ using Accounting101.Messages;
 using Accounting101.ViewModels;
 using Accounting101.Views.Create;
 using Accounting101.Views.List;
+using Accounting101.Views.Update;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
@@ -29,7 +30,7 @@ namespace Accounting101
         private bool _initialScreenSet;
         private readonly MainWindowViewModel _mainWindowViewModel;
         private readonly MenuViewModel _menuViewModel;
-        private Guid _currentClientId;
+        private Guid? _currentClientId;
 
         public MainWindow(IDataStore dataStore, MainWindowViewModel vm)
         {
@@ -83,6 +84,16 @@ namespace Accounting101
                     PresentTransactionCreateScreen();
                     break;
 
+                case WindowType.EditBusiness:
+                    PresentBusinessEditScreen();
+                    break;
+
+                case WindowType.EditClient:
+                    break;
+
+                case WindowType.EditAccount:
+                    break;
+
                 default:
                     throw new ArgumentOutOfRangeException(nameof(type), type, null);
             }
@@ -106,11 +117,20 @@ namespace Accounting101
 
         private void PresentClientListView()
         {
+            _currentClientId = null;
             _menuViewModel.ShowDeleteClientCommand = false;
+            _menuViewModel.ShowEditClientCommand = false;
+            _menuViewModel.ShowReportsMenu = false;
+            _menuViewModel.ShowReportsBalanceSheetCommand = false;
+            _menuViewModel.ShowReportsProfitAndLossCommand = false;
             ClientListView clientListView = new(_dataStore, _taskFactory);
             clientListView.ClientChosen += (sender, id) =>
             {
                 _currentClientId = id;
+                _menuViewModel.ShowEditClientCommand = true;
+                _menuViewModel.ShowReportsMenu = true;
+                _menuViewModel.ShowReportsBalanceSheetCommand = true;
+                _menuViewModel.ShowReportsProfitAndLossCommand = true;
                 ClientChosen(id);
             };
             CurrentScreen = clientListView;
@@ -120,7 +140,11 @@ namespace Accounting101
 
         private void PresentClientAccountListView()
         {
-            ClientChosen(_currentClientId);
+            if (!_currentClientId.HasValue)
+            {
+                return;
+            }
+            ClientChosen(_currentClientId.Value);
         }
 
         private void PresentAccountCreateScreen()
@@ -131,6 +155,15 @@ namespace Accounting101
         {
         }
 
+        private void PresentBusinessEditScreen()
+        {
+            _currentClientId = null;
+            EditBusinessView editBusinessView = new(_dataStore, _taskFactory);
+            CurrentScreen = editBusinessView;
+            SetInitialScreen(editBusinessView);
+            _menuViewModel.ActiveWindow = WindowType.EditBusiness;
+        }
+
         private void ClientChosen(Guid id)
         {
             CurrentScreen = new ClientAccountsView(_dataStore, _taskFactory, id);
@@ -139,7 +172,11 @@ namespace Accounting101
 
         private void DeleteClient(object? sender, EventArgs e)
         {
-            _mainWindowViewModel.DeleteClient(_currentClientId);
+            if (!_currentClientId.HasValue)
+            {
+                return;
+            }
+            _mainWindowViewModel.DeleteClient(_currentClientId.Value);
             PresentClientListView();
         }
 

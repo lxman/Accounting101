@@ -32,10 +32,17 @@ namespace DataAccess
             return await store.GetCollection<IAddress>(CollectionNames.Address)?.FindByIdAsync(id)!;
         }
 
+        public static async Task<bool?> UpdateAddressAsync(this IDataStore store, IAddress address)
+        {
+            bool? result = await store.GetCollection<IAddress>(CollectionNames.Address)?.UpdateAsync(address)!;
+            if (result is not null && (bool)result) store.NotifyChange(typeof(IAddress), ChangeType.Updated);
+            return result;
+        }
+
         public static async Task<bool?> DeleteAddressAsync(this IDataStore store, Guid id)
         {
             bool? result = await store.GetCollection<IAddress>(CollectionNames.Address)?.DeleteAsync(id)!;
-            if (result is not null && (bool)result) store.NotifyChange(typeof(IAddress), ChangeType.Created);
+            if (result is not null && (bool)result) store.NotifyChange(typeof(IAddress), ChangeType.Deleted);
             return result;
         }
     }

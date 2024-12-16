@@ -21,8 +21,7 @@
                 <MenuItem Header="_File">
                     <MenuItem
                         Header="_New"
-                        CommandParameter="ApplicationCommands.New"
-                        Visibility="{Binding ShowNewCommand, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        Visibility="{Binding ShowNewMenu, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <MenuItem
                             Header="_Business"
                             Command="{Binding NewBusinessCommand}"
@@ -43,11 +42,10 @@
                     <MenuItem
                         Header="_Save"
                         Command="{Binding SaveCommand}"
-                        CommandParameter="ApplicationCommands.Save"
                         Visibility="{Binding ShowSaveCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     <MenuItem
                         Header="_Delete"
-                        Visibility="{Binding ShowDeleteCommand, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        Visibility="{Binding ShowDeleteMenu, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <MenuItem
                             Header="_Business"
                             Command="{Binding DeleteBusinessCommand}"
@@ -60,12 +58,35 @@
                     <Separator />
                     <MenuItem
                         Header="_Exit"
-                        Command="{Binding ExitCommand}"
-                        CommandParameter="ApplicationCommands.Close" />
+                        Command="{Binding ExitCommand}" />
                     </MenuItem>
-                <MenuItem Header="_Reports">
-                    <MenuItem Header="_Balance Sheet" />
-                    <MenuItem Header="_Profit and Loss" />
+                <MenuItem
+                    Header="_Edit"
+                    Visibility="{Binding ShowEditMenu, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <MenuItem
+                        Header="_Business"
+                        Command="{Binding EditBusinessCommand}"
+                        Visibility="{Binding ShowEditBusinessCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <MenuItem
+                        Header="_Client"
+                        Command="{Binding EditClientCommand}"
+                        Visibility="{Binding ShowEditClientCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <MenuItem
+                        Header="_Account"
+                        Command="{Binding EditAccountCommand}"
+                        Visibility="{Binding ShowEditAccountCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                </MenuItem>
+                <MenuItem
+                    Header="_Reports"
+                    Visibility="{Binding ShowReportsMenu, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <MenuItem
+                        Header="_Balance Sheet"
+                        Command="{Binding ReportsBalanceSheetCommand}"
+                        Visibility="{Binding ShowReportsBalanceSheetCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <MenuItem
+                        Header="_Profit and Loss"
+                        Command="{Binding ReportsProfitAndLossCommand}"
+                        Visibility="{Binding ShowReportsProfitAndLossCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 </MenuItem>
             </Menu>
         </DockPanel>

@@ -3,9 +3,6 @@ using System.Windows;
 
 namespace Accounting101.Views.Single
 {
-    /// <summary>
-    /// Interaction logic for UtilityDialog.xaml
-    /// </summary>
     public partial class UtilityDialog : Window
     {
         public object DialogContent { get; }

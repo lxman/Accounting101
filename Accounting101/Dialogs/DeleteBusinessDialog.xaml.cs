@@ -2,9 +2,6 @@
 
 namespace Accounting101.Dialogs
 {
-    /// <summary>
-    /// Interaction logic for DeleteBusinessDialog.xaml
-    /// </summary>
     public partial class DeleteBusinessDialog : Window
     {
         public DeleteBusinessDialog()

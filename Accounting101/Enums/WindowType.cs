@@ -5,8 +5,11 @@ public enum WindowType
 {
     CreateBusiness,
     CreateClient,
+    CreateAccount,
+    CreateTransaction,
     ClientList,
     ClientAccountList,
-    CreateAccount,
-    CreateTransaction
+    EditBusiness,
+    EditClient,
+    EditAccount
 }

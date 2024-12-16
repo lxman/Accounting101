@@ -18,10 +18,10 @@ namespace Accounting101.ViewModels
     {
         public event EventHandler? DeleteClient;
 
-        public bool ShowNewCommand
+        public bool ShowNewMenu
         {
-            get => _showNewCommand;
-            set => SetField(ref _showNewCommand, value);
+            get => _showNewMenu;
+            set => SetField(ref _showNewMenu, value);
         }
 
         public ICommand NewBusinessCommand { get; }
@@ -56,10 +56,10 @@ namespace Accounting101.ViewModels
             set => SetField(ref _showNewTransactionCommand, value);
         }
 
-        public bool ShowDeleteCommand
+        public bool ShowDeleteMenu
         {
-            get => _showDeleteCommand;
-            set => SetField(ref _showDeleteCommand, value);
+            get => _showDeleteMenu;
+            set => SetField(ref _showDeleteMenu, value);
         }
 
         public ICommand DeleteBusinessCommand { get; }
@@ -87,6 +87,58 @@ namespace Accounting101.ViewModels
         }
 
         public ICommand ExitCommand { get; }
+
+        public bool ShowEditMenu
+        {
+            get => _showEditMenu;
+            set => SetField(ref _showEditMenu, value);
+        }
+
+        public ICommand EditBusinessCommand { get; }
+
+        public bool ShowEditBusinessCommand
+        {
+            get => _showEditBusinessCommand;
+            set => SetField(ref _showEditBusinessCommand, value);
+        }
+
+        public ICommand EditClientCommand { get; }
+
+        public bool ShowEditClientCommand
+        {
+            get => _showEditClientCommand;
+            set => SetField(ref _showEditClientCommand, value);
+        }
+
+        public ICommand EditAccountCommand { get; }
+
+        public bool ShowEditAccountCommand
+        {
+            get => _showEditAccountCommand;
+            set => SetField(ref _showEditAccountCommand, value);
+        }
+
+        public bool ShowReportsMenu
+        {
+            get => _showReportsMenu;
+            set => SetField(ref _showReportsMenu, value);
+        }
+
+        public ICommand ReportsBalanceSheetCommand { get; }
+
+        public bool ShowReportsBalanceSheetCommand
+        {
+            get => _showReportsBalanceSheetCommand;
+            set => SetField(ref _showReportsBalanceSheetCommand, value);
+        }
+
+        public ICommand ReportsProfitAndLossCommand { get; }
+
+        public bool ShowReportsProfitAndLossCommand
+        {
+            get => _showReportsProfitAndLossCommand;
+            set => SetField(ref _showReportsProfitAndLossCommand, value);
+        }
 
         public bool BusinessExists
         {
@@ -123,15 +175,33 @@ namespace Accounting101.ViewModels
         private bool _businessExists;
         private bool _clientExists;
         private bool _accountExists;
-        private bool _showNewCommand = true;
+        private bool _showNewMenu = true;
         private bool _showNewBusinessCommand;
         private bool _showNewClientCommand;
         private bool _showNewAccountCommand;
         private bool _showNewTransactionCommand;
-        private bool _showDeleteCommand;
+        private bool _showDeleteMenu;
         private bool _showDeleteBusinessCommand;
         private bool _showDeleteClientCommand;
         private bool _showSaveCommand;
+        private bool _showEditMenu;
+        private bool _showEditBusinessCommand;
+        private bool _showEditClientCommand;
+        private bool _showEditAccountCommand;
+        private bool _showReportsMenu;
+        private bool _showReportsBalanceSheetCommand;
+        private bool _showReportsProfitAndLossCommand;
+
+        //private bool _showReportsIncomeStatementCommand;
+        //private bool _showReportsTrialBalanceCommand;
+        //private bool _showReportsGeneralLedgerCommand;
+        //private bool _showReportsAccountsReceivableCommand;
+        //private bool _showReportsAccountsPayableCommand;
+        //private bool _showReportsCashFlowStatementCommand;
+        //private bool _showReportsBudgetVsActualCommand;
+        //private bool _showReportsTaxSummaryCommand;
+        //private bool _showReportsTaxDetailCommand;
+        //private bool _showReportsCustomReportCommand;
         private readonly IDataStore _dataStore;
 
         public MenuViewModel(IDataStore dataStore)
@@ -156,6 +226,8 @@ namespace Accounting101.ViewModels
                 _dataStore.Dispose();
                 Application.Current.Shutdown();
             });
+            EditBusinessCommand =
+                new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.EditBusiness)));
         }
 
         private void ChangeMenuState()
@@ -167,36 +239,43 @@ namespace Accounting101.ViewModels
                     ShowNewClientCommand = false;
                     ShowNewAccountCommand = false;
                     ShowNewTransactionCommand = false;
+                    ShowEditMenu = false;
                     break;
 
                 case true when !ClientExists && !AccountExists:
                     ShowNewBusinessCommand = false;
-                    ShowDeleteCommand = true;
+                    ShowDeleteMenu = true;
                     ShowDeleteBusinessCommand = true;
                     ShowDeleteClientCommand = false;
                     ShowNewClientCommand = true;
                     ShowNewAccountCommand = false;
                     ShowNewTransactionCommand = false;
+                    ShowEditMenu = true;
+                    ShowEditBusinessCommand = true;
                     break;
 
                 case true when ClientExists && !AccountExists:
                     ShowNewBusinessCommand = false;
-                    ShowDeleteCommand = true;
+                    ShowDeleteMenu = true;
                     ShowDeleteBusinessCommand = true;
                     ShowDeleteClientCommand = true;
                     ShowNewClientCommand = true;
                     ShowNewAccountCommand = true;
                     ShowNewTransactionCommand = false;
+                    ShowEditMenu = true;
+                    ShowEditBusinessCommand = true;
                     break;
 
                 case true when ClientExists && AccountExists:
                     ShowNewBusinessCommand = false;
-                    ShowDeleteCommand = true;
+                    ShowDeleteMenu = true;
                     ShowDeleteBusinessCommand = true;
                     ShowDeleteClientCommand = true;
                     ShowNewClientCommand = true;
                     ShowNewAccountCommand = true;
                     ShowNewTransactionCommand = true;
+                    ShowEditMenu = true;
+                    ShowEditBusinessCommand = true;
                     break;
             }
         }

@@ -74,6 +74,14 @@ namespace DataAccess.Services
             return true;
         }
 
+        public async Task<bool> UpdateBusinessAsync(Business business)
+        {
+            if (_db is null) return false;
+            bool result = await _db.GetCollection<Business>().UpdateAsync(business);
+            if (result) NotifyChange(typeof(Business), ChangeType.Updated);
+            return result;
+        }
+
         public async Task<Business?> GetBusinessAsync()
         {
             List<Business> businesses = (await _db?.GetCollection<Business>()?.FindAllAsync()!).ToList() ?? [];

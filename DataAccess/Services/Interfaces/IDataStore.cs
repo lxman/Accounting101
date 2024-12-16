@@ -20,6 +20,8 @@ namespace DataAccess.Services.Interfaces
 
         Task<Business?> GetBusinessAsync();
 
+        Task<bool> UpdateBusinessAsync(Business business);
+
         Task<List<string>> GetStatesAsync();
 
         string GetDbLocation();

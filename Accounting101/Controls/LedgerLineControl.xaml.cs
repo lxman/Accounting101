@@ -4,9 +4,6 @@ using DataAccess.Models;
 
 namespace Accounting101.Controls
 {
-    /// <summary>
-    /// Interaction logic for LedgerLine.xaml
-    /// </summary>
     public partial class LedgerLineControl : UserControl
     {
         public DateOnly Date { get; }
