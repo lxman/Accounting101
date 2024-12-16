@@ -1,6 +1,6 @@
 ﻿using DataAccess.Models;
 
-namespace Accounting101.ViewModels
+namespace Accounting101.ViewModels.Single
 {
     public class CollapsibleAccountViewModel(AccountWithInfo a, bool isCredited)
     {

@@ -1,6 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
-using Accounting101.ViewModels;
+using Accounting101.ViewModels.List;
 using Accounting101.Views.Single;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;

@@ -1,5 +1,6 @@
 ﻿using System.Windows.Controls;
 using Accounting101.Messages;
+using Accounting101.ViewModels.Single;
 using Accounting101.Views.Create;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess;
@@ -9,7 +10,7 @@ using Microsoft.VisualStudio.Threading;
 
 #pragma warning disable CS8618, CS9264
 
-namespace Accounting101.ViewModels
+namespace Accounting101.ViewModels.Create
 {
     public class CreateClientViewModel : BaseViewModel, IRecipient<SaveMessage>
     {
@@ -82,7 +83,7 @@ namespace Accounting101.ViewModels
             _client.AddressId = addressId;
             _client.PersonNameId = personNameId;
             ClientCreated?.Invoke(this, EventArgs.Empty);
-            return (await _dataStore.CreateClientAsync(_client)) != Guid.Empty;
+            return await _dataStore.CreateClientAsync(_client) != Guid.Empty;
         }
 
         private void ForeignCheckboxChangeState(bool state)

@@ -1,5 +1,6 @@
 ﻿using System.Windows.Controls;
 using Accounting101.Messages;
+using Accounting101.ViewModels.Single;
 using Accounting101.Views.Update;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess;
@@ -9,9 +10,9 @@ using Microsoft.VisualStudio.Threading;
 
 #pragma warning disable CS8618, CS9264
 
-namespace Accounting101.ViewModels
+namespace Accounting101.ViewModels.Update
 {
-    public class EditBusinessViewModel : BaseViewModel, IRecipient<SaveMessage>
+    public class UpdateBusinessViewModel : BaseViewModel, IRecipient<SaveMessage>
     {
         public UserControl AddressView
         {
@@ -41,7 +42,7 @@ namespace Accounting101.ViewModels
         private UserControl _addressView;
         private readonly JoinableTaskFactory _taskFactory;
 
-        public EditBusinessViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory)
+        public UpdateBusinessViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory)
         {
             WeakReferenceMessenger.Default.Register(this);
             _dataStore = dataStore;

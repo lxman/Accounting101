@@ -1,7 +1,8 @@
 ﻿using System.Windows.Controls;
 using System.Windows.Input;
 using Accounting101.Models;
-using Accounting101.ViewModels;
+using Accounting101.ViewModels.Create;
+using Accounting101.ViewModels.Single;
 using Accounting101.Views.Create;
 using DataAccess;
 using DataAccess.Models;

@@ -11,7 +11,7 @@ using Microsoft.VisualStudio.Threading;
 
 #pragma warning disable CS8618, CS9264
 
-namespace Accounting101.ViewModels
+namespace Accounting101.ViewModels.List
 {
     public class ClientAccountsViewModel : BaseViewModel
     {

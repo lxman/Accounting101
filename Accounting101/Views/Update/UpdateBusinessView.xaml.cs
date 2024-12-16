@@ -5,11 +5,11 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.Views.Update
 {
-    public partial class EditBusinessView : UserControl
+    public partial class UpdateBusinessView : UserControl
     {
-        public EditBusinessView(IDataStore dataStore, JoinableTaskFactory taskFactory)
+        public UpdateBusinessView(IDataStore dataStore, JoinableTaskFactory taskFactory)
         {
-            DataContext = new EditBusinessViewModel(dataStore, taskFactory);
+            DataContext = new UpdateBusinessViewModel(dataStore, taskFactory);
             InitializeComponent();
         }
     }

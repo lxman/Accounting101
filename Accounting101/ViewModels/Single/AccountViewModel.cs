@@ -8,7 +8,7 @@ using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 
-namespace Accounting101.ViewModels
+namespace Accounting101.ViewModels.Single
 {
     public class AccountViewModel : BaseViewModel
     {

@@ -6,7 +6,7 @@ using Microsoft.VisualStudio.Threading;
 
 #pragma warning disable VSTHRD002
 
-namespace Accounting101.ViewModels
+namespace Accounting101.ViewModels.List
 {
     public class ClientListViewModel : BaseViewModel
     {

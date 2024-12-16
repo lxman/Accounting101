@@ -158,9 +158,9 @@ namespace Accounting101
         private void PresentBusinessEditScreen()
         {
             _currentClientId = null;
-            EditBusinessView editBusinessView = new(_dataStore, _taskFactory);
-            CurrentScreen = editBusinessView;
-            SetInitialScreen(editBusinessView);
+            UpdateBusinessView updateBusinessView = new(_dataStore, _taskFactory);
+            CurrentScreen = updateBusinessView;
+            SetInitialScreen(updateBusinessView);
             _menuViewModel.ActiveWindow = WindowType.EditBusiness;
         }
 

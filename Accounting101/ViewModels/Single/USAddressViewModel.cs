@@ -3,7 +3,7 @@ using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 
-namespace Accounting101.ViewModels
+namespace Accounting101.ViewModels.Single
 {
     public class USAddressViewModel : BaseViewModel
     {
@@ -15,7 +15,7 @@ namespace Accounting101.ViewModels
         {
             if (id.HasValue)
             {
-                Address = (taskFactory.Run(() => dataStore.FindAddressByIdAsync(id.Value)) as UsAddress) ?? new UsAddress();
+                Address = taskFactory.Run(() => dataStore.FindAddressByIdAsync(id.Value)) as UsAddress ?? new UsAddress();
             }
             else
             {
