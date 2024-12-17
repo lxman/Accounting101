@@ -4,15 +4,16 @@ using Accounting101.ViewModels.Single;
 using Accounting101.Views.Create;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess;
+using DataAccess.Interfaces;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 
 #pragma warning disable CS8618, CS9264
 
-namespace Accounting101.ViewModels.Create
+namespace Accounting101.ViewModels.Update
 {
-    public class CreateClientViewModel : BaseViewModel, IRecipient<SaveMessage>
+    public class UpdateClientViewModel : BaseViewModel, IRecipient<SaveMessage>
     {
         public UserControl AddressView
         {
@@ -50,20 +51,49 @@ namespace Accounting101.ViewModels.Create
         private readonly JoinableTaskFactory _taskFactory;
         private readonly object _addressDataContext;
 
-        public CreateClientViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory)
+        public UpdateClientViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory, Guid clientId)
         {
             WeakReferenceMessenger.Default.Register(this);
             _dataStore = dataStore;
             _taskFactory = taskFactory;
-            Client = new Client();
-            PersonName = new PersonName();
-            AddressView = new CreateUSAddressView(_dataStore, _taskFactory);
+            Client? c = _taskFactory.Run(() => _dataStore.FindClientByIdAsync(clientId));
+            if (c is null)
+            {
+                Client = new Client();
+                PersonName = new PersonName();
+                AddressView = new CreateUSAddressView(_dataStore, _taskFactory);
+            }
+            else
+            {
+                Client = c;
+                PersonName? pn = _taskFactory.Run(() => _dataStore.FindNameByIdAsync(c.PersonNameId));
+                if (pn is null)
+                {
+                    PersonName = new PersonName();
+                }
+                else
+                {
+                    PersonName = pn;
+                    IAddress? address = _taskFactory.Run(() => _dataStore.FindAddressByIdAsync(c.AddressId));
+                    if (address is null)
+                    {
+                        AddressView = new CreateUSAddressView(_dataStore, _taskFactory);
+                    }
+                    else
+                    {
+                        // TODO: Fix foreign address view creation
+                        AddressView = address is ForeignAddress
+                            ? new CreateForeignAddressView()
+                            : new CreateUSAddressView(_dataStore, _taskFactory, address.Id);
+                    }
+                }
+            }
             _addressDataContext = AddressView.DataContext;
         }
 
         public void Receive(SaveMessage message)
         {
-            if (message.Value != WindowType.CreateClient)
+            if (message.Value != WindowType.EditClient)
             {
                 return;
             }
@@ -72,15 +102,12 @@ namespace Accounting101.ViewModels.Create
             Messenger.Send(new ChangeScreenMessage(WindowType.ClientList));
         }
 
-        public async Task<bool> SaveAsync()
+        public async Task<bool?> SaveAsync()
         {
-            Guid personNameId = await _dataStore.CreateNameAsync(_personName);
-            Guid addressId = _foreignCheckboxState
-                ? await _dataStore.CreateAddressAsync(((ForeignAddressViewModel)_addressDataContext).Address)
-                : await _dataStore.CreateAddressAsync(((USAddressViewModel)_addressDataContext).Address);
-            _client.AddressId = addressId;
-            _client.PersonNameId = personNameId;
-            return await _dataStore.CreateClientAsync(_client) != Guid.Empty;
+            _ = await _dataStore.UpdateNameAsync(_personName);
+            return _foreignCheckboxState
+                ? await _dataStore.UpdateAddressAsync(((ForeignAddressViewModel)_addressDataContext).Address)
+                : await _dataStore.UpdateAddressAsync(((USAddressViewModel)_addressDataContext).Address);
         }
 
         private void ForeignCheckboxChangeState(bool state)

@@ -18,11 +18,10 @@ namespace Accounting101.ViewModels
     {
         public event EventHandler? DeleteClient;
 
-        public bool ShowNewMenu
-        {
-            get => _showNewMenu;
-            set => SetField(ref _showNewMenu, value);
-        }
+        public bool ShowNewMenu => ShowNewBusinessCommand
+                                   || ShowNewClientCommand
+                                   || ShowNewAccountCommand
+                                   || ShowNewTransactionCommand;
 
         public ICommand NewBusinessCommand { get; }
 
@@ -56,11 +55,8 @@ namespace Accounting101.ViewModels
             set => SetField(ref _showNewTransactionCommand, value);
         }
 
-        public bool ShowDeleteMenu
-        {
-            get => _showDeleteMenu;
-            set => SetField(ref _showDeleteMenu, value);
-        }
+        public bool ShowDeleteMenu => ShowDeleteBusinessCommand
+                                      || ShowDeleteClientCommand;
 
         public ICommand DeleteBusinessCommand { get; }
 
@@ -88,11 +84,9 @@ namespace Accounting101.ViewModels
 
         public ICommand ExitCommand { get; }
 
-        public bool ShowEditMenu
-        {
-            get => _showEditMenu;
-            set => SetField(ref _showEditMenu, value);
-        }
+        public bool ShowEditMenu => ShowEditBusinessCommand
+                                    || ShowEditClientCommand
+                                    || ShowEditAccountCommand;
 
         public ICommand EditBusinessCommand { get; }
 
@@ -118,11 +112,8 @@ namespace Accounting101.ViewModels
             set => SetField(ref _showEditAccountCommand, value);
         }
 
-        public bool ShowReportsMenu
-        {
-            get => _showReportsMenu;
-            set => SetField(ref _showReportsMenu, value);
-        }
+        public bool ShowReportsMenu => ShowReportsBalanceSheetCommand
+                                       || ShowReportsProfitAndLossCommand;
 
         public ICommand ReportsBalanceSheetCommand { get; }
 
@@ -175,20 +166,16 @@ namespace Accounting101.ViewModels
         private bool _businessExists;
         private bool _clientExists;
         private bool _accountExists;
-        private bool _showNewMenu = true;
         private bool _showNewBusinessCommand;
         private bool _showNewClientCommand;
         private bool _showNewAccountCommand;
         private bool _showNewTransactionCommand;
-        private bool _showDeleteMenu;
         private bool _showDeleteBusinessCommand;
         private bool _showDeleteClientCommand;
         private bool _showSaveCommand;
-        private bool _showEditMenu;
         private bool _showEditBusinessCommand;
         private bool _showEditClientCommand;
         private bool _showEditAccountCommand;
-        private bool _showReportsMenu;
         private bool _showReportsBalanceSheetCommand;
         private bool _showReportsProfitAndLossCommand;
 
@@ -209,7 +196,7 @@ namespace Accounting101.ViewModels
             _dataStore = dataStore;
             _dataStore.StoreChanged += StoreChanged;
             NewBusinessCommand = new DelegateCommand(() => { });
-            NewClientCommand = new DelegateCommand(() => { });
+            NewClientCommand = new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.CreateClient)));
             NewAccountCommand = new DelegateCommand(() => { });
             NewTransactionCommand = new DelegateCommand(() => { });
             DeleteBusinessCommand = new DelegateCommand(DeleteBusiness);
@@ -219,6 +206,8 @@ namespace Accounting101.ViewModels
                 {
                     WindowType.CreateBusiness => WindowType.CreateBusiness,
                     WindowType.CreateClient => WindowType.CreateClient,
+                    WindowType.EditBusiness => WindowType.EditBusiness,
+                    WindowType.EditClient => WindowType.EditClient,
                     _ => WindowType.ClientList
                 })));
             ExitCommand = new DelegateCommand(() =>
@@ -228,6 +217,8 @@ namespace Accounting101.ViewModels
             });
             EditBusinessCommand =
                 new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.EditBusiness)));
+            EditClientCommand =
+                new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.EditClient)));
         }
 
         private void ChangeMenuState()
@@ -239,42 +230,35 @@ namespace Accounting101.ViewModels
                     ShowNewClientCommand = false;
                     ShowNewAccountCommand = false;
                     ShowNewTransactionCommand = false;
-                    ShowEditMenu = false;
                     break;
 
                 case true when !ClientExists && !AccountExists:
                     ShowNewBusinessCommand = false;
-                    ShowDeleteMenu = true;
+                    ShowNewClientCommand = true;
                     ShowDeleteBusinessCommand = true;
                     ShowDeleteClientCommand = false;
-                    ShowNewClientCommand = true;
                     ShowNewAccountCommand = false;
                     ShowNewTransactionCommand = false;
-                    ShowEditMenu = true;
                     ShowEditBusinessCommand = true;
                     break;
 
                 case true when ClientExists && !AccountExists:
                     ShowNewBusinessCommand = false;
-                    ShowDeleteMenu = true;
                     ShowDeleteBusinessCommand = true;
                     ShowDeleteClientCommand = true;
                     ShowNewClientCommand = true;
                     ShowNewAccountCommand = true;
                     ShowNewTransactionCommand = false;
-                    ShowEditMenu = true;
                     ShowEditBusinessCommand = true;
                     break;
 
                 case true when ClientExists && AccountExists:
                     ShowNewBusinessCommand = false;
-                    ShowDeleteMenu = true;
                     ShowDeleteBusinessCommand = true;
                     ShowDeleteClientCommand = true;
                     ShowNewClientCommand = true;
                     ShowNewAccountCommand = true;
                     ShowNewTransactionCommand = true;
-                    ShowEditMenu = true;
                     ShowEditBusinessCommand = true;
                     break;
             }

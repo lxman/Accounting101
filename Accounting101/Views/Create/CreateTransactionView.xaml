@@ -3,11 +3,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:viewModels="clr-namespace:Accounting101.ViewModels"
+             xmlns:create="clr-namespace:Accounting101.ViewModels.Create"
              mc:Ignorable="d"
              d:DesignHeight="50" d:DesignWidth="800"
              d:Background="White"
-             d:DataContext="{d:DesignInstance viewModels:CreateTransactionViewModel}">
+             d:DataContext="{d:DesignInstance create:CreateTransactionViewModel}">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />

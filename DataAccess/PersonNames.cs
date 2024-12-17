@@ -35,5 +35,13 @@ namespace DataAccess
             ILiteCollectionAsync<PersonName>? collection = store.GetCollection<PersonName>(CollectionNames.PersonName);
             return await collection?.FindByIdAsync(id)!;
         }
+
+        public static async Task<bool> UpdateNameAsync(this IDataStore store, PersonName name)
+        {
+            ILiteCollectionAsync<PersonName>? collection = store.GetCollection<PersonName>(CollectionNames.PersonName);
+            bool result = await collection?.UpdateAsync(name)!;
+            if (result) store.NotifyChange(typeof(PersonName), ChangeType.Updated);
+            return result;
+        }
     }
 }

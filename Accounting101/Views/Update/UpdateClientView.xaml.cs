@@ -1,16 +1,16 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
-using Accounting101.ViewModels.Create;
+using Accounting101.ViewModels.Update;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 
-namespace Accounting101.Views.Create
+namespace Accounting101.Views.Update
 {
-    public partial class CreateAccountView : UserControl
+    public partial class UpdateClientView : UserControl
     {
-        public CreateAccountView(IDataStore dataStore, JoinableTaskFactory taskFactory)
+        public UpdateClientView(IDataStore dataStore, JoinableTaskFactory taskFactory, Guid clientId)
         {
-            DataContext = new CreateAccountViewModel(dataStore, taskFactory);
+            DataContext = new UpdateClientViewModel(dataStore, taskFactory, clientId);
             InitializeComponent();
         }
 

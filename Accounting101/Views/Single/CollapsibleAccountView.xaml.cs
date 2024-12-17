@@ -1,5 +1,5 @@
 ﻿using System.Windows.Controls;
-using Accounting101.ViewModels;
+using Accounting101.ViewModels.Single;
 using DataAccess.Models;
 
 namespace Accounting101.Views.Single

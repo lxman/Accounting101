@@ -41,12 +41,14 @@ namespace Accounting101.ViewModels.Update
         private readonly IDataStore _dataStore;
         private UserControl _addressView;
         private readonly JoinableTaskFactory _taskFactory;
+        private readonly bool _clientsExist;
 
-        public UpdateBusinessViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory)
+        public UpdateBusinessViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory, bool clientsExist)
         {
             WeakReferenceMessenger.Default.Register(this);
             _dataStore = dataStore;
             _taskFactory = taskFactory;
+            _clientsExist = clientsExist;
             Business? found = taskFactory.Run(() => _dataStore.GetBusinessAsync());
             Business ??= found ?? new Business { Name = string.Empty };
             _foreignCheckboxState = Business.Address is ForeignAddress;
@@ -69,13 +71,14 @@ namespace Accounting101.ViewModels.Update
                 return;
             }
             _taskFactory.Run(SaveAsync);
-            Messenger.Send(new ChangeScreenMessage(WindowType.CreateClient));
+            Messenger.Send(new ChangeScreenMessage(_clientsExist ? WindowType.ClientList : WindowType.CreateClient));
         }
 
         public async Task<bool> SaveAsync()
         {
             _ = await _dataStore.UpdateAddressAsync(Business!.Address);
             await _dataStore.UpdateBusinessAsync(Business);
+            WeakReferenceMessenger.Default.Unregister<SaveMessage>(this);
             return true;
         }
 

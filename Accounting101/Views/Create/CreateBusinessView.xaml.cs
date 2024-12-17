@@ -1,5 +1,5 @@
 ﻿using System.Windows.Controls;
-using Accounting101.ViewModels;
+using Accounting101.ViewModels.Create;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 

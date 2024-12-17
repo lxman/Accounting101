@@ -3,10 +3,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:viewModels="clr-namespace:Accounting101.ViewModels"
+             xmlns:list="clr-namespace:Accounting101.ViewModels.List"
              mc:Ignorable="d"
              d:Background="White"
-             d:DataContext="{d:DesignInstance viewModels:ClientListViewModel}"
+             d:DataContext="{d:DesignInstance list:ClientListViewModel}"
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
         <ScrollViewer VerticalScrollBarVisibility="Auto">

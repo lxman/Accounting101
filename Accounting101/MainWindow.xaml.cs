@@ -89,6 +89,7 @@ namespace Accounting101
                     break;
 
                 case WindowType.EditClient:
+                    PresentClientEditScreen();
                     break;
 
                 case WindowType.EditAccount:
@@ -120,7 +121,6 @@ namespace Accounting101
             _currentClientId = null;
             _menuViewModel.ShowDeleteClientCommand = false;
             _menuViewModel.ShowEditClientCommand = false;
-            _menuViewModel.ShowReportsMenu = false;
             _menuViewModel.ShowReportsBalanceSheetCommand = false;
             _menuViewModel.ShowReportsProfitAndLossCommand = false;
             ClientListView clientListView = new(_dataStore, _taskFactory);
@@ -128,7 +128,6 @@ namespace Accounting101
             {
                 _currentClientId = id;
                 _menuViewModel.ShowEditClientCommand = true;
-                _menuViewModel.ShowReportsMenu = true;
                 _menuViewModel.ShowReportsBalanceSheetCommand = true;
                 _menuViewModel.ShowReportsProfitAndLossCommand = true;
                 ClientChosen(id);
@@ -158,10 +157,24 @@ namespace Accounting101
         private void PresentBusinessEditScreen()
         {
             _currentClientId = null;
-            UpdateBusinessView updateBusinessView = new(_dataStore, _taskFactory);
+            UpdateBusinessView updateBusinessView = new(_dataStore, _taskFactory, _mainWindowViewModel.ClientsExist);
             CurrentScreen = updateBusinessView;
             SetInitialScreen(updateBusinessView);
             _menuViewModel.ActiveWindow = WindowType.EditBusiness;
+        }
+
+        private void PresentClientEditScreen()
+        {
+            if (_currentClientId == null)
+            {
+                PresentClientListView();
+                return;
+            }
+
+            UpdateClientView updateClientView = new(_dataStore, _taskFactory, _currentClientId.Value);
+            CurrentScreen = updateClientView;
+            SetInitialScreen(updateClientView);
+            _menuViewModel.ActiveWindow = WindowType.EditClient;
         }
 
         private void ClientChosen(Guid id)

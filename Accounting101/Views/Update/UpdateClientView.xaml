@@ -1,25 +1,29 @@
-﻿<UserControl x:Class="Accounting101.Views.Update.UpdateBusinessView"
+﻿<UserControl x:Class="Accounting101.Views.Update.UpdateClientView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:update="clr-namespace:Accounting101.ViewModels.Update"
+             xmlns:controls="clr-namespace:Accounting101.Controls"
+             xmlns:create="clr-namespace:Accounting101.Views.Create"
              mc:Ignorable="d"
-             d:DataContext="{d:DesignInstance update:UpdateBusinessViewModel}"
              d:Background="White"
+             d:DataContext="{d:DesignInstance update:UpdateClientViewModel}"
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
-        <Label Grid.Column="0" Grid.Row="0" Content="Name:" />
-        <TextBox Grid.Column="1" Grid.Row="0" Text="{Binding Business.Name, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center" />
-        <Grid Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2">
+        <controls:TextBoxWithLabelControl
+            Grid.Row="0"
+            LabelContent="Business Name:"
+            TextBoxText="{Binding Client.BusinessName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+            d:LabelContent="Business Name:"
+            d:TextBoxText="My Business" />
+        <create:CreatePersonNameView Grid.Row="1" DataContext="{Binding PersonName}" />
+        <Grid Grid.Row="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
