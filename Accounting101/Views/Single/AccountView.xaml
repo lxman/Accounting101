@@ -4,19 +4,21 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:single="clr-namespace:Accounting101.ViewModels.Single"
+             xmlns:controls="clr-namespace:Accounting101.Controls"
              mc:Ignorable="d"
-             MouseRightButtonDown="AccountViewMouseRightButtonDown"
              MouseLeftButtonDown="AccountViewMouseLeftButtonDown"
              d:Background="White"
              d:DataContext="{d:DesignInstance single:AccountViewModel}"
-             d:DesignHeight="450" d:DesignWidth="800">
+             d:DesignHeight="450" d:DesignWidth="800"
+             PreviewKeyDown="AccountViewPreviewKeyDown">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <ContentControl Grid.Row="0" Content="{Binding AccountHeaderControl}" />
+        <ContentControl Grid.Row="0" Content="{Binding AccountHeaderControl}" IsTabStop="False" />
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -28,7 +30,8 @@
             <TextBlock Grid.Column="2" Padding="10, 0, 0, 0" Text="Amount" FontWeight="Bold" />
         </Grid>
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" IsTabStop="False" BorderThickness="0">
-            <ListView ItemsSource="{Binding Transactions}" />
+            <ListView ItemsSource="{Binding Transactions}" IsTabStop="False" />
         </ScrollViewer>
+        <controls:FastEntryControl Grid.Row="3" x:Name="FastEntryControl" />
     </Grid>
 </UserControl>

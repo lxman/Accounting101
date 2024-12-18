@@ -10,44 +10,66 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.ViewModels.Single
 {
-    public class AccountViewModel : BaseViewModel
+    public class AccountViewModel : BaseViewModel, IRecipient<AddTransactionMessage>
     {
         public AccountHeaderControl AccountHeaderControl { get; }
 
-        public ObservableCollection<LedgerLineControl> Transactions { get; }
+        public ObservableCollection<LedgerLineControl> Transactions { get; } = [];
+
+        private readonly JoinableTaskFactory _taskFactory;
+        private readonly IDataStore _dataStore;
+        private readonly AccountWithTransactions _f;
+        private readonly AccountWithInfoFlat _a;
 
         public AccountViewModel(
             IDataStore dataStore,
             JoinableTaskFactory taskFactory,
             AccountWithTransactions f,
-            AccountWithInfoFlat a,
-            AccountWithInfo awi)
+            AccountWithInfoFlat a)
         {
+            WeakReferenceMessenger.Default.Register(this);
+            _dataStore = dataStore;
+            _taskFactory = taskFactory;
+            _f = f;
+            _a = a;
             AccountHeaderControl = new AccountHeaderControl(a);
-            decimal balance = a.StartBalance;
-            List<LedgerLineControl> lines = [];
-            f.Transactions.OrderBy(t => t.When).ToList().ForEach(t =>
-            {
-                Guid otherAccountId = t.DebitedAccountId == a.Id ? t.CreditedAccountId : t.DebitedAccountId;
-                AccountWithInfo otherAccount = taskFactory.Run(() => dataStore.GetAccountWithInfoAsync(otherAccountId))!;
-                if (t.CreditedAccountId == a.Id)
-                {
-                    if (a.IsDebitAccount) balance -= t.Amount;
-                    else balance += t.Amount;
-                }
-                else
-                {
-                    if (a.IsDebitAccount) balance += t.Amount;
-                    else balance -= t.Amount;
-                }
-                lines.Add(new LedgerLineControl(t, balance, otherAccount));
-            });
-            Transactions = new ObservableCollection<LedgerLineControl>(lines);
+            PopulateTransactionsList();
+        }
+
+        public void Receive(AddTransactionMessage message)
+        {
+            _taskFactory.Run(() => _dataStore.CreateTransactionAsync(message.Value));
+            _f.Transactions.Add(message.Value);
+            PopulateTransactionsList();
         }
 
         public void ShowClientAccountsView()
         {
             Messenger.Send(new ChangeScreenMessage(WindowType.ClientAccountList));
+        }
+
+        private void PopulateTransactionsList()
+        {
+            Transactions.Clear();
+            decimal balance = _a.StartBalance;
+            List<LedgerLineControl> lines = [];
+            _f.Transactions.OrderBy(t => t.When).ToList().ForEach(t =>
+            {
+                Guid otherAccountId = t.DebitedAccountId == _a.Id ? t.CreditedAccountId : t.DebitedAccountId;
+                AccountWithInfo otherAccount = _taskFactory.Run(() => _dataStore.GetAccountWithInfoAsync(otherAccountId))!;
+                if (t.CreditedAccountId == _a.Id)
+                {
+                    if (_a.IsDebitAccount) balance -= t.Amount;
+                    else balance += t.Amount;
+                }
+                else
+                {
+                    if (_a.IsDebitAccount) balance += t.Amount;
+                    else balance -= t.Amount;
+                }
+                lines.Add(new LedgerLineControl(t, balance, otherAccount));
+            });
+            lines.ForEach(l => Transactions.Add(l));
         }
     }
 }

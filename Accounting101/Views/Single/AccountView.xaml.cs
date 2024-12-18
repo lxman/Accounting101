@@ -1,9 +1,7 @@
 ﻿using System.Windows.Controls;
 using System.Windows.Input;
 using Accounting101.Models;
-using Accounting101.ViewModels.Create;
 using Accounting101.ViewModels.Single;
-using Accounting101.Views.Create;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
@@ -16,7 +14,6 @@ namespace Accounting101.Views.Single
         private readonly IDataStore _dataStore;
         private readonly JoinableTaskFactory _taskFactory;
         private readonly AccountWithInfo _awi;
-        private readonly AccountWithInfoFlat _f;
         private readonly AccountViewModel _accountViewModel;
 
         public AccountView(
@@ -28,32 +25,32 @@ namespace Accounting101.Views.Single
         {
             _dataStore = dataStore;
             _taskFactory = taskFactory;
-            _f = f;
             _awi = awi;
-            _accountViewModel = new AccountViewModel(dataStore, taskFactory, a, f, awi);
+            _accountViewModel = new AccountViewModel(dataStore, taskFactory, a, f);
             DataContext = _accountViewModel;
             InitializeComponent();
-        }
-
-        private void AccountViewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            CreateTransactionView createTransactionView = new(_dataStore, _taskFactory, _awi.ClientId, _awi.Id);
-            UtilityDialog utilityDialog = new(createTransactionView) { Height = 100 };
-            utilityDialog.ShowDialog();
-            if (utilityDialog.DialogResult != true)
-            {
-                return;
-            }
-
-            CreateTransactionViewModel ctvm = (CreateTransactionViewModel)createTransactionView.DataContext;
-            Transaction transaction = ctvm.CreateTransaction();
-            _taskFactory.Run(() => _dataStore.CreateTransactionAsync(transaction));
-            DataContext = new AccountViewModel(_dataStore, _taskFactory, new AccountWithTransactions(_dataStore, _awi.Id), _f, _awi);
+            List<AccountWithInfo> accounts = GetAccounts();
+            accounts.RemoveAll(acct => acct.Id == a.Id);
+            FastEntryControl.LoadAccounts(accounts);
+            FastEntryControl.SetActiveAccount(awi.Id);
         }
 
         private void AccountViewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             _accountViewModel.ShowClientAccountsView();
+        }
+
+        private void AccountViewPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Tab)
+            {
+                FastEntryControl.Focus();
+            }
+        }
+
+        private List<AccountWithInfo> GetAccounts()
+        {
+            return _taskFactory.Run(() => _dataStore.AccountsForClientAsync(_awi.ClientId))!.ToList();
         }
     }
 }
