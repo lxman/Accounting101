@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using Accounting101.Messages;
 using Accounting101.Models;
 using Accounting101.Views.Single;
@@ -82,7 +83,13 @@ namespace Accounting101.ViewModels.List
                 AccountsList = new DataGrid();
                 ((DataGrid)AccountsList).SelectionChanged += SelectionChangedHandler;
                 ((DataGrid)AccountsList).ItemsSource = Accounts;
+                ((DataGrid)AccountsList).PreviewMouseWheel += DataGridPreviewMouseWheel;
             }
+        }
+
+        private void DataGridPreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            Messenger.Send(new BubbledScrollEventMessage(e));
         }
 
         public void SwitchToClientList()

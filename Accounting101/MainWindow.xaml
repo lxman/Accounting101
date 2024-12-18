@@ -94,6 +94,7 @@
             x:Name="ScreenDisplayControl"
             Grid.Row="1"
             DataContext="{Binding ElementName=Self}"
-            Content="{Binding CurrentScreen}" />
+            Content="{Binding CurrentScreen}"
+            IsTabStop="False" />
     </Grid>
 </Window>

@@ -30,8 +30,8 @@
                 </StackPanel>
             </Border>
         </StackPanel>
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-            <ContentControl Content="{Binding AccountsList}" />
+        <ScrollViewer Grid.Row="1" x:Name="ScrollViewer" VerticalScrollBarVisibility="Auto" IsTabStop="False">
+            <ContentControl Content="{Binding AccountsList}" IsTabStop="False" />
         </ScrollViewer>
     </Grid>
 </UserControl>

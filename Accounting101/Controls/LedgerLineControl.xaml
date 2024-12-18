@@ -18,6 +18,6 @@
         <TextBlock Grid.Column="0" MinWidth="100" Text="{Binding Date}" />
         <TextBlock Grid.Column="1" MinWidth="100" Text="{Binding Balance, StringFormat=c}" />
         <TextBlock Grid.Column="2" Text="{Binding Amount, StringFormat=c}" />
-        <ContentControl Grid.Column="3" Margin="30, 0, 0, 0" Content="{Binding OtherAccount}" />
+        <ContentControl Grid.Column="3" Margin="30, 0, 0, 0" Content="{Binding OtherAccount}" IsTabStop="False" />
     </Grid>
 </UserControl>

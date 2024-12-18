@@ -8,7 +8,8 @@
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance single:ClientView}"
              d:Background="White"
-             d:DesignHeight="400" d:DesignWidth="400">
+             d:DesignHeight="400" d:DesignWidth="400"
+             IsTabStop="False">
     <Grid>
         <StackPanel>
             <Border BorderThickness="1" BorderBrush="Black">

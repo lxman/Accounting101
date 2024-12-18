@@ -1,6 +1,8 @@
 # Accounting101
 
-So it's been some time since I have revisited this project and I've found that DevExpress has broken DI. Therefore the front end has been removed. I will be focusing on development of the accounting engine based on first principles that I have learned over my years in accounting projects.
+The front end has been redesigned to use "pure" WPF (mostly in the MVVM pattern). I have used the WPF Community Toolkit (messaging has been a savior for transitioning the marshalling/threading issues). As this is my first project with MVVM using vanilla WPF, I'm sure there are many things which could be improved, but for now the UI works to get a basic idea of how things can perform.
+
+I will be focusing on development of the accounting engine based on first principles that I have learned over my years in accounting projects.
 
 I have spent a number of years working on commercial accounting products and one of my main goals here is to avoid some poor decisions that were made in the design of those products.
 
