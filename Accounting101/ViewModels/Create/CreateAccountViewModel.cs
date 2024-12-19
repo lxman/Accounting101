@@ -1,5 +1,6 @@
 ﻿using System.Collections.ObjectModel;
-using Accounting101.Views.Single;
+using Accounting101.Messages;
+using CommunityToolkit.Mvvm.Messaging;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
@@ -7,28 +8,28 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.ViewModels.Create
 {
-    public class CreateAccountViewModel
+    public class CreateAccountViewModel : BaseViewModel, IRecipient<SaveMessage>
     {
-        public ObservableCollection<ClientView> Clients { get; }
-
-        public Guid SelectedClientId { get; set; }
-
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         public ObservableCollection<BaseAccountTypes> AccountTypes { get; }
 
         public BaseAccountTypes SelectedAccountType { get; set; }
 
-        public string CoAId { get; set; }
+        public string CoAId { get; set; } = string.Empty;
 
         public decimal StartBalance { get; set; }
 
-        private Account _account;
-        private AccountInfo _info;
+        private readonly IDataStore _dataStore;
+        private readonly JoinableTaskFactory _taskFactory;
+        private readonly Guid _clientId;
 
-        public CreateAccountViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory)
+        public CreateAccountViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory, Guid clientId)
         {
-            Clients = new ObservableCollection<ClientView>(taskFactory.Run(dataStore.AllClientsAsync)?.Select(c => new ClientView(dataStore, taskFactory, c))!);
+            Messenger.Register(this);
+            _clientId = clientId;
+            _dataStore = dataStore;
+            _taskFactory = taskFactory;
             AccountTypes = new ObservableCollection<BaseAccountTypes>(
             [
                 BaseAccountTypes.Asset,
@@ -37,6 +38,29 @@ namespace Accounting101.ViewModels.Create
                 BaseAccountTypes.Equity,
                 BaseAccountTypes.Revenue
             ]);
+        }
+
+        public void Receive(SaveMessage message)
+        {
+            if (message.Value != WindowType.CreateAccount)
+            {
+                return;
+            }
+            Messenger.Unregister<SaveMessage>(this);
+            Account account = new()
+            {
+                StartBalance = StartBalance,
+                ClientId = _clientId,
+                Type = SelectedAccountType
+            };
+            AccountInfo info = new()
+            {
+                Name = Name,
+                CoAId = CoAId
+            };
+            AccountWithInfo accountWithInfo = new(account, info);
+            _taskFactory.Run(() => _dataStore.CreateAccountAsync(accountWithInfo));
+            Messenger.Send(new ChangeScreenMessage(WindowType.ClientAccountList));
         }
     }
 }

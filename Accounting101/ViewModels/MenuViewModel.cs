@@ -195,9 +195,9 @@ namespace Accounting101.ViewModels
         {
             _dataStore = dataStore;
             _dataStore.StoreChanged += StoreChanged;
-            NewBusinessCommand = new DelegateCommand(() => { });
+            NewBusinessCommand = new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.CreateBusiness)));
             NewClientCommand = new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.CreateClient)));
-            NewAccountCommand = new DelegateCommand(() => { });
+            NewAccountCommand = new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.CreateAccount)));
             NewTransactionCommand = new DelegateCommand(() => { });
             DeleteBusinessCommand = new DelegateCommand(DeleteBusiness);
             DeleteClientCommand = new DelegateCommand(() => DeleteClient?.Invoke(this, EventArgs.Empty));
@@ -208,6 +208,7 @@ namespace Accounting101.ViewModels
                     WindowType.CreateClient => WindowType.CreateClient,
                     WindowType.EditBusiness => WindowType.EditBusiness,
                     WindowType.EditClient => WindowType.EditClient,
+                    WindowType.CreateAccount => WindowType.CreateAccount,
                     _ => WindowType.ClientList
                 })));
             ExitCommand = new DelegateCommand(() =>

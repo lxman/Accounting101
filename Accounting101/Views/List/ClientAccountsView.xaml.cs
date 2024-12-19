@@ -10,20 +10,17 @@ namespace Accounting101.Views.List
 {
     public partial class ClientAccountsView : UserControl, IRecipient<BubbledScrollEventMessage>
     {
-        private readonly ClientAccountsViewModel _vm;
-
         public ClientAccountsView(IDataStore dataStore, JoinableTaskFactory taskFactory, Guid clientId)
         {
             WeakReferenceMessenger.Default.Register(this);
             ClientAccountsViewModel vm = new(dataStore, taskFactory, clientId);
-            _vm = vm;
             DataContext = vm;
             InitializeComponent();
         }
 
         private void ClientMouseDown(object sender, MouseButtonEventArgs e)
         {
-            _vm.SwitchToClientList();
+            WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ClientList));
         }
 
         public void Receive(BubbledScrollEventMessage message)

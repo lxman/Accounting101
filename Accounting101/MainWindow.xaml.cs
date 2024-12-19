@@ -69,19 +69,15 @@ namespace Accounting101
                     break;
 
                 case WindowType.ClientList:
-                    PresentClientListView();
+                    PresentClientListViewScreen();
                     break;
 
                 case WindowType.ClientAccountList:
-                    PresentClientAccountListView();
+                    PresentClientAccountListViewScreen();
                     break;
 
                 case WindowType.CreateAccount:
                     PresentAccountCreateScreen();
-                    break;
-
-                case WindowType.CreateTransaction:
-                    PresentTransactionCreateScreen();
                     break;
 
                 case WindowType.EditBusiness:
@@ -116,9 +112,10 @@ namespace Accounting101
             _menuViewModel.ActiveWindow = WindowType.CreateClient;
         }
 
-        private void PresentClientListView()
+        private void PresentClientListViewScreen()
         {
             _currentClientId = null;
+            _menuViewModel.ShowNewAccountCommand = false;
             _menuViewModel.ShowDeleteClientCommand = false;
             _menuViewModel.ShowEditClientCommand = false;
             _menuViewModel.ShowReportsBalanceSheetCommand = false;
@@ -127,6 +124,8 @@ namespace Accounting101
             clientListView.ClientChosen += (sender, id) =>
             {
                 _currentClientId = id;
+                _menuViewModel.ShowNewAccountCommand = true;
+                _menuViewModel.ShowDeleteClientCommand = true;
                 _menuViewModel.ShowEditClientCommand = true;
                 _menuViewModel.ShowReportsBalanceSheetCommand = true;
                 _menuViewModel.ShowReportsProfitAndLossCommand = true;
@@ -137,7 +136,7 @@ namespace Accounting101
             _menuViewModel.ActiveWindow = WindowType.ClientList;
         }
 
-        private void PresentClientAccountListView()
+        private void PresentClientAccountListViewScreen()
         {
             if (!_currentClientId.HasValue)
             {
@@ -148,10 +147,14 @@ namespace Accounting101
 
         private void PresentAccountCreateScreen()
         {
-        }
-
-        private void PresentTransactionCreateScreen()
-        {
+            if (!_currentClientId.HasValue)
+            {
+                return;
+            }
+            CreateAccountView createAccountView = new(_dataStore, _taskFactory, _currentClientId.Value);
+            CurrentScreen = createAccountView;
+            SetInitialScreen(createAccountView);
+            _menuViewModel.ActiveWindow = WindowType.CreateAccount;
         }
 
         private void PresentBusinessEditScreen()
@@ -167,7 +170,7 @@ namespace Accounting101
         {
             if (_currentClientId == null)
             {
-                PresentClientListView();
+                PresentClientListViewScreen();
                 return;
             }
 
@@ -180,7 +183,6 @@ namespace Accounting101
         private void ClientChosen(Guid id)
         {
             CurrentScreen = new ClientAccountsView(_dataStore, _taskFactory, id);
-            _menuViewModel.ShowDeleteClientCommand = true;
         }
 
         private void DeleteClient(object? sender, EventArgs e)
@@ -190,7 +192,7 @@ namespace Accounting101
                 return;
             }
             _mainWindowViewModel.DeleteClient(_currentClientId.Value);
-            PresentClientListView();
+            PresentClientListViewScreen();
         }
 
         private void SetInitialScreen(object screen)

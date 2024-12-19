@@ -30,7 +30,7 @@
             <TextBlock Grid.Column="2" Padding="10, 0, 0, 0" Text="Amount" FontWeight="Bold" />
         </Grid>
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" IsTabStop="False" BorderThickness="0">
-            <ListView ItemsSource="{Binding Transactions}" IsTabStop="False" />
+            <ListView ItemsSource="{Binding Transactions}" IsTabStop="False" SelectionChanged="ListViewSelectionChanged" />
         </ScrollViewer>
         <controls:FastEntryControl Grid.Row="3" x:Name="FastEntryControl" />
     </Grid>

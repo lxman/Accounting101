@@ -6,7 +6,6 @@ public enum WindowType
     CreateBusiness,
     CreateClient,
     CreateAccount,
-    CreateTransaction,
     ClientList,
     ClientAccountList,
     EditBusiness,

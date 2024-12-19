@@ -1,5 +1,6 @@
 ﻿using System.Windows.Controls;
 using System.Windows.Input;
+using Accounting101.Controls;
 using Accounting101.Models;
 using Accounting101.ViewModels.Single;
 using DataAccess;
@@ -51,6 +52,20 @@ namespace Accounting101.Views.Single
         private List<AccountWithInfo> GetAccounts()
         {
             return _taskFactory.Run(() => _dataStore.AccountsForClientAsync(_awi.ClientId))!.ToList();
+        }
+
+        private void ListViewSelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            Guid thisAccount = _awi.Id;
+            if (e.AddedItems[0] is not LedgerLineControl ledgerLineControl) return;
+            if (ledgerLineControl.OtherAccount.DataContext is not CollapsibleAccountViewModel collapsibleAccountViewModel) return;
+            AccountWithInfo otherAccountInfo = collapsibleAccountViewModel.Account;
+            bool otherAccountWasCredited = collapsibleAccountViewModel.Header.StartsWith("Credit");
+            Transaction t = new(
+                otherAccountWasCredited ? otherAccountInfo.Id : thisAccount,
+                otherAccountWasCredited ? thisAccount : otherAccountInfo.Id,
+                ledgerLineControl.Amount, ledgerLineControl.Date.ToDateTime(new TimeOnly()));
+            FastEntryControl.SetForEditing(t);
         }
     }
 }

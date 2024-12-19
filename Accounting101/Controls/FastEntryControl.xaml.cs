@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -6,6 +7,7 @@ using Accounting101.Messages;
 using Accounting101.Models;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess.Models;
+// ReSharper disable SwitchStatementHandlesSomeKnownEnumValuesWithDefault
 
 // ReSharper disable SwitchStatementMissingSomeEnumCasesNoDefault
 
@@ -16,11 +18,11 @@ namespace Accounting101.Controls
         public ObservableCollection<AccountPickerLine> Accounts { get; } = [];
 
         public static readonly DependencyProperty SelectedAccountProperty = DependencyProperty.Register(
-            nameof(SelectedAccount), typeof(Guid), typeof(FastEntryControl), new PropertyMetadata(Guid.Empty));
+            nameof(SelectedAccount), typeof(AccountPickerLine), typeof(FastEntryControl), new PropertyMetadata(default(AccountPickerLine)));
 
-        public Guid SelectedAccount
+        public AccountPickerLine SelectedAccount
         {
-            get => (Guid)GetValue(SelectedAccountProperty);
+            get => (AccountPickerLine)GetValue(SelectedAccountProperty);
             set => SetValue(SelectedAccountProperty, value);
         }
 
@@ -42,9 +44,23 @@ namespace Accounting101.Controls
             set => SetValue(DebitSelectedProperty, value);
         }
 
-        public string Amount { get; set; } = string.Empty;
+        public static readonly DependencyProperty DateProperty = DependencyProperty.Register(
+            nameof(Date), typeof(DateTime), typeof(FastEntryControl), new PropertyMetadata(default(DateTime)));
 
-        public DateTime Date { get; set; } = DateTime.Today;
+        public DateTime Date
+        {
+            get => (DateTime)GetValue(DateProperty);
+            set => SetValue(DateProperty, value);
+        }
+
+        public static readonly DependencyProperty AmountProperty = DependencyProperty.Register(
+            nameof(Amount), typeof(string), typeof(FastEntryControl), new PropertyMetadata(default(string)));
+
+        public string Amount
+        {
+            get => (string)GetValue(AmountProperty);
+            set => SetValue(AmountProperty, value);
+        }
 
         private string _actionType = string.Empty;
         private bool _watchForAction;
@@ -54,6 +70,19 @@ namespace Accounting101.Controls
         {
             DataContext = this;
             InitializeComponent();
+        }
+
+        public void SetForEditing(Transaction t)
+        {
+            Date = t.When;
+            if (t.CreditedAccountId == _activeAccountId) CreditSelected = true;
+            else DebitSelected = true;
+            AccountPickerLine? account = Accounts.FirstOrDefault(a => a.Id == (t.CreditedAccountId != _activeAccountId ? t.CreditedAccountId : t.DebitedAccountId));
+            if (account is null) return;
+            SelectedAccount = account;
+            decimal amount = t.Amount;
+            string amtStr = amount.ToString(CultureInfo.InvariantCulture);
+            Amount = amtStr;
         }
 
         public void LoadAccounts(List<AccountWithInfo> accounts)
@@ -97,6 +126,8 @@ namespace Accounting101.Controls
                     _actionType = "Debit";
                     DebitSelected = true;
                     break;
+                default:
+                    return;
             }
             AccountSelector.Focus();
         }
@@ -118,8 +149,8 @@ namespace Accounting101.Controls
 
         private void SendTransaction()
         {
-            Transaction t = new(_actionType == "Credit" ? _activeAccountId : SelectedAccount,
-                _actionType == "Credit" ? SelectedAccount : _activeAccountId, Convert.ToDecimal(Amount), Date);
+            Transaction t = new(_actionType == "Credit" ? _activeAccountId : SelectedAccount.Id,
+                _actionType == "Credit" ? SelectedAccount.Id : _activeAccountId, Convert.ToDecimal(Amount), Date);
             WeakReferenceMessenger.Default.Send(new AddTransactionMessage(t));
             DatePicker.Focus();
         }

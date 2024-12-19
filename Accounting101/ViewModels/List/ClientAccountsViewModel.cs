@@ -1,6 +1,5 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 using Accounting101.Messages;
 using Accounting101.Models;
 using Accounting101.Views.Single;
@@ -60,6 +59,8 @@ namespace Accounting101.ViewModels.List
                     Accounts = taskFactory.Run(() => dataStore.AccountsForClientAsync(clientId))?.Select(a => new AccountWithInfoFlat(dataStore, taskFactory, a)).ToList() ?? [];
                     AccountsList = new DataGrid { ItemsSource = Accounts };
                     ((DataGrid)AccountsList).SelectionChanged += SelectionChangedHandler;
+                    ((DataGrid)AccountsList).PreviewMouseWheel +=
+                        (o, e) => Messenger.Send(new BubbledScrollEventMessage(e));
                 };
                 Button createCoAButton = new() { Content = "Create Chart of Accounts", Width = 150 };
                 createAccountGrid.Children.Add(createCoAButton);
@@ -74,6 +75,8 @@ namespace Accounting101.ViewModels.List
                         .OrderBy(a => a.CoAId).ToList() ?? [];
                     AccountsList = new DataGrid { ItemsSource = Accounts };
                     ((DataGrid)AccountsList).SelectionChanged += SelectionChangedHandler;
+                    ((DataGrid)AccountsList).PreviewMouseWheel +=
+                        (o, e) => Messenger.Send(new BubbledScrollEventMessage(e));
                 };
                 AccountsList = createAccountGrid;
             }
@@ -83,18 +86,9 @@ namespace Accounting101.ViewModels.List
                 AccountsList = new DataGrid();
                 ((DataGrid)AccountsList).SelectionChanged += SelectionChangedHandler;
                 ((DataGrid)AccountsList).ItemsSource = Accounts;
-                ((DataGrid)AccountsList).PreviewMouseWheel += DataGridPreviewMouseWheel;
+                ((DataGrid)AccountsList).PreviewMouseWheel +=
+                    (o, e) => Messenger.Send(new BubbledScrollEventMessage(e));
             }
-        }
-
-        private void DataGridPreviewMouseWheel(object sender, MouseWheelEventArgs e)
-        {
-            Messenger.Send(new BubbledScrollEventMessage(e));
-        }
-
-        public void SwitchToClientList()
-        {
-            Messenger.Send(new ChangeScreenMessage(WindowType.ClientList));
         }
 
         private void SelectionChangedHandler(object sender, SelectionChangedEventArgs e)

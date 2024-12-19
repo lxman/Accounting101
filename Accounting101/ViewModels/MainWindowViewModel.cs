@@ -73,9 +73,9 @@ namespace Accounting101.ViewModels
             MenuViewModel.ShowDeleteBusinessCommand = true;
             MenuViewModel.ShowDeleteClientCommand = false;
             MenuViewModel.ShowNewClientCommand = true;
-            MenuViewModel.ShowNewAccountCommand = true;
+            MenuViewModel.ShowNewAccountCommand = false;
             MenuViewModel.ShowNewTransactionCommand = false;
-            MenuViewModel.ShowSaveCommand = true;
+            MenuViewModel.ShowSaveCommand = false;
             MenuViewModel.ShowEditBusinessCommand = true;
             InitialScreen = WindowType.ClientList;
         }

@@ -50,8 +50,7 @@
             TabIndex="2"
             Margin="10, 0"
             ItemsSource="{Binding Accounts}"
-            SelectedValue="{Binding SelectedAccount}"
-            SelectedValuePath="Id">
+            SelectedValue="{Binding SelectedAccount, Mode=TwoWay}">
             <ComboBox.ItemTemplate>
                 <DataTemplate>
                     <Grid>
@@ -73,7 +72,7 @@
             TabIndex="3"
             Margin="10, 0"
             PreviewKeyDown="AmountTextBoxPreviewKeyDown"
-            Text="{Binding Amount, UpdateSourceTrigger=PropertyChanged}" />
+            Text="{Binding Amount, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
         <Button
             Grid.Column="4"
             MaxHeight="20"
