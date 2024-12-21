@@ -10,7 +10,7 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.ViewModels.Single
 {
-    public class AccountViewModel : BaseViewModel, IRecipient<AddTransactionMessage>
+    public class AccountViewModel : BaseViewModel, IRecipient<AddTransactionMessage>, IRecipient<UpdateTransactionMessage>
     {
         public AccountHeaderControl AccountHeaderControl { get; }
 
@@ -27,7 +27,8 @@ namespace Accounting101.ViewModels.Single
             AccountWithTransactions f,
             AccountWithInfoFlat a)
         {
-            WeakReferenceMessenger.Default.Register(this);
+            Messenger.Register<AddTransactionMessage>(this);
+            Messenger.Register<UpdateTransactionMessage>(this);
             _dataStore = dataStore;
             _taskFactory = taskFactory;
             _f = f;
@@ -39,6 +40,14 @@ namespace Accounting101.ViewModels.Single
         public void Receive(AddTransactionMessage message)
         {
             _taskFactory.Run(() => _dataStore.CreateTransactionAsync(message.Value));
+            _f.Transactions.Add(message.Value);
+            PopulateTransactionsList();
+        }
+
+        public void Receive(UpdateTransactionMessage message)
+        {
+            _taskFactory.Run(() => _dataStore.UpdateTransactionAsync(message.Value));
+            _f.Transactions.RemoveAll(t => t.Id == message.Value.Id);
             _f.Transactions.Add(message.Value);
             PopulateTransactionsList();
         }

@@ -1,8 +1,11 @@
 ﻿using System.Windows;
+using System.Windows.Input;
 using Accounting101.Messages;
 using Accounting101.ViewModels;
+using Accounting101.ViewModels.List;
 using Accounting101.Views.Create;
 using Accounting101.Views.List;
+using Accounting101.Views.Single;
 using Accounting101.Views.Update;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess.Services.Interfaces;
@@ -31,6 +34,12 @@ namespace Accounting101
         private readonly MainWindowViewModel _mainWindowViewModel;
         private readonly MenuViewModel _menuViewModel;
         private Guid? _currentClientId;
+
+        private readonly List<Key> _keysToProcess = [
+            Key.E,
+            Key.Tab,
+            Key.Escape
+        ];
 
         public MainWindow(IDataStore dataStore, MainWindowViewModel vm)
         {
@@ -73,7 +82,7 @@ namespace Accounting101
                     break;
 
                 case WindowType.ClientAccountList:
-                    PresentClientAccountListViewScreen();
+                    PresentClientAccountsViewScreen();
                     break;
 
                 case WindowType.CreateAccount:
@@ -136,7 +145,7 @@ namespace Accounting101
             _menuViewModel.ActiveWindow = WindowType.ClientList;
         }
 
-        private void PresentClientAccountListViewScreen()
+        private void PresentClientAccountsViewScreen()
         {
             if (!_currentClientId.HasValue)
             {
@@ -203,6 +212,16 @@ namespace Accounting101
             }
             InitialScreen = screen;
             _initialScreenSet = true;
+        }
+
+        private void MainWindowPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (!_keysToProcess.Contains(e.Key) || CurrentScreen is not ClientAccountsView { DataContext: ClientAccountsViewModel { AccountsList: AccountView accountView } })
+            {
+                return;
+            }
+            e.Handled = true;
+            WeakReferenceMessenger.Default.Send(new PreviewKeyDownMessage(e.Key));
         }
     }
 }

@@ -3,5 +3,5 @@ using DataAccess.Models;
 
 namespace Accounting101.Messages
 {
-    public sealed class AddTransactionMessage(Transaction value) : ValueChangedMessage<Transaction>(value);
+    public sealed class UpdateTransactionMessage(Transaction value) : ValueChangedMessage<Transaction>(value);
 }

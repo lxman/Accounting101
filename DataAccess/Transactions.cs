@@ -80,5 +80,18 @@ namespace DataAccess
             return (await store.GetCollection<Transaction>(CollectionNames.Transaction)
                 ?.FindAsync(t => (t.CreditedAccountId == acct || t.DebitedAccountId == acct) && t.When >= start && t.When <= end)!).ToList();
         }
+
+        public static async Task<bool> UpdateTransactionAsync(this IDataStore store, Transaction tx)
+        {
+            ILiteCollectionAsync<Transaction>? collection = store.GetCollection<Transaction>(CollectionNames.Transaction);
+            if (collection is null)
+            {
+                return false;
+            }
+
+            bool result = await collection.UpdateAsync(tx);
+            if (result) store.NotifyChange(typeof(Transaction), ChangeType.Updated);
+            return result;
+        }
     }
 }

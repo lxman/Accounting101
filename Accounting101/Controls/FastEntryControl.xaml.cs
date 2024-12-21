@@ -3,18 +3,24 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using Accounting101.Messages;
 using Accounting101.Models;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess.Models;
+
 // ReSharper disable SwitchStatementHandlesSomeKnownEnumValuesWithDefault
 
 // ReSharper disable SwitchStatementMissingSomeEnumCasesNoDefault
 
 namespace Accounting101.Controls
 {
-    public partial class FastEntryControl : UserControl
+    public partial class FastEntryControl : UserControl, IRecipient<PreviewKeyDownMessage>
     {
+        public event EventHandler? RevertBackground;
+
+        public bool IsEditing => _editing;
+
         public ObservableCollection<AccountPickerLine> Accounts { get; } = [];
 
         public static readonly DependencyProperty SelectedAccountProperty = DependencyProperty.Register(
@@ -65,11 +71,84 @@ namespace Accounting101.Controls
         private string _actionType = string.Empty;
         private bool _watchForAction;
         private Guid _activeAccountId;
+        private bool _editing;
+        private readonly Brush _background;
 
         public FastEntryControl()
         {
+            WeakReferenceMessenger.Default.Register(this);
             DataContext = this;
             InitializeComponent();
+            _background = RadioGroup.Background;
+        }
+
+        public void Receive(PreviewKeyDownMessage message)
+        {
+            switch (message.Value)
+            {
+                case Key.Tab:
+                    if (_editing)
+                    {
+                        if (DatePicker.IsKeyboardFocusWithin) RadioGroup.Focus();
+                        else if (RadioGroup.IsFocused) AccountSelector.Focus();
+                        else if (AccountSelector.IsFocused) AmountEntry.Focus();
+                        else if (AmountEntry.IsFocused) AcceptButton.Focus();
+                        else if (AcceptButton.IsFocused) DatePicker.Focus();
+                    }
+                    else
+                    {
+                        switch (DatePicker.IsKeyboardFocusWithin)
+                        {
+                            case false
+                                when !RadioGroup.IsFocused
+                                     && !AccountSelector.IsFocused
+                                     && !AmountEntry.IsFocused
+                                     && !AcceptButton.IsFocused:
+                                DatePicker.Focus();
+                                break;
+
+                            case true:
+                                RadioGroup.Focus();
+                                break;
+
+                            default:
+                                {
+                                    if (RadioGroup.IsFocused) AccountSelector.Focus();
+                                    else if (AccountSelector.IsFocused) AmountEntry.Focus();
+                                    else if (AmountEntry.IsFocused) AcceptButton.Focus();
+                                    else if (AcceptButton.IsFocused) DatePicker.Focus();
+                                    break;
+                                }
+                        }
+                    }
+                    break;
+
+                case Key.Escape:
+                    if (_editing)
+                    {
+                        Background = _background;
+                        ClearControls();
+                        _editing = false;
+                        RevertBackground?.Invoke(this, EventArgs.Empty);
+                    }
+                    break;
+
+                case Key.Enter:
+                    switch (_editing)
+                    {
+                        case true when AmountEntry.IsFocused:
+                            SendUpdateTransaction();
+                            Background = _background;
+                            ClearControls();
+                            _editing = false;
+                            break;
+
+                        case false when AmountEntry.IsFocused:
+                            SendCreateTransaction();
+                            break;
+                    }
+                    break;
+            }
         }
 
         public void SetForEditing(Transaction t)
@@ -83,6 +162,9 @@ namespace Accounting101.Controls
             decimal amount = t.Amount;
             string amtStr = amount.ToString(CultureInfo.InvariantCulture);
             Amount = amtStr;
+            Background = Brushes.GreenYellow;
+            _editing = true;
+            DatePicker.Focus();
         }
 
         public void LoadAccounts(List<AccountWithInfo> accounts)
@@ -97,6 +179,14 @@ namespace Accounting101.Controls
         public void SetActiveAccount(Guid activeAccountId)
         {
             _activeAccountId = activeAccountId;
+        }
+
+        private void ClearControls()
+        {
+            CreditSelected = false;
+            DebitSelected = false;
+            AccountSelector.SelectedIndex = -1;
+            Amount = string.Empty;
         }
 
         private void RadioBoxGotFocus(object sender, RoutedEventArgs e)
@@ -122,10 +212,12 @@ namespace Accounting101.Controls
                     _actionType = "Credit";
                     CreditSelected = true;
                     break;
+
                 case Key.D:
                     _actionType = "Debit";
                     DebitSelected = true;
                     break;
+
                 default:
                     return;
             }
@@ -139,20 +231,37 @@ namespace Accounting101.Controls
                 return;
             }
             e.Handled = true;
-            SendTransaction();
+            SendCreateTransaction();
         }
 
         private void AcceptButtonClick(object sender, RoutedEventArgs e)
         {
-            SendTransaction();
+            if (_editing)
+            {
+                SendUpdateTransaction();
+                Background = _background;
+                ClearControls();
+                _editing = false;
+            }
+            else
+            {
+                SendCreateTransaction();
+            }
         }
 
-        private void SendTransaction()
+        private void SendCreateTransaction()
         {
             Transaction t = new(_actionType == "Credit" ? _activeAccountId : SelectedAccount.Id,
                 _actionType == "Credit" ? SelectedAccount.Id : _activeAccountId, Convert.ToDecimal(Amount), Date);
             WeakReferenceMessenger.Default.Send(new AddTransactionMessage(t));
             DatePicker.Focus();
+        }
+
+        private void SendUpdateTransaction()
+        {
+            Transaction t = new(_actionType == "Credit" ? _activeAccountId : SelectedAccount.Id,
+                _actionType == "Credit" ? SelectedAccount.Id : _activeAccountId, Convert.ToDecimal(Amount), Date);
+            WeakReferenceMessenger.Default.Send(new UpdateTransactionMessage(t));
         }
     }
 }

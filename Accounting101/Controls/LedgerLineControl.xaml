@@ -14,10 +14,26 @@
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <TextBlock Grid.Column="0" MinWidth="100" Text="{Binding Date}" />
-        <TextBlock Grid.Column="1" MinWidth="100" Text="{Binding Balance, StringFormat=c}" />
-        <TextBlock Grid.Column="2" Text="{Binding Amount, StringFormat=c}" />
-        <ContentControl Grid.Column="3" Margin="30, 0, 0, 0" Content="{Binding OtherAccount}" IsTabStop="False" />
+        <TextBlock
+            Grid.Column="0"
+            MinWidth="100"
+            Text="{Binding Date}" />
+        <TextBlock
+            Grid.Column="1"
+            MinWidth="100"
+            Text="{Binding Debit, StringFormat=c}" />
+        <TextBlock
+            Grid.Column="2"
+            MinWidth="100"
+            Text="{Binding Credit, StringFormat=c}" />
+        <TextBlock
+            Grid.Column="3"
+            MinWidth="100"
+            Text="{Binding Balance, StringFormat=c}" />
+        <TextBlock
+            Grid.Column="4"
+            Text="{Binding OtherAccount}" />
     </Grid>
 </UserControl>

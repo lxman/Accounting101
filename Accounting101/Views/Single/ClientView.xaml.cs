@@ -69,5 +69,13 @@ namespace Accounting101.Views.Single
         {
             ClientChosen?.Invoke(this, Client.Id);
         }
+
+        private void ClientItemPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key is Key.Enter or Key.Space)
+            {
+                ClientChosen?.Invoke(this, Client.Id);
+            }
+        }
     }
 }

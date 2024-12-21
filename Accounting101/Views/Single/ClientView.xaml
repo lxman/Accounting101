@@ -21,7 +21,8 @@
                     MouseLeave="StackPanelOnMouseLeave"
                     GotFocus="StackPanelOnGotFocus"
                     LostFocus="StackPanelOnLostFocus"
-                    MouseDown="ClientOnMouseDown">
+                    MouseDown="ClientOnMouseDown"
+                    PreviewKeyDown="ClientItemPreviewKeyDown">
                     <controls:TextBlockWithLabelControl
                         IsTabStop="False"
                         LabelContent="Business Name:"
