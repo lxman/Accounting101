@@ -93,5 +93,17 @@ namespace DataAccess
             if (result) store.NotifyChange(typeof(Transaction), ChangeType.Updated);
             return result;
         }
+
+        public static async Task<bool> DeleteTransactionAsync(this IDataStore store, Guid id)
+        {
+            ILiteCollectionAsync<Transaction>? collection = store.GetCollection<Transaction>(CollectionNames.Transaction);
+            if (collection is null)
+            {
+                return false;
+            }
+            bool result = await collection.DeleteAsync(id);
+            if (result) store.NotifyChange(typeof(Transaction), ChangeType.Deleted);
+            return result;
+        }
     }
 }

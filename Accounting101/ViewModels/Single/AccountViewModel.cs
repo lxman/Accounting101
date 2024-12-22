@@ -10,7 +10,7 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.ViewModels.Single
 {
-    public class AccountViewModel : BaseViewModel, IRecipient<AddTransactionMessage>, IRecipient<UpdateTransactionMessage>
+    public class AccountViewModel : BaseViewModel, IRecipient<CreateTransactionMessage>, IRecipient<UpdateTransactionMessage>, IRecipient<DeleteTransactionMessage>
     {
         public AccountHeaderControl AccountHeaderControl { get; }
 
@@ -27,8 +27,9 @@ namespace Accounting101.ViewModels.Single
             AccountWithTransactions f,
             AccountWithInfoFlat a)
         {
-            Messenger.Register<AddTransactionMessage>(this);
+            Messenger.Register<CreateTransactionMessage>(this);
             Messenger.Register<UpdateTransactionMessage>(this);
+            Messenger.Register<DeleteTransactionMessage>(this);
             _dataStore = dataStore;
             _taskFactory = taskFactory;
             _f = f;
@@ -37,7 +38,7 @@ namespace Accounting101.ViewModels.Single
             PopulateTransactionsList();
         }
 
-        public void Receive(AddTransactionMessage message)
+        public void Receive(CreateTransactionMessage message)
         {
             _taskFactory.Run(() => _dataStore.CreateTransactionAsync(message.Value));
             _f.Transactions.Add(message.Value);
@@ -49,6 +50,13 @@ namespace Accounting101.ViewModels.Single
             _taskFactory.Run(() => _dataStore.UpdateTransactionAsync(message.Value));
             _f.Transactions.RemoveAll(t => t.Id == message.Value.Id);
             _f.Transactions.Add(message.Value);
+            PopulateTransactionsList();
+        }
+
+        public void Receive(DeleteTransactionMessage message)
+        {
+            _taskFactory.Run(() => _dataStore.DeleteTransactionAsync(message.Value.Id));
+            _f.Transactions.RemoveAll(t => t.Id == message.Value.Id);
             PopulateTransactionsList();
         }
 

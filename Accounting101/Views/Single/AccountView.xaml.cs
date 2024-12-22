@@ -1,4 +1,5 @@
-﻿using System.Windows.Controls;
+﻿using System.Collections;
+using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using Accounting101.Controls;
@@ -10,6 +11,8 @@ using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
+
+#pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
 
 // ReSharper disable SwitchStatementMissingSomeEnumCasesNoDefault
 
@@ -52,6 +55,7 @@ namespace Accounting101.Views.Single
                 }
 
                 _lineBeingEdited.Background = _originalBackground;
+                _lineBeingEdited.Opacity = 1.0;
                 _lineBeingEdited = null;
             };
         }
@@ -60,6 +64,16 @@ namespace Accounting101.Views.Single
         {
             switch (message.Value)
             {
+                case Key.E:
+                    if (_currentTransaction is null) return;
+                    FastEntryControl.SetForEditing(_currentTransaction);
+                    break;
+
+                case Key.Delete:
+                    if (_currentTransaction is null) return;
+                    WeakReferenceMessenger.Default.Send(new DeleteTransactionMessage(_currentTransaction));
+                    break;
+
                 case Key.Tab:
                     FastEntryControl.Focus();
                     break;
@@ -81,20 +95,20 @@ namespace Accounting101.Views.Single
             if (e.RemovedItems.Count > 0)
             {
                 (e.RemovedItems[0] as LedgerLineControl)!.Background = _originalBackground;
+                (e.RemovedItems[0] as LedgerLineControl)!.Opacity = 1.0;
             }
-            Guid thisAccount = _awi.Id;
-            if (e.AddedItems[0] is not LedgerLineControl { OtherAccountInfo: { } accountWithInfo, Transaction: { } transaction } ledgerLineControl) return;
-            bool otherAccountWasCredited = transaction.CreditedAccountId == accountWithInfo.Id;
-            Transaction t = new(
-                otherAccountWasCredited ? accountWithInfo.Id : thisAccount,
-                otherAccountWasCredited ? thisAccount : accountWithInfo.Id,
-                ledgerLineControl.Debit ?? ledgerLineControl.Credit ?? 0, ledgerLineControl.Date.ToDateTime(new TimeOnly()))
-            { Id = ledgerLineControl.TransactionId };
-            _currentTransaction = t;
-            FastEntryControl.SetForEditing(_currentTransaction);
-            if (TransactionList.SelectedItem is not LedgerLineControl activeLine) return;
-            activeLine.Background = Brushes.GreenYellow;
+            if (e.AddedItems.Count == 0) return;
+            if (e.AddedItems[0] is not LedgerLineControl) return;
+            _currentTransaction = GetTransaction(e.AddedItems);
+            if (_currentTransaction is null || TransactionList.SelectedItem is not LedgerLineControl activeLine) return;
+            activeLine.Background = Brushes.LightBlue;
+            activeLine.Opacity = 0.5;
             _lineBeingEdited = activeLine;
+        }
+
+        private static Transaction? GetTransaction(IList items)
+        {
+            return (items[0] as LedgerLineControl)?.Transaction;
         }
     }
 }

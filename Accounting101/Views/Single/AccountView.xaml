@@ -38,7 +38,7 @@
                 ItemsSource="{Binding Transactions}"
                 IsTabStop="False"
                 SelectionChanged="ListViewSelectionChanged"
-                HorizontalContentAlignment="Stretch" >
+                HorizontalContentAlignment="Stretch">
                 <ListView.ItemContainerStyle>
                     <Style TargetType="{x:Type ListViewItem}">
                         <Setter Property="Background" Value="Transparent" />

@@ -38,7 +38,8 @@ namespace Accounting101
         private readonly List<Key> _keysToProcess = [
             Key.E,
             Key.Tab,
-            Key.Escape
+            Key.Escape,
+            Key.Delete
         ];
 
         public MainWindow(IDataStore dataStore, MainWindowViewModel vm)

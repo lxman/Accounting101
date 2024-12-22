@@ -19,8 +19,6 @@ namespace Accounting101.Controls
     {
         public event EventHandler? RevertBackground;
 
-        public bool IsEditing => _editing;
-
         public ObservableCollection<AccountPickerLine> Accounts { get; } = [];
 
         public static readonly DependencyProperty SelectedAccountProperty = DependencyProperty.Register(
@@ -162,7 +160,7 @@ namespace Accounting101.Controls
             decimal amount = t.Amount;
             string amtStr = amount.ToString(CultureInfo.InvariantCulture);
             Amount = amtStr;
-            Background = Brushes.GreenYellow;
+            Background = Brushes.LightBlue;
             _editing = true;
             DatePicker.Focus();
         }
@@ -253,7 +251,8 @@ namespace Accounting101.Controls
         {
             Transaction t = new(_actionType == "Credit" ? _activeAccountId : SelectedAccount.Id,
                 _actionType == "Credit" ? SelectedAccount.Id : _activeAccountId, Convert.ToDecimal(Amount), Date);
-            WeakReferenceMessenger.Default.Send(new AddTransactionMessage(t));
+            WeakReferenceMessenger.Default.Send(new CreateTransactionMessage(t));
+            ClearControls();
             DatePicker.Focus();
         }
 
@@ -262,6 +261,7 @@ namespace Accounting101.Controls
             Transaction t = new(_actionType == "Credit" ? _activeAccountId : SelectedAccount.Id,
                 _actionType == "Credit" ? SelectedAccount.Id : _activeAccountId, Convert.ToDecimal(Amount), Date);
             WeakReferenceMessenger.Default.Send(new UpdateTransactionMessage(t));
+            ClearControls();
         }
     }
 }
