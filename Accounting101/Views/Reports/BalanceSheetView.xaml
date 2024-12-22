@@ -15,10 +15,16 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Label Grid.Row="0" Content="Balance Sheet" HorizontalAlignment="Center" FontWeight="Bold" FontSize="24" />
         <Label Grid.Row="1" Content="{Binding AsOfDate}" HorizontalAlignment="Center" d:Content="As Of 12/22/2024" />
         <reports:BusinessInfoHeaderControl Grid.Row="2" x:Name="BusinessInfo" />
         <reports:ClientInfoHeaderControl Grid.Row="3" x:Name="ClientInfo" />
+        <reports:AssetsControl x:Name="AssetAccounts" Grid.Row="4" />
+        <reports:LiabilitiesControl x:Name="LiabilityAccounts" Grid.Row="5" />
+        <reports:EquityControl x:Name="EquityAccounts" Grid.Row="6" />
     </Grid>
 </UserControl>

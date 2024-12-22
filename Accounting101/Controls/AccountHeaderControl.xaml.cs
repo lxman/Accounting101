@@ -1,11 +1,21 @@
 ﻿using System.Windows.Controls;
 using Accounting101.Models;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Accounting101.Controls
 {
+    [ObservableObject]
     public partial class AccountHeaderControl : UserControl
     {
-        public decimal CurrentBalance { get; }
+        public decimal CurrentBalance
+        {
+            get => _currentBalance;
+            set
+            {
+                _currentBalance = value;
+                OnPropertyChanged();
+            }
+        }
 
         public string CoAId { get; }
 
@@ -19,6 +29,8 @@ namespace Accounting101.Controls
 
         public BaseAccountTypes Type { get; }
 
+        private decimal _currentBalance;
+
         public AccountHeaderControl(AccountWithInfoFlat a)
         {
             CurrentBalance = a.Balance;
@@ -30,6 +42,11 @@ namespace Accounting101.Controls
             Type = a.Type;
             DataContext = this;
             InitializeComponent();
+        }
+
+        public void UpdateBalance(decimal balance)
+        {
+            CurrentBalance = balance;
         }
     }
 }

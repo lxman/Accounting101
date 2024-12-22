@@ -87,6 +87,7 @@ namespace Accounting101.ViewModels.Single
                 lines.Add(new LedgerLineControl(t, balance, otherAccount));
             });
             lines.ForEach(l => Transactions.Add(l));
+            AccountHeaderControl.UpdateBalance(balance);
         }
     }
 }

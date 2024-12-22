@@ -74,7 +74,7 @@ namespace DataAccess
             ILiteCollectionAsync<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfo);
             if (infos is null) return null;
             List<AccountWithInfo> acctsWInfos = [];
-            accts.ToList().ForEach((a) =>
+            accts.ToList().ForEach(a =>
             {
                 acctsWInfos.Add(new AccountWithInfo(a, infos.FindOneAsync(i => i.Id == a.InfoId).GetAwaiter().GetResult()));
             });
@@ -89,7 +89,7 @@ namespace DataAccess
             if (transactions is null) return 0;
             decimal balance = 0;
             bool isDebit = acct.IsDebitAccount;
-            transactions.ForEach((t) =>
+            transactions.ForEach(t =>
             {
                 if (isDebit)
                 {
