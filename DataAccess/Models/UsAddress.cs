@@ -26,26 +26,28 @@ namespace DataAccess.Models
         public new string ToString()
         {
             StringBuilder toReturn = new();
-            if (!string.IsNullOrEmpty(Line1))
+            if (!string.IsNullOrWhiteSpace(Line1))
             {
                 toReturn.AppendLine(Line1);
             }
-            if (!string.IsNullOrEmpty(Line2))
+            if (!string.IsNullOrWhiteSpace(Line2))
             {
                 toReturn.AppendLine(Line2);
             }
-            if (!string.IsNullOrEmpty(City))
+            if (!string.IsNullOrWhiteSpace(City))
             {
                 toReturn.Append(City);
             }
-            if (!string.IsNullOrEmpty(State))
+            if (!string.IsNullOrWhiteSpace(State))
             {
                 toReturn.Append(", " + State);
             }
-            if (!string.IsNullOrEmpty(Zip))
+            if (!string.IsNullOrWhiteSpace(Zip))
             {
                 toReturn.Append(" " + Zip);
             }
+
+            toReturn.AppendLine();
 
             return toReturn.ToString();
         }

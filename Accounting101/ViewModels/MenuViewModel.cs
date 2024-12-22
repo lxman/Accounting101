@@ -63,7 +63,11 @@ namespace Accounting101.ViewModels
         public bool ShowDeleteBusinessCommand
         {
             get => _showDeleteBusinessCommand;
-            set => SetField(ref _showDeleteBusinessCommand, value);
+            set
+            {
+                SetField(ref _showDeleteBusinessCommand, value);
+                OnPropertyChanged(nameof(ShowDeleteMenu));
+            }
         }
 
         public ICommand DeleteClientCommand { get; }
@@ -71,7 +75,11 @@ namespace Accounting101.ViewModels
         public bool ShowDeleteClientCommand
         {
             get => _showDeleteClientCommand;
-            set => SetField(ref _showDeleteClientCommand, value);
+            set
+            {
+                SetField(ref _showDeleteClientCommand, value);
+                OnPropertyChanged(nameof(ShowDeleteMenu));
+            }
         }
 
         public ICommand SaveCommand { get; }
@@ -93,7 +101,11 @@ namespace Accounting101.ViewModels
         public bool ShowEditBusinessCommand
         {
             get => _showEditBusinessCommand;
-            set => SetField(ref _showEditBusinessCommand, value);
+            set
+            {
+                SetField(ref _showEditBusinessCommand, value);
+                OnPropertyChanged(nameof(ShowEditMenu));
+            }
         }
 
         public ICommand EditClientCommand { get; }
@@ -101,7 +113,11 @@ namespace Accounting101.ViewModels
         public bool ShowEditClientCommand
         {
             get => _showEditClientCommand;
-            set => SetField(ref _showEditClientCommand, value);
+            set
+            {
+                SetField(ref _showEditClientCommand, value);
+                OnPropertyChanged(nameof(ShowEditMenu));
+            }
         }
 
         public ICommand EditAccountCommand { get; }
@@ -109,7 +125,11 @@ namespace Accounting101.ViewModels
         public bool ShowEditAccountCommand
         {
             get => _showEditAccountCommand;
-            set => SetField(ref _showEditAccountCommand, value);
+            set
+            {
+                SetField(ref _showEditAccountCommand, value);
+                OnPropertyChanged(nameof(ShowEditMenu));
+            }
         }
 
         public bool ShowReportsMenu => ShowReportsBalanceSheetCommand
@@ -120,7 +140,11 @@ namespace Accounting101.ViewModels
         public bool ShowReportsBalanceSheetCommand
         {
             get => _showReportsBalanceSheetCommand;
-            set => SetField(ref _showReportsBalanceSheetCommand, value);
+            set
+            {
+                SetField(ref _showReportsBalanceSheetCommand, value);
+                OnPropertyChanged(nameof(ShowReportsMenu));
+            }
         }
 
         public ICommand ReportsProfitAndLossCommand { get; }
@@ -128,7 +152,11 @@ namespace Accounting101.ViewModels
         public bool ShowReportsProfitAndLossCommand
         {
             get => _showReportsProfitAndLossCommand;
-            set => SetField(ref _showReportsProfitAndLossCommand, value);
+            set
+            {
+                SetField(ref _showReportsProfitAndLossCommand, value);
+                OnPropertyChanged(nameof(ShowReportsMenu));
+            }
         }
 
         public bool BusinessExists
@@ -176,6 +204,7 @@ namespace Accounting101.ViewModels
         private bool _showEditBusinessCommand;
         private bool _showEditClientCommand;
         private bool _showEditAccountCommand;
+        private bool _showReportsMenu;
         private bool _showReportsBalanceSheetCommand;
         private bool _showReportsProfitAndLossCommand;
 
@@ -220,6 +249,8 @@ namespace Accounting101.ViewModels
                 new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.EditBusiness)));
             EditClientCommand =
                 new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.EditClient)));
+            ReportsBalanceSheetCommand =
+                new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.BalanceSheet)));
         }
 
         private void ChangeMenuState()

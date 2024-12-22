@@ -10,5 +10,7 @@ public enum WindowType
     ClientAccountList,
     EditBusiness,
     EditClient,
-    EditAccount
+    EditAccount,
+    BalanceSheet,
+    ProfitAndLoss
 }

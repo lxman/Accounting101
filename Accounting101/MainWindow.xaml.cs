@@ -5,6 +5,7 @@ using Accounting101.ViewModels;
 using Accounting101.ViewModels.List;
 using Accounting101.Views.Create;
 using Accounting101.Views.List;
+using Accounting101.Views.Reports;
 using Accounting101.Views.Single;
 using Accounting101.Views.Update;
 using CommunityToolkit.Mvvm.Messaging;
@@ -101,6 +102,10 @@ namespace Accounting101
                 case WindowType.EditAccount:
                     break;
 
+                case WindowType.BalanceSheet:
+                    PresentBalanceSheetScreen();
+                    break;
+
                 default:
                     throw new ArgumentOutOfRangeException(nameof(type), type, null);
             }
@@ -188,6 +193,18 @@ namespace Accounting101
             CurrentScreen = updateClientView;
             SetInitialScreen(updateClientView);
             _menuViewModel.ActiveWindow = WindowType.EditClient;
+        }
+
+        private void PresentBalanceSheetScreen()
+        {
+            if (!_currentClientId.HasValue)
+            {
+                return;
+            }
+            BalanceSheetView balanceSheetView = new(_dataStore, _taskFactory, _currentClientId.Value);
+            CurrentScreen = balanceSheetView;
+            SetInitialScreen(balanceSheetView);
+            _menuViewModel.ActiveWindow = WindowType.BalanceSheet;
         }
 
         private void ClientChosen(Guid id)
