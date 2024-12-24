@@ -38,6 +38,11 @@ namespace Accounting101.ViewModels.Single
             PopulateTransactionsList();
         }
 
+        public void Unregister()
+        {
+            Messenger.UnregisterAll(this);
+        }
+
         public void Receive(CreateTransactionMessage message)
         {
             _taskFactory.Run(() => _dataStore.CreateTransactionAsync(message.Value));

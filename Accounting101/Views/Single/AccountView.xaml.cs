@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -109,6 +110,12 @@ namespace Accounting101.Views.Single
         private static Transaction? GetTransaction(IList items)
         {
             return (items[0] as LedgerLineControl)?.Transaction;
+        }
+
+        private void AccountViewUnloaded(object sender, RoutedEventArgs e)
+        {
+            _accountViewModel.Unregister();
+            WeakReferenceMessenger.Default.Unregister<PreviewKeyDownMessage>(this);
         }
     }
 }
