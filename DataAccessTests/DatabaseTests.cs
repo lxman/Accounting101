@@ -60,7 +60,7 @@ namespace DataAccessTests
                 _ = idDebit.Should().NotBeEmpty();
                 bool result = File.Exists(_dbFile);
                 _ = result.Should().BeTrue();
-                Transaction tx = new(idCredit, idDebit, 0, DateTime.Now);
+                Transaction tx = new(idCredit, idDebit, 0, DateOnly.FromDateTime(DateTime.Now));
                 Guid txId = await store.CreateTransactionAsync(tx);
                 _ = txId.Should().NotBeEmpty();
                 store.Dispose();

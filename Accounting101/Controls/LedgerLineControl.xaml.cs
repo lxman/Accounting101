@@ -26,7 +26,7 @@ namespace Accounting101.Controls
             OtherAccountInfo = otherAccount;
             Transaction = t;
             TransactionId = t.Id;
-            Date = DateOnly.FromDateTime(t.When);
+            Date = t.When;
             Balance = balance;
             if (t.CreditedAccountId == otherAccount.Id)
             {

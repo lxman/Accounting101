@@ -53,7 +53,7 @@ namespace AccountTests
                 Debug.WriteLine($"Creation of initial 1000 accounts took {ts.TotalMilliseconds} ms.");
                 start = DateTime.Now;
                 ts.TotalMilliseconds.Should().BeLessThan(8000);
-                DateTime when = DateTime.Now;
+                DateOnly when = DateOnly.FromDateTime(DateTime.Now);
                 List<Transaction> txs = [];
                 for (int x = 0; x < 100000; x++)
                 {
@@ -64,7 +64,7 @@ namespace AccountTests
                         debitAcct = _random.Next(0, 500);
                     }
 
-                    when = when.AddMilliseconds(1);
+                    when = when.AddDays(1);
                     AccountWithInfo? credAcct = accounts.Find(a => a.Info.Name == $"TestCredit{creditAcct}");
                     AccountWithInfo? debAcct = accounts.Find(a => a.Info.Name == $"TestDebit{debitAcct}");
                     Transaction tx = new(credAcct?.Id ?? Guid.Empty, debAcct?.Id ?? Guid.Empty, _random.Next(-100, 100), when);

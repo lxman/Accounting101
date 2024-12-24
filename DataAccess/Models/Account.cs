@@ -16,7 +16,7 @@ namespace DataAccess.Models
 
         public bool IsDebitAccount => Type is BaseAccountTypes.Asset or BaseAccountTypes.Expense;
 
-        public DateTime Created { get; set; } = DateTime.UtcNow;
+        public DateOnly Created { get; set; } = DateOnly.FromDateTime(DateTime.Now);
 
         public Account()
         {

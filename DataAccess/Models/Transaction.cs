@@ -14,9 +14,9 @@ namespace DataAccess.Models
 
         public decimal Amount { get; }
 
-        public DateTime When { get; }
+        public DateOnly When { get; }
 
-        public Transaction(Guid creditedAccountId, Guid debitedAccountId, decimal amount, DateTime when)
+        public Transaction(Guid creditedAccountId, Guid debitedAccountId, decimal amount, DateOnly when)
         {
             CreditedAccountId = creditedAccountId;
             DebitedAccountId = debitedAccountId;

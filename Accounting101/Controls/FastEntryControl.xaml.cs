@@ -151,7 +151,7 @@ namespace Accounting101.Controls
 
         public void SetForEditing(Transaction t)
         {
-            Date = t.When;
+            Date = t.When.ToDateTime(new TimeOnly());
             if (t.CreditedAccountId == _activeAccountId) CreditSelected = true;
             else DebitSelected = true;
             AccountPickerLine? account = Accounts.FirstOrDefault(a => a.Id == (t.CreditedAccountId != _activeAccountId ? t.CreditedAccountId : t.DebitedAccountId));
@@ -250,7 +250,7 @@ namespace Accounting101.Controls
         private void SendCreateTransaction()
         {
             Transaction t = new(_actionType == "Credit" ? _activeAccountId : SelectedAccount.Id,
-                _actionType == "Credit" ? SelectedAccount.Id : _activeAccountId, Convert.ToDecimal(Amount), Date);
+                _actionType == "Credit" ? SelectedAccount.Id : _activeAccountId, Convert.ToDecimal(Amount), DateOnly.FromDateTime(Date));
             WeakReferenceMessenger.Default.Send(new CreateTransactionMessage(t));
             ClearControls();
             DatePicker.Focus();
@@ -259,7 +259,7 @@ namespace Accounting101.Controls
         private void SendUpdateTransaction()
         {
             Transaction t = new(_actionType == "Credit" ? _activeAccountId : SelectedAccount.Id,
-                _actionType == "Credit" ? SelectedAccount.Id : _activeAccountId, Convert.ToDecimal(Amount), Date);
+                _actionType == "Credit" ? SelectedAccount.Id : _activeAccountId, Convert.ToDecimal(Amount), DateOnly.FromDateTime(Date));
             WeakReferenceMessenger.Default.Send(new UpdateTransactionMessage(t));
             ClearControls();
         }

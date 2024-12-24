@@ -15,7 +15,7 @@ namespace Accounting101.Models
 
         public decimal StartBalance { get; } = accountWithInfo.StartBalance;
 
-        public DateTime Created { get; } = accountWithInfo.Created;
+        public DateOnly Created { get; } = accountWithInfo.Created;
 
         public BaseAccountTypes Type { get; } = accountWithInfo.Type;
 

@@ -13,9 +13,14 @@ namespace Accounting101.Controls.Reports
             InitializeComponent();
         }
 
-        public void SetValues(IDataStore dataStore, JoinableTaskFactory taskFactory, List<AccountWithInfo> accts)
+        public void SetValues(IDataStore dataStore, JoinableTaskFactory taskFactory, List<AccountWithInfo> accts, DateOnly asOf)
         {
-            AccountList.SetValues(dataStore, taskFactory, accts);
+            AccountList.SetValues(dataStore, taskFactory, accts, asOf);
+        }
+
+        public void ChangeDate(DateOnly date)
+        {
+            AccountList.ChangeDate(date);
         }
     }
 }

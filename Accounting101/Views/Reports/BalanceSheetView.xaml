@@ -20,7 +20,14 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Label Grid.Row="0" Content="Balance Sheet" HorizontalAlignment="Center" FontWeight="Bold" FontSize="24" />
-        <Label Grid.Row="1" Content="{Binding AsOfDate}" HorizontalAlignment="Center" d:Content="As Of 12/22/2024" />
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="9*" />
+                <ColumnDefinition Width="11*" />
+            </Grid.ColumnDefinitions>
+            <Label Grid.Column="0" Content="As of " HorizontalAlignment="Right" />
+            <DatePicker Grid.Column="1" HorizontalAlignment="Left" DisplayDateStart="{Binding BeginDate, Mode=OneWay}" SelectedDate="{Binding Date}" />
+        </Grid>
         <reports:BusinessInfoHeaderControl Grid.Row="2" x:Name="BusinessInfo" />
         <reports:ClientInfoHeaderControl Grid.Row="3" x:Name="ClientInfo" />
         <reports:AssetsControl x:Name="AssetAccounts" Grid.Row="4" />

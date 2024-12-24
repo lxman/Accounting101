@@ -35,7 +35,7 @@ namespace Accounting101.Controls
         {
             CurrentBalance = a.Balance;
             CoAId = a.CoAId;
-            Created = DateOnly.FromDateTime(a.Created);
+            Created = a.Created;
             DebitCredit = a.IsDebitAccount ? "Debit Account" : "Credit Account";
             AccountName = a.Name;
             StartBalance = a.StartBalance;

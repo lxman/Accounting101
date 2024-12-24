@@ -81,6 +81,16 @@ namespace DataAccess
             return acctsWInfos;
         }
 
+        public static async Task<DateRange?> GetAccountDateRangeAsync(this IDataStore store, Guid id)
+        {
+            Account? acct = await store.GetCollection<Account>(CollectionNames.Account)?.FindByIdAsync(id)!;
+            if (acct is null) return null;
+            List<Transaction>? transactions = await store.TransactionsForAccountAsync(acct.Id);
+            if (transactions is null) return null;
+            DateRange dateRange = new(acct.Created, transactions.Max(t => t.When));
+            return dateRange;
+        }
+
         public static async Task<decimal> GetAccountBalanceAsync(this IDataStore store, Guid id)
         {
             Account? acct = await store.GetCollection<Account>(CollectionNames.Account)?.FindByIdAsync(id)!;
@@ -109,6 +119,16 @@ namespace DataAccess
                 }
             });
             return balance;
+        }
+
+        public static async Task<decimal> GetAccountBalanceOnDateAsync(this IDataStore store, Guid id, DateOnly date)
+        {
+            AccountWithInfo? acct = await store.GetAccountWithInfoAsync(id);
+            if (acct is null || acct.Created > date) return 0;
+            List<Transaction>? transactions = await store.TransactionsForAccountAsync(acct.Id);
+            if (transactions is null) return acct.StartBalance;
+            List<Transaction> inDate = transactions.Where(t => t.When <= date).ToList();
+            return BalanceCalculator.Calculate(acct, inDate);
         }
 
         public static async Task<AccountWithInfo?> GetAccountWithInfoAsync(this IDataStore store, Guid id)

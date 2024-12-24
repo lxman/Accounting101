@@ -75,10 +75,14 @@ namespace DataAccess
                 ?.FindAsync(t => t.CreditedAccountId == acct || t.DebitedAccountId == acct)!).ToList();
         }
 
-        public static async Task<List<Transaction>?> TransactionsForAccountByDateAsync(this IDataStore store, Guid acct, DateTime start, DateTime end)
+        public static async Task<List<Transaction>?> TransactionsForAccountByDateAsync(this IDataStore store, Guid acct, DateRange range)
         {
             return (await store.GetCollection<Transaction>(CollectionNames.Transaction)
-                ?.FindAsync(t => (t.CreditedAccountId == acct || t.DebitedAccountId == acct) && t.When >= start && t.When <= end)!).ToList();
+                ?.FindAsync(t =>
+                    (t.CreditedAccountId == acct || t.DebitedAccountId == acct)
+                    && t.When >= range.Start
+                    && t.When <= range.End)!)
+                .ToList();
         }
 
         public static async Task<bool> UpdateTransactionAsync(this IDataStore store, Transaction tx)
