@@ -78,6 +78,14 @@ namespace Accounting101.Views.Single
                 case Key.Tab:
                     FastEntryControl.Focus();
                     break;
+
+                case Key.Escape:
+                    if (_lineBeingEdited is null) return;
+                    _lineBeingEdited.Background = _originalBackground;
+                    _lineBeingEdited.Opacity = 1.0;
+                    _lineBeingEdited = null;
+                    TransactionList.SelectedIndex = -1;
+                    break;
             }
         }
 
