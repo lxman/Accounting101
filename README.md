@@ -1,5 +1,8 @@
 # Accounting101
 
+The project should be usable enough at this point to provide a basic idea of how the accounting engine will work. The UI is still very rough and there are many features that are not yet implemented. The accounting engine is still in its infancy, but it is starting to take shape.
+The ability is there to create, edit and delete clients and transactions. There is a simple balance sheet and P&L. I would consider it late alpha or early beta at this point.
+
 The front end has been redesigned to use "pure" WPF (mostly in the MVVM pattern). I have used the WPF Community Toolkit (messaging has been a savior for transitioning the marshalling/threading issues). As this is my first project with MVVM using vanilla WPF, I'm sure there are many things which could be improved, but for now the UI works to get a basic idea of how things can perform.
 
 I will be focusing on development of the accounting engine based on first principles that I have learned over my years in accounting projects.

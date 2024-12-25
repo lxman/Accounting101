@@ -34,8 +34,8 @@
         </Grid>
         <reports:BusinessInfoHeaderControl Grid.Row="2" x:Name="BusinessInfo" />
         <reports:ClientInfoHeaderControl Grid.Row="3" x:Name="ClientInfo" />
-        <reports:RevenueControl Grid.Row="4" />
-        <reports:ExpenseControl Grid.Row="5" />
-        <reports:EarningsControl Grid.Row="6" />
+        <reports:RevenueControl x:Name="RevenueAccounts" Grid.Row="4" />
+        <reports:ExpenseControl x:Name="ExpenseAccounts" Grid.Row="5" />
+        <reports:EarningsControl x:Name="EarningsAccounts" Grid.Row="6" />
     </Grid>
 </UserControl>

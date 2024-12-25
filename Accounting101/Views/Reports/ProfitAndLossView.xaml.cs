@@ -15,7 +15,14 @@ namespace Accounting101.Views.Reports
             get => _startDate.ToDateTime(new TimeOnly());
             set
             {
+                if (value > _endDate.ToDateTime(new TimeOnly()))
+                {
+                    _startDate = DateOnly.FromDateTime(_endDate.ToDateTime(new TimeOnly()));
+                    ChangeDates(_startDate, _endDate);
+                    return;
+                }
                 _startDate = DateOnly.FromDateTime(value);
+                ChangeDates(_startDate, _endDate);
             }
         }
 
@@ -26,7 +33,14 @@ namespace Accounting101.Views.Reports
             get => _endDate.ToDateTime(new TimeOnly());
             set
             {
+                if (value < _startDate.ToDateTime(new TimeOnly()))
+                {
+                    _endDate = DateOnly.FromDateTime(_startDate.ToDateTime(new TimeOnly()));
+                    ChangeDates(_startDate, _endDate);
+                    return;
+                }
                 _endDate = DateOnly.FromDateTime(value);
+                ChangeDates(_startDate, _endDate);
             }
         }
 
@@ -46,6 +60,7 @@ namespace Accounting101.Views.Reports
             }
 
             StartBeginDate = accts.Min(a => a.Created).ToDateTime(new TimeOnly());
+            EndBeginDate = StartBeginDate.AddDays(1);
 
             List<AccountWithInfo> revenueAccounts = accts.Where(a => a.Type == BaseAccountTypes.Revenue).OrderBy(a => a.Info.CoAId).ToList();
             List<AccountWithInfo> expenseAccounts = accts.Where(a => a.Type == BaseAccountTypes.Expense).OrderBy(a => a.Info.CoAId).ToList();
@@ -57,6 +72,20 @@ namespace Accounting101.Views.Reports
             BusinessInfo.SetBusiness(business);
             ClientInfo.SetClient(dataStore, taskFactory, client);
             DateOnly currentDate = DateOnly.FromDateTime(DateTime.Today);
+            RevenueAccounts.SetValues(dataStore, taskFactory, revenueAccounts, DateOnly.FromDateTime(StartBeginDate), DateOnly.FromDateTime(DateTime.Today));
+            ExpenseAccounts.SetValues(dataStore, taskFactory, expenseAccounts, DateOnly.FromDateTime(StartBeginDate), DateOnly.FromDateTime(DateTime.Today));
+            EarningsAccounts.SetValues(dataStore, taskFactory, earningsAccounts, DateOnly.FromDateTime(StartBeginDate), DateOnly.FromDateTime(DateTime.Today));
+            StartDate = StartBeginDate;
+            EndDate = DateTime.Today;
+            OnPropertyChanged(nameof(StartBeginDate));
+            OnPropertyChanged(nameof(EndBeginDate));
+        }
+
+        private void ChangeDates(DateOnly begin, DateOnly end)
+        {
+            RevenueAccounts.ChangeDate(begin, end);
+            ExpenseAccounts.ChangeDate(begin, end);
+            EarningsAccounts.ChangeDate(begin, end);
         }
     }
 }

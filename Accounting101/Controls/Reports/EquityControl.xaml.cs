@@ -15,12 +15,12 @@ namespace Accounting101.Controls.Reports
 
         public void SetValues(IDataStore dataStore, JoinableTaskFactory taskFactory, List<AccountWithInfo> accts, DateOnly asOf)
         {
-            AccountList.SetValues(dataStore, taskFactory, accts, asOf);
+            AccountList.SetBalanceSheetValues(dataStore, taskFactory, accts, asOf);
         }
 
         public void ChangeDate(DateOnly date)
         {
-            AccountList.ChangeDate(date);
+            AccountList.ChangeBalanceSheetDate(date);
         }
     }
 }

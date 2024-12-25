@@ -1,28 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
+﻿using System.Windows.Controls;
+using DataAccess.Models;
+using DataAccess.Services.Interfaces;
+using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.Controls.Reports
 {
-    /// <summary>
-    /// Interaction logic for RevenueControl.xaml
-    /// </summary>
     public partial class RevenueControl : UserControl
     {
         public RevenueControl()
         {
+            DataContext = this;
             InitializeComponent();
+        }
+
+        public void SetValues(IDataStore dataStore, JoinableTaskFactory taskFactory, List<AccountWithInfo> accts, DateOnly begin, DateOnly end)
+        {
+            AccountList.SetProfitLossValues(dataStore, taskFactory, accts, begin, end);
+        }
+
+        public void ChangeDate(DateOnly begin, DateOnly end)
+        {
+            AccountList.ChangeProfitLossDates(begin, end);
         }
     }
 }

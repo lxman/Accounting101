@@ -26,24 +26,54 @@ namespace Accounting101.Controls.Reports
             InitializeComponent();
         }
 
-        public void SetValues(IDataStore dataStore, JoinableTaskFactory taskFactory, List<AccountWithInfo> accts, DateOnly asOf)
+        public void SetBalanceSheetValues(IDataStore dataStore, JoinableTaskFactory taskFactory, List<AccountWithInfo> accts, DateOnly asOf)
         {
             _dataStore = dataStore;
             _taskFactory = taskFactory;
             _accounts = accts;
-            accts.ForEach(a =>
+            PopulateBalanceSheet(asOf);
+        }
+
+        public void ChangeBalanceSheetDate(DateOnly date)
+        {
+            Accounts.Clear();
+            PopulateBalanceSheet(date);
+        }
+
+        public void SetProfitLossValues(
+            IDataStore dataStore,
+            JoinableTaskFactory taskFactory,
+            List<AccountWithInfo> accts,
+            DateOnly begin,
+            DateOnly end)
+        {
+            _dataStore = dataStore;
+            _taskFactory = taskFactory;
+            _accounts = accts;
+        }
+
+        public void ChangeProfitLossDates(DateOnly begin, DateOnly end)
+        {
+            Accounts.Clear();
+            PopulateProfitLoss(begin, end);
+        }
+
+        private void PopulateBalanceSheet(DateOnly date)
+        {
+            _accounts.ForEach(a =>
             {
-                Accounts.Add(new AccountWithBalanceControl(a, taskFactory.Run(() => dataStore.GetAccountBalanceOnDateAsync(a.Id, asOf))));
+                Accounts.Add(new AccountWithBalanceControl(a, _taskFactory.Run(() => _dataStore.GetAccountBalanceOnDateAsync(a.Id, date))));
             });
             OnPropertyChanged(nameof(Sum));
         }
 
-        public void ChangeDate(DateOnly date)
+        private void PopulateProfitLoss(DateOnly begin, DateOnly end)
         {
-            Accounts.Clear();
             _accounts.ForEach(a =>
             {
-                Accounts.Add(new AccountWithBalanceControl(a, _taskFactory.Run(() => _dataStore.GetAccountBalanceOnDateAsync(a.Id, date))));
+                decimal beginBalance = _taskFactory.Run(() => _dataStore.GetAccountBalanceOnDateAsync(a.Id, begin));
+                decimal endBalance = _taskFactory.Run(() => _dataStore.GetAccountBalanceOnDateAsync(a.Id, end));
+                Accounts.Add(new AccountWithBalanceControl(a, endBalance - beginBalance));
             });
             OnPropertyChanged(nameof(Sum));
         }
