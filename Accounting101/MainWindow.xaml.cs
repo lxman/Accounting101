@@ -106,6 +106,10 @@ namespace Accounting101
                     PresentBalanceSheetScreen();
                     break;
 
+                case WindowType.ProfitAndLoss:
+                    PresentProfitAndLossScreen();
+                    break;
+
                 default:
                     throw new ArgumentOutOfRangeException(nameof(type), type, null);
             }
@@ -205,6 +209,18 @@ namespace Accounting101
             CurrentScreen = balanceSheetView;
             SetInitialScreen(balanceSheetView);
             _menuViewModel.ActiveWindow = WindowType.BalanceSheet;
+        }
+
+        private void PresentProfitAndLossScreen()
+        {
+            if (!_currentClientId.HasValue)
+            {
+                return;
+            }
+            ProfitAndLossView profitAndLossView = new(_dataStore, _taskFactory, _currentClientId.Value);
+            CurrentScreen = profitAndLossView;
+            SetInitialScreen(profitAndLossView);
+            _menuViewModel.ActiveWindow = WindowType.ProfitAndLoss;
         }
 
         private void ClientChosen(Guid id)

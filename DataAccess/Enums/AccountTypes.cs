@@ -4,10 +4,11 @@
 public enum BaseAccountTypes
 {
     Asset,
-    Expense,
     Liability,
     Equity,
-    Revenue
+    Revenue,
+    Expense,
+    Earnings
 }
 
 /*

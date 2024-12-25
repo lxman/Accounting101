@@ -204,7 +204,6 @@ namespace Accounting101.ViewModels
         private bool _showEditBusinessCommand;
         private bool _showEditClientCommand;
         private bool _showEditAccountCommand;
-        private bool _showReportsMenu;
         private bool _showReportsBalanceSheetCommand;
         private bool _showReportsProfitAndLossCommand;
 
@@ -251,6 +250,8 @@ namespace Accounting101.ViewModels
                 new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.EditClient)));
             ReportsBalanceSheetCommand =
                 new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.BalanceSheet)));
+            ReportsProfitAndLossCommand =
+                new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.ProfitAndLoss)));
         }
 
         private void ChangeMenuState()

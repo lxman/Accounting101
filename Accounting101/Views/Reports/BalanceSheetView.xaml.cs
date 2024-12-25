@@ -39,8 +39,8 @@ namespace Accounting101.Views.Reports
             List<AccountWithInfo> assetAccounts = accts.Where(a => a.Type == BaseAccountTypes.Asset).OrderBy(a => a.Info.CoAId).ToList();
             List<AccountWithInfo> liabilityAccounts = accts.Where(a => a.Type == BaseAccountTypes.Liability).OrderBy(a => a.Info.CoAId).ToList();
             List<AccountWithInfo> equityAccounts = accts.Where(a => a.Type == BaseAccountTypes.Equity).OrderBy(a => a.Info.CoAId).ToList();
-            DataContext = this;
 
+            DataContext = this;
             InitializeComponent();
 
             BusinessInfo.SetBusiness(business);
