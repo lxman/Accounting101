@@ -50,7 +50,6 @@ namespace Accounting101.ViewModels
             MenuViewModel.ShowNewBusinessCommand = true;
             MenuViewModel.ShowNewClientCommand = false;
             MenuViewModel.ShowNewAccountCommand = false;
-            MenuViewModel.ShowNewTransactionCommand = false;
             MenuViewModel.ShowSaveCommand = true;
             InitialScreen = WindowType.CreateBusiness;
         }
@@ -61,7 +60,6 @@ namespace Accounting101.ViewModels
             MenuViewModel.ShowDeleteBusinessCommand = true;
             MenuViewModel.ShowNewClientCommand = false;
             MenuViewModel.ShowNewAccountCommand = false;
-            MenuViewModel.ShowNewTransactionCommand = false;
             MenuViewModel.ShowSaveCommand = true;
             MenuViewModel.ShowEditBusinessCommand = true;
             InitialScreen = WindowType.CreateClient;
@@ -74,7 +72,6 @@ namespace Accounting101.ViewModels
             MenuViewModel.ShowDeleteClientCommand = false;
             MenuViewModel.ShowNewClientCommand = true;
             MenuViewModel.ShowNewAccountCommand = false;
-            MenuViewModel.ShowNewTransactionCommand = false;
             MenuViewModel.ShowSaveCommand = false;
             MenuViewModel.ShowEditBusinessCommand = true;
             InitialScreen = WindowType.ClientList;

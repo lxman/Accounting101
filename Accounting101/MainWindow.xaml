@@ -35,10 +35,6 @@
                             Header="_Account"
                             Command="{Binding NewAccountCommand}"
                             Visibility="{Binding ShowNewAccountCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                        <MenuItem
-                            Header="_Transaction"
-                            Command="{Binding NewTransactionCommand}"
-                            Visibility="{Binding ShowNewTransactionCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     </MenuItem>
                     <MenuItem
                         Header="_Save"

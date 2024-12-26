@@ -20,8 +20,7 @@ namespace Accounting101.ViewModels
 
         public bool ShowNewMenu => ShowNewBusinessCommand
                                    || ShowNewClientCommand
-                                   || ShowNewAccountCommand
-                                   || ShowNewTransactionCommand;
+                                   || ShowNewAccountCommand;
 
         public ICommand NewBusinessCommand { get; }
 
@@ -45,14 +44,6 @@ namespace Accounting101.ViewModels
         {
             get => _showNewAccountCommand;
             set => SetField(ref _showNewAccountCommand, value);
-        }
-
-        public ICommand NewTransactionCommand { get; }
-
-        public bool ShowNewTransactionCommand
-        {
-            get => _showNewTransactionCommand;
-            set => SetField(ref _showNewTransactionCommand, value);
         }
 
         public bool ShowDeleteMenu => ShowDeleteBusinessCommand
@@ -241,7 +232,6 @@ namespace Accounting101.ViewModels
             NewBusinessCommand = new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.CreateBusiness)));
             NewClientCommand = new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.CreateClient)));
             NewAccountCommand = new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.CreateAccount)));
-            NewTransactionCommand = new DelegateCommand(() => { });
             DeleteBusinessCommand = new DelegateCommand(DeleteBusiness);
             DeleteClientCommand = new DelegateCommand(() => DeleteClient?.Invoke(this, EventArgs.Empty));
             SaveCommand = new DelegateCommand(() => Messenger.Send(new SaveMessage(
@@ -286,7 +276,6 @@ namespace Accounting101.ViewModels
                     ShowNewBusinessCommand = true;
                     ShowNewClientCommand = false;
                     ShowNewAccountCommand = false;
-                    ShowNewTransactionCommand = false;
                     break;
 
                 case true when !ClientExists && !AccountExists:
@@ -295,7 +284,6 @@ namespace Accounting101.ViewModels
                     ShowDeleteBusinessCommand = true;
                     ShowDeleteClientCommand = false;
                     ShowNewAccountCommand = false;
-                    ShowNewTransactionCommand = false;
                     ShowEditBusinessCommand = true;
                     break;
 
@@ -305,7 +293,6 @@ namespace Accounting101.ViewModels
                     ShowDeleteClientCommand = true;
                     ShowNewClientCommand = true;
                     ShowNewAccountCommand = true;
-                    ShowNewTransactionCommand = false;
                     ShowEditBusinessCommand = true;
                     break;
 
@@ -315,7 +302,6 @@ namespace Accounting101.ViewModels
                     ShowDeleteClientCommand = true;
                     ShowNewClientCommand = true;
                     ShowNewAccountCommand = true;
-                    ShowNewTransactionCommand = true;
                     ShowEditBusinessCommand = true;
                     break;
             }
