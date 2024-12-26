@@ -159,6 +159,20 @@ namespace Accounting101.ViewModels
             }
         }
 
+        public bool ShowClientListMenu => ShowClientListCommand;
+
+        public ICommand ClientListCommand { get; }
+
+        public bool ShowClientListCommand
+        {
+            get => _showClientListCommand;
+            set
+            {
+                SetField(ref _showClientListCommand, value);
+                OnPropertyChanged(nameof(ShowClientListMenu));
+            }
+        }
+
         public bool BusinessExists
         {
             private get => _businessExists;
@@ -206,6 +220,7 @@ namespace Accounting101.ViewModels
         private bool _showEditAccountCommand;
         private bool _showReportsBalanceSheetCommand;
         private bool _showReportsProfitAndLossCommand;
+        private bool _showClientListCommand;
 
         //private bool _showReportsIncomeStatementCommand;
         //private bool _showReportsTrialBalanceCommand;
@@ -237,6 +252,7 @@ namespace Accounting101.ViewModels
                     WindowType.EditBusiness => WindowType.EditBusiness,
                     WindowType.EditClient => WindowType.EditClient,
                     WindowType.CreateAccount => WindowType.CreateAccount,
+                    WindowType.EditAccount => WindowType.EditAccount,
                     _ => WindowType.ClientList
                 })));
             ExitCommand = new DelegateCommand(() =>
@@ -248,10 +264,18 @@ namespace Accounting101.ViewModels
                 new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.EditBusiness)));
             EditClientCommand =
                 new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.EditClient)));
+            EditAccountCommand =
+                new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.EditAccount)));
             ReportsBalanceSheetCommand =
                 new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.BalanceSheet)));
             ReportsProfitAndLossCommand =
                 new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.ProfitAndLoss)));
+            ClientListCommand =
+                new DelegateCommand(() =>
+                {
+                    ShowClientListCommand = false;
+                    Messenger.Send(new ChangeScreenMessage(WindowType.ClientList));
+                });
         }
 
         private void ChangeMenuState()

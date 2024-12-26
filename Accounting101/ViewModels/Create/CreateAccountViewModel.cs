@@ -36,7 +36,8 @@ namespace Accounting101.ViewModels.Create
                 BaseAccountTypes.Expense,
                 BaseAccountTypes.Liability,
                 BaseAccountTypes.Equity,
-                BaseAccountTypes.Revenue
+                BaseAccountTypes.Revenue,
+                BaseAccountTypes.Earnings
             ]);
         }
 

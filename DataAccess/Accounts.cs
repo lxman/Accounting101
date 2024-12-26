@@ -140,5 +140,19 @@ namespace DataAccess
                 ? null
                 : new AccountWithInfo(acct, info);
         }
+
+        public static async Task<bool> UpdateAccountAsync(this IDataStore store, AccountWithInfo acct)
+        {
+            ILiteCollectionAsync<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfo);
+            if (infos is null) return false;
+            bool result = await infos.UpdateAsync(acct.Info);
+            if (!result) return false;
+            ILiteCollectionAsync<Account>? accts = store.GetCollection<Account>(CollectionNames.Account);
+            if (accts is null) return false;
+            result = await accts.UpdateAsync(new Account(acct));
+            if (!result) return false;
+            store.NotifyChange(typeof(Account), ChangeType.Updated);
+            return result;
+        }
     }
 }

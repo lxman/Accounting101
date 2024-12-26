@@ -16,7 +16,7 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101
 {
-    public partial class MainWindow : Window, IRecipient<ChangeScreenMessage>
+    public partial class MainWindow : Window, IRecipient<ChangeScreenMessage>, IRecipient<AccountActiveMessage>
     {
         public object InitialScreen { get; private set; }
 
@@ -35,6 +35,7 @@ namespace Accounting101
         private readonly MainWindowViewModel _mainWindowViewModel;
         private readonly MenuViewModel _menuViewModel;
         private Guid? _currentClientId;
+        private Guid? _currentAccountId;
 
         private readonly List<Key> _keysToProcess = [
             Key.E,
@@ -45,7 +46,8 @@ namespace Accounting101
 
         public MainWindow(IDataStore dataStore, MainWindowViewModel vm)
         {
-            WeakReferenceMessenger.Default.Register(this);
+            WeakReferenceMessenger.Default.Register<ChangeScreenMessage>(this);
+            WeakReferenceMessenger.Default.Register<AccountActiveMessage>(this);
             _mainWindowViewModel = vm;
             _menuViewModel = vm.MenuViewModel;
             _menuViewModel.DeleteClient += DeleteClient;
@@ -65,6 +67,12 @@ namespace Accounting101
         public void Receive(ChangeScreenMessage message)
         {
             ShowScreen(message.Value);
+        }
+
+        public void Receive(AccountActiveMessage message)
+        {
+            _menuViewModel.ShowEditAccountCommand = true;
+            _currentAccountId = message.Value;
         }
 
         private void ShowScreen(WindowType type)
@@ -100,6 +108,7 @@ namespace Accounting101
                     break;
 
                 case WindowType.EditAccount:
+                    PresentAccountEditScreen();
                     break;
 
                 case WindowType.BalanceSheet:
@@ -134,6 +143,7 @@ namespace Accounting101
         private void PresentClientListViewScreen()
         {
             _currentClientId = null;
+            _menuViewModel.ShowSaveCommand = false;
             _menuViewModel.ShowNewAccountCommand = false;
             _menuViewModel.ShowDeleteClientCommand = false;
             _menuViewModel.ShowEditClientCommand = false;
@@ -153,6 +163,8 @@ namespace Accounting101
             CurrentScreen = clientListView;
             SetInitialScreen(clientListView);
             _menuViewModel.ActiveWindow = WindowType.ClientList;
+            _menuViewModel.ShowEditAccountCommand = false;
+            _currentAccountId = null;
         }
 
         private void PresentClientAccountsViewScreen()
@@ -161,6 +173,8 @@ namespace Accounting101
             {
                 return;
             }
+            _menuViewModel.ShowEditAccountCommand = false;
+            _currentAccountId = null;
             ClientChosen(_currentClientId.Value);
         }
 
@@ -170,6 +184,8 @@ namespace Accounting101
             {
                 return;
             }
+            _menuViewModel.ShowClientListCommand = true;
+            _menuViewModel.ShowSaveCommand = true;
             CreateAccountView createAccountView = new(_dataStore, _taskFactory, _currentClientId.Value);
             CurrentScreen = createAccountView;
             SetInitialScreen(createAccountView);
@@ -179,6 +195,8 @@ namespace Accounting101
         private void PresentBusinessEditScreen()
         {
             _currentClientId = null;
+            _menuViewModel.ShowSaveCommand = true;
+            _menuViewModel.ShowEditBusinessCommand = false;
             UpdateBusinessView updateBusinessView = new(_dataStore, _taskFactory, _mainWindowViewModel.ClientsExist);
             CurrentScreen = updateBusinessView;
             SetInitialScreen(updateBusinessView);
@@ -192,11 +210,28 @@ namespace Accounting101
                 PresentClientListViewScreen();
                 return;
             }
-
+            _menuViewModel.ShowSaveCommand = true;
+            _menuViewModel.ShowClientListCommand = true;
+            _menuViewModel.ShowEditClientCommand = false;
             UpdateClientView updateClientView = new(_dataStore, _taskFactory, _currentClientId.Value);
             CurrentScreen = updateClientView;
             SetInitialScreen(updateClientView);
             _menuViewModel.ActiveWindow = WindowType.EditClient;
+        }
+
+        private void PresentAccountEditScreen()
+        {
+            if (!_currentClientId.HasValue || !_currentAccountId.HasValue)
+            {
+                return;
+            }
+            _menuViewModel.ShowSaveCommand = true;
+            _menuViewModel.ShowClientListCommand = true;
+            _menuViewModel.ShowEditAccountCommand = false;
+            UpdateAccountView updateAccountView = new();
+            updateAccountView.SetAccount(_dataStore, _taskFactory, _currentAccountId.Value);
+            CurrentScreen = updateAccountView;
+            SetInitialScreen(updateAccountView);
         }
 
         private void PresentBalanceSheetScreen()
@@ -205,6 +240,11 @@ namespace Accounting101
             {
                 return;
             }
+            _menuViewModel.ShowClientListCommand = true;
+            _menuViewModel.ShowSaveCommand = false;
+            _menuViewModel.ShowEditAccountCommand = false;
+            _menuViewModel.ShowReportsBalanceSheetCommand = false;
+            _menuViewModel.ShowReportsProfitAndLossCommand = true;
             BalanceSheetView balanceSheetView = new(_dataStore, _taskFactory, _currentClientId.Value);
             CurrentScreen = balanceSheetView;
             SetInitialScreen(balanceSheetView);
@@ -217,6 +257,11 @@ namespace Accounting101
             {
                 return;
             }
+            _menuViewModel.ShowClientListCommand = true;
+            _menuViewModel.ShowSaveCommand = false;
+            _menuViewModel.ShowEditAccountCommand = false;
+            _menuViewModel.ShowReportsBalanceSheetCommand = true;
+            _menuViewModel.ShowReportsProfitAndLossCommand = false;
             ProfitAndLossView profitAndLossView = new(_dataStore, _taskFactory, _currentClientId.Value);
             CurrentScreen = profitAndLossView;
             SetInitialScreen(profitAndLossView);

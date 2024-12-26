@@ -4,7 +4,7 @@ namespace DataAccess.Models
 {
     public class Account
     {
-        public Guid Id { get; protected set; } = Guid.NewGuid();
+        public Guid Id { get; set; } = Guid.NewGuid();
 
         public BaseAccountTypes Type { get; set; }
 

@@ -89,6 +89,10 @@
                         Command="{Binding ReportsProfitAndLossCommand}"
                         Visibility="{Binding ShowReportsProfitAndLossCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 </MenuItem>
+                <MenuItem
+                    Header="_Client List"
+                    Visibility="{Binding ShowClientListCommand, Converter={StaticResource BooleanToVisibilityConverter}}"
+                    Command="{Binding ClientListCommand}" />
             </Menu>
         </DockPanel>
         <ContentControl

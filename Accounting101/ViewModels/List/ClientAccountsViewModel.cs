@@ -104,6 +104,7 @@ namespace Accounting101.ViewModels.List
         {
             AccountWithTransactions awt = new(_dataStore, accountWithInfoFlat.Id);
             AccountWithInfo awi = _taskFactory.Run(() => _dataStore.GetAccountWithInfoAsync(accountWithInfoFlat.Id))!;
+            Messenger.Send(new AccountActiveMessage(accountWithInfoFlat.Id));
             AccountsList = new AccountView(_dataStore, _taskFactory, awt, accountWithInfoFlat, awi);
         }
     }

@@ -16,8 +16,12 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{71A0699B-C374-4188-AD4F-E856E4F5F581}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
+		Resources\Accounting101Icon.ico = Resources\Accounting101Icon.ico
 		README.md = README.md
+		Resources\Source.afdesign = Resources\Source.afdesign
 	EndProjectSection
+EndProject
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "Accounting101Setup", "Accounting101Setup\Accounting101Setup.vdproj", "{5C8A14F6-9D92-4E68-B8D0-2F146A4D8189}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -89,6 +93,12 @@ Global
 		{413574D1-C821-4381-916C-EB586F6036EC}.Release|x64.Build.0 = Release|Any CPU
 		{413574D1-C821-4381-916C-EB586F6036EC}.Release|x86.ActiveCfg = Release|Any CPU
 		{413574D1-C821-4381-916C-EB586F6036EC}.Release|x86.Build.0 = Release|Any CPU
+		{5C8A14F6-9D92-4E68-B8D0-2F146A4D8189}.Debug|Any CPU.ActiveCfg = Debug
+		{5C8A14F6-9D92-4E68-B8D0-2F146A4D8189}.Debug|x64.ActiveCfg = Debug
+		{5C8A14F6-9D92-4E68-B8D0-2F146A4D8189}.Debug|x86.ActiveCfg = Debug
+		{5C8A14F6-9D92-4E68-B8D0-2F146A4D8189}.Release|Any CPU.ActiveCfg = Release
+		{5C8A14F6-9D92-4E68-B8D0-2F146A4D8189}.Release|x64.ActiveCfg = Release
+		{5C8A14F6-9D92-4E68-B8D0-2F146A4D8189}.Release|x86.ActiveCfg = Release
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
