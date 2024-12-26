@@ -8,9 +8,13 @@ namespace DataAccess.Models
 
         public DateOnly End { get; } = end;
 
-        public DateRange(DateOnly start, TimeSpan duration) : this(start, start.AddDays(duration.Days)) { }
+        public DateRange(DateOnly start, TimeSpan duration) : this(start, start.AddDays(duration.Days))
+        {
+        }
 
-        public DateRange(DateOnly start, int days) : this(start, start.AddDays(days)) { }
+        public DateRange(DateOnly start, int days) : this(start, start.AddDays(days))
+        {
+        }
 
         public bool Contains(DateOnly date) => date >= Start && date <= End;
     }

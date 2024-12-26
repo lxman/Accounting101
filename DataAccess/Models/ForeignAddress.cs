@@ -37,9 +37,11 @@ namespace DataAccess.Models
                 case false when !string.IsNullOrWhiteSpace(PostalCode):
                     toReturn.AppendLine(Province + " " + PostalCode);
                     break;
+
                 case false:
                     toReturn.AppendLine(Province);
                     break;
+
                 default:
                     {
                         if (!string.IsNullOrWhiteSpace(PostalCode))

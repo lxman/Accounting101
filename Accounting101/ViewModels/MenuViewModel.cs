@@ -202,7 +202,6 @@ namespace Accounting101.ViewModels
         private bool _showNewBusinessCommand;
         private bool _showNewClientCommand;
         private bool _showNewAccountCommand;
-        private bool _showNewTransactionCommand;
         private bool _showDeleteBusinessCommand;
         private bool _showDeleteClientCommand;
         private bool _showSaveCommand;
