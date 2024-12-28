@@ -126,6 +126,7 @@ namespace Accounting101
 
         private void PresentBusinessCreateScreen()
         {
+            _menuViewModel.ShowSaveCommand = true;
             CreateBusinessView createBusinessView = new(_dataStore, _taskFactory);
             CurrentScreen = createBusinessView;
             SetInitialScreen(createBusinessView);
@@ -134,6 +135,8 @@ namespace Accounting101
 
         private void PresentClientCreateScreen()
         {
+            _menuViewModel.ShowSaveCommand = true;
+            _menuViewModel.ShowClientListCommand = _mainWindowViewModel.ClientsExist;
             CreateClientView createClientView = new(_dataStore, _taskFactory);
             CurrentScreen = createClientView;
             SetInitialScreen(createClientView);

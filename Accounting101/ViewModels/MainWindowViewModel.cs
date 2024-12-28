@@ -77,14 +77,6 @@ namespace Accounting101.ViewModels
             InitialScreen = WindowType.ClientList;
         }
 
-        private void PresentAccountCreateScreen()
-        {
-        }
-
-        private void PresentTransactionCreateScreen()
-        {
-        }
-
         private async Task<bool> BusinessExistsAsync()
         {
             bool businessExists = await _dataStore.GetBusinessAsync() is not null;
