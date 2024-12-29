@@ -8,6 +8,7 @@ using Accounting101.Messages;
 using Accounting101.Models;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess.Models;
+#pragma warning disable CS8618, CS9264
 
 // ReSharper disable SwitchStatementHandlesSomeKnownEnumValuesWithDefault
 
@@ -18,6 +19,8 @@ namespace Accounting101.Controls
     public partial class FastEntryControl : UserControl, IRecipient<PreviewKeyDownMessage>
     {
         public event EventHandler? RevertBackground;
+
+        public bool IsEditing { get; private set; }
 
         public ObservableCollection<AccountPickerLine> Accounts { get; } = [];
 
@@ -69,8 +72,8 @@ namespace Accounting101.Controls
         private string _actionType = string.Empty;
         private bool _watchForAction;
         private Guid _activeAccountId;
-        private bool _editing;
         private readonly Brush _background;
+        private Transaction _transaction;
 
         public FastEntryControl()
         {
@@ -85,7 +88,7 @@ namespace Accounting101.Controls
             switch (message.Value)
             {
                 case Key.Tab:
-                    if (_editing)
+                    if (IsEditing)
                     {
                         if (DatePicker.IsKeyboardFocusWithin) RadioGroup.Focus();
                         else if (RadioGroup.IsFocused) AccountSelector.Focus();
@@ -122,23 +125,23 @@ namespace Accounting101.Controls
                     break;
 
                 case Key.Escape:
-                    if (_editing)
+                    if (IsEditing)
                     {
                         Background = _background;
                         ClearControls();
-                        _editing = false;
+                        IsEditing = false;
                         RevertBackground?.Invoke(this, EventArgs.Empty);
                     }
                     break;
 
                 case Key.Enter:
-                    switch (_editing)
+                    switch (IsEditing)
                     {
                         case true when AmountEntry.IsFocused:
                             SendUpdateTransaction();
                             Background = _background;
                             ClearControls();
-                            _editing = false;
+                            IsEditing = false;
                             break;
 
                         case false when AmountEntry.IsFocused:
@@ -146,11 +149,18 @@ namespace Accounting101.Controls
                             break;
                     }
                     break;
+                case Key.Delete:
+                    if (IsEditing && AmountEntry.IsFocused)
+                    {
+                        Send(message.Value);
+                    }
+                    break;
             }
         }
 
         public void SetForEditing(Transaction t)
         {
+            _transaction = t;
             Date = t.When.ToDateTime(new TimeOnly());
             if (t.CreditedAccountId == _activeAccountId) CreditSelected = true;
             else DebitSelected = true;
@@ -161,8 +171,9 @@ namespace Accounting101.Controls
             string amtStr = amount.ToString(CultureInfo.InvariantCulture);
             Amount = amtStr;
             Background = Brushes.LightBlue;
-            _editing = true;
+            IsEditing = true;
             DatePicker.Focus();
+            _actionType = CreditSelected ? "Credit" : "Debit";
         }
 
         public void LoadAccounts(List<AccountWithInfo> accounts)
@@ -224,7 +235,7 @@ namespace Accounting101.Controls
 
         private void AmountTextBoxPreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (e.Key != Key.Enter)
+            if (e.Key != Key.Enter || IsEditing)
             {
                 return;
             }
@@ -234,12 +245,12 @@ namespace Accounting101.Controls
 
         private void AcceptButtonClick(object sender, RoutedEventArgs e)
         {
-            if (_editing)
+            if (IsEditing)
             {
                 SendUpdateTransaction();
                 Background = _background;
                 ClearControls();
-                _editing = false;
+                IsEditing = false;
             }
             else
             {
@@ -259,9 +270,31 @@ namespace Accounting101.Controls
         private void SendUpdateTransaction()
         {
             Transaction t = new(_actionType == "Credit" ? _activeAccountId : SelectedAccount.Id,
-                _actionType == "Credit" ? SelectedAccount.Id : _activeAccountId, Convert.ToDecimal(Amount), DateOnly.FromDateTime(Date));
+                _actionType == "Credit" ? SelectedAccount.Id : _activeAccountId, Convert.ToDecimal(Amount), DateOnly.FromDateTime(Date))
+            {
+                Id = _transaction.Id
+            };
             WeakReferenceMessenger.Default.Send(new UpdateTransactionMessage(t));
             ClearControls();
+        }
+
+        public static void Send(Key key)
+        {
+            if (Keyboard.PrimaryDevice is null || Keyboard.PrimaryDevice.ActiveSource is null)
+            {
+                return;
+            }
+
+            KeyEventArgs e = new(Keyboard.PrimaryDevice, Keyboard.PrimaryDevice.ActiveSource, 0, key)
+            {
+                RoutedEvent = Keyboard.KeyDownEvent
+            };
+            InputManager.Current.ProcessInput(e);
+
+            // Note: Based on your requirements you may also need to fire events for:
+            // RoutedEvent = Keyboard.PreviewKeyDownEvent
+            // RoutedEvent = Keyboard.KeyUpEvent
+            // RoutedEvent = Keyboard.PreviewKeyUpEvent
         }
     }
 }

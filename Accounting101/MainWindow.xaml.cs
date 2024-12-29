@@ -41,7 +41,8 @@ namespace Accounting101
             Key.E,
             Key.Tab,
             Key.Escape,
-            Key.Delete
+            Key.Delete,
+            Key.Enter
         ];
 
         public MainWindow(IDataStore dataStore, MainWindowViewModel vm)

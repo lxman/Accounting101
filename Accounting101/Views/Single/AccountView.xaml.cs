@@ -78,7 +78,7 @@ namespace Accounting101.Views.Single
                     break;
 
                 case Key.Delete:
-                    if (_currentTransaction is null) return;
+                    if (_currentTransaction is null || FastEntryControl.IsEditing) return;
                     WeakReferenceMessenger.Default.Send(new DeleteTransactionMessage(_currentTransaction));
                     break;
 

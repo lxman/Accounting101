@@ -38,7 +38,7 @@ namespace Accounting101.Controls
                 Credit = t.Amount;
                 Debit = null;
             }
-            OtherAccount = $"{otherAccount.Info.CoAId} {otherAccount.Info.Name} {otherAccount.Type} {(t.CreditedAccountId == otherAccount.Id ? "Credited" : "Debited")}";
+            OtherAccount = $"{otherAccount.Info.CoAId} {otherAccount.Info.Name} {(t.CreditedAccountId == otherAccount.Id ? "Credited" : "Debited")}";
             DataContext = this;
             InitializeComponent();
         }
