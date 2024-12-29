@@ -27,10 +27,10 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <TextBlock Grid.Column="0" MinWidth="100" Padding="10, 0, 0, 0" Text="Date" FontWeight="Bold" />
-            <TextBlock Grid.Column="1" MinWidth="100" Padding="10, 0, 0, 0" Text="Debit" FontWeight="Bold" />
-            <TextBlock Grid.Column="2" MinWidth="100" Padding="10, 0, 0, 0" Text="Credit" FontWeight="Bold" />
-            <TextBlock Grid.Column="3" Padding="10, 0, 0, 0" Text="Balance" FontWeight="Bold" />
+            <TextBlock x:Name="DateBlock" Grid.Column="0" MinWidth="100" Padding="10, 0, 0, 0" Text="Date" FontWeight="Bold" />
+            <TextBlock x:Name="DebitBlock" Grid.Column="1" MinWidth="100" Padding="10, 0, 0, 0" Text="Debit" FontWeight="Bold" TextAlignment="Right" />
+            <TextBlock x:Name="CreditBlock" Grid.Column="2" MinWidth="100" Padding="10, 0, 0, 0" Text="Credit" FontWeight="Bold" TextAlignment="Right" />
+            <TextBlock x:Name="BalanceBlock" Grid.Column="3" Padding="10, 0, 0, 0" Text="Balance" FontWeight="Bold" HorizontalAlignment="Left" TextAlignment="Right" />
             <TextBlock Grid.Column="4" Padding="10, 0, 0, 0" Text="Other Account" FontWeight="Bold" />
         </Grid>
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" IsTabStop="False" BorderThickness="0">

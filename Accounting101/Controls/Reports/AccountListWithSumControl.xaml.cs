@@ -48,6 +48,15 @@ namespace Accounting101.Controls.Reports
             PopulateBalanceSheet(date);
         }
 
+        private void PopulateBalanceSheet(DateOnly date)
+        {
+            _accounts.ForEach(a =>
+            {
+                Accounts.Add(new AccountWithBalanceControl(a, _taskFactory.Run(() => _dataStore.GetAccountBalanceOnDateAsync(a.Id, date))));
+            });
+            OnPropertyChanged(nameof(Sum));
+        }
+
         public void SetProfitLossValues(
             IDataStore dataStore,
             JoinableTaskFactory taskFactory,
@@ -64,15 +73,6 @@ namespace Accounting101.Controls.Reports
         {
             Accounts.Clear();
             PopulateProfitLoss(begin, end);
-        }
-
-        private void PopulateBalanceSheet(DateOnly date)
-        {
-            _accounts.ForEach(a =>
-            {
-                Accounts.Add(new AccountWithBalanceControl(a, _taskFactory.Run(() => _dataStore.GetAccountBalanceOnDateAsync(a.Id, date))));
-            });
-            OnPropertyChanged(nameof(Sum));
         }
 
         private void PopulateProfitLoss(DateOnly begin, DateOnly end)

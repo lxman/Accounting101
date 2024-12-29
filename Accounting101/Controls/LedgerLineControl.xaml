@@ -17,23 +17,27 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <TextBlock
+            x:Name="DateBlock"
             Grid.Column="0"
             MinWidth="100"
             Text="{Binding Date}" />
         <TextBlock
+            x:Name="DebitBlock"
             Grid.Column="1"
             MinWidth="100"
-            HorizontalAlignment="Right"
+            TextAlignment="Right"
             Text="{Binding Debit, StringFormat='#,##0.00;(#,##0.00);0'}" />
         <TextBlock
+            x:Name="CreditBlock"
             Grid.Column="2"
             MinWidth="100"
-            HorizontalAlignment="Right"
+            TextAlignment="Right"
             Text="{Binding Credit, StringFormat='#,##0.00;(#,##0.00);0'}" />
         <TextBlock
+            x:Name="BalanceBlock"
             Grid.Column="3"
             MinWidth="100"
-            HorizontalAlignment="Right"
+            TextAlignment="Right"
             Text="{Binding Balance, StringFormat='#,##0.00;(#,##0.00);0'}" />
         <TextBlock
             Grid.Column="4"

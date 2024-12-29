@@ -59,6 +59,13 @@ namespace Accounting101.Views.Single
                 _lineBeingEdited.Opacity = 1.0;
                 _lineBeingEdited = null;
             };
+            _accountViewModel.SetColumnWidths += (s, widths) =>
+            {
+                DateBlock.Width = widths.DateWidth;
+                DebitBlock.Width = widths.DebitWidth;
+                CreditBlock.Width = widths.CreditWidth;
+                BalanceBlock.Width = widths.BalanceWidth;
+            };
         }
 
         public void Receive(PreviewKeyDownMessage message)

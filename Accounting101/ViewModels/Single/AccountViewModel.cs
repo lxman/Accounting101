@@ -12,6 +12,8 @@ namespace Accounting101.ViewModels.Single
 {
     public class AccountViewModel : BaseViewModel, IRecipient<CreateTransactionMessage>, IRecipient<UpdateTransactionMessage>, IRecipient<DeleteTransactionMessage>
     {
+        public event EventHandler<AccountColumnWidthModel>? SetColumnWidths;
+
         public AccountHeaderControl AccountHeaderControl { get; }
 
         public ObservableCollection<LedgerLineControl> Transactions { get; } = [];
@@ -20,6 +22,7 @@ namespace Accounting101.ViewModels.Single
         private readonly IDataStore _dataStore;
         private readonly AccountWithTransactions _f;
         private readonly AccountWithInfoFlat _a;
+        private int _layoutCount;
 
         public AccountViewModel(
             IDataStore dataStore,
@@ -91,8 +94,52 @@ namespace Accounting101.ViewModels.Single
                 }
                 lines.Add(new LedgerLineControl(t, balance, otherAccount));
             });
-            lines.ForEach(l => Transactions.Add(l));
+            lines.ForEach(l =>
+            {
+                Transactions.Add(l);
+                l.LayoutUpdated += (s, e) => RecordAndLayoutIfFinished(s as LedgerLineControl, lines);
+            });
+            _layoutCount = 0;
             AccountHeaderControl.UpdateBalance(balance);
+        }
+
+        private void RecordAndLayoutIfFinished(LedgerLineControl? llc, List<LedgerLineControl> lines)
+        {
+            _layoutCount++;
+            if (_layoutCount == lines.Count)
+            {
+                UpdateColumnWidths(lines);
+            }
+        }
+
+        private void UpdateColumnWidths(List<LedgerLineControl> lines)
+        {
+            double dateWidth = lines.Max(l => l.DateBlock.ActualWidth);
+            double creditWidth = lines.Max(l => l.CreditBlock.ActualWidth);
+            double debitWidth = lines.Max(l => l.DebitBlock.ActualWidth);
+            double balanceWidth = lines.Max(l => l.BalanceBlock.ActualWidth);
+            lines.ForEach(l =>
+            {
+                l.DateBlock.MinWidth = dateWidth;
+                l.DateBlock.MaxWidth = dateWidth;
+                l.DateBlock.Width = dateWidth;
+                l.CreditBlock.MinWidth = creditWidth;
+                l.CreditBlock.MaxWidth = creditWidth;
+                l.CreditBlock.Width = creditWidth;
+                l.DebitBlock.MinWidth = debitWidth;
+                l.DebitBlock.MaxWidth = debitWidth;
+                l.DebitBlock.Width = debitWidth;
+                l.BalanceBlock.MinWidth = balanceWidth;
+                l.BalanceBlock.MaxWidth = balanceWidth;
+                l.BalanceBlock.Width = balanceWidth;
+            });
+            SetColumnWidths?.Invoke(this, new AccountColumnWidthModel
+            {
+                DateWidth = dateWidth,
+                DebitWidth = debitWidth,
+                CreditWidth = creditWidth,
+                BalanceWidth = balanceWidth
+            });
         }
     }
 }
