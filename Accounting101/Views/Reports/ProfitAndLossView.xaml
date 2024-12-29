@@ -18,6 +18,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Label Grid.Row="0" Content="Profit and Loss" HorizontalAlignment="Center" FontWeight="Bold" FontSize="24" />
         <Grid Grid.Row="1" HorizontalAlignment="Center">
@@ -37,5 +38,13 @@
         <reports:RevenueControl x:Name="RevenueAccounts" Grid.Row="4" />
         <reports:ExpenseControl x:Name="ExpenseAccounts" Grid.Row="5" />
         <reports:EarningsControl x:Name="EarningsAccounts" Grid.Row="6" />
+        <Grid Grid.Row="7" HorizontalAlignment="Right">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Label Grid.Column="0" FontWeight="Bold" Content="Sum:" />
+            <TextBlock Grid.Column="1" FontWeight="Bold" VerticalAlignment="Center" Text="{Binding GrandSum, StringFormat=c}" d:Text="$1,500.00" />
+        </Grid>
     </Grid>
 </UserControl>

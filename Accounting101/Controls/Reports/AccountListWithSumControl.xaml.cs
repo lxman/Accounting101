@@ -15,11 +15,18 @@ namespace Accounting101.Controls.Reports
     {
         public ObservableCollection<AccountWithBalanceControl> Accounts { get; } = [];
 
+        public string SumText
+        {
+            get => _sumText;
+            set => SetProperty(ref _sumText, value);
+        }
+
         public decimal Sum => Accounts.Sum(a => a.Balance);
 
         private IDataStore _dataStore;
         private JoinableTaskFactory _taskFactory;
         private List<AccountWithInfo> _accounts;
+        private string _sumText;
 
         public AccountListWithSumControl()
         {

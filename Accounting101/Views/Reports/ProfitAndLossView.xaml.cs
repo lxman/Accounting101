@@ -46,6 +46,13 @@ namespace Accounting101.Views.Reports
 
         public DateTime EndBeginDate { get; }
 
+        public decimal GrandSum
+        {
+            get => _grandSum;
+            set => SetProperty(ref _grandSum, value);
+        }
+
+        private decimal _grandSum;
         private DateOnly _startDate = DateOnly.FromDateTime(DateTime.Now);
         private DateOnly _endDate = DateOnly.FromDateTime(DateTime.Now.AddDays(1));
 
@@ -86,6 +93,7 @@ namespace Accounting101.Views.Reports
             RevenueAccounts.ChangeDate(begin, end);
             ExpenseAccounts.ChangeDate(begin, end);
             EarningsAccounts.ChangeDate(begin, end);
+            GrandSum = RevenueAccounts.Sum + EarningsAccounts.Sum - ExpenseAccounts.Sum;
         }
     }
 }

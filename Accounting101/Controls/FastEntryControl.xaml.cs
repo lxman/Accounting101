@@ -168,7 +168,7 @@ namespace Accounting101.Controls
         public void LoadAccounts(List<AccountWithInfo> accounts)
         {
             Accounts.Clear();
-            foreach (AccountWithInfo account in accounts)
+            foreach (AccountWithInfo account in accounts.OrderBy(a => a.Info.CoAId))
             {
                 Accounts.Add(new AccountPickerLine(account));
             }

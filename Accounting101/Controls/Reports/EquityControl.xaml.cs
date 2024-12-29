@@ -11,6 +11,7 @@ namespace Accounting101.Controls.Reports
         {
             DataContext = this;
             InitializeComponent();
+            AccountList.SumText = "Total Equity:";
         }
 
         public void SetValues(IDataStore dataStore, JoinableTaskFactory taskFactory, List<AccountWithInfo> accts, DateOnly asOf)
