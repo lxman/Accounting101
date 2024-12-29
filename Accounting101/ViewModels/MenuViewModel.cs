@@ -18,17 +18,7 @@ namespace Accounting101.ViewModels
     {
         public event EventHandler? DeleteClient;
 
-        public bool ShowNewMenu => ShowNewBusinessCommand
-                                   || ShowNewClientCommand
-                                   || ShowNewAccountCommand;
-
-        public ICommand NewBusinessCommand { get; }
-
-        public bool ShowNewBusinessCommand
-        {
-            get => _showNewBusinessCommand;
-            set => SetField(ref _showNewBusinessCommand, value);
-        }
+        public bool ShowNewMenu => ShowNewClientCommand || ShowNewAccountCommand;
 
         public ICommand NewClientCommand { get; }
 
@@ -199,7 +189,6 @@ namespace Accounting101.ViewModels
         private bool _businessExists;
         private bool _clientExists;
         private bool _accountExists;
-        private bool _showNewBusinessCommand;
         private bool _showNewClientCommand;
         private bool _showNewAccountCommand;
         private bool _showDeleteBusinessCommand;
@@ -228,7 +217,6 @@ namespace Accounting101.ViewModels
         {
             _dataStore = dataStore;
             _dataStore.StoreChanged += StoreChanged;
-            NewBusinessCommand = new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.CreateBusiness)));
             NewClientCommand = new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.CreateClient)));
             NewAccountCommand = new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.CreateAccount)));
             DeleteBusinessCommand = new DelegateCommand(DeleteBusiness);
@@ -272,13 +260,11 @@ namespace Accounting101.ViewModels
             switch (BusinessExists)
             {
                 case false:
-                    ShowNewBusinessCommand = true;
                     ShowNewClientCommand = false;
                     ShowNewAccountCommand = false;
                     break;
 
                 case true when !ClientExists && !AccountExists:
-                    ShowNewBusinessCommand = false;
                     ShowNewClientCommand = true;
                     ShowDeleteBusinessCommand = true;
                     ShowDeleteClientCommand = false;
@@ -287,7 +273,6 @@ namespace Accounting101.ViewModels
                     break;
 
                 case true when ClientExists && !AccountExists:
-                    ShowNewBusinessCommand = false;
                     ShowDeleteBusinessCommand = true;
                     ShowDeleteClientCommand = true;
                     ShowNewClientCommand = true;
@@ -296,7 +281,6 @@ namespace Accounting101.ViewModels
                     break;
 
                 case true when ClientExists && AccountExists:
-                    ShowNewBusinessCommand = false;
                     ShowDeleteBusinessCommand = true;
                     ShowDeleteClientCommand = true;
                     ShowNewClientCommand = true;

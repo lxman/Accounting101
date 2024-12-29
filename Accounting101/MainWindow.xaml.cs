@@ -149,6 +149,7 @@ namespace Accounting101
             _currentClientId = null;
             _menuViewModel.ShowSaveCommand = false;
             _menuViewModel.ShowNewAccountCommand = false;
+            _menuViewModel.ShowNewClientCommand = true;
             _menuViewModel.ShowDeleteClientCommand = false;
             _menuViewModel.ShowEditClientCommand = false;
             _menuViewModel.ShowReportsBalanceSheetCommand = false;

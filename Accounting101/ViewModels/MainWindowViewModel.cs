@@ -47,7 +47,6 @@ namespace Accounting101.ViewModels
 
         private void PresentBusinessCreateScreen()
         {
-            MenuViewModel.ShowNewBusinessCommand = true;
             MenuViewModel.ShowNewClientCommand = false;
             MenuViewModel.ShowNewAccountCommand = false;
             MenuViewModel.ShowSaveCommand = true;
@@ -56,7 +55,6 @@ namespace Accounting101.ViewModels
 
         private void PresentClientCreateScreen()
         {
-            MenuViewModel.ShowNewBusinessCommand = false;
             MenuViewModel.ShowDeleteBusinessCommand = true;
             MenuViewModel.ShowNewClientCommand = false;
             MenuViewModel.ShowNewAccountCommand = false;
@@ -67,7 +65,6 @@ namespace Accounting101.ViewModels
 
         private void PresentClientListView()
         {
-            MenuViewModel.ShowNewBusinessCommand = false;
             MenuViewModel.ShowDeleteBusinessCommand = true;
             MenuViewModel.ShowDeleteClientCommand = false;
             MenuViewModel.ShowNewClientCommand = true;
