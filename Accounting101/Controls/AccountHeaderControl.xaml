@@ -34,7 +34,7 @@
             Grid.Column="2"
             Grid.Row="0"
             LabelContent="Current Balance:"
-            TextBlockContent="{Binding CurrentBalance, StringFormat=c}" />
+            TextBlockContent="{Binding CurrentBalance, StringFormat='#,##0.00;(#,##0.00);0'}" />
         <local:TextBlockWithLabelControl
             Grid.Column="3"
             Grid.Row="0"
@@ -44,7 +44,7 @@
             Grid.Column="0"
             Grid.Row="1"
             LabelContent="Start Balance:"
-            TextBlockContent="{Binding StartBalance, StringFormat=c}" />
+            TextBlockContent="{Binding StartBalance, StringFormat='#,##0.00;(#,##0.00);0'}" />
         <local:TextBlockWithLabelControl
             Grid.Column="1"
             Grid.Row="1"

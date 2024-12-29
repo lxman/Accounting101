@@ -9,31 +9,33 @@
              d:Background="White"
              d:DataContext="{d:DesignInstance local:BalanceSheetView}"
              d:DesignHeight="450" d:DesignWidth="800">
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-        <Label Grid.Row="0" Content="Balance Sheet" HorizontalAlignment="Center" FontWeight="Bold" FontSize="24" />
-        <Grid Grid.Row="1" HorizontalAlignment="Center">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <Label Grid.Column="0" Content="As of " HorizontalAlignment="Right" />
-                <DatePicker Grid.Column="1" HorizontalAlignment="Left" DisplayDateStart="{Binding BeginDate, Mode=OneWay}" SelectedDate="{Binding Date}" />
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Label Grid.Row="0" Content="Balance Sheet" HorizontalAlignment="Center" FontWeight="Bold" FontSize="24" />
+            <Grid Grid.Row="1" HorizontalAlignment="Center">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" Content="As of " HorizontalAlignment="Right" />
+                    <DatePicker Grid.Column="1" HorizontalAlignment="Left" DisplayDateStart="{Binding BeginDate, Mode=OneWay}" SelectedDate="{Binding Date}" />
+                </Grid>
             </Grid>
+            <reports:BusinessInfoHeaderControl Grid.Row="2" x:Name="BusinessInfo" />
+            <reports:ClientInfoHeaderControl Grid.Row="3" x:Name="ClientInfo" />
+            <reports:AssetsControl x:Name="AssetAccounts" Grid.Row="4" />
+            <reports:LiabilitiesControl x:Name="LiabilityAccounts" Grid.Row="5" />
+            <reports:EquityControl x:Name="EquityAccounts" Grid.Row="6" />
         </Grid>
-        <reports:BusinessInfoHeaderControl Grid.Row="2" x:Name="BusinessInfo" />
-        <reports:ClientInfoHeaderControl Grid.Row="3" x:Name="ClientInfo" />
-        <reports:AssetsControl x:Name="AssetAccounts" Grid.Row="4" />
-        <reports:LiabilitiesControl x:Name="LiabilityAccounts" Grid.Row="5" />
-        <reports:EquityControl x:Name="EquityAccounts" Grid.Row="6" />
-    </Grid>
+    </ScrollViewer>
 </UserControl>

@@ -152,6 +152,7 @@ namespace Accounting101
             _menuViewModel.ShowEditClientCommand = false;
             _menuViewModel.ShowReportsBalanceSheetCommand = false;
             _menuViewModel.ShowReportsProfitAndLossCommand = false;
+            _menuViewModel.ShowClientListCommand = false;
             ClientListView clientListView = new(_dataStore, _taskFactory);
             clientListView.ClientChosen += (sender, id) =>
             {

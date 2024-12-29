@@ -22,7 +22,7 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Label Grid.Column="0" Content="{Binding SumText, FallbackValue='Sum:', TargetNullValue='Sum:'}" HorizontalAlignment="Right" />
-            <Label Grid.Column="1" Content="{Binding Sum}" d:Content="$100.00" HorizontalAlignment="Right" ContentStringFormat="{}{0:c}" />
+            <Label Grid.Column="1" Content="{Binding Sum}" d:Content="$100.00" HorizontalAlignment="Right" ContentStringFormat="#,##0.00;(#,##0.00);0" />
         </Grid>
     </Grid>
 </UserControl>

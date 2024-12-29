@@ -9,42 +9,44 @@
              d:Background="White"
              d:DataContext="{d:DesignInstance local:ProfitAndLossView}"
              d:DesignHeight="450" d:DesignWidth="800">
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-        <Label Grid.Row="0" Content="Profit and Loss" HorizontalAlignment="Center" FontWeight="Bold" FontSize="24" />
-        <Grid Grid.Row="1" HorizontalAlignment="Center">
-            <Grid>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Label Grid.Row="0" Content="Profit and Loss" HorizontalAlignment="Center" FontWeight="Bold" FontSize="24" />
+            <Grid Grid.Row="1" HorizontalAlignment="Center">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <DatePicker Grid.Column="0" HorizontalAlignment="Left" DisplayDateStart="{Binding StartBeginDate, Mode=OneWay}" SelectedDate="{Binding StartDate}" />
+                    <Label Grid.Column="1" Content=" to " HorizontalAlignment="Right" />
+                    <DatePicker Grid.Column="2" HorizontalAlignment="Left" DisplayDateStart="{Binding EndBeginDate, Mode=OneWay}" SelectedDate="{Binding EndDate}" />
+                </Grid>
+            </Grid>
+            <reports:BusinessInfoHeaderControl Grid.Row="2" x:Name="BusinessInfo" />
+            <reports:ClientInfoHeaderControl Grid.Row="3" x:Name="ClientInfo" />
+            <reports:RevenueControl x:Name="RevenueAccounts" Grid.Row="4" />
+            <reports:ExpenseControl x:Name="ExpenseAccounts" Grid.Row="5" />
+            <reports:EarningsControl x:Name="EarningsAccounts" Grid.Row="6" />
+            <Grid Grid.Row="7" HorizontalAlignment="Right">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <DatePicker Grid.Column="0" HorizontalAlignment="Left" DisplayDateStart="{Binding StartBeginDate, Mode=OneWay}" SelectedDate="{Binding StartDate}" />
-                <Label Grid.Column="1" Content=" to " HorizontalAlignment="Right" />
-                <DatePicker Grid.Column="2" HorizontalAlignment="Left" DisplayDateStart="{Binding EndBeginDate, Mode=OneWay}" SelectedDate="{Binding EndDate}" />
+                <Label Grid.Column="0" FontWeight="Bold" Content="Sum:" />
+                <TextBlock Grid.Column="1" FontWeight="Bold" VerticalAlignment="Center" Text="{Binding GrandSum, StringFormat='#,##0.00;(#,##0.00);0'}" d:Text="$1,500.00" />
             </Grid>
         </Grid>
-        <reports:BusinessInfoHeaderControl Grid.Row="2" x:Name="BusinessInfo" />
-        <reports:ClientInfoHeaderControl Grid.Row="3" x:Name="ClientInfo" />
-        <reports:RevenueControl x:Name="RevenueAccounts" Grid.Row="4" />
-        <reports:ExpenseControl x:Name="ExpenseAccounts" Grid.Row="5" />
-        <reports:EarningsControl x:Name="EarningsAccounts" Grid.Row="6" />
-        <Grid Grid.Row="7" HorizontalAlignment="Right">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <Label Grid.Column="0" FontWeight="Bold" Content="Sum:" />
-            <TextBlock Grid.Column="1" FontWeight="Bold" VerticalAlignment="Center" Text="{Binding GrandSum, StringFormat=c}" d:Text="$1,500.00" />
-        </Grid>
-    </Grid>
+    </ScrollViewer>
 </UserControl>
