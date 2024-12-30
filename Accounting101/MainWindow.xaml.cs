@@ -251,6 +251,8 @@ namespace Accounting101
             _menuViewModel.ShowEditAccountCommand = false;
             _menuViewModel.ShowReportsBalanceSheetCommand = false;
             _menuViewModel.ShowReportsProfitAndLossCommand = true;
+            _menuViewModel.ShowNewClientCommand = true;
+            _menuViewModel.ShowNewAccountCommand = true;
             BalanceSheetView balanceSheetView = new(_dataStore, _taskFactory, _currentClientId.Value);
             CurrentScreen = balanceSheetView;
             SetInitialScreen(balanceSheetView);
@@ -268,6 +270,8 @@ namespace Accounting101
             _menuViewModel.ShowEditAccountCommand = false;
             _menuViewModel.ShowReportsBalanceSheetCommand = true;
             _menuViewModel.ShowReportsProfitAndLossCommand = false;
+            _menuViewModel.ShowNewClientCommand = true;
+            _menuViewModel.ShowNewAccountCommand = true;
             ProfitAndLossView profitAndLossView = new(_dataStore, _taskFactory, _currentClientId.Value);
             CurrentScreen = profitAndLossView;
             SetInitialScreen(profitAndLossView);
