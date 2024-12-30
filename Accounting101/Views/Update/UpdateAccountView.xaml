@@ -21,12 +21,12 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Label Grid.Row="0" Grid.Column="0" Content="Name:" />
-        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center" />
         <Label Grid.Row="1" Grid.Column="0" Content="Type:" />
-        <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding AccountTypes}" SelectedValue="{Binding SelectedAccountType}" />
+        <ComboBox Grid.Row="1" Grid.Column="1" ItemsSource="{Binding AccountTypes}" SelectedValue="{Binding SelectedAccountType}" VerticalContentAlignment="Center" />
         <Label Grid.Row="2" Grid.Column="0" Content="CoA Id:" />
-        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding CoAId, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding CoAId, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center" />
         <Label Grid.Row="3" Grid.Column="0" Content="Starting Balance:" />
-        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding StartBalance, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding StartBalance, UpdateSourceTrigger=PropertyChanged}" VerticalContentAlignment="Center" />
     </Grid>
 </UserControl>

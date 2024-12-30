@@ -13,7 +13,7 @@ namespace Accounting101.Models
 
         public string CoAId { get; } = accountWithInfo.Info.CoAId;
 
-        public decimal StartBalance { get; } = accountWithInfo.StartBalance;
+        public string StartBalance { get; } = accountWithInfo.StartBalance.ToString("#,##0.00;(#,##0.00);0");
 
         public DateOnly Created { get; } = accountWithInfo.Created;
 
@@ -21,6 +21,16 @@ namespace Accounting101.Models
 
         public bool IsDebitAccount { get; } = accountWithInfo.IsDebitAccount;
 
-        public decimal Balance => taskFactory.Run(() => dataStore.GetAccountBalanceAsync(accountWithInfo.Id));
+        public string Balance => taskFactory.Run(() => dataStore.GetAccountBalanceAsync(accountWithInfo.Id)).ToString("#,##0.00;(#,##0.00);0");
+
+        public decimal GetStartBalance()
+        {
+            return accountWithInfo.StartBalance;
+        }
+
+        public decimal GetBalance()
+        {
+            return Convert.ToDecimal(Balance.Replace(",", string.Empty).Replace("(", string.Empty).Replace(")", string.Empty));
+        }
     }
 }

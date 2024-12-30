@@ -76,7 +76,7 @@ namespace Accounting101.ViewModels.Single
         private void PopulateTransactionsList()
         {
             Transactions.Clear();
-            decimal balance = _a.StartBalance;
+            decimal balance = _a.GetStartBalance();
             List<LedgerLineControl> lines = [];
             _f.Transactions.OrderBy(t => t.When).ToList().ForEach(t =>
             {

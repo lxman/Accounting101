@@ -3,9 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:Accounting101"
         mc:Ignorable="d"
-        Title="Accounting101 Setup" Height="450" Width="800">
+        Title="Accounting101 Setup" Height="150" Width="800">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -26,7 +25,7 @@
             <TextBlock Grid.Row="0" Grid.Column="0" Text="Database location:" Padding="5" />
             <TextBlock x:Name="DbLocation" Grid.Row="0" Grid.Column="1" Padding="5" d:Text="C:\ProgramData\Accounting101\Accounts.db" />
             <Button Grid.Row="0" Grid.Column="2" Content="Browse" Click="BrowseButtonClick" />
-            <TextBlock Grid.Row="1" Grid.Column="0" Text="Password:" Padding="5" />
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Password (can be blank):" Padding="5" />
             <PasswordBox x:Name="Password" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Padding="5" d:Password="1234" />
         </Grid>
         <Grid Grid.Row="2">

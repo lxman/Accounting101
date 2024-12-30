@@ -33,12 +33,12 @@ namespace Accounting101.Controls
 
         public AccountHeaderControl(AccountWithInfoFlat a)
         {
-            CurrentBalance = a.Balance;
+            CurrentBalance = a.GetBalance();
             CoAId = a.CoAId;
             Created = a.Created;
             DebitCredit = a.IsDebitAccount ? "Debit Account" : "Credit Account";
             AccountName = a.Name;
-            StartBalance = a.StartBalance;
+            StartBalance = a.GetStartBalance();
             Type = a.Type;
             DataContext = this;
             InitializeComponent();
