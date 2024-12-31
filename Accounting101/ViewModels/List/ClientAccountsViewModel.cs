@@ -83,7 +83,7 @@ namespace Accounting101.ViewModels.List
 
         private void SetupDataGrid()
         {
-            AccountsList = new DataGrid { ItemsSource = Accounts };
+            AccountsList = new DataGrid { ItemsSource = Accounts, GridLinesVisibility = DataGridGridLinesVisibility.Horizontal };
             ((DataGrid)AccountsList).SelectionChanged += SelectionChangedHandler;
             ((DataGrid)AccountsList).PreviewMouseWheel +=
                 (_, e) => Messenger.Send(new BubbledScrollEventMessage(e));

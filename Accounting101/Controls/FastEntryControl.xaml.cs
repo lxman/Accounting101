@@ -8,6 +8,7 @@ using Accounting101.Messages;
 using Accounting101.Models;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess.Models;
+
 #pragma warning disable CS8618, CS9264
 
 // ReSharper disable SwitchStatementHandlesSomeKnownEnumValuesWithDefault
@@ -149,6 +150,7 @@ namespace Accounting101.Controls
                             break;
                     }
                     break;
+
                 case Key.Delete:
                     if (IsEditing && AmountEntry.IsFocused)
                     {
