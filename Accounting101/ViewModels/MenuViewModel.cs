@@ -1,10 +1,6 @@
 ﻿using System.IO;
 using System.Windows;
 using System.Windows.Input;
-using Accounting101.Commands;
-using Accounting101.Dialogs;
-using Accounting101.Messages;
-using CommunityToolkit.Mvvm.Messaging;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services;
@@ -217,42 +213,6 @@ namespace Accounting101.ViewModels
         {
             _dataStore = dataStore;
             _dataStore.StoreChanged += StoreChanged;
-            NewClientCommand = new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.CreateClient)));
-            NewAccountCommand = new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.CreateAccount)));
-            DeleteBusinessCommand = new DelegateCommand(DeleteBusiness);
-            DeleteClientCommand = new DelegateCommand(() => DeleteClient?.Invoke(this, EventArgs.Empty));
-            SaveCommand = new DelegateCommand(() => Messenger.Send(new SaveMessage(
-                ActiveWindow switch
-                {
-                    WindowType.CreateBusiness => WindowType.CreateBusiness,
-                    WindowType.CreateClient => WindowType.CreateClient,
-                    WindowType.EditBusiness => WindowType.EditBusiness,
-                    WindowType.EditClient => WindowType.EditClient,
-                    WindowType.CreateAccount => WindowType.CreateAccount,
-                    WindowType.EditAccount => WindowType.EditAccount,
-                    _ => WindowType.ClientList
-                })));
-            ExitCommand = new DelegateCommand(() =>
-            {
-                _dataStore.Dispose();
-                Application.Current.Shutdown();
-            });
-            EditBusinessCommand =
-                new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.EditBusiness)));
-            EditClientCommand =
-                new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.EditClient)));
-            EditAccountCommand =
-                new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.EditAccount)));
-            ReportsBalanceSheetCommand =
-                new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.BalanceSheet)));
-            ReportsProfitAndLossCommand =
-                new DelegateCommand(() => Messenger.Send(new ChangeScreenMessage(WindowType.ProfitAndLoss)));
-            ClientListCommand =
-                new DelegateCommand(() =>
-                {
-                    ShowClientListCommand = false;
-                    Messenger.Send(new ChangeScreenMessage(WindowType.ClientList));
-                });
         }
 
         private void ChangeMenuState()
@@ -348,11 +308,6 @@ namespace Accounting101.ViewModels
 
         private void DeleteBusiness()
         {
-            DeleteBusinessDialog deleteBusinessDialog = new();
-            if (deleteBusinessDialog.ShowDialog() != true)
-            {
-                return;
-            }
             _dataStore.Dispose();
             string dbLocation = _dataStore.GetDbLocation();
             File.Delete(dbLocation);
