@@ -10,6 +10,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Styling\**" />
+    <EmbeddedResource Remove="Styling\**" />
+    <None Remove="Styling\**" />
+    <Page Remove="Styling\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="Accounting101Icon.ico" />
   </ItemGroup>
 
@@ -28,7 +35,6 @@
   <ItemGroup>
     <Folder Include="Extensions\" />
     <Folder Include="Interfaces\" />
-    <Folder Include="Styling\IValueConverters\" />
   </ItemGroup>
 
 </Project>
