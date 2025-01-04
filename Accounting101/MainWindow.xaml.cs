@@ -5,6 +5,7 @@ using Accounting101.Views.Create;
 using Accounting101.Views.Read;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using MahApps.Metro.Controls;
 using Microsoft.VisualStudio.Threading;
@@ -39,6 +40,7 @@ namespace Accounting101
         private WindowType _initialScreen;
         private readonly JoinableTaskFactory _taskFactory;
         private readonly IDataStore _dataStore;
+        private ClientWithInfo? _client;
 
         public MainWindow(
             IDataStore dataStore,
@@ -75,8 +77,14 @@ namespace Accounting101
                     break;
                 case WindowType.ClientList:
                     CurrentScreen = new ClientListView(_dataStore, _taskFactory);
+                    _client = null;
                     break;
                 case WindowType.ClientAccountList:
+                    if (_client is null)
+                    {
+                        return;
+                    }
+                    CurrentScreen = new ClientWithAccountListView(_dataStore, _taskFactory, _client);
                     break;
                 case WindowType.EditBusiness:
                     break;
@@ -100,6 +108,8 @@ namespace Accounting101
 
         public void Receive(FocusClientMessage message)
         {
+            _client = message.Value;
+            Receive(new ChangeScreenMessage(WindowType.ClientAccountList));
         }
 
         private void SetState()
