@@ -18,7 +18,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <DockPanel Grid.Row="0">
-            <Menu DataContext="{Binding MenuViewModel}">
+            <Menu DataContext="{Binding ElementName=Self, Path=MenuViewModel}">
                 <MenuItem Header="_File">
                     <MenuItem
                     Header="_New"
@@ -87,7 +87,7 @@
                 Command="{Binding ClientListCommand}" />
             </Menu>
         </DockPanel>
-        <ContentControl
+        <mah:TransitioningContentControl
         x:Name="ScreenDisplayControl"
         Grid.Row="1"
         DataContext="{Binding ElementName=Self}"

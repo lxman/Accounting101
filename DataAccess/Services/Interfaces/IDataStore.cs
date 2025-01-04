@@ -16,6 +16,8 @@ namespace DataAccess.Services.Interfaces
 
         ILiteCollectionAsync<T>? GetCollection<T>(string name);
 
+        void CreateDatabase(string location);
+
         Task<bool> CreateBusinessAsync(Business business);
 
         Task<Business?> GetBusinessAsync();

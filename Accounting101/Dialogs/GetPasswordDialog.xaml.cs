@@ -1,9 +1,9 @@
-﻿using System.Windows;
-using System.Windows.Input;
+﻿using System.Windows.Input;
+using MahApps.Metro.Controls;
 
 namespace Accounting101.Dialogs
 {
-    public partial class GetPasswordDialog : Window
+    public partial class GetPasswordDialog : MetroWindow
     {
         public event EventHandler<string>? PasswordEntered;
 

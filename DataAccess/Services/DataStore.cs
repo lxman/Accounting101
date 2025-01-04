@@ -8,6 +8,7 @@ using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using DataAccess.ZipCodeData;
 using LiteDB.Async;
+using Microsoft.VisualStudio.Threading;
 using Microsoft.Win32;
 
 #pragma warning disable CA1416
@@ -20,15 +21,18 @@ namespace DataAccess.Services
     {
         public event EventHandler<ChangeEventArgs>? StoreChanged;
 
-        private readonly LiteDatabaseAsync? _db;
+        private LiteDatabaseAsync? _db;
         private bool _disposedValue;
         private List<string>? _statesCached;
 
         public DataStore()
         {
-            _db = new LiteDatabaseAsync(ConnectionString.ConnString);
-            if (_db is null) throw new DataException("Error setting up database");
-            if (ZipCodeEntryCountAsync().GetAwaiter().GetResult() == 0) InitZipCodeDataAsync().GetAwaiter().GetResult();
+            if (!IsDbRegistered())
+            {
+                return;
+            }
+
+            CreateOrOpenDatabase();
         }
 
         /// <summary>
@@ -40,6 +44,21 @@ namespace DataAccess.Services
         {
             _db ??= new LiteDatabaseAsync(connString);
             if (_db is null || !InitZipCodeDataAsync().GetAwaiter().GetResult()) throw new DataException("Error setting up database");
+        }
+
+        public void CreateDatabase(string location)
+        {
+            string? filePath = Path.GetDirectoryName(location);
+            if (filePath is null)
+            {
+                throw new DataException("Invalid file path for database.");
+            }
+
+            if (!Directory.Exists(filePath))
+            {
+                Directory.CreateDirectory(filePath);
+            }
+            CreateOrOpenDatabase();
         }
 
         public void NotifyChange(Type t, ChangeType ct)
@@ -102,25 +121,17 @@ namespace DataAccess.Services
             return _statesCached;
         }
 
-        protected virtual void Dispose(bool disposing)
+        private void CreateOrOpenDatabase()
         {
-            if (_disposedValue)
-            {
-                return;
-            }
-
-            if (disposing)
-            {
-                _db?.Dispose();
-            }
-
-            _disposedValue = true;
+            _db = new LiteDatabaseAsync(ConnectionString.ConnString);
+            if (_db is null) throw new DataException("Error setting up database");
+            JoinableTaskFactory jtf = new(new JoinableTaskCollection(new JoinableTaskContext()));
+            if (jtf.Run(ZipCodeEntryCountAsync) == 0) jtf.Run(InitZipCodeDataAsync);
         }
 
-        public void Dispose()
+        private bool IsDbRegistered()
         {
-            Dispose(disposing: true);
-            GC.SuppressFinalize(this);
+            return !string.IsNullOrWhiteSpace(GetDbLocation());
         }
 
         private async Task<int> ZipCodeEntryCountAsync()
@@ -153,6 +164,27 @@ namespace DataAccess.Services
             }
             await zipCollection.InsertBulkAsync(entries);
             return true;
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposedValue)
+            {
+                return;
+            }
+
+            if (disposing)
+            {
+                _db?.Dispose();
+            }
+
+            _disposedValue = true;
+        }
+
+        public void Dispose()
+        {
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
         }
     }
 }

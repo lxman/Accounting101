@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Windows;
 using System.Windows.Input;
+using CommunityToolkit.Mvvm.Input;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services;
@@ -59,7 +60,11 @@ namespace Accounting101.ViewModels
             }
         }
 
-        public ICommand SaveCommand { get; }
+        public ICommand SaveCommand
+        {
+            get => _saveCommand;
+            set => SetField(ref _saveCommand, value);
+        }
 
         public bool ShowSaveCommand
         {
@@ -182,6 +187,7 @@ namespace Accounting101.ViewModels
 
         public WindowType ActiveWindow { private get; set; }
 
+        private ICommand _saveCommand;
         private bool _businessExists;
         private bool _clientExists;
         private bool _accountExists;
@@ -211,8 +217,15 @@ namespace Accounting101.ViewModels
 
         public MenuViewModel(IDataStore dataStore)
         {
+
             _dataStore = dataStore;
             _dataStore.StoreChanged += StoreChanged;
+            ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
+        }
+
+        public void SetSaveCommand(RelayCommand cmd)
+        {
+            SaveCommand = cmd;
         }
 
         private void ChangeMenuState()

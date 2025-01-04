@@ -11,15 +11,15 @@ namespace DataAccess.Models
 
         public List<Guid> UsedByIds { get; } = [];
 
-        public string Country { get; set; }
+        public string Country { get; set; } = string.Empty;
 
-        public string Line1 { get; set; }
+        public string Line1 { get; set; } = string.Empty;
 
-        public string Line2 { get; set; }
+        public string Line2 { get; set; } = string.Empty;
 
-        public string Province { get; set; }
+        public string Province { get; set; } = string.Empty;
 
-        public string PostalCode { get; set; }
+        public string PostalCode { get; set; } = string.Empty;
 
         public new string ToString()
         {

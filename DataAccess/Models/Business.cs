@@ -5,10 +5,10 @@ namespace DataAccess.Models
 {
     public class Business
     {
-        public ObjectId Id { get; set; }
+        public ObjectId Id { get; set; } = new();
 
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
-        public IAddress Address { get; set; }
+        public IAddress? Address { get; set; }
     }
 }

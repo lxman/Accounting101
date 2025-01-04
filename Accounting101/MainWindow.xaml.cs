@@ -1,5 +1,9 @@
 ﻿using System.Windows;
+using Accounting101.Messages;
 using Accounting101.ViewModels;
+using Accounting101.Views.Create;
+using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using DataAccess.Services.Interfaces;
 using MahApps.Metro.Controls;
 using Microsoft.VisualStudio.Threading;
@@ -8,7 +12,7 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101
 {
-    public partial class MainWindow : MetroWindow
+    public partial class MainWindow : MetroWindow, IRecipient<ChangeScreenMessage>, IRecipient<CreateDatabaseMessage>
     {
         public static readonly DependencyProperty CurrentScreenProperty = DependencyProperty.Register(
             nameof(CurrentScreen), typeof(object), typeof(MainWindow), new PropertyMetadata(default(object)));
@@ -19,15 +23,91 @@ namespace Accounting101
             set => SetValue(CurrentScreenProperty, value);
         }
 
+        public WindowType InitialScreen
+        {
+            private get => _initialScreen;
+            set
+            {
+                _initialScreen = value;
+                SetState();
+            }
+        }
+
+        public MenuViewModel MenuViewModel { get; }
+
+        private WindowType _initialScreen;
         private readonly JoinableTaskFactory _taskFactory;
         private readonly IDataStore _dataStore;
 
-        public MainWindow(IDataStore dataStore, MainWindowViewModel vm)
+        public MainWindow(
+            IDataStore dataStore,
+            JoinableTaskFactory taskFactory,
+            MainWindowViewModel mainWindowViewModel,
+            MenuViewModel menuViewModel)
         {
-            _taskFactory = new JoinableTaskFactory(new JoinableTaskCollection(new JoinableTaskContext()));
+            WeakReferenceMessenger.Default.Register<ChangeScreenMessage>(this);
+            WeakReferenceMessenger.Default.Register<CreateDatabaseMessage>(this);
+            _taskFactory = taskFactory;
             _dataStore = dataStore;
-            DataContext = vm;
+            DataContext = mainWindowViewModel;
+            MenuViewModel = menuViewModel;
             InitializeComponent();
+        }
+
+        public void Receive(ChangeScreenMessage message)
+        {
+            switch (message.Value)
+            {
+                case WindowType.CreateBusiness:
+                    CurrentScreen = new CreateBusinessView(_dataStore, _taskFactory);
+                    break;
+                case WindowType.CreateClient:
+                    CurrentScreen = new CreateClientView(_dataStore, _taskFactory);
+                    break;
+                case WindowType.CreateAccount:
+                    break;
+                case WindowType.ClientList:
+                    break;
+                case WindowType.ClientAccountList:
+                    break;
+                case WindowType.EditBusiness:
+                    break;
+                case WindowType.EditClient:
+                    break;
+                case WindowType.EditAccount:
+                    break;
+                case WindowType.BalanceSheet:
+                    break;
+                case WindowType.ProfitAndLoss:
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
+
+        public void Receive(CreateDatabaseMessage message)
+        {
+            _dataStore.CreateDatabase(_dataStore.GetDbLocation());
+        }
+
+        private void SetState()
+        {
+            switch (InitialScreen)
+            {
+                case WindowType.SetupDatabase:
+                    MenuViewModel.ShowSaveCommand = true;
+                    MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateDatabaseView)?.Save()));
+                    break;
+                case WindowType.CreateBusiness:
+                    MenuViewModel.ShowSaveCommand = true;
+                    MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateBusinessView)?.Save()));
+                    break;
+                case WindowType.CreateClient:
+                    MenuViewModel.ShowDeleteBusinessCommand = true;
+                    MenuViewModel.ShowSaveCommand = true;
+                    MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateClientView)?.Save()));
+                    break;
+            }
         }
 
         protected override void OnClosed(EventArgs e)

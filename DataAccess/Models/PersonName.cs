@@ -9,15 +9,15 @@ namespace DataAccess.Models
 
         public List<Guid> UsedByIds { get; } = [];
 
-        public string Prefix { get; set; }
+        public string Prefix { get; set; } = string.Empty;
 
-        public string First { get; set; }
+        public string First { get; set; } = string.Empty;
 
-        public string Middle { get; set; }
+        public string Middle { get; set; } = string.Empty;
 
-        public string Last { get; set; }
+        public string Last { get; set; } = string.Empty;
 
-        public string Suffix { get; set; }
+        public string Suffix { get; set; } = string.Empty;
 
         public new string ToString()
         {
