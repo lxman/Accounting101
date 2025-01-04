@@ -29,17 +29,17 @@
         <TextBox Grid.Column="1" Grid.Row="0" Text="{Binding BusinessName, UpdateSourceTrigger=PropertyChanged}" />
         <Label Grid.Column="0" Grid.Row="1">Contact Name</Label>
         <Label Grid.Column="0" Grid.Row="2">Prefix</Label>
-        <TextBox Grid.Column="1" Grid.Row="2" Text="{Binding Path=PersonName.Prefix, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBox Grid.Column="1" Grid.Row="2" Text="{Binding Path=PersonName.Prefix, UpdateSourceTrigger=PropertyChanged, Mode=OneWayToSource}" />
         <Label Grid.Column="0" Grid.Row="3">First</Label>
-        <TextBox Grid.Column="1" Grid.Row="3" Text="{Binding Path=PersonName.First, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBox Grid.Column="1" Grid.Row="3" Text="{Binding Path=PersonName.First, UpdateSourceTrigger=PropertyChanged, Mode=OneWayToSource}" />
         <Label Grid.Column="0" Grid.Row="4">Middle</Label>
-        <TextBox Grid.Column="1" Grid.Row="4" Text="{Binding Path=PersonName.Middle, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBox Grid.Column="1" Grid.Row="4" Text="{Binding Path=PersonName.Middle, UpdateSourceTrigger=PropertyChanged, Mode=OneWayToSource}" />
         <Label Grid.Column="0" Grid.Row="5">Last</Label>
-        <TextBox Grid.Column="1" Grid.Row="5" Text="{Binding Path=PersonName.Last, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBox Grid.Column="1" Grid.Row="5" Text="{Binding Path=PersonName.Last, UpdateSourceTrigger=PropertyChanged, Mode=OneWayToSource}" />
         <Label Grid.Column="0" Grid.Row="6">Suffix</Label>
-        <TextBox Grid.Column="1" Grid.Row="6" Text="{Binding Path=PersonName.Suffix, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBox Grid.Column="1" Grid.Row="6" Text="{Binding Path=PersonName.Suffix, UpdateSourceTrigger=PropertyChanged, Mode=OneWayToSource}" />
         <Label Grid.Column="0" Grid.Row="7">Address</Label>
         <CheckBox Grid.Column="0" Grid.Row="8" Margin="5,5,0,5" IsChecked="{Binding IsChecked}">Foreign</CheckBox>
-        <ContentControl Grid.Column="0" Grid.Row="9" Grid.ColumnSpan="2" Content="{Binding AddressView}" />
+        <ContentControl Grid.Column="0" Grid.Row="9" Grid.ColumnSpan="2" IsTabStop="False" Content="{Binding AddressView}" />
     </Grid>
 </UserControl>

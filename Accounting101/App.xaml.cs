@@ -3,6 +3,7 @@ using System.Windows;
 using Accounting101.Dialogs;
 using Accounting101.ViewModels;
 using Accounting101.Views.Create;
+using Accounting101.Views.Read;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services;
@@ -25,7 +26,6 @@ namespace Accounting101
         public App()
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
-            IDataStore dataStore = new DataStore();
             if (DbRegistrationStatus())
             {
                 // Database registered, check if password is set
@@ -44,6 +44,7 @@ namespace Accounting101
                     SetConnectionString(_dbLocation, _password);
                 }
             }
+            IDataStore dataStore = new DataStore();
 
             // Now start spinning up everything else
             JoinableTaskFactory taskFactory = new(new JoinableTaskCollection(new JoinableTaskContext()));
@@ -63,7 +64,7 @@ namespace Accounting101
                 WindowType.SetupDatabase => new CreateDatabaseView(),
                 WindowType.CreateBusiness => new CreateBusinessView(dataStore, taskFactory),
                 WindowType.CreateClient => new CreateClientView(dataStore, taskFactory),
-                //WindowType.ClientList => new ClientListView { DataContext = firstScreen },
+                WindowType.ClientList => new ClientListView(dataStore, taskFactory),
                 _ => throw new DataException("Invalid initial screen.")
             };
             mainWindow.InitialScreen = initialScreen;

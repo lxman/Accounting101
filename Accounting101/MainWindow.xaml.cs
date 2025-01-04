@@ -2,6 +2,7 @@
 using Accounting101.Messages;
 using Accounting101.ViewModels;
 using Accounting101.Views.Create;
+using Accounting101.Views.Read;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess.Services.Interfaces;
@@ -12,7 +13,7 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101
 {
-    public partial class MainWindow : MetroWindow, IRecipient<ChangeScreenMessage>, IRecipient<CreateDatabaseMessage>
+    public partial class MainWindow : MetroWindow, IRecipient<ChangeScreenMessage>, IRecipient<CreateDatabaseMessage>, IRecipient<FocusClientMessage>
     {
         public static readonly DependencyProperty CurrentScreenProperty = DependencyProperty.Register(
             nameof(CurrentScreen), typeof(object), typeof(MainWindow), new PropertyMetadata(default(object)));
@@ -47,6 +48,7 @@ namespace Accounting101
         {
             WeakReferenceMessenger.Default.Register<ChangeScreenMessage>(this);
             WeakReferenceMessenger.Default.Register<CreateDatabaseMessage>(this);
+            WeakReferenceMessenger.Default.Register<FocusClientMessage>(this);
             _taskFactory = taskFactory;
             _dataStore = dataStore;
             DataContext = mainWindowViewModel;
@@ -59,14 +61,20 @@ namespace Accounting101
             switch (message.Value)
             {
                 case WindowType.CreateBusiness:
+                    MenuViewModel.ShowSaveCommand = true;
+                    MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateBusinessView)?.Save()));
                     CurrentScreen = new CreateBusinessView(_dataStore, _taskFactory);
                     break;
                 case WindowType.CreateClient:
+                    MenuViewModel.ShowDeleteBusinessCommand = true;
+                    MenuViewModel.ShowSaveCommand = true;
+                    MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateClientView)?.Save()));
                     CurrentScreen = new CreateClientView(_dataStore, _taskFactory);
                     break;
                 case WindowType.CreateAccount:
                     break;
                 case WindowType.ClientList:
+                    CurrentScreen = new ClientListView(_dataStore, _taskFactory);
                     break;
                 case WindowType.ClientAccountList:
                     break;
@@ -88,6 +96,10 @@ namespace Accounting101
         public void Receive(CreateDatabaseMessage message)
         {
             _dataStore.CreateDatabase(_dataStore.GetDbLocation());
+        }
+
+        public void Receive(FocusClientMessage message)
+        {
         }
 
         private void SetState()

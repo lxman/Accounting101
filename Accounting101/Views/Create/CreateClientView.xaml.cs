@@ -12,12 +12,14 @@ namespace Accounting101.Views.Create
 {
     public partial class CreateClientView : UserControl
     {
-        private readonly CreateClientViewModel _viewModel = new();
+        private readonly CreateClientViewModel _viewModel;
         private readonly IDataStore _dataStore;
         private readonly JoinableTaskFactory _taskFactory;
 
         public CreateClientView(IDataStore dataStore, JoinableTaskFactory taskFactory)
         {
+            List<string> states = taskFactory.Run(dataStore.GetStatesAsync).Order().ToList();
+            _viewModel = new CreateClientViewModel(states);
             _dataStore = dataStore;
             _taskFactory = taskFactory;
             DataContext = _viewModel;

@@ -123,6 +123,7 @@ namespace DataAccess.Services
 
         private void CreateOrOpenDatabase()
         {
+            if (string.IsNullOrWhiteSpace(ConnectionString.ConnString)) return;
             _db = new LiteDatabaseAsync(ConnectionString.ConnString);
             if (_db is null) throw new DataException("Error setting up database");
             JoinableTaskFactory jtf = new(new JoinableTaskCollection(new JoinableTaskContext()));

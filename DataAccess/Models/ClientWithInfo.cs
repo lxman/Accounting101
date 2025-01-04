@@ -3,16 +3,10 @@ using DataAccess.Services.Interfaces;
 
 namespace DataAccess.Models
 {
-    public class ClientWithInfo : Client
+    public class ClientWithInfo(IDataStore dataStore, Client c) : Client(c)
     {
-        public PersonName? Name { get; set; }
+        public PersonName? Name { get; set; } = dataStore.GetCollection<PersonName>(CollectionNames.PersonName)?.FindByIdAsync(c.PersonNameId).GetAwaiter().GetResult();
 
-        public IAddress? Address { get; set; }
-
-        public ClientWithInfo(IDataStore dataStore, Client c) : base(c)
-        {
-            Name = dataStore.GetCollection<PersonName>(CollectionNames.PersonName)?.FindByIdAsync(c.PersonNameId).GetAwaiter().GetResult();
-            Address = dataStore.GetCollection<IAddress>(CollectionNames.Address)?.FindByIdAsync(c.AddressId).GetAwaiter().GetResult();
-        }
+        public IAddress? Address { get; set; } = dataStore.GetCollection<IAddress>(CollectionNames.Address)?.FindByIdAsync(c.AddressId).GetAwaiter().GetResult();
     }
 }

@@ -9,9 +9,9 @@ namespace Accounting101.ViewModels.Create
     {
         public string BusinessName { get; set; } = string.Empty;
 
-        public PersonName PersonName { get; set; }
+        public PersonName PersonName { private get; set; } = new();
 
-        public UserControl AddressView
+        public UserControl? AddressView
         {
             get => _addressView;
             set
@@ -41,12 +41,13 @@ namespace Accounting101.ViewModels.Create
         }
 
         private bool? _isChecked = false;
-        private UserControl _addressView;
+        private UserControl? _addressView;
         private readonly CreateUSAddressView _usAddressView = new();
         private readonly CreateForeignAddressView _foreignAddressView = new();
 
-        public CreateClientViewModel()
+        public CreateClientViewModel(List<string> states)
         {
+            _usAddressView.SetStates(states);
             AddressView = _usAddressView;
         }
 

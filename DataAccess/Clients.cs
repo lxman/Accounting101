@@ -38,7 +38,7 @@ namespace DataAccess
             return await collection?.FindByIdAsync(id)!;
         }
 
-        public static async Task<IEnumerable<Client>?> AllClientsAsync(this IDataStore? store)
+        public static async Task<IEnumerable<Client>?> AllClientsAsync(this IDataStore store)
         {
             ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
             return await collection?.FindAllAsync()!;
