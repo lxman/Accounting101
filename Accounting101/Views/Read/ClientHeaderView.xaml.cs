@@ -32,9 +32,14 @@ namespace Accounting101.Views.Read
             OnPropertyChanged(nameof(Address));
         }
 
-        private void ClientHeaderViewMouseDown(object sender, MouseButtonEventArgs e)
+        private void ClientHeaderViewPreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
             WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ClientList));
+        }
+
+        private void UIElementPreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+
         }
     }
 }

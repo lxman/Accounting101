@@ -1,9 +1,9 @@
 ﻿using System.Data;
 using System.Windows;
-using Accounting101.Dialogs;
 using Accounting101.ViewModels;
 using Accounting101.Views.Create;
 using Accounting101.Views.Read;
+using ControlzEx.Theming;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services;
@@ -18,51 +18,33 @@ namespace Accounting101
 {
     public partial class App
     {
-        private string _dbLocation = string.Empty;
-        private string _password = string.Empty;
         private bool _protected;
         private readonly ServiceProvider _services;
 
         public App()
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
-            if (DbRegistrationStatus())
-            {
-                // Database registered, check if password is set
-                if (_protected)
-                {
-                    // Password is set, show password dialog
-                    GetPasswordDialog getPasswordDialog = new();
-                    getPasswordDialog.PasswordEntered += (_, e) =>
-                    {
-                        if (!string.IsNullOrWhiteSpace(e))
-                        {
-                            _password = e;
-                        }
-                    };
-                    getPasswordDialog.ShowDialog();
-                    SetConnectionString(_dbLocation, _password);
-                }
-            }
-            IDataStore dataStore = new DataStore();
+            Startup += OnStartup;
 
             // Now start spinning up everything else
             JoinableTaskFactory taskFactory = new(new JoinableTaskCollection(new JoinableTaskContext()));
 
             ServiceCollection services = new();
-            services.AddSingleton(dataStore);
+            services.AddSingleton<IDataStore, DataStore>();
             services.AddSingleton(taskFactory);
             services.AddSingleton<MenuViewModel>();
             services.AddSingleton<MainWindowViewModel>();
             services.AddSingleton<MainWindow>();
             _services = services.BuildServiceProvider();
 
+            IDataStore dataStore = _services.GetRequiredService<IDataStore>();
             WindowType initialScreen = InitialScreen(dataStore, taskFactory);
             MainWindow mainWindow = _services.GetRequiredService<MainWindow>();
             mainWindow.CurrentScreen = initialScreen switch
             {
                 WindowType.SetupDatabase => new CreateDatabaseView(),
                 WindowType.CreateBusiness => new CreateBusinessView(dataStore, taskFactory),
+                WindowType.GetPassword => new GetPasswordView(dataStore, taskFactory),
                 WindowType.CreateClient => new CreateClientView(dataStore, taskFactory),
                 WindowType.ClientList => new ClientListView(dataStore, taskFactory),
                 _ => throw new DataException("Invalid initial screen.")
@@ -71,20 +53,16 @@ namespace Accounting101
             mainWindow.Show();
         }
 
+        private void OnStartup(object sender, StartupEventArgs e)
+        {
+            ThemeManager.Current.ChangeTheme(this, "Light.Blue");
+        }
+
         protected override void OnExit(ExitEventArgs e)
         {
             IDataStore? dataStore = (IDataStore?)_services.GetService(typeof(IDataStore));
             dataStore?.Dispose();
             base.OnExit(e);
-        }
-
-        private static void SetConnectionString(string dbLocation, string password)
-        {
-            ConnectionString.ConnString = $"Filename={dbLocation};";
-            if (!string.IsNullOrWhiteSpace(password))
-            {
-                ConnectionString.ConnString += $"Password={password};";
-            }
         }
 
         private bool DbRegistrationStatus()
@@ -97,7 +75,6 @@ namespace Accounting101
                 return false;
             }
 
-            _dbLocation = a101Key.GetValue("DbLocation")?.ToString() ?? string.Empty;
             _protected = (string?)a101Key.GetValue("Protected") == "True";
             return true;
         }
@@ -109,6 +86,11 @@ namespace Accounting101
                 return WindowType.SetupDatabase;
             }
 
+            if (_protected)
+            {
+                return WindowType.GetPassword;
+            }
+
             bool businessExists = taskFactory.Run(store.GetBusinessAsync) is not null;
             if (!businessExists)
             {
@@ -116,12 +98,9 @@ namespace Accounting101
             }
 
             bool clientExists = (taskFactory.Run(store.AllClientsAsync) ?? Array.Empty<Client>()).Any();
-            if (!clientExists)
-            {
-                return WindowType.CreateClient;
-            }
-
-            return WindowType.ClientList;
+            return !clientExists
+                ? WindowType.CreateClient
+                : WindowType.ClientList;
         }
     }
 }

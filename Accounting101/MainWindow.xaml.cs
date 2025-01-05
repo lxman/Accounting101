@@ -67,13 +67,14 @@ namespace Accounting101
                     MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateBusinessView)?.Save()));
                     CurrentScreen = new CreateBusinessView(_dataStore, _taskFactory);
                     break;
+                case WindowType.GetPassword:
+                    CurrentScreen = new GetPasswordView(_dataStore, _taskFactory);
+                    break;
                 case WindowType.CreateClient:
                     MenuViewModel.ShowDeleteBusinessCommand = true;
                     MenuViewModel.ShowSaveCommand = true;
                     MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateClientView)?.Save()));
                     CurrentScreen = new CreateClientView(_dataStore, _taskFactory);
-                    break;
-                case WindowType.CreateAccount:
                     break;
                 case WindowType.ClientList:
                     CurrentScreen = new ClientListView(_dataStore, _taskFactory);
@@ -85,6 +86,8 @@ namespace Accounting101
                         return;
                     }
                     CurrentScreen = new ClientWithAccountListView(_dataStore, _taskFactory, _client);
+                    break;
+                case WindowType.CreateAccount:
                     break;
                 case WindowType.EditBusiness:
                     break;

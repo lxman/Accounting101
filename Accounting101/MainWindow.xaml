@@ -18,71 +18,87 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <DockPanel Grid.Row="0">
-            <Menu DataContext="{Binding ElementName=Self, Path=MenuViewModel}">
-                <MenuItem Header="_File">
+            <Menu DataContext="{Binding ElementName=Self, Path=MenuViewModel}" Background="{DynamicResource MahApps.Brushes.AccentBase}">
+                <MenuItem Header="_File" Style="{DynamicResource CustomMenuItem}">
                     <MenuItem
                     Header="_New"
+                    Style="{DynamicResource CustomMenuItem}"
                     Visibility="{Binding ShowNewMenu, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <MenuItem
                         Header="_Client"
                         Command="{Binding NewClientCommand}"
+                        Style="{DynamicResource CustomMenuItem}"
                         Visibility="{Binding ShowNewClientCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         <MenuItem
                         Header="_Account"
                         Command="{Binding NewAccountCommand}"
+                        Style="{DynamicResource CustomMenuItem}"
                         Visibility="{Binding ShowNewAccountCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     </MenuItem>
                     <MenuItem
                     Header="_Save"
                     Command="{Binding SaveCommand}"
+                    Style="{DynamicResource CustomMenuItem}"
                     Visibility="{Binding ShowSaveCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     <MenuItem
                     Header="_Delete"
+                    Style="{DynamicResource CustomMenuItem}"
                     Visibility="{Binding ShowDeleteMenu, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <MenuItem
                         Header="_Business"
                         Command="{Binding DeleteBusinessCommand}"
+                        Style="{DynamicResource CustomMenuItem}"
                         Visibility="{Binding ShowDeleteBusinessCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                         <MenuItem
                         Header="_Client"
                         Command="{Binding DeleteClientCommand}"
+                        Style="{DynamicResource CustomMenuItem}"
                         Visibility="{Binding ShowDeleteClientCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     </MenuItem>
                     <Separator />
                     <MenuItem
                     Header="_Exit"
+                    Style="{DynamicResource CustomMenuItem}"
                     Command="{Binding ExitCommand}" />
                 </MenuItem>
                 <MenuItem
                 Header="_Edit"
+                Style="{DynamicResource CustomMenuItem}"
                 Visibility="{Binding ShowEditMenu, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <MenuItem
                     Header="_Business"
                     Command="{Binding EditBusinessCommand}"
+                    Style="{DynamicResource CustomMenuItem}"
                     Visibility="{Binding ShowEditBusinessCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     <MenuItem
                     Header="_Client"
                     Command="{Binding EditClientCommand}"
+                    Style="{DynamicResource CustomMenuItem}"
                     Visibility="{Binding ShowEditClientCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     <MenuItem
                     Header="_Account"
                     Command="{Binding EditAccountCommand}"
+                    Style="{DynamicResource CustomMenuItem}"
                     Visibility="{Binding ShowEditAccountCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 </MenuItem>
                 <MenuItem
                 Header="_Reports"
+                Style="{DynamicResource CustomMenuItem}"
                 Visibility="{Binding ShowReportsMenu, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <MenuItem
                     Header="_Balance Sheet"
                     Command="{Binding ReportsBalanceSheetCommand}"
+                    Style="{DynamicResource CustomMenuItem}"
                     Visibility="{Binding ShowReportsBalanceSheetCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     <MenuItem
                     Header="_Profit and Loss"
                     Command="{Binding ReportsProfitAndLossCommand}"
+                    Style="{DynamicResource CustomMenuItem}"
                     Visibility="{Binding ShowReportsProfitAndLossCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 </MenuItem>
                 <MenuItem
                 Header="_Client List"
+                Style="{DynamicResource CustomMenuItem}"
                 Visibility="{Binding ShowClientListCommand, Converter={StaticResource BooleanToVisibilityConverter}}"
                 Command="{Binding ClientListCommand}" />
             </Menu>
@@ -90,6 +106,7 @@
         <mah:TransitioningContentControl
         x:Name="ScreenDisplayControl"
         Grid.Row="1"
+        Background="{DynamicResource MahApps.Brushes.Accent}"
         DataContext="{Binding ElementName=Self}"
         Content="{Binding CurrentScreen}"
         IsTabStop="False" />

@@ -6,6 +6,7 @@ public enum WindowType
     SetupDatabase,
     CreateBusiness,
     CreateClient,
+    GetPassword,
     CreateAccount,
     ClientList,
     ClientAccountList,

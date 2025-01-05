@@ -46,6 +46,11 @@ namespace DataAccess.Services
             if (_db is null || !InitZipCodeDataAsync().GetAwaiter().GetResult()) throw new DataException("Error setting up database");
         }
 
+        public void InitDatabase()
+        {
+            CreateOrOpenDatabase();
+        }
+
         public void CreateDatabase(string location)
         {
             string? filePath = Path.GetDirectoryName(location);
