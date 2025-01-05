@@ -11,6 +11,7 @@ namespace Accounting101.Views.Read
         {
             InitializeComponent();
             ClientHeader.SetInfo(client);
+            AccountsGrid.SetInfo(dataStore, taskFactory, client);
         }
     }
 }

@@ -1,8 +1,14 @@
-﻿namespace DataAccess.Models
+﻿#pragma warning disable CS8618, CS9264
+namespace DataAccess.Models
 {
     public class AccountWithInfo : Account
     {
         public AccountInfo Info { get; set; }
+
+        public AccountWithInfo()
+        {
+
+        }
 
         public AccountWithInfo(Account acct, AccountInfo info)
         {

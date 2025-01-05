@@ -4,19 +4,30 @@ using System.Linq;
 using DataAccess.Services.Interfaces;
 using LiteDB.Async;
 
+#pragma warning disable VSTHRD002
 #pragma warning disable CS8618, CS9264
 
 namespace DataAccess.Models
 {
-    public class AccountWithTransactions : Account
+    public class AccountWithTransactions : AccountWithInfo
     {
         public List<Transaction> Transactions { get; }
 
-        public AccountWithTransactions(IDataStore dataStore, Guid id)
+        public AccountWithTransactions(IDataStore dataStore, Guid accountId)
         {
-            Id = id;
+            Id = accountId;
             ILiteCollectionAsync<Transaction>? txDb = dataStore.GetCollection<Transaction>(CollectionNames.Transaction);
-            if (txDb is null) return;
+            AccountWithInfo? accountWithInfo =
+                dataStore.GetAccountWithInfoAsync(accountId).GetAwaiter().GetResult();
+            if (txDb is null || accountWithInfo is null) return;
+            Info.Name = accountWithInfo.Info.Name;
+            Info.CoAId = accountWithInfo.Info.CoAId;
+            Info.Id = accountWithInfo.Info.Id;
+            Type = accountWithInfo.Type;
+            InfoId = accountWithInfo.InfoId;
+            StartBalance = accountWithInfo.StartBalance;
+            Created = accountWithInfo.Created;
+            ClientId = accountWithInfo.ClientId;
             Transactions = txDb.FindAllAsync().GetAwaiter().GetResult().Where(tx => tx.DebitedAccountId == Id || tx.CreditedAccountId == Id).ToList();
         }
     }

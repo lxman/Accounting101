@@ -12,7 +12,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <local:ClientHeaderView Grid.Row="0" x:Name="ClientHeader" />
-        <DataGrid Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" AutoGenerateColumns="True" />
+        <local:ClientHeaderView x:Name="ClientHeader" Grid.Row="0" />
+        <local:AccountsView x:Name="AccountsGrid" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
     </Grid>
 </UserControl>

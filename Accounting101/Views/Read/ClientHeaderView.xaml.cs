@@ -36,10 +36,5 @@ namespace Accounting101.Views.Read
         {
             WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ClientList));
         }
-
-        private void UIElementPreviewMouseDown(object sender, MouseButtonEventArgs e)
-        {
-
-        }
     }
 }
