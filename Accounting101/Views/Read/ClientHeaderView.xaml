@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:read="clr-namespace:Accounting101.Views.Read"
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:controls="clr-namespace:Accounting101.Controls"
              mc:Ignorable="d"
              d:Background="Teal"
              d:DataContext="{d:DesignInstance read:ClientHeaderView}"
@@ -24,12 +25,10 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <Label
+        <controls:StyledNormalLabel
             Grid.Column="0"
             Grid.Row="0"
-            Foreground="{DynamicResource MahApps.Brushes.IdealForeground}">
-            Business Name
-        </Label>
+            LabelContent="Business Name" /> 
         <TextBlock
             Grid.Column="1"
             Grid.Row="0"
@@ -37,12 +36,10 @@
             Margin="10,0,0,0"
             Text="{Binding BusinessName}"
             d:Text="Joe's Pool Hall" />
-        <Label
+        <controls:StyledNormalLabel
             Grid.Column="0"
             Grid.Row="1"
-            Foreground="{DynamicResource MahApps.Brushes.IdealForeground}">
-            Contact
-        </Label>
+            LabelContent="Contact" />
         <TextBlock
             Grid.Column="1"
             Grid.Row="1"
@@ -50,13 +47,11 @@
             Margin="10,0,0,0"
             Text="{Binding Contact}"
             d:Text="Mr. Joseph J. Johnston Sr." />
-        <Label
+        <controls:StyledNormalLabel
             Grid.Column="0"
             Grid.Row="2"
             VerticalAlignment="Top"
-            Foreground="{DynamicResource MahApps.Brushes.IdealForeground}">
-            Address
-        </Label>
+            LabelContent="Address" />
         <TextBlock
             Grid.Column="1"
             Grid.Row="2"

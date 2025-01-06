@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:create="clr-namespace:Accounting101.ViewModels.Create"
+             xmlns:controls="clr-namespace:Accounting101.Controls"
              mc:Ignorable="d" 
              d:Background="Teal"
              d:DataContext="{d:DesignInstance create:CreateCoAViewModel}"
@@ -25,7 +26,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <Grid Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="4">
-            <Label HorizontalAlignment="Center" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource MahApps.Brushes.IdealForeground}">Create a Chart of Accounts</Label>
+            <controls:HeaderLabel LabelContent="Create a Chart of Accounts" />
         </Grid>
         <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="4">Choose a pre-made Chart of Accounts from the list below.</TextBlock>
         <TextBlock Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="4">These selections represent a set of pre-made accounts.</TextBlock>

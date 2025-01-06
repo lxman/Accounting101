@@ -1,7 +1,9 @@
 ﻿using System.IO;
 using System.Windows;
 using System.Windows.Input;
+using Accounting101.Messages;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services;
@@ -191,8 +193,6 @@ namespace Accounting101.ViewModels
             }
         }
 
-        public WindowType ActiveWindow { private get; set; }
-
         private ICommand _saveCommand;
         private bool _businessExists;
         private bool _clientExists;
@@ -226,27 +226,13 @@ namespace Accounting101.ViewModels
 
             _dataStore = dataStore;
             _dataStore.StoreChanged += StoreChanged;
+            NewAccountCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.CreateAccount)));
             ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
         }
 
         public void SetSaveCommand(RelayCommand cmd)
         {
             SaveCommand = cmd;
-        }
-
-        public void ResetMenus()
-        {
-            ShowNewClientCommand = false;
-            ShowNewAccountCommand = false;
-            ShowDeleteBusinessCommand = false;
-            ShowDeleteClientCommand = false;
-            ShowSaveCommand = false;
-            ShowEditBusinessCommand = false;
-            ShowEditClientCommand = false;
-            ShowEditAccountCommand = false;
-            ShowReportsBalanceSheetCommand = false;
-            ShowReportsProfitAndLossCommand = false;
-            ShowClientListCommand = false;
         }
 
         private void ChangeMenuState()

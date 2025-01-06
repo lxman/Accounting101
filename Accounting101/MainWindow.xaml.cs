@@ -102,6 +102,16 @@ namespace Accounting101
                     CurrentScreen = new ClientWithAccountListView(_dataStore, _taskFactory, _client);
                     break;
                 case WindowType.CreateAccount:
+                    if (_client is null)
+                    {
+                        return;
+                    }
+
+                    CreateAccountView createAccountView = new();
+                    createAccountView.SetInfo(_dataStore, _taskFactory, _client);
+                    CurrentScreen = createAccountView;
+                    MenuViewModel.SaveCommand = new RelayCommand(() => createAccountView.Save());
+                    MenuViewModel.ShowSaveCommand = true;
                     break;
                 case WindowType.EditBusiness:
                     break;
@@ -131,7 +141,17 @@ namespace Accounting101
 
         private void ResetMenus()
         {
-
+            //MenuViewModel.ShowSaveCommand = false;
+            //MenuViewModel.ShowDeleteBusinessCommand = false;
+            //MenuViewModel.ShowDeleteClientCommand = false;
+            //MenuViewModel.ShowEditBusinessCommand = false;
+            //MenuViewModel.ShowEditClientCommand = false;
+            //MenuViewModel.ShowNewAccountCommand = false;
+            //MenuViewModel.ShowNewClientCommand = false;
+            //MenuViewModel.ShowClientListCommand = false;
+            //MenuViewModel.ShowEditAccountCommand = false;
+            //MenuViewModel.ShowReportsBalanceSheetCommand = false;
+            //MenuViewModel.ShowReportsProfitAndLossCommand = false;
         }
 
         private void SetState()
