@@ -15,6 +15,8 @@ namespace Accounting101.ViewModels
     {
         public event EventHandler? DeleteClient;
 
+        public bool ShowFileSeparator => ShowNewMenu || ShowDeleteMenu || ShowSaveCommand;
+
         public bool ShowNewMenu => ShowNewClientCommand || ShowNewAccountCommand;
 
         public ICommand NewClientCommand { get; }
@@ -22,7 +24,11 @@ namespace Accounting101.ViewModels
         public bool ShowNewClientCommand
         {
             get => _showNewClientCommand;
-            set => SetField(ref _showNewClientCommand, value);
+            set
+            {
+                SetField(ref _showNewClientCommand, value);
+                OnPropertyChanged(nameof(ShowNewMenu));
+            }
         }
 
         public ICommand NewAccountCommand { get; }
@@ -30,11 +36,14 @@ namespace Accounting101.ViewModels
         public bool ShowNewAccountCommand
         {
             get => _showNewAccountCommand;
-            set => SetField(ref _showNewAccountCommand, value);
+            set
+            {
+                SetField(ref _showNewAccountCommand, value);
+                OnPropertyChanged(nameof(ShowNewMenu));
+            }
         }
 
-        public bool ShowDeleteMenu => ShowDeleteBusinessCommand
-                                      || ShowDeleteClientCommand;
+        public bool ShowDeleteMenu => ShowDeleteBusinessCommand || ShowDeleteClientCommand;
 
         public ICommand DeleteBusinessCommand { get; }
 
@@ -74,9 +83,7 @@ namespace Accounting101.ViewModels
 
         public ICommand ExitCommand { get; }
 
-        public bool ShowEditMenu => ShowEditBusinessCommand
-                                    || ShowEditClientCommand
-                                    || ShowEditAccountCommand;
+        public bool ShowEditMenu => ShowEditBusinessCommand || ShowEditClientCommand || ShowEditAccountCommand;
 
         public ICommand EditBusinessCommand { get; }
 
@@ -114,8 +121,7 @@ namespace Accounting101.ViewModels
             }
         }
 
-        public bool ShowReportsMenu => ShowReportsBalanceSheetCommand
-                                       || ShowReportsProfitAndLossCommand;
+        public bool ShowReportsMenu => ShowReportsBalanceSheetCommand || ShowReportsProfitAndLossCommand;
 
         public ICommand ReportsBalanceSheetCommand { get; }
 
@@ -226,6 +232,21 @@ namespace Accounting101.ViewModels
         public void SetSaveCommand(RelayCommand cmd)
         {
             SaveCommand = cmd;
+        }
+
+        public void ResetMenus()
+        {
+            ShowNewClientCommand = false;
+            ShowNewAccountCommand = false;
+            ShowDeleteBusinessCommand = false;
+            ShowDeleteClientCommand = false;
+            ShowSaveCommand = false;
+            ShowEditBusinessCommand = false;
+            ShowEditClientCommand = false;
+            ShowEditAccountCommand = false;
+            ShowReportsBalanceSheetCommand = false;
+            ShowReportsProfitAndLossCommand = false;
+            ShowClientListCommand = false;
         }
 
         private void ChangeMenuState()

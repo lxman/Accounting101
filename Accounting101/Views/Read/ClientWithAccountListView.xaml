@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Accounting101.Views.Read"
+             xmlns:create="clr-namespace:Accounting101.Views.Create"
              mc:Ignorable="d" 
              d:Background="White"
              d:DesignHeight="450" d:DesignWidth="800">
@@ -14,5 +15,6 @@
         </Grid.RowDefinitions>
         <local:ClientHeaderView x:Name="ClientHeader" Grid.Row="0" />
         <local:AccountsView x:Name="AccountsGrid" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+        <create:CreateCoAView x:Name="CreateCoAView" Grid.Row="1" />
     </Grid>
 </UserControl>

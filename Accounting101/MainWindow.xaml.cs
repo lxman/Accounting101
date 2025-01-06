@@ -22,7 +22,11 @@ namespace Accounting101
         public object CurrentScreen
         {
             get => GetValue(CurrentScreenProperty);
-            set => SetValue(CurrentScreenProperty, value);
+            set
+            {
+                ResetMenus();
+                SetValue(CurrentScreenProperty, value);
+            }
         }
 
         public WindowType InitialScreen
@@ -77,6 +81,9 @@ namespace Accounting101
                     CurrentScreen = new CreateClientView(_dataStore, _taskFactory);
                     break;
                 case WindowType.ClientList:
+                    MenuViewModel.ShowDeleteBusinessCommand = true;
+                    MenuViewModel.ShowEditBusinessCommand = true;
+                    MenuViewModel.ShowNewClientCommand = true;
                     CurrentScreen = new ClientListView(_dataStore, _taskFactory);
                     _client = null;
                     break;
@@ -85,6 +92,13 @@ namespace Accounting101
                     {
                         return;
                     }
+
+                    MenuViewModel.ShowDeleteBusinessCommand = true;
+                    MenuViewModel.ShowEditBusinessCommand = true;
+                    MenuViewModel.ShowEditClientCommand = true;
+                    MenuViewModel.ShowDeleteClientCommand = true;
+                    MenuViewModel.ShowNewClientCommand = true;
+                    MenuViewModel.ShowNewAccountCommand = true;
                     CurrentScreen = new ClientWithAccountListView(_dataStore, _taskFactory, _client);
                     break;
                 case WindowType.CreateAccount:
@@ -113,6 +127,11 @@ namespace Accounting101
         {
             _client = message.Value;
             Receive(new ChangeScreenMessage(WindowType.ClientAccountList));
+        }
+
+        private void ResetMenus()
+        {
+
         }
 
         private void SetState()

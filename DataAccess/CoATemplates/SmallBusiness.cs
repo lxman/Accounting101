@@ -5,6 +5,8 @@ namespace DataAccess.CoATemplates
 {
     public class SmallBusiness
     {
+        public static string Description => "A simple chart of accounts appropriate for a small business.";
+
         public static ChartOfAccounts CreateCoA(Client c)
         {
             List<AccountWithInfo> accounts =

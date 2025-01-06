@@ -3,7 +3,6 @@ using System.Windows;
 using Accounting101.ViewModels;
 using Accounting101.Views.Create;
 using Accounting101.Views.Read;
-using ControlzEx.Theming;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services;
@@ -55,7 +54,7 @@ namespace Accounting101
 
         private void OnStartup(object sender, StartupEventArgs e)
         {
-            ThemeManager.Current.ChangeTheme(this, "Light.Blue");
+            //ThemeManager.Current.ChangeTheme(this, "Light.Blue");
         }
 
         protected override void OnExit(ExitEventArgs e)

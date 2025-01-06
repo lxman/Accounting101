@@ -10,6 +10,8 @@ namespace Accounting101.ViewModels.Read
 {
     public class AccountsViewModel : BaseViewModel
     {
+        public bool HasAccounts { get; private set; }
+
         public ReadOnlyObservableCollection<AccountsViewLine> Source { get; private set; }
 
         public AccountsViewModel()
@@ -43,6 +45,7 @@ namespace Accounting101.ViewModels.Read
             Source = new ReadOnlyObservableCollection<AccountsViewLine>(
                 new ObservableCollection<AccountsViewLine>(accounts));
             OnPropertyChanged(nameof(Source));
+            HasAccounts = accounts.Count > 0;
         }
     }
 }

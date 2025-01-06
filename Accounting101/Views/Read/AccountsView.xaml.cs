@@ -9,6 +9,8 @@ namespace Accounting101.Views.Read
 {
     public partial class AccountsView : UserControl
     {
+        public bool HasAccounts => _viewModel.HasAccounts;
+
         private readonly AccountsViewModel _viewModel = new();
 
         public AccountsView()
