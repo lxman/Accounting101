@@ -17,6 +17,16 @@ namespace Accounting101.ViewModels
     {
         public event EventHandler? DeleteClient;
 
+        public WindowType CurrentScreen
+        {
+            private get => _currentScreen;
+            set
+            {
+                _currentScreen = value;
+                SetMenus();
+            }
+        }
+
         public bool ShowFileSeparator => ShowNewMenu || ShowDeleteMenu || ShowSaveCommand;
 
         public bool ShowNewMenu => ShowNewClientCommand || ShowNewAccountCommand;
@@ -113,6 +123,7 @@ namespace Accounting101.ViewModels
 
         public ICommand EditAccountCommand { get; }
 
+        // TODO: Come back and fix ShowEditAccountCommand
         public bool ShowEditAccountCommand
         {
             get => _showEditAccountCommand;
@@ -208,6 +219,7 @@ namespace Accounting101.ViewModels
         private bool _showReportsBalanceSheetCommand;
         private bool _showReportsProfitAndLossCommand;
         private bool _showClientListCommand;
+        private WindowType _currentScreen;
 
         //private bool _showReportsIncomeStatementCommand;
         //private bool _showReportsTrialBalanceCommand;
@@ -223,11 +235,63 @@ namespace Accounting101.ViewModels
 
         public MenuViewModel(IDataStore dataStore)
         {
-
+            ClientListCommand = new RelayCommand(() =>
+                WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ClientList)));
             _dataStore = dataStore;
             _dataStore.StoreChanged += StoreChanged;
             NewAccountCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.CreateAccount)));
             ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
+        }
+
+        private void SetMenus()
+        {
+            ShowClientListCommand = (CurrentScreen == WindowType.CreateClient && _clientExists)
+                || CurrentScreen == WindowType.CreateAccount
+                || (CurrentScreen == WindowType.EditBusiness && _clientExists)
+                || CurrentScreen == WindowType.EditClient
+                || CurrentScreen == WindowType.EditAccount
+                || CurrentScreen == WindowType.BalanceSheet
+                || CurrentScreen == WindowType.ProfitAndLoss;
+            ShowNewClientCommand = (CurrentScreen == WindowType.EditBusiness && _clientExists)
+                || CurrentScreen == WindowType.CreateAccount
+                || CurrentScreen == WindowType.ClientList
+                || CurrentScreen == WindowType.ClientAccountList
+                || CurrentScreen == WindowType.EditAccount
+                || CurrentScreen == WindowType.BalanceSheet
+                || CurrentScreen == WindowType.ProfitAndLoss;
+            ShowNewAccountCommand = CurrentScreen is WindowType.ClientAccountList
+                or WindowType.EditClient
+                or WindowType.EditAccount
+                or WindowType.BalanceSheet
+                or WindowType.ProfitAndLoss;
+            ShowDeleteBusinessCommand = CurrentScreen is WindowType.CreateClient
+                or WindowType.CreateAccount
+                or WindowType.ClientList
+                or WindowType.ClientAccountList
+                or WindowType.EditBusiness
+                or WindowType.EditClient
+                or WindowType.EditAccount
+                or WindowType.BalanceSheet
+                or WindowType.ProfitAndLoss;
+            ShowDeleteClientCommand = CurrentScreen is WindowType.CreateAccount
+                or WindowType.ClientAccountList
+                or WindowType.EditClient
+                or WindowType.EditAccount
+                or WindowType.BalanceSheet
+                or WindowType.ProfitAndLoss;
+            ShowEditBusinessCommand = CurrentScreen is WindowType.CreateClient
+                or WindowType.CreateAccount
+                or WindowType.ClientList
+                or WindowType.ClientAccountList
+                or WindowType.EditClient
+                or WindowType.EditAccount
+                or WindowType.BalanceSheet
+                or WindowType.ProfitAndLoss;
+            ShowEditClientCommand = CurrentScreen is WindowType.CreateAccount
+                or WindowType.ClientAccountList
+                or WindowType.EditAccount
+                or WindowType.BalanceSheet
+                or WindowType.ProfitAndLoss;
         }
 
         public void SetSaveCommand(RelayCommand cmd)

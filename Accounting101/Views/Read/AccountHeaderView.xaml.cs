@@ -1,5 +1,8 @@
 ﻿using System.Windows.Controls;
+using System.Windows.Input;
+using Accounting101.Messages;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Messaging;
 using DataAccess.Models;
 
 namespace Accounting101.Views.Read
@@ -39,6 +42,11 @@ namespace Accounting101.Views.Read
             OnPropertyChanged(nameof(StartBalance));
             OnPropertyChanged(nameof(Type));
             OnPropertyChanged(nameof(DebitCredit));
+        }
+
+        private void AccountHeaderViewPreviewMouseDown(object sender, MouseButtonEventArgs e)
+        {
+            WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ClientAccountList));
         }
     }
 }

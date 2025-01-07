@@ -22,11 +22,7 @@ namespace Accounting101
         public object CurrentScreen
         {
             get => GetValue(CurrentScreenProperty);
-            set
-            {
-                ResetMenus();
-                SetValue(CurrentScreenProperty, value);
-            }
+            set => SetValue(CurrentScreenProperty, value);
         }
 
         public WindowType InitialScreen
@@ -67,23 +63,23 @@ namespace Accounting101
             switch (message.Value)
             {
                 case WindowType.CreateBusiness:
+                    MenuViewModel.CurrentScreen = WindowType.CreateBusiness;
                     MenuViewModel.ShowSaveCommand = true;
                     MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateBusinessView)?.Save()));
                     CurrentScreen = new CreateBusinessView(_dataStore, _taskFactory);
                     break;
                 case WindowType.GetPassword:
+                    MenuViewModel.CurrentScreen = WindowType.GetPassword;
                     CurrentScreen = new GetPasswordView(_dataStore, _taskFactory);
                     break;
                 case WindowType.CreateClient:
-                    MenuViewModel.ShowDeleteBusinessCommand = true;
+                    MenuViewModel.CurrentScreen = WindowType.CreateClient;
                     MenuViewModel.ShowSaveCommand = true;
                     MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateClientView)?.Save()));
                     CurrentScreen = new CreateClientView(_dataStore, _taskFactory);
                     break;
                 case WindowType.ClientList:
-                    MenuViewModel.ShowDeleteBusinessCommand = true;
-                    MenuViewModel.ShowEditBusinessCommand = true;
-                    MenuViewModel.ShowNewClientCommand = true;
+                    MenuViewModel.CurrentScreen = WindowType.ClientList;
                     CurrentScreen = new ClientListView(_dataStore, _taskFactory);
                     _client = null;
                     break;
@@ -93,12 +89,7 @@ namespace Accounting101
                         return;
                     }
 
-                    MenuViewModel.ShowDeleteBusinessCommand = true;
-                    MenuViewModel.ShowEditBusinessCommand = true;
-                    MenuViewModel.ShowEditClientCommand = true;
-                    MenuViewModel.ShowDeleteClientCommand = true;
-                    MenuViewModel.ShowNewClientCommand = true;
-                    MenuViewModel.ShowNewAccountCommand = true;
+                    MenuViewModel.CurrentScreen = WindowType.ClientAccountList;
                     CurrentScreen = new ClientWithAccountListView(_dataStore, _taskFactory, _client);
                     break;
                 case WindowType.CreateAccount:
@@ -107,6 +98,7 @@ namespace Accounting101
                         return;
                     }
 
+                    MenuViewModel.CurrentScreen = WindowType.CreateAccount;
                     CreateAccountView createAccountView = new();
                     createAccountView.SetInfo(_dataStore, _taskFactory, _client);
                     CurrentScreen = createAccountView;
@@ -114,14 +106,19 @@ namespace Accounting101
                     MenuViewModel.ShowSaveCommand = true;
                     break;
                 case WindowType.EditBusiness:
+                    MenuViewModel.CurrentScreen = WindowType.EditBusiness;
                     break;
                 case WindowType.EditClient:
+                    MenuViewModel.CurrentScreen = WindowType.EditClient;
                     break;
                 case WindowType.EditAccount:
+                    MenuViewModel.CurrentScreen = WindowType.EditAccount;
                     break;
                 case WindowType.BalanceSheet:
+                    MenuViewModel.CurrentScreen = WindowType.BalanceSheet;
                     break;
                 case WindowType.ProfitAndLoss:
+                    MenuViewModel.CurrentScreen = WindowType.ProfitAndLoss;
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -139,35 +136,22 @@ namespace Accounting101
             Receive(new ChangeScreenMessage(WindowType.ClientAccountList));
         }
 
-        private void ResetMenus()
-        {
-            //MenuViewModel.ShowSaveCommand = false;
-            //MenuViewModel.ShowDeleteBusinessCommand = false;
-            //MenuViewModel.ShowDeleteClientCommand = false;
-            //MenuViewModel.ShowEditBusinessCommand = false;
-            //MenuViewModel.ShowEditClientCommand = false;
-            //MenuViewModel.ShowNewAccountCommand = false;
-            //MenuViewModel.ShowNewClientCommand = false;
-            //MenuViewModel.ShowClientListCommand = false;
-            //MenuViewModel.ShowEditAccountCommand = false;
-            //MenuViewModel.ShowReportsBalanceSheetCommand = false;
-            //MenuViewModel.ShowReportsProfitAndLossCommand = false;
-        }
-
         private void SetState()
         {
             switch (InitialScreen)
             {
                 case WindowType.SetupDatabase:
+                    MenuViewModel.CurrentScreen = WindowType.SetupDatabase;
                     MenuViewModel.ShowSaveCommand = true;
                     MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateDatabaseView)?.Save()));
                     break;
                 case WindowType.CreateBusiness:
+                    MenuViewModel.CurrentScreen = WindowType.CreateBusiness;
                     MenuViewModel.ShowSaveCommand = true;
                     MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateBusinessView)?.Save()));
                     break;
                 case WindowType.CreateClient:
-                    MenuViewModel.ShowDeleteBusinessCommand = true;
+                    MenuViewModel.CurrentScreen = WindowType.CreateClient;
                     MenuViewModel.ShowSaveCommand = true;
                     MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateClientView)?.Save()));
                     break;

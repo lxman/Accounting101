@@ -9,7 +9,8 @@
              d:Background="Teal"
              d:DataContext="{d:DesignInstance local:AccountHeaderView}"
              Background="Transparent"
-             d:DesignHeight="450" d:DesignWidth="800">
+             d:DesignHeight="450" d:DesignWidth="800"
+             PreviewMouseDown="AccountHeaderViewPreviewMouseDown">
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
