@@ -36,6 +36,7 @@
 
   <ItemGroup>
     <Folder Include="Dialogs\" />
+    <Folder Include="ViewModels\Delete\" />
     <Folder Include="Views\Delete\" />
   </ItemGroup>
 

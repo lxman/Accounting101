@@ -1,5 +1,7 @@
 ﻿using System.Collections.ObjectModel;
+using Accounting101.Messages;
 using Accounting101.Models;
+using CommunityToolkit.Mvvm.Messaging;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
@@ -50,6 +52,8 @@ namespace Accounting101.ViewModels.Read
         public void ItemSelected(int index)
         {
             Guid selectedAccountId = Source[index].Id;
+            WeakReferenceMessenger.Default.Send(new ShowAccountTransactionEditor(
+                new ShowAccountTransactionMessage() { AccountId = selectedAccountId, Value = true }));
         }
     }
 }
