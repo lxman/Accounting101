@@ -21,6 +21,8 @@ namespace DataAccess.Services
     {
         public event EventHandler<ChangeEventArgs>? StoreChanged;
 
+        public bool Initialized { get; private set; }
+
         private LiteDatabaseAsync? _db;
         private bool _disposedValue;
         private List<string>? _statesCached;
@@ -49,6 +51,7 @@ namespace DataAccess.Services
         public void InitDatabase()
         {
             CreateOrOpenDatabase();
+            Initialized = true;
         }
 
         public void CreateDatabase(string location)

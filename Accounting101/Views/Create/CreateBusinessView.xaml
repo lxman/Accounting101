@@ -4,8 +4,10 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:create1="clr-namespace:Accounting101.Views.Create"
+             xmlns:controls="clr-namespace:Accounting101.Controls"
              mc:Ignorable="d" 
-             d:Background="White"
+             d:Background="Teal"
+             Background="Transparent"
              d:DataContext="{d:DesignInstance create1:CreateBusinessView}"
              d:DesignHeight="175" d:DesignWidth="800">
     <Grid>
@@ -20,7 +22,7 @@
             <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
-        <Label Grid.Column="0" Grid.Row="0">Set up the business</Label>
+        <controls:HeaderLabel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" LabelContent="Create the business"/>
         <Label Grid.Column="0" Grid.Row="1">Name</Label>
         <TextBox Grid.Column="1" Grid.Row="1" Text="{Binding BusinessName, UpdateSourceTrigger=PropertyChanged}" />
         <Label Grid.Column="0" Grid.Row="2">Address</Label>

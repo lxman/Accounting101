@@ -22,6 +22,18 @@ namespace Accounting101.Views.Read
 
         public string DebitCredit { get; private set; } = string.Empty;
 
+        public decimal CurrentBalance
+        {
+            get => _currentBalance;
+            set
+            {
+                _currentBalance = value;
+                OnPropertyChanged();
+            }
+        }
+
+        private decimal _currentBalance;
+
         public AccountHeaderView()
         {
             DataContext = this;

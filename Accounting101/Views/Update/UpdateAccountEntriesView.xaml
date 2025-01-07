@@ -17,7 +17,7 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <read:AccountHeaderView x:Name="AccountHeaderView" Grid.Row="0" Background="Transparent" />
-        <update:UpdateAccountTransactionsView Grid.Row="1" Background="Transparent" />
-        <controls:FastEntryControl Grid.Row="2" Background="Transparent" />
+        <update:UpdateAccountTransactionsView x:Name="TransactionList" Grid.Row="1" Background="Transparent" />
+        <controls:FastEntryControl x:Name="FastEntryControl" Grid.Row="2" Background="Transparent" />
     </Grid>
 </UserControl>

@@ -15,8 +15,6 @@ namespace Accounting101.ViewModels
 {
     public class MenuViewModel : BaseViewModel
     {
-        public event EventHandler? DeleteClient;
-
         public WindowType CurrentScreen
         {
             private get => _currentScreen;
@@ -81,11 +79,7 @@ namespace Accounting101.ViewModels
             }
         }
 
-        public ICommand SaveCommand
-        {
-            get => _saveCommand;
-            set => SetField(ref _saveCommand, value);
-        }
+        public ICommand SaveCommand { get; private set; }
 
         public bool ShowSaveCommand
         {
@@ -123,7 +117,6 @@ namespace Accounting101.ViewModels
 
         public ICommand EditAccountCommand { get; }
 
-        // TODO: Come back and fix ShowEditAccountCommand
         public bool ShowEditAccountCommand
         {
             get => _showEditAccountCommand;
@@ -186,7 +179,7 @@ namespace Accounting101.ViewModels
 
         public bool ClientExists
         {
-            private get => _clientExists;
+            get => _clientExists;
             set
             {
                 _clientExists = value;
@@ -204,7 +197,6 @@ namespace Accounting101.ViewModels
             }
         }
 
-        private ICommand _saveCommand;
         private bool _businessExists;
         private bool _clientExists;
         private bool _accountExists;
@@ -235,11 +227,12 @@ namespace Accounting101.ViewModels
 
         public MenuViewModel(IDataStore dataStore)
         {
-            ClientListCommand = new RelayCommand(() =>
-                WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ClientList)));
             _dataStore = dataStore;
             _dataStore.StoreChanged += StoreChanged;
+            ClientListCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ClientList)));
+            NewClientCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.CreateClient)));
             NewAccountCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.CreateAccount)));
+            EditBusinessCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.EditBusiness)));
             ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
         }
 
@@ -297,6 +290,7 @@ namespace Accounting101.ViewModels
         public void SetSaveCommand(RelayCommand cmd)
         {
             SaveCommand = cmd;
+            OnPropertyChanged();
         }
 
         private void ChangeMenuState()

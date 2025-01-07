@@ -10,6 +10,8 @@ namespace DataAccess.Services.Interfaces
     {
         event EventHandler<ChangeEventArgs> StoreChanged;
 
+        bool Initialized { get; }
+
         void NotifyChange(Type t, ChangeType ct);
 
         LiteDatabaseAsync? Instance();

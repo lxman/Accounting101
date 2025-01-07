@@ -36,8 +36,8 @@
         <TextBlock Grid.Column="1" Grid.Row="1" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding StartBalance, StringFormat='#,##0.00;(#,##0.00);0'}" d:Text="10.00"/>
         <controls:StyledNormalLabel Grid.Column="2" Grid.Row="1" LabelContent="Type" />
         <TextBlock Grid.Column="3" Grid.Row="1" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding Type}" d:Text="Asset" />
-        <controls:StyledNormalLabel Grid.Column="4" Grid.Row="1" LabelContent="{Binding DebitCredit}" d:LabelContent="Debit account" />
+        <Label Grid.Column="4" Grid.Row="1" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Content="{Binding DebitCredit}" d:Content="Debit account" />
         <controls:StyledNormalLabel Grid.Column="6" Grid.Row="0" HorizontalAlignment="Right" LabelContent="Current balance" />
-        <TextBlock Grid.Column="7" Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" d:Text="42.42" />
+        <TextBlock Grid.Column="7" Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Center" Text="{Binding CurrentBalance}" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" d:Text="42.42" />
     </Grid>
 </UserControl>

@@ -13,6 +13,7 @@ namespace Accounting101.Views.Read
         private readonly IDataStore _dataStore;
         private readonly JoinableTaskFactory _taskFactory;
         private readonly ClientWithInfo _client;
+        private Guid? _accountId;
 
         public ClientWithAccountListView(IDataStore dataStore, JoinableTaskFactory taskFactory, ClientWithInfo client)
         {
@@ -23,6 +24,7 @@ namespace Accounting101.Views.Read
             InitializeComponent();
             ClientHeader.SetInfo(client);
             AccountsGrid.SetInfo(dataStore, taskFactory, client);
+            AccountEntriesEditor.IsVisibleChanged += AccountEntriesEditorVisibleChanged;
             if (!AccountsGrid.HasAccounts)
             {
                 AccountsGrid.Visibility = Visibility.Hidden;
@@ -38,6 +40,16 @@ namespace Accounting101.Views.Read
             }
         }
 
+        private void AccountEntriesEditorVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (!(bool)e.NewValue)
+            {
+                _accountId = null;
+            }
+            WeakReferenceMessenger.Default.Send(
+                new SetEditAccountVisibleMessage(_accountId));
+        }
+
         public void Receive(ShowAccountTransactionEditor message)
         {
             if (!message.Value.Value)
@@ -45,6 +57,7 @@ namespace Accounting101.Views.Read
                 return;
             }
 
+            _accountId = message.Value.AccountId;
             AccountWithTransactions awt = new(_dataStore, _taskFactory, message.Value.AccountId);
             AccountEntriesEditor.SetInfo(_dataStore, _taskFactory, _client, awt);
             AccountEntriesEditor.Visibility = Visibility.Visible;

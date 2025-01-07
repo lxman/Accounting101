@@ -3,8 +3,10 @@ using Accounting101.Messages;
 using Accounting101.ViewModels;
 using Accounting101.Views.Create;
 using Accounting101.Views.Read;
+using Accounting101.Views.Update;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
+using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using MahApps.Metro.Controls;
@@ -14,7 +16,12 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101
 {
-    public partial class MainWindow : MetroWindow, IRecipient<ChangeScreenMessage>, IRecipient<CreateDatabaseMessage>, IRecipient<FocusClientMessage>
+    public partial class MainWindow
+        : MetroWindow,
+            IRecipient<ChangeScreenMessage>,
+            IRecipient<CreateDatabaseMessage>,
+            IRecipient<FocusClientMessage>,
+            IRecipient<SetEditAccountVisibleMessage>
     {
         public static readonly DependencyProperty CurrentScreenProperty = DependencyProperty.Register(
             nameof(CurrentScreen), typeof(object), typeof(MainWindow), new PropertyMetadata(default(object)));
@@ -41,6 +48,7 @@ namespace Accounting101
         private readonly JoinableTaskFactory _taskFactory;
         private readonly IDataStore _dataStore;
         private ClientWithInfo? _client;
+        private Guid? _accountId;
 
         public MainWindow(
             IDataStore dataStore,
@@ -48,9 +56,7 @@ namespace Accounting101
             MainWindowViewModel mainWindowViewModel,
             MenuViewModel menuViewModel)
         {
-            WeakReferenceMessenger.Default.Register<ChangeScreenMessage>(this);
-            WeakReferenceMessenger.Default.Register<CreateDatabaseMessage>(this);
-            WeakReferenceMessenger.Default.Register<FocusClientMessage>(this);
+            WeakReferenceMessenger.Default.RegisterAll(this);
             _taskFactory = taskFactory;
             _dataStore = dataStore;
             DataContext = mainWindowViewModel;
@@ -58,8 +64,27 @@ namespace Accounting101
             InitializeComponent();
         }
 
+        public void Receive(SetEditAccountVisibleMessage message)
+        {
+            if (message.Value is null)
+            {
+                _accountId = null;
+                MenuViewModel.ShowEditAccountCommand = false;
+                return;
+            }
+            _accountId = message.Value;
+            MenuViewModel.ShowEditAccountCommand = true;
+        }
+
         public void Receive(ChangeScreenMessage message)
         {
+            if (_dataStore.Initialized)
+            {
+                if (!MenuViewModel.ClientExists)
+                {
+                    MenuViewModel.ClientExists = _taskFactory.Run(_dataStore.ClientsExistAsync);
+                }
+            }
             switch (message.Value)
             {
                 case WindowType.CreateBusiness:
@@ -102,11 +127,16 @@ namespace Accounting101
                     CreateAccountView createAccountView = new();
                     createAccountView.SetInfo(_dataStore, _taskFactory, _client);
                     CurrentScreen = createAccountView;
-                    MenuViewModel.SaveCommand = new RelayCommand(() => createAccountView.Save());
+                    MenuViewModel.SetSaveCommand(new RelayCommand(() => createAccountView.Save()));
                     MenuViewModel.ShowSaveCommand = true;
                     break;
                 case WindowType.EditBusiness:
                     MenuViewModel.CurrentScreen = WindowType.EditBusiness;
+                    UpdateBusinessView updateBusinessView = new();
+                    updateBusinessView.SetInfo(_dataStore, _taskFactory);
+                    CurrentScreen = updateBusinessView;
+                    MenuViewModel.SetSaveCommand(new RelayCommand(() => updateBusinessView.Save()));
+                    MenuViewModel.ShowSaveCommand = true;
                     break;
                 case WindowType.EditClient:
                     MenuViewModel.CurrentScreen = WindowType.EditClient;

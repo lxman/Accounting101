@@ -25,6 +25,12 @@ namespace DataAccess
             return c is null ? null : new ClientWithInfo(store, c);
         }
 
+        public static async Task<bool> ClientsExistAsync(this IDataStore store)
+        {
+            int count = await store.GetCollection<Client>(CollectionNames.Client)?.CountAsync();
+            return count > 0;
+        }
+
         public static async Task BulkInsertClientsAsync(this IDataStore store, IEnumerable<Client> clients)
         {
             ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);

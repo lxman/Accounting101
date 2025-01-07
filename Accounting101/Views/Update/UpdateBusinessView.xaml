@@ -1,0 +1,30 @@
+﻿<UserControl x:Class="Accounting101.Views.Update.UpdateBusinessView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Accounting101.Views.Update"
+             xmlns:update="clr-namespace:Accounting101.ViewModels.Update"
+             xmlns:controls="clr-namespace:Accounting101.Controls"
+             mc:Ignorable="d" 
+             d:Background="Teal"
+             d:DataContext="{d:DesignInstance update:UpdateBusinessViewModel}"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition />
+        </Grid.ColumnDefinitions>
+        <controls:HeaderLabel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" LabelContent="Edit the Business" />
+        <controls:StyledNormalLabel Grid.Column="0" Grid.Row="1" LabelContent="Name" />
+        <TextBox Grid.Column="1" Grid.Row="1" Text="{Binding BusinessName}" />
+        <CheckBox Grid.Column="0" Grid.Row="2" Content="Foreign" Margin="5,0,10,0" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" IsChecked="{Binding Foreign}" />
+        <ContentControl x:Name="AddressView" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="2" Content="{Binding AddressView}" />
+    </Grid>
+</UserControl>
