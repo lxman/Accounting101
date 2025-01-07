@@ -29,7 +29,7 @@ namespace Accounting101.ViewModels.Read
             }
             accountsWithInfo.ForEach(awi =>
             {
-                AccountWithTransactions awt = new(dataStore, client.Id);
+                AccountWithTransactions awt = new(dataStore, taskFactory, awi.Id);
                 AccountsViewLine avl = new()
                 {
                     Id = awt.Id,
@@ -42,10 +42,14 @@ namespace Accounting101.ViewModels.Read
                 };
                 accounts.Add(avl);
             });
-            Source = new ReadOnlyObservableCollection<AccountsViewLine>(
-                new ObservableCollection<AccountsViewLine>(accounts));
+            Source = new ReadOnlyObservableCollection<AccountsViewLine>(new ObservableCollection<AccountsViewLine>(accounts));
             OnPropertyChanged(nameof(Source));
             HasAccounts = accounts.Count > 0;
+        }
+
+        public void ItemSelected(int index)
+        {
+            Guid selectedAccountId = Source[index].Id;
         }
     }
 }

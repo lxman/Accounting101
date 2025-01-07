@@ -36,6 +36,7 @@
 
   <ItemGroup>
     <Folder Include="Dialogs\" />
+    <Folder Include="Views\Delete\" />
   </ItemGroup>
 
 </Project>

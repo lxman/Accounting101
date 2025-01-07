@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Windows.Controls;
+using System.Windows.Media;
 using Accounting101.ViewModels.Read;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
@@ -12,6 +13,7 @@ namespace Accounting101.Views.Read
         public bool HasAccounts => _viewModel.HasAccounts;
 
         private readonly AccountsViewModel _viewModel = new();
+        private readonly Brush _focusColor = Brushes.LightSlateGray;
 
         public AccountsView()
         {
@@ -32,6 +34,24 @@ namespace Accounting101.Views.Read
             {
                 e.Cancel = true;
             }
+        }
+
+        private void AccountListLoadingRow(object? sender, DataGridRowEventArgs e)
+        {
+            e.Row.Background = Brushes.Transparent;
+            e.Row.MouseEnter += (s, _) =>
+            {
+                e.Row.Background = _focusColor;
+            };
+            e.Row.MouseLeave += (s, _) =>
+            {
+                e.Row.Background = Brushes.Transparent;
+            };
+            e.Row.PreviewMouseDown += (s, _) =>
+            {
+                int itemsIndex = e.Row.GetIndex();
+                _viewModel.ItemSelected(itemsIndex);
+            };
         }
     }
 }

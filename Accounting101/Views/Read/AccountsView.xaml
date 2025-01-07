@@ -4,16 +4,21 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:read="clr-namespace:Accounting101.ViewModels.Read"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              mc:Ignorable="d" 
-             d:Background="White"
+             Background="Transparent"
+             d:Background="Teal"
              d:DataContext="{d:DesignInstance read:AccountsViewModel}"
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
         <DataGrid
+            LoadingRow="AccountListLoadingRow"
             VerticalScrollBarVisibility="Auto"
             HorizontalScrollBarVisibility="Auto"
             AutoGenerateColumns="True"
             AutoGeneratingColumn="DataGridAutoGeneratingColumn"
+            Background="Transparent"
+            Foreground="{StaticResource MahApps.Brushes.IdealForeground}"
             ItemsSource="{Binding Source}" />
     </Grid>
 </UserControl>

@@ -21,7 +21,7 @@
         <Menu Grid.Row="0" DataContext="{Binding ElementName=Self, Path=MenuViewModel}" Background="Transparent">
             <MenuItem Header="_File" Background="Transparent">
                 <MenuItem Header="_New" Background="Transparent" Visibility="{Binding ShowNewMenu, Converter={StaticResource BooleanToVisibilityConverter}}">
-                    <MenuItem Header="_Client" Background="Transparent" Command="{Binding NewClientCommand}" Visibility="{Binding ShowNewClientCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <MenuItem Header="_Client" Background="Transparent" Visibility="{Binding ShowNewClientCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     <MenuItem Header="_Account" Background="Transparent" Command="{Binding NewAccountCommand}" Visibility="{Binding ShowNewAccountCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 </MenuItem>
                 <MenuItem Header="_Save" Background="Transparent" Command="{Binding SaveCommand}" Visibility="{Binding ShowSaveCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />

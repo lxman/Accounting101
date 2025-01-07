@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Accounting101.Views.Read"
              xmlns:create="clr-namespace:Accounting101.Views.Create"
+             xmlns:update="clr-namespace:Accounting101.Views.Update"
              mc:Ignorable="d" 
              d:Background="White"
              d:DesignHeight="450" d:DesignWidth="800">
@@ -14,7 +15,8 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <local:ClientHeaderView x:Name="ClientHeader" Grid.Row="0" />
-        <local:AccountsView x:Name="AccountsGrid" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
-        <create:CreateCoAView x:Name="CreateCoAView" Grid.Row="1" />
+        <local:AccountsView x:Name="AccountsGrid" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" d:Visibility="Hidden" />
+        <create:CreateCoAView x:Name="CreateCoAView" Grid.Row="1" d:Visibility="Hidden" />
+        <update:UpdateAccountEntriesView x:Name="AccountEntriesEditor" Grid.Row="1" Background="Transparent" d:Visibility="Visible" />
     </Grid>
 </UserControl>

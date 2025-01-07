@@ -1,4 +1,7 @@
 ﻿using System.Collections.ObjectModel;
+using Accounting101.Messages;
+using CommunityToolkit.Mvvm.Messaging;
+using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
@@ -40,6 +43,25 @@ namespace Accounting101.ViewModels.Create
 
         public void Save()
         {
+            AccountInfo info = new()
+            {
+                Name = Name,
+                CoAId = CoAId
+            };
+            Account acct = new()
+            {
+                Type = Type,
+                ClientId = _client.Id,
+                StartBalance = StartBalance,
+                Created = Created
+            };
+            Guid result = _taskFactory.Run(() => _dataStore.CreateAccountAsync(acct, info));
+            if (result != Guid.Empty)
+            {
+                WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ClientAccountList));
+            }
+
+            // TODO: Add error handling
         }
     }
 }

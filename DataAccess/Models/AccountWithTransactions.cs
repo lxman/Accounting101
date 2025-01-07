@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DataAccess.Services.Interfaces;
 using LiteDB.Async;
+using Microsoft.VisualStudio.Threading;
 
 #pragma warning disable VSTHRD002
 #pragma warning disable CS8618, CS9264
@@ -13,12 +14,12 @@ namespace DataAccess.Models
     {
         public List<Transaction> Transactions { get; }
 
-        public AccountWithTransactions(IDataStore dataStore, Guid accountId)
+        public AccountWithTransactions(IDataStore dataStore, JoinableTaskFactory taskFactory, Guid accountId)
         {
             Id = accountId;
+            Info = new AccountInfo();
             ILiteCollectionAsync<Transaction>? txDb = dataStore.GetCollection<Transaction>(CollectionNames.Transaction);
-            AccountWithInfo? accountWithInfo =
-                dataStore.GetAccountWithInfoAsync(accountId).GetAwaiter().GetResult();
+            AccountWithInfo? accountWithInfo = taskFactory.Run(() => dataStore.GetAccountWithInfoAsync(accountId));
             if (txDb is null || accountWithInfo is null) return;
             Info.Name = accountWithInfo.Info.Name;
             Info.CoAId = accountWithInfo.Info.CoAId;
