@@ -1,6 +1,8 @@
 ﻿using System.Data;
 using System.Windows.Controls;
+using Accounting101.Messages;
 using Accounting101.Views.Update;
+using CommunityToolkit.Mvvm.Messaging;
 using DataAccess.Interfaces;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
@@ -99,6 +101,7 @@ namespace Accounting101.ViewModels.Update
             };
             _business.Name = BusinessName;
             _taskFactory.Run(() => _dataStore.UpdateBusinessAsync(_business));
+            WeakReferenceMessenger.Default.Send(new BusinessEditedMessage(null));
         }
     }
 }

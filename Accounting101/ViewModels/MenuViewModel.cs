@@ -233,6 +233,7 @@ namespace Accounting101.ViewModels
             NewClientCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.CreateClient)));
             NewAccountCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.CreateAccount)));
             EditBusinessCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.EditBusiness)));
+            EditClientCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.EditClient)));
             ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
         }
 
@@ -290,7 +291,7 @@ namespace Accounting101.ViewModels
         public void SetSaveCommand(RelayCommand cmd)
         {
             SaveCommand = cmd;
-            OnPropertyChanged();
+            OnPropertyChanged(nameof(SaveCommand));
         }
 
         private void ChangeMenuState()

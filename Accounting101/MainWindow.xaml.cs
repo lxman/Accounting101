@@ -21,7 +21,8 @@ namespace Accounting101
             IRecipient<ChangeScreenMessage>,
             IRecipient<CreateDatabaseMessage>,
             IRecipient<FocusClientMessage>,
-            IRecipient<SetEditAccountVisibleMessage>
+            IRecipient<SetEditAccountVisibleMessage>,
+            IRecipient<BusinessEditedMessage>
     {
         public static readonly DependencyProperty CurrentScreenProperty = DependencyProperty.Register(
             nameof(CurrentScreen), typeof(object), typeof(MainWindow), new PropertyMetadata(default(object)));
@@ -47,6 +48,7 @@ namespace Accounting101
         private WindowType _initialScreen;
         private readonly JoinableTaskFactory _taskFactory;
         private readonly IDataStore _dataStore;
+        private List<string>? _states;
         private ClientWithInfo? _client;
         private Guid? _accountId;
 
@@ -62,6 +64,16 @@ namespace Accounting101
             DataContext = mainWindowViewModel;
             MenuViewModel = menuViewModel;
             InitializeComponent();
+        }
+
+        public void Receive(BusinessEditedMessage message)
+        {
+            if (MenuViewModel.ClientExists)
+            {
+                Receive(new ChangeScreenMessage(WindowType.ClientList));
+                return;
+            }
+            Receive(new ChangeScreenMessage(WindowType.CreateClient));
         }
 
         public void Receive(SetEditAccountVisibleMessage message)
@@ -85,6 +97,8 @@ namespace Accounting101
                     MenuViewModel.ClientExists = _taskFactory.Run(_dataStore.ClientsExistAsync);
                 }
             }
+
+            _states ??= _taskFactory.Run(_dataStore.GetStatesAsync).Order().ToList();
             switch (message.Value)
             {
                 case WindowType.CreateBusiness:
@@ -139,7 +153,16 @@ namespace Accounting101
                     MenuViewModel.ShowSaveCommand = true;
                     break;
                 case WindowType.EditClient:
+                    if (_client is null)
+                    {
+                        return;
+                    }
                     MenuViewModel.CurrentScreen = WindowType.EditClient;
+                    UpdateClientView updateClientView = new();
+                    updateClientView.SetInfo(_dataStore, _taskFactory, _client, _states);
+                    CurrentScreen = updateClientView;
+                    MenuViewModel.SetSaveCommand(new RelayCommand(() => updateClientView.Save()));
+                    MenuViewModel.ShowSaveCommand = true;
                     break;
                 case WindowType.EditAccount:
                     MenuViewModel.CurrentScreen = WindowType.EditAccount;

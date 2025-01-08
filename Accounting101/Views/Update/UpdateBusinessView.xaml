@@ -24,7 +24,7 @@
         <controls:HeaderLabel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" LabelContent="Edit the Business" />
         <controls:StyledNormalLabel Grid.Column="0" Grid.Row="1" LabelContent="Name" />
         <TextBox Grid.Column="1" Grid.Row="1" Text="{Binding BusinessName}" />
-        <CheckBox Grid.Column="0" Grid.Row="2" Content="Foreign" Margin="5,0,10,0" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" IsChecked="{Binding Foreign}" />
+        <CheckBox Grid.Column="0" Grid.Row="2" Content="Foreign" Margin="5,0,10,20" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" IsChecked="{Binding Foreign}" />
         <ContentControl x:Name="AddressView" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="2" Content="{Binding AddressView}" />
     </Grid>
 </UserControl>

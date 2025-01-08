@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DataAccess.Interfaces;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using LiteDB.Async;
@@ -36,6 +37,22 @@ namespace DataAccess
             ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
             int result = await collection?.InsertBulkAsync(clients)!;
             if (result > 0) store.NotifyChange(typeof(Clients), ChangeType.Created);
+        }
+
+        public static async Task UpdateClientAsync(this IDataStore store, ClientWithInfo client)
+        {
+            ILiteCollectionAsync<Client> clientCollection = store.GetCollection<Client>(CollectionNames.Client)!;
+            ILiteCollectionAsync<PersonName> personNameCollection = store.GetCollection<PersonName>(CollectionNames.PersonName)!;
+            ILiteCollectionAsync<IAddress> addressCollection = store.GetCollection<IAddress>(CollectionNames.Address)!;
+            await clientCollection.UpdateAsync(new Client
+            {
+                AddressId = client.AddressId,
+                BusinessName = client.BusinessName,
+                Id = client.Id,
+                PersonNameId = client.PersonNameId
+            });
+            await personNameCollection.UpdateAsync(client.Name);
+            await addressCollection.UpdateAsync(client.Address);
         }
 
         public static async Task<Client?> FindClientByIdAsync(this IDataStore store, Guid id)
