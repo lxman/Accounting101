@@ -26,18 +26,18 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <controls:StyledNormalLabel Grid.Column="0" Grid.Row="0" LabelContent="CoA Id" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="0" LabelContent="CoA Id" />
         <TextBlock Grid.Column="1" Grid.Row="0" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding CoAId}" d:Text="101" />
-        <controls:StyledNormalLabel Grid.Column="2" Grid.Row="0" LabelContent="Name" />
+        <controls:StyledLabel Grid.Column="2" Grid.Row="0" LabelContent="Name" />
         <TextBlock Grid.Column="3" Grid.Row="0" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding AccountName}" d:Text="Cash" />
-        <controls:StyledNormalLabel Grid.Column="4" Grid.Row="0" LabelContent="Created" />
+        <controls:StyledLabel Grid.Column="4" Grid.Row="0" LabelContent="Created" />
         <TextBlock Grid.Column="5" Grid.Row="0" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding Created}" d:Text="1/6/2025" />
-        <controls:StyledNormalLabel Grid.Column="0" Grid.Row="1" LabelContent="Starting Balance" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="1" LabelContent="Starting Balance" />
         <TextBlock Grid.Column="1" Grid.Row="1" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding StartBalance, StringFormat='#,##0.00;(#,##0.00);0'}" d:Text="10.00"/>
-        <controls:StyledNormalLabel Grid.Column="2" Grid.Row="1" LabelContent="Type" />
+        <controls:StyledLabel Grid.Column="2" Grid.Row="1" LabelContent="Type" />
         <TextBlock Grid.Column="3" Grid.Row="1" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding Type}" d:Text="Asset" />
         <Label Grid.Column="4" Grid.Row="1" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Content="{Binding DebitCredit}" d:Content="Debit account" />
-        <controls:StyledNormalLabel Grid.Column="6" Grid.Row="0" HorizontalAlignment="Right" LabelContent="Current balance" />
+        <controls:StyledLabel Grid.Column="6" Grid.Row="0" HorizontalAlignment="Right" LabelContent="Current balance" />
         <TextBlock Grid.Column="7" Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Center" Text="{Binding CurrentBalance}" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" d:Text="42.42" />
     </Grid>
 </UserControl>

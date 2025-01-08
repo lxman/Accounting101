@@ -25,6 +25,7 @@ namespace Accounting101.Views.Read
             ClientHeader.SetInfo(client);
             AccountsGrid.SetInfo(dataStore, taskFactory, client);
             AccountEntriesEditor.IsVisibleChanged += AccountEntriesEditorVisibleChanged;
+            CreateCoAView.CoACreated += CreateCoAViewCoACreated;
             if (!AccountsGrid.HasAccounts)
             {
                 AccountsGrid.Visibility = Visibility.Hidden;
@@ -38,6 +39,13 @@ namespace Accounting101.Views.Read
                 AccountEntriesEditor.Visibility = Visibility.Hidden;
                 CreateCoAView.Visibility = Visibility.Hidden;
             }
+        }
+
+        private void CreateCoAViewCoACreated(object? sender, EventArgs e)
+        {
+            CreateCoAView.Visibility = Visibility.Hidden;
+            AccountsGrid.SetInfo(_dataStore, _taskFactory, _client);
+            AccountsGrid.Visibility = Visibility.Visible;
         }
 
         private void AccountEntriesEditorVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)

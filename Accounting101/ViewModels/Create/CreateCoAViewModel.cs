@@ -9,6 +9,8 @@ namespace Accounting101.ViewModels.Create
 {
     public class CreateCoAViewModel : BaseViewModel
     {
+        public event EventHandler? CoACreated;
+
         public string SelectedItem
         {
             get => _selectedItem;
@@ -51,6 +53,7 @@ namespace Accounting101.ViewModels.Create
             string selectedChart = SelectedItem.Split(" - ")[0];
             AvailableCoAs coa = (AvailableCoAs)_chartList.ChartItems.Find(ci => ci.Name == selectedChart)?.Type!;
             _taskFactory.Run(() => _dataStore.CreateChartAsync(coa, _client));
+            CoACreated?.Invoke(this, EventArgs.Empty);
         }
     }
 }

@@ -4,8 +4,9 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:create="clr-namespace:Accounting101.ViewModels.Create"
+             xmlns:controls="clr-namespace:Accounting101.Controls"
              mc:Ignorable="d" 
-             d:Background="White"
+             d:Background="Teal"
              d:DataContext="{d:DesignInstance create:CreateClientViewModel}"
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
@@ -25,21 +26,21 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <Label Grid.Column="0" Grid.Row="0">Business Name</Label>
+        <controls:StyledLabel Grid.Column="0" Grid.Row="0" LabelContent="Business Name" />
         <TextBox Grid.Column="1" Grid.Row="0" Text="{Binding BusinessName, UpdateSourceTrigger=PropertyChanged}" />
-        <Label Grid.Column="0" Grid.Row="1">Contact Name</Label>
-        <Label Grid.Column="0" Grid.Row="2">Prefix</Label>
+        <controls:StyledLabel Grid.Column="0" Grid.Row="1" LabelContent="Contact Name" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="2" LabelContent="Prefix" />
         <TextBox Grid.Column="1" Grid.Row="2" Text="{Binding Path=PersonName.Prefix, UpdateSourceTrigger=PropertyChanged, Mode=OneWayToSource}" />
-        <Label Grid.Column="0" Grid.Row="3">First</Label>
+        <controls:StyledLabel Grid.Column="0" Grid.Row="3" LabelContent="First" />
         <TextBox Grid.Column="1" Grid.Row="3" Text="{Binding Path=PersonName.First, UpdateSourceTrigger=PropertyChanged, Mode=OneWayToSource}" />
-        <Label Grid.Column="0" Grid.Row="4">Middle</Label>
+        <controls:StyledLabel Grid.Column="0" Grid.Row="4" LabelContent="Middle" />
         <TextBox Grid.Column="1" Grid.Row="4" Text="{Binding Path=PersonName.Middle, UpdateSourceTrigger=PropertyChanged, Mode=OneWayToSource}" />
-        <Label Grid.Column="0" Grid.Row="5">Last</Label>
+        <controls:StyledLabel Grid.Column="0" Grid.Row="5" LabelContent="Last" />
         <TextBox Grid.Column="1" Grid.Row="5" Text="{Binding Path=PersonName.Last, UpdateSourceTrigger=PropertyChanged, Mode=OneWayToSource}" />
-        <Label Grid.Column="0" Grid.Row="6">Suffix</Label>
+        <controls:StyledLabel Grid.Column="0" Grid.Row="6" LabelContent="Suffix" />
         <TextBox Grid.Column="1" Grid.Row="6" Text="{Binding Path=PersonName.Suffix, UpdateSourceTrigger=PropertyChanged, Mode=OneWayToSource}" />
-        <Label Grid.Column="0" Grid.Row="7">Address</Label>
-        <CheckBox Grid.Column="0" Grid.Row="8" Margin="5,5,0,5" IsChecked="{Binding IsChecked}">Foreign</CheckBox>
+        <controls:StyledLabel Grid.Column="0" Grid.Row="7" LabelContent="Address" />
+        <controls:StyledCheckBox Grid.Column="0" Grid.Row="8" Margin="5,5,0,5" BoxChecked="{Binding IsChecked}" BoxContent="Foreign" BoxBackground="Transparent" />
         <ContentControl Grid.Column="0" Grid.Row="9" Grid.ColumnSpan="2" IsTabStop="False" Content="{Binding AddressView}" />
     </Grid>
 </UserControl>

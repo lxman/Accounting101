@@ -10,9 +10,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Dialogs\**" />
     <Compile Remove="Styling\**" />
+    <EmbeddedResource Remove="Dialogs\**" />
     <EmbeddedResource Remove="Styling\**" />
+    <None Remove="Dialogs\**" />
     <None Remove="Styling\**" />
+    <Page Remove="Dialogs\**" />
     <Page Remove="Styling\**" />
   </ItemGroup>
 
@@ -35,7 +39,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Dialogs\" />
     <Folder Include="ViewModels\Delete\" />
     <Folder Include="Views\Delete\" />
   </ItemGroup>

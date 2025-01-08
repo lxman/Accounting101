@@ -27,21 +27,21 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <controls:StyledNormalLabel Grid.Column="0" Grid.Row="0" LabelContent="Business Name" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="0" LabelContent="Business Name" />
         <TextBox Grid.Column="1" Grid.Row="0" Text="{Binding BusinessName, UpdateSourceTrigger=PropertyChanged}" />
-        <controls:StyledNormalLabel Grid.Column="0" Grid.Row="1" LabelContent="Contact Name" />
-        <controls:StyledNormalLabel Grid.Column="0" Grid.Row="2" LabelContent="Prefix" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="1" LabelContent="Contact Name" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="2" LabelContent="Prefix" />
         <TextBox Grid.Column="1" Grid.Row="2" Text="{Binding Path=PersonName.Prefix, UpdateSourceTrigger=PropertyChanged}" />
-        <controls:StyledNormalLabel Grid.Column="0" Grid.Row="3" LabelContent="First" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="3" LabelContent="First" />
         <TextBox Grid.Column="1" Grid.Row="3" Text="{Binding Path=PersonName.First, UpdateSourceTrigger=PropertyChanged}" />
-        <controls:StyledNormalLabel Grid.Column="0" Grid.Row="4" LabelContent="Middle" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="4" LabelContent="Middle" />
         <TextBox Grid.Column="1" Grid.Row="4" Text="{Binding Path=PersonName.Middle, UpdateSourceTrigger=PropertyChanged}" />
-        <controls:StyledNormalLabel Grid.Column="0" Grid.Row="5" LabelContent="Last" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="5" LabelContent="Last" />
         <TextBox Grid.Column="1" Grid.Row="5" Text="{Binding Path=PersonName.Last, UpdateSourceTrigger=PropertyChanged}" />
-        <controls:StyledNormalLabel Grid.Column="0" Grid.Row="6" LabelContent="Suffix" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="6" LabelContent="Suffix" />
         <TextBox Grid.Column="1" Grid.Row="6" Text="{Binding Path=PersonName.Suffix, UpdateSourceTrigger=PropertyChanged}" />
-        <controls:StyledNormalLabel Grid.Column="0" Grid.Row="7" LabelContent="Address" />
-        <CheckBox Grid.Column="0" Grid.Row="8" Margin="5,5,0,5" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" IsChecked="{Binding IsChecked}">Foreign</CheckBox>
+        <controls:StyledLabel Grid.Column="0" Grid.Row="7" LabelContent="Address" />
+        <controls:StyledCheckBox Grid.Column="0" Grid.Row="8" Margin="5,5,0,5" BoxChecked="{Binding IsChecked}" BoxContent="Foreign" BoxBackground="Transparent" />
         <ContentControl Grid.Column="0" Grid.Row="9" Grid.ColumnSpan="2" IsTabStop="False" Content="{Binding AddressView}" />
     </Grid>
 </UserControl>

@@ -23,10 +23,10 @@
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         <controls:HeaderLabel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" LabelContent="Create the business"/>
-        <Label Grid.Column="0" Grid.Row="1">Name</Label>
+        <controls:StyledLabel Grid.Column="0" Grid.Row="1" LabelContent="Name" />
         <TextBox Grid.Column="1" Grid.Row="1" Text="{Binding BusinessName, UpdateSourceTrigger=PropertyChanged}" />
-        <Label Grid.Column="0" Grid.Row="2">Address</Label>
-        <CheckBox Grid.Column="0" Grid.Row="3" Margin="5,0,0,5" IsChecked="{Binding IsForeign}">Foreign</CheckBox>
+        <controls:StyledLabel Grid.Column="0" Grid.Row="2" LabelContent="Address" />
+        <controls:StyledCheckBox Grid.Column="0" Grid.Row="3" Margin="5,0,0,5" BoxChecked="{Binding IsForeign}" BoxContent="Foreign" BoxBackground="Transparent" />
         <ContentControl x:Name="AddressControl" Grid.Column="0" Grid.Row="4" Grid.ColumnSpan="2" IsTabStop="False" Content="{Binding AddressView}" />
     </Grid>
 </UserControl>

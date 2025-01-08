@@ -29,15 +29,15 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <controls:HeaderLabel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" LabelContent="Create a new account" />
-        <controls:StyledNormalLabel Grid.Column="0" Grid.Row="1" LabelContent="Name" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="1" LabelContent="Name" />
         <TextBox Grid.Column="1" Grid.Row="1" Text="{Binding Name, Mode=OneWayToSource, UpdateSourceTrigger=PropertyChanged}" />
-        <controls:StyledNormalLabel Grid.Column="0" Grid.Row="2" LabelContent="Type" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="2" LabelContent="Type" />
         <ComboBox Grid.Column="1" Grid.Row="2" ItemsSource="{Binding AccountTypes, Mode=OneTime}" SelectedItem="{Binding Type, UpdateSourceTrigger=PropertyChanged}" />
-        <controls:StyledNormalLabel Grid.Column="0" Grid.Row="3" LabelContent="CoA Id" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="3" LabelContent="CoA Id" />
         <TextBox Grid.Column="1" Grid.Row="3" Text="{Binding CoAId, Mode=OneWayToSource, UpdateSourceTrigger=PropertyChanged}" />
-        <controls:StyledNormalLabel Grid.Column="0" Grid.Row="4" LabelContent="Starting Balance" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="4" LabelContent="Starting Balance" />
         <TextBox Grid.Column="1" Grid.Row="4" Text="{Binding StartBalance, StringFormat='{}{0:N2}', FallbackValue='0.00', TargetNullValue='0.00', UpdateSourceTrigger=PropertyChanged}" />
-        <controls:StyledNormalLabel Grid.Column="0" Grid.Row="5" LabelContent="Created" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="5" LabelContent="Created" />
         <DatePicker Grid.Column="1" Grid.Row="5" SelectedDate="{Binding Created, Converter={StaticResource DateTimeConverter}, UpdateSourceTrigger=PropertyChanged}" />
     </Grid>
 </UserControl>

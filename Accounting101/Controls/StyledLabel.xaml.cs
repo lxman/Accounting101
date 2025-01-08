@@ -3,10 +3,10 @@ using System.Windows.Controls;
 
 namespace Accounting101.Controls
 {
-    public partial class StyledNormalLabel : UserControl
+    public partial class StyledLabel : UserControl
     {
         public static readonly DependencyProperty LabelContentProperty = DependencyProperty.Register(
-            nameof(LabelContent), typeof(string), typeof(StyledNormalLabel), new PropertyMetadata(default(string)));
+            nameof(LabelContent), typeof(string), typeof(StyledLabel), new PropertyMetadata(default(string)));
 
         public string LabelContent
         {
@@ -14,7 +14,7 @@ namespace Accounting101.Controls
             set => SetValue(LabelContentProperty, value);
         }
 
-        public StyledNormalLabel()
+        public StyledLabel()
         {
             DataContext = this;
             InitializeComponent();

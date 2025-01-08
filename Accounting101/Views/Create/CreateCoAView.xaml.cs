@@ -8,11 +8,14 @@ namespace Accounting101.Views.Create
 {
     public partial class CreateCoAView : UserControl
     {
+        public event EventHandler? CoACreated;
+
         private readonly CreateCoAViewModel _viewModel;
 
         public CreateCoAView()
         {
             _viewModel = new CreateCoAViewModel();
+            _viewModel.CoACreated += (sender, args) => CoACreated?.Invoke(sender, args);
             DataContext = _viewModel;
             InitializeComponent();
         }

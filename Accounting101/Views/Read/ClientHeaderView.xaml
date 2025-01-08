@@ -25,7 +25,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <controls:StyledNormalLabel
+        <controls:StyledLabel
             Grid.Column="0"
             Grid.Row="0"
             LabelContent="Business Name" /> 
@@ -36,7 +36,7 @@
             Margin="10,0,0,0"
             Text="{Binding BusinessName}"
             d:Text="Joe's Pool Hall" />
-        <controls:StyledNormalLabel
+        <controls:StyledLabel
             Grid.Column="0"
             Grid.Row="1"
             LabelContent="Contact" />
@@ -47,7 +47,7 @@
             Margin="10,0,0,0"
             Text="{Binding Contact}"
             d:Text="Mr. Joseph J. Johnston Sr." />
-        <controls:StyledNormalLabel
+        <controls:StyledLabel
             Grid.Column="0"
             Grid.Row="2"
             VerticalAlignment="Top"
