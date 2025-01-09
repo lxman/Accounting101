@@ -4,11 +4,37 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Accounting101.Views.Update"
+             xmlns:update="clr-namespace:Accounting101.ViewModels.Update"
+             xmlns:controls="clr-namespace:Accounting101.Controls"
              mc:Ignorable="d" 
+             d:DataContext="{d:DesignInstance update:UpdateAccountTransactionsViewModel}"
              d:Background="Teal"
              Background="Transparent"
              d:DesignHeight="450" d:DesignWidth="800">
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto">
-        <ListView Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" />
-    </ScrollViewer>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid Grid.Column="0" Grid.Row="0" Background="{DynamicResource MahApps.Brushes.SystemControlBackgroundAccent}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+                <ColumnDefinition />
+            </Grid.ColumnDefinitions>
+            <controls:StyledLabel Grid.Column="0" Grid.Row="0" LabelContent="Date" />
+            <controls:StyledLabel Grid.Column="1" Grid.Row="0" HorizontalContentAlignment="Right" LabelContent="Credit" />
+            <controls:StyledLabel Grid.Column="2" Grid.Row="0" HorizontalContentAlignment="Right" LabelContent="Debit" />
+            <controls:StyledLabel Grid.Column="3" Grid.Row="0" HorizontalContentAlignment="Right" LabelContent="Balance" />
+            <controls:StyledLabel Grid.Column="4" Grid.Row="0" HorizontalContentAlignment="Right" LabelContent="Other Account" />
+        </Grid>
+        <ListBox
+            Grid.Column="0"
+            Grid.Row="1"
+            ItemsSource="{Binding Transactions}"
+            Background="Transparent"
+            Foreground="{DynamicResource MahApps.Brushes.IdealForeground}" />
+    </Grid>
 </UserControl>

@@ -7,6 +7,7 @@
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              mc:Ignorable="d" 
              d:Background="Teal"
+             d:DataContext="{d:DesignInstance local:FastEntryControl}"
              Background="Transparent"
              MinHeight="40"
              d:DesignHeight="40" d:DesignWidth="800">
@@ -18,13 +19,20 @@
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <DatePicker Grid.Column="0" VerticalContentAlignment="Center" mah:ControlsHelper.CornerRadius="10" />
+        <DatePicker Grid.Column="0" VerticalContentAlignment="Center" mah:ControlsHelper.CornerRadius="10" IsTabStop="True" />
         <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,10,0">
-            <RadioButton Content="Credit" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" />
-            <RadioButton Content="Debit" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" />
+            <RadioButton Content="Credit" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" IsTabStop="True" IsChecked="{Binding Credit}" />
+            <RadioButton Content="Debit" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" IsTabStop="True" IsChecked="{Binding Debit}" />
         </StackPanel>
-        <ComboBox Grid.Column="2" MinWidth="200" mah:ControlsHelper.CornerRadius="10" />
-        <TextBox Grid.Column="3" mah:ControlsHelper.CornerRadius="10" />
-        <Button Grid.Column="4" Padding="20,0,20,0" Content="_Accept" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" mah:ControlsHelper.CornerRadius="10" />
+        <ComboBox Grid.Column="2" MinWidth="200" mah:ControlsHelper.CornerRadius="10" IsTabStop="True" ItemsSource="{Binding OtherAccounts}" SelectedItem="{Binding OtherAccount}" />
+        <TextBox Grid.Column="3" mah:ControlsHelper.CornerRadius="10" IsTabStop="True" Text="{Binding Amount}" />
+        <Button
+            Grid.Column="4"
+            Padding="20,0,20,0"
+            Content="_Accept"
+            IsTabStop="True"
+            Background="Transparent"
+            Foreground="{StaticResource MahApps.Brushes.IdealForeground}"
+            mah:ControlsHelper.CornerRadius="10" />
     </Grid>
 </UserControl>

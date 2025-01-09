@@ -67,6 +67,7 @@ namespace Accounting101.Views.Update
 
         public UpdateForeignAddressView()
         {
+            DataContext = this;
             InitializeComponent();
         }
 

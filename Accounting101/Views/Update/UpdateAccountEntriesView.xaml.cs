@@ -1,5 +1,4 @@
 ﻿using System.Windows.Controls;
-using Accounting101.ViewModels.Update;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
@@ -10,14 +9,13 @@ namespace Accounting101.Views.Update
 {
     public partial class UpdateAccountEntriesView : UserControl
     {
-        private readonly UpdateAccountEntriesViewModel _viewModel = new();
-
         private IDataStore _dataStore;
         private JoinableTaskFactory _taskFactory;
         private Guid _accountId;
 
         public UpdateAccountEntriesView()
         {
+            DataContext = this;
             InitializeComponent();
         }
 
@@ -26,8 +24,15 @@ namespace Accounting101.Views.Update
             _dataStore = dataStore;
             _taskFactory = taskFactory;
             _accountId = account.Id;
-            _viewModel.SetInfo(dataStore, taskFactory, client, account);
+            List<AccountWithInfo>? otherAccounts = taskFactory.Run(() => dataStore.AccountsForClientAsync(client.Id))?.ToList();
+            if (otherAccounts is null)
+            {
+                return;
+            }
+
+            otherAccounts.Remove(account);
             AccountHeaderView.SetInfo(new AccountWithInfo(account, account.Info));
+            TransactionList.SetInfo(dataStore, taskFactory, account, otherAccounts);
             UpdateAccountBalance();
         }
 

@@ -29,6 +29,7 @@ namespace Accounting101.ViewModels.Update
             set
             {
                 _foreign = value;
+                ForeignChanged();
                 OnPropertyChanged();
             }
         }
@@ -102,6 +103,18 @@ namespace Accounting101.ViewModels.Update
             _business.Name = BusinessName;
             _taskFactory.Run(() => _dataStore.UpdateBusinessAsync(_business));
             WeakReferenceMessenger.Default.Send(new BusinessEditedMessage(null));
+        }
+
+        private void ForeignChanged()
+        {
+            if (Foreign == true)
+            {
+                AddressView = _foreignAddressView;
+            }
+            else
+            {
+                AddressView = _usAddressView;
+            }
         }
     }
 }

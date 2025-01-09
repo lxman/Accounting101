@@ -24,7 +24,7 @@
         <controls:HeaderLabel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" LabelContent="Edit the Business" />
         <controls:StyledLabel Grid.Column="0" Grid.Row="1" LabelContent="Name" />
         <TextBox Grid.Column="1" Grid.Row="1" Text="{Binding BusinessName}" />
-        <controls:StyledCheckBox Grid.Column="0" Grid.Row="2" BoxContent="Foreign" Margin="5,0,10,20" BoxChecked="{Binding Foreign}" BoxBackground="Transparent" />
+        <controls:StyledCheckBox Grid.Column="0" Grid.Row="2" BoxContent="Foreign" Margin="5,0,10,20" BoxChecked="{Binding Foreign, Mode=TwoWay}" />
         <ContentControl x:Name="AddressView" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="2" Content="{Binding AddressView}" />
     </Grid>
 </UserControl>

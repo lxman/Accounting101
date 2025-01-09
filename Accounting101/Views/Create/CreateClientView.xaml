@@ -40,7 +40,7 @@
         <controls:StyledLabel Grid.Column="0" Grid.Row="6" LabelContent="Suffix" />
         <TextBox Grid.Column="1" Grid.Row="6" Text="{Binding Path=PersonName.Suffix, UpdateSourceTrigger=PropertyChanged, Mode=OneWayToSource}" />
         <controls:StyledLabel Grid.Column="0" Grid.Row="7" LabelContent="Address" />
-        <controls:StyledCheckBox Grid.Column="0" Grid.Row="8" Margin="5,5,0,5" BoxChecked="{Binding IsChecked}" BoxContent="Foreign" BoxBackground="Transparent" />
+        <controls:StyledCheckBox Grid.Column="0" Grid.Row="8" Margin="5,5,0,5" BoxChecked="{Binding Foreign, Mode=TwoWay}" BoxContent="Foreign" />
         <ContentControl Grid.Column="0" Grid.Row="9" Grid.ColumnSpan="2" IsTabStop="False" Content="{Binding AddressView}" />
     </Grid>
 </UserControl>

@@ -1,9 +1,11 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Accounting101.Controls
 {
+    [ObservableObject]
     public partial class StyledCheckBox : UserControl
     {
         public static readonly DependencyProperty BoxCheckedProperty = DependencyProperty.Register(
@@ -35,8 +37,8 @@ namespace Accounting101.Controls
 
         public StyledCheckBox()
         {
-            DataContext = this;
             InitializeComponent();
+            BoxBackground = Brushes.Transparent;
         }
     }
 }

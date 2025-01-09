@@ -23,19 +23,19 @@ namespace Accounting101.Views.Create
             set => SetValue(AddressViewProperty, value);
         }
 
-        public bool? IsForeign
+        public bool? Foreign
         {
-            get => _isForeign;
+            get => _foreign;
             set
             {
-                _isForeign = value;
+                _foreign = value;
                 UpdateAddressView();
             }
         }
 
         private readonly CreateUSAddressView _createUSAddressView = new();
         private readonly CreateForeignAddressView _createForeignAddressView = new();
-        private bool? _isForeign = false;
+        private bool? _foreign = false;
         private readonly IDataStore _dataStore;
         private readonly JoinableTaskFactory _taskFactory;
 
@@ -55,7 +55,7 @@ namespace Accounting101.Views.Create
             Business business = new()
             {
                 Name = BusinessName,
-                Address = _isForeign switch
+                Address = _foreign switch
                 {
                     false => _createUSAddressView.GetResult(),
                     true => _createForeignAddressView.GetResult(),
@@ -68,7 +68,7 @@ namespace Accounting101.Views.Create
 
         private void UpdateAddressView()
         {
-            AddressView = _isForeign switch
+            AddressView = _foreign switch
             {
                 false => _createUSAddressView,
                 true => _createForeignAddressView,

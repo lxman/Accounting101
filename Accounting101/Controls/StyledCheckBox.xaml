@@ -5,14 +5,19 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
              xmlns:local="clr-namespace:Accounting101.Controls"
+             xmlns:valueConverters="clr-namespace:Accounting101.ValueConverters"
              mc:Ignorable="d" 
              d:DataContext="{d:DesignInstance local:StyledCheckBox}"
              d:Background="Teal"
-             d:DesignHeight="20" d:DesignWidth="100">
+             d:DesignHeight="20" d:DesignWidth="100"
+             x:Name="ThisBox">
+    <UserControl.Resources>
+        <valueConverters:BoolNullableBoolConverter x:Key="NullableBoolConverter" />
+    </UserControl.Resources>
     <CheckBox
-        Background="{Binding BoxBackground}"
-        IsChecked="{Binding BoxChecked}"
-        Content="{Binding BoxContent}"
+        Background="{Binding BoxBackground, ElementName=ThisBox}"
+        IsChecked="{Binding BoxChecked, ElementName=ThisBox, Converter={StaticResource NullableBoolConverter}, TargetNullValue=false, Mode=TwoWay}"
+        Content="{Binding BoxContent, ElementName=ThisBox}"
         mah:CheckBoxHelper.ForegroundChecked="{DynamicResource MahApps.Brushes.IdealForeground}"
         mah:CheckBoxHelper.ForegroundCheckedMouseOver="{DynamicResource MahApps.Brushes.IdealForeground}"
         mah:CheckBoxHelper.ForegroundUnchecked="{DynamicResource MahApps.Brushes.IdealForeground}"

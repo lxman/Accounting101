@@ -25,22 +25,23 @@ namespace Accounting101.ViewModels.Create
             }
         }
 
-        public bool? IsChecked
+        public bool? Foreign
         {
-            get => _isChecked;
+            get => _foreign;
             set
             {
-                if (_isChecked == value)
+                if (_foreign == value)
                 {
                     return;
                 }
 
-                _isChecked = value;
+                _foreign = value;
+                ForeignChanged();
                 OnPropertyChanged();
             }
         }
 
-        private bool? _isChecked = false;
+        private bool? _foreign = false;
         private UserControl? _addressView;
         private readonly CreateUSAddressView _usAddressView = new();
         private readonly CreateForeignAddressView _foreignAddressView = new();
@@ -64,6 +65,11 @@ namespace Accounting101.ViewModels.Create
                     _ => null
                 }
             };
+        }
+
+        private void ForeignChanged()
+        {
+            AddressView = Foreign == true ? _foreignAddressView : _usAddressView;
         }
     }
 }

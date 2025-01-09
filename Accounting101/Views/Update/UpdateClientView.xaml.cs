@@ -49,24 +49,25 @@ namespace Accounting101.Views.Update
             }
         }
 
-        public bool? IsChecked
+        public bool? Foreign
         {
-            get => _isChecked;
+            get => _foreign;
             set
             {
-                if (_isChecked == value)
+                if (_foreign == value)
                 {
                     return;
                 }
 
-                _isChecked = value;
+                _foreign = value;
+                ForeignChanged();
                 OnPropertyChanged();
             }
         }
 
         private string _businessName = string.Empty;
         private PersonName _personName;
-        private bool? _isChecked = false;
+        private bool? _foreign = false;
         private UserControl? _addressView;
         private readonly UpdateUSAddressView _usAddressView = new();
         private readonly UpdateForeignAddressView _foreignAddressView = new();
@@ -98,7 +99,7 @@ namespace Accounting101.Views.Update
                 usAddressView.SetAddress(client.Address as UsAddress);
                 usAddressView.SetStates(states);
             }
-            IsChecked = AddressView switch
+            Foreign = AddressView switch
             {
                 UpdateUSAddressView => false,
                 UpdateForeignAddressView => true,
@@ -131,6 +132,11 @@ namespace Accounting101.Views.Update
                     _ => null
                 }
             };
+        }
+
+        private void ForeignChanged()
+        {
+            AddressView = Foreign == true ? _foreignAddressView : _usAddressView;
         }
     }
 }
