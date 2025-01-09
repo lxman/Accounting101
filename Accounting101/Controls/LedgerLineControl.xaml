@@ -10,16 +10,16 @@
              d:DesignHeight="30" d:DesignWidth="800">
     <Grid>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition />
-            <ColumnDefinition />
-            <ColumnDefinition />
-            <ColumnDefinition />
-            <ColumnDefinition />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
-        <local:StyledLabel Grid.Column="0" HorizontalContentAlignment="Left" LabelContent="{Binding When}" d:LabelContent="1/1/2025" />
-        <local:StyledLabel Grid.Column="1" HorizontalContentAlignment="Right" LabelContent="{Binding Credit}" d:LabelContent="100.00" />
-        <local:StyledLabel Grid.Column="2" LabelContent="{Binding Debit}" />
-        <local:StyledLabel Grid.Column="3" HorizontalContentAlignment="Right" LabelContent="{Binding Balance}" d:LabelContent="100.00" />
+        <local:StyledLabel x:Name="DateWidth" Grid.Column="0" HorizontalContentAlignment="Left" LabelContent="{Binding When}" d:LabelContent="1/1/2025" />
+        <local:StyledLabel x:Name="CreditWidth" Grid.Column="1" HorizontalContentAlignment="Right" LabelContent="{Binding Credit}" d:LabelContent="100.00" />
+        <local:StyledLabel x:Name="DebitWidth" Grid.Column="2" HorizontalContentAlignment="Right" LabelContent="{Binding Debit}" />
+        <local:StyledLabel x:Name="BalanceWidth" Grid.Column="3" HorizontalContentAlignment="Right" LabelContent="{Binding Balance}" d:LabelContent="100.00" />
         <local:StyledLabel Grid.Column="4" HorizontalContentAlignment="Right" LabelContent="{Binding OtherAccountInfo}" d:LabelContent="101 Cash Asset" />
     </Grid>
 </UserControl>

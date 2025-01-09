@@ -59,5 +59,31 @@ namespace Accounting101.ViewModels.Update
             Transactions = new ReadOnlyObservableCollection<LedgerLineControl>(new ObservableCollection<LedgerLineControl>(ledgerLines));
             OnPropertyChanged(nameof(Transactions));
         }
+
+        public List<LedgerLineLayout> GetLayouts()
+        {
+            if (Transactions is null)
+            {
+                return [];
+            }
+            List<LedgerLineLayout> toReturn = [];
+            toReturn.AddRange(Transactions.Select(ledgerLineControl => ledgerLineControl.GetLayout()));
+
+            return toReturn;
+        }
+
+        public void PerformLayout(LedgerLineLayout layout)
+        {
+            if (Transactions is null)
+            {
+                return;
+            }
+            foreach (LedgerLineControl ledgerLineControl in Transactions)
+            {
+                ledgerLineControl.PerformLayout(layout);
+            }
+
+            OnPropertyChanged(nameof(Transactions));
+        }
     }
 }

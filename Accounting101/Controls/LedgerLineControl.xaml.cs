@@ -25,5 +25,28 @@ namespace Accounting101.Controls
             DataContext = this;
             InitializeComponent();
         }
+
+        public LedgerLineLayout GetLayout()
+        {
+            return new LedgerLineLayout
+            {
+                DateWidth = DateWidth.ActualWidth,
+                CreditWidth = CreditWidth.ActualWidth,
+                DebitWidth = DebitWidth.ActualWidth,
+                BalanceWidth = BalanceWidth.ActualWidth
+            };
+        }
+
+        public void PerformLayout(LedgerLineLayout layout)
+        {
+            DateWidth.MinWidth = layout.DateWidth;
+            DateWidth.MaxWidth = layout.DateWidth;
+            CreditWidth.MinWidth = layout.CreditWidth;
+            CreditWidth.MaxWidth = layout.CreditWidth;
+            DebitWidth.MinWidth = layout.DebitWidth;
+            DebitWidth.MaxWidth = layout.DebitWidth;
+            BalanceWidth.MinWidth = layout.BalanceWidth;
+            BalanceWidth.MaxWidth = layout.BalanceWidth;
+        }
     }
 }
