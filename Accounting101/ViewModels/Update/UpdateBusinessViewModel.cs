@@ -7,6 +7,7 @@ using DataAccess.Interfaces;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
+
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider adding the 'required' modifier or declaring as nullable.
 
 namespace Accounting101.ViewModels.Update
@@ -78,11 +79,13 @@ namespace Accounting101.ViewModels.Update
                     AddressView = _foreignAddressView;
                     Foreign = true;
                     break;
+
                 case UsAddress usAddress:
                     _usAddressView.SetAddress(usAddress);
                     AddressView = _usAddressView;
                     Foreign = false;
                     break;
+
                 default:
                     throw new ArgumentOutOfRangeException(nameof(address));
             }

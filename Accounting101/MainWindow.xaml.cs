@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using System.Windows.Input;
 using Accounting101.Messages;
 using Accounting101.ViewModels;
 using Accounting101.Views.Create;
@@ -22,7 +23,8 @@ namespace Accounting101
             IRecipient<CreateDatabaseMessage>,
             IRecipient<FocusClientMessage>,
             IRecipient<SetEditAccountVisibleMessage>,
-            IRecipient<BusinessEditedMessage>
+            IRecipient<BusinessEditedMessage>,
+            IRecipient<EditingTransactionMessage>
     {
         public static readonly DependencyProperty CurrentScreenProperty = DependencyProperty.Register(
             nameof(CurrentScreen), typeof(object), typeof(MainWindow), new PropertyMetadata(default(object)));
@@ -51,6 +53,22 @@ namespace Accounting101
         private List<string>? _states;
         private ClientWithInfo? _client;
         private Guid? _accountId;
+        private bool _enableTransactionKeyWatcher;
+        private bool _enableEditingKeyWatcher;
+
+        private static readonly List<Key> TransactionKeys =
+        [
+            Key.E,
+            Key.N
+        ];
+
+        private static readonly List<Key> EditingKeys =
+        [
+            Key.Escape,
+            Key.Return,
+            Key.Delete,
+            Key.Tab
+        ];
 
         public MainWindow(
             IDataStore dataStore,
@@ -102,41 +120,52 @@ namespace Accounting101
             switch (message.Value)
             {
                 case WindowType.CreateBusiness:
+                    _enableTransactionKeyWatcher = false;
                     MenuViewModel.CurrentScreen = WindowType.CreateBusiness;
                     MenuViewModel.ShowSaveCommand = true;
                     MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateBusinessView)?.Save()));
                     CurrentScreen = new CreateBusinessView(_dataStore, _taskFactory);
                     break;
+
                 case WindowType.GetPassword:
+                    _enableTransactionKeyWatcher = false;
                     MenuViewModel.CurrentScreen = WindowType.GetPassword;
                     CurrentScreen = new GetPasswordView(_dataStore, _taskFactory);
                     break;
+
                 case WindowType.CreateClient:
+                    _enableTransactionKeyWatcher = false;
                     MenuViewModel.CurrentScreen = WindowType.CreateClient;
                     MenuViewModel.ShowSaveCommand = true;
                     MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateClientView)?.Save()));
                     CurrentScreen = new CreateClientView(_dataStore, _taskFactory);
                     break;
+
                 case WindowType.ClientList:
+                    _enableTransactionKeyWatcher = false;
                     MenuViewModel.CurrentScreen = WindowType.ClientList;
                     CurrentScreen = new ClientListView(_dataStore, _taskFactory);
                     _client = null;
                     break;
+
                 case WindowType.ClientAccountList:
                     if (_client is null)
                     {
                         return;
                     }
 
+                    _enableTransactionKeyWatcher = true;
                     MenuViewModel.CurrentScreen = WindowType.ClientAccountList;
                     CurrentScreen = new ClientWithAccountListView(_dataStore, _taskFactory, _client);
                     break;
+
                 case WindowType.CreateAccount:
                     if (_client is null)
                     {
                         return;
                     }
 
+                    _enableTransactionKeyWatcher = false;
                     MenuViewModel.CurrentScreen = WindowType.CreateAccount;
                     CreateAccountView createAccountView = new();
                     createAccountView.SetInfo(_dataStore, _taskFactory, _client);
@@ -144,7 +173,9 @@ namespace Accounting101
                     MenuViewModel.SetSaveCommand(new RelayCommand(() => createAccountView.Save()));
                     MenuViewModel.ShowSaveCommand = true;
                     break;
+
                 case WindowType.EditBusiness:
+                    _enableTransactionKeyWatcher = false;
                     MenuViewModel.CurrentScreen = WindowType.EditBusiness;
                     UpdateBusinessView updateBusinessView = new();
                     updateBusinessView.SetInfo(_dataStore, _taskFactory);
@@ -152,11 +183,13 @@ namespace Accounting101
                     MenuViewModel.SetSaveCommand(new RelayCommand(() => updateBusinessView.Save()));
                     MenuViewModel.ShowSaveCommand = true;
                     break;
+
                 case WindowType.EditClient:
                     if (_client is null)
                     {
                         return;
                     }
+                    _enableTransactionKeyWatcher = false;
                     MenuViewModel.CurrentScreen = WindowType.EditClient;
                     UpdateClientView updateClientView = new();
                     updateClientView.SetInfo(_dataStore, _taskFactory, _client, _states);
@@ -164,15 +197,22 @@ namespace Accounting101
                     MenuViewModel.SetSaveCommand(new RelayCommand(() => updateClientView.Save()));
                     MenuViewModel.ShowSaveCommand = true;
                     break;
+
                 case WindowType.EditAccount:
+                    _enableTransactionKeyWatcher = false;
                     MenuViewModel.CurrentScreen = WindowType.EditAccount;
                     break;
+
                 case WindowType.BalanceSheet:
+                    _enableTransactionKeyWatcher = false;
                     MenuViewModel.CurrentScreen = WindowType.BalanceSheet;
                     break;
+
                 case WindowType.ProfitAndLoss:
+                    _enableTransactionKeyWatcher = false;
                     MenuViewModel.CurrentScreen = WindowType.ProfitAndLoss;
                     break;
+
                 default:
                     throw new ArgumentOutOfRangeException();
             }
@@ -189,6 +229,11 @@ namespace Accounting101
             Receive(new ChangeScreenMessage(WindowType.ClientAccountList));
         }
 
+        public void Receive(EditingTransactionMessage message)
+        {
+            _enableEditingKeyWatcher = message.Value;
+        }
+
         private void SetState()
         {
             switch (InitialScreen)
@@ -198,11 +243,13 @@ namespace Accounting101
                     MenuViewModel.ShowSaveCommand = true;
                     MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateDatabaseView)?.Save()));
                     break;
+
                 case WindowType.CreateBusiness:
                     MenuViewModel.CurrentScreen = WindowType.CreateBusiness;
                     MenuViewModel.ShowSaveCommand = true;
                     MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateBusinessView)?.Save()));
                     break;
+
                 case WindowType.CreateClient:
                     MenuViewModel.CurrentScreen = WindowType.CreateClient;
                     MenuViewModel.ShowSaveCommand = true;
@@ -215,6 +262,25 @@ namespace Accounting101
         {
             base.OnClosed(e);
             Application.Current.Shutdown();
+        }
+
+        private void MainWindowPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (!_enableEditingKeyWatcher && !_enableTransactionKeyWatcher)
+            {
+                return;
+            }
+
+            if (!TransactionKeys.Contains(e.Key) && !EditingKeys.Contains(e.Key))
+            {
+                return;
+            }
+
+            if ((_enableEditingKeyWatcher && EditingKeys.Contains(e.Key)) || (_enableTransactionKeyWatcher && TransactionKeys.Contains(e.Key)))
+            {
+                e.Handled = true;
+                WeakReferenceMessenger.Default.Send(new KeyPressedMessage(e.Key));
+            }
         }
     }
 }

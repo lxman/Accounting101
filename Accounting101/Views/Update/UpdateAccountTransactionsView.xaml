@@ -1,16 +1,22 @@
 ﻿<UserControl x:Class="Accounting101.Views.Update.UpdateAccountTransactionsView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:update="clr-namespace:Accounting101.ViewModels.Update"
              xmlns:controls="clr-namespace:Accounting101.Controls"
-             mc:Ignorable="d" 
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             mc:Ignorable="d"
              d:DataContext="{d:DesignInstance update:UpdateAccountTransactionsViewModel}"
              d:Background="Teal"
              Background="Transparent"
              d:DesignHeight="450" d:DesignWidth="800"
              x:Name="Self">
+    <UserControl.Resources>
+        <Style TargetType="{x:Type ListBoxItem}" BasedOn="{StaticResource MahApps.Styles.ListBoxItem}">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+    </UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -34,7 +40,8 @@
             Grid.Column="0"
             Grid.Row="1"
             ItemsSource="{Binding Transactions}"
-            Background="Transparent"
-            Foreground="{DynamicResource MahApps.Brushes.IdealForeground}" />
+            SelectedItem="{Binding SelectedLine}"
+            SelectionMode="Single"
+            Background="Transparent" />
     </Grid>
 </UserControl>

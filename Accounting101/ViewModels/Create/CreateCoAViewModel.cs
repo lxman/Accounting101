@@ -3,6 +3,7 @@ using DataAccess.CoATemplates.ChartList;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
+
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101.ViewModels.Create
@@ -28,7 +29,6 @@ namespace Accounting101.ViewModels.Create
         private JoinableTaskFactory _taskFactory;
         private Client _client;
         private readonly Charts _chartList;
-
 
         public CreateCoAViewModel()
         {

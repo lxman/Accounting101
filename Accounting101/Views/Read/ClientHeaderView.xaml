@@ -28,7 +28,7 @@
         <controls:StyledLabel
             Grid.Column="0"
             Grid.Row="0"
-            LabelContent="Business Name" /> 
+            LabelContent="Business Name" />
         <TextBlock
             Grid.Column="1"
             Grid.Row="0"

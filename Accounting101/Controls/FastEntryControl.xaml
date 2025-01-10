@@ -1,16 +1,20 @@
 ﻿<UserControl x:Class="Accounting101.Controls.FastEntryControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:Accounting101.Controls"
              xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
-             mc:Ignorable="d" 
+             xmlns:valueConverters="clr-namespace:Accounting101.ValueConverters"
+             mc:Ignorable="d"
              d:Background="Teal"
              d:DataContext="{d:DesignInstance local:FastEntryControl}"
              Background="Transparent"
              MinHeight="40"
              d:DesignHeight="40" d:DesignWidth="800">
+    <UserControl.Resources>
+        <valueConverters:DateOnlyDateTimeConverter x:Key="DateConverter" />
+    </UserControl.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
@@ -19,14 +23,15 @@
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <DatePicker Grid.Column="0" VerticalContentAlignment="Center" mah:ControlsHelper.CornerRadius="10" IsTabStop="True" />
+        <DatePicker x:Name="DatePicker" Grid.Column="0" VerticalContentAlignment="Center" mah:ControlsHelper.CornerRadius="10" IsTabStop="True" SelectedDate="{Binding When, Converter={StaticResource DateConverter}}" />
         <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,10,0">
             <RadioButton Content="Credit" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" IsTabStop="True" IsChecked="{Binding Credit}" />
             <RadioButton Content="Debit" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" IsTabStop="True" IsChecked="{Binding Debit}" />
         </StackPanel>
-        <ComboBox Grid.Column="2" MinWidth="200" mah:ControlsHelper.CornerRadius="10" IsTabStop="True" ItemsSource="{Binding OtherAccounts}" SelectedItem="{Binding OtherAccount}" />
-        <TextBox Grid.Column="3" mah:ControlsHelper.CornerRadius="10" IsTabStop="True" Text="{Binding Amount}" />
+        <ComboBox x:Name="AccountSelector" Grid.Column="2" MinWidth="200" mah:ControlsHelper.CornerRadius="10" IsTabStop="True" ItemsSource="{Binding OtherAccounts}" SelectedItem="{Binding OtherAccount, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBox x:Name="AmountBox" Grid.Column="3" mah:ControlsHelper.CornerRadius="10" IsTabStop="True" VerticalContentAlignment="Center" Text="{Binding Amount, UpdateSourceTrigger=PropertyChanged}" />
         <Button
+            x:Name="AcceptButton"
             Grid.Column="4"
             Padding="20,0,20,0"
             Content="_Accept"

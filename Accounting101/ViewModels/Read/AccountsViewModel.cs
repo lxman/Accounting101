@@ -6,6 +6,7 @@ using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
+
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101.ViewModels.Read
@@ -15,11 +16,6 @@ namespace Accounting101.ViewModels.Read
         public bool HasAccounts { get; private set; }
 
         public ReadOnlyObservableCollection<AccountsViewLine> Source { get; private set; }
-
-        public AccountsViewModel()
-        {
-
-        }
 
         public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, ClientWithInfo client)
         {
@@ -53,7 +49,7 @@ namespace Accounting101.ViewModels.Read
         {
             Guid selectedAccountId = Source[index].Id;
             WeakReferenceMessenger.Default.Send(new ShowAccountTransactionEditor(
-                new ShowAccountTransactionMessage() { AccountId = selectedAccountId, Value = true }));
+                new ShowAccountTransactionMessage { AccountId = selectedAccountId, Value = true }));
         }
     }
 }
