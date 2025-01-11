@@ -29,7 +29,7 @@ namespace DataAccess.Models
             StartBalance = accountWithInfo.StartBalance;
             Created = accountWithInfo.Created;
             ClientId = accountWithInfo.ClientId;
-            Transactions = txDb.FindAllAsync().GetAwaiter().GetResult().Where(tx => tx.DebitedAccountId == Id || tx.CreditedAccountId == Id).ToList();
+            Transactions = taskFactory.Run(() => txDb.FindAllAsync()).Where(tx => tx.DebitedAccountId == Id || tx.CreditedAccountId == Id).ToList();
         }
     }
 }

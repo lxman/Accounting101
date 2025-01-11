@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Windows.Controls;
 using System.Windows.Media;
+using Accounting101.Models;
 using Accounting101.ViewModels.Read;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
@@ -49,8 +50,8 @@ namespace Accounting101.Views.Read
             };
             e.Row.PreviewMouseDown += (s, _) =>
             {
-                int itemsIndex = e.Row.GetIndex();
-                _viewModel.ItemSelected(itemsIndex);
+                Guid accountId = ((AccountsViewLine)e.Row.Item).Id;
+                _viewModel.ItemSelected(accountId);
             };
         }
     }

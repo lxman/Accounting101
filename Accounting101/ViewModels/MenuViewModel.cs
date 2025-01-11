@@ -157,6 +157,14 @@ namespace Accounting101.ViewModels
 
         public ICommand ClientListCommand { get; }
 
+        public ICommand ChangeThemeCommand { get; }
+
+        public bool ShowChangeThemeCommand
+        {
+            get => _showChangeThemeCommand;
+            set => SetField(ref _showChangeThemeCommand, value);
+        }
+
         public bool ShowClientListCommand
         {
             get => _showClientListCommand;
@@ -211,6 +219,7 @@ namespace Accounting101.ViewModels
         private bool _showReportsBalanceSheetCommand;
         private bool _showReportsProfitAndLossCommand;
         private bool _showClientListCommand;
+        private bool _showChangeThemeCommand;
         private WindowType _currentScreen;
 
         //private bool _showReportsIncomeStatementCommand;
@@ -234,18 +243,21 @@ namespace Accounting101.ViewModels
             NewAccountCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.CreateAccount)));
             EditBusinessCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.EditBusiness)));
             EditClientCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.EditClient)));
+            ChangeThemeCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.UpdateTheme)));
             ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
         }
 
         private void SetMenus()
         {
+            ShowChangeThemeCommand = CurrentScreen != WindowType.GetPassword && CurrentScreen != WindowType.UpdateTheme;
             ShowClientListCommand = (CurrentScreen == WindowType.CreateClient && _clientExists)
                 || CurrentScreen == WindowType.CreateAccount
                 || (CurrentScreen == WindowType.EditBusiness && _clientExists)
                 || CurrentScreen == WindowType.EditClient
                 || CurrentScreen == WindowType.EditAccount
                 || CurrentScreen == WindowType.BalanceSheet
-                || CurrentScreen == WindowType.ProfitAndLoss;
+                || CurrentScreen == WindowType.ProfitAndLoss
+                || CurrentScreen == WindowType.UpdateTheme;
             ShowNewClientCommand = (CurrentScreen == WindowType.EditBusiness && _clientExists)
                 || CurrentScreen == WindowType.CreateAccount
                 || CurrentScreen == WindowType.ClientList

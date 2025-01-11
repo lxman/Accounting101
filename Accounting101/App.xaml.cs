@@ -3,6 +3,7 @@ using System.Windows;
 using Accounting101.ViewModels;
 using Accounting101.Views.Create;
 using Accounting101.Views.Read;
+using ControlzEx.Theming;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services;
@@ -19,11 +20,12 @@ namespace Accounting101
     {
         private bool _protected;
         private readonly ServiceProvider _services;
+        private string? _theme;
 
         public App()
         {
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
-            Startup += OnStartup;
+            Startup += AppStartup;
 
             // Now start spinning up everything else
             JoinableTaskFactory taskFactory = new(new JoinableTaskCollection(new JoinableTaskContext()));
@@ -52,9 +54,23 @@ namespace Accounting101
             mainWindow.Show();
         }
 
-        private void OnStartup(object sender, StartupEventArgs e)
+        private void AppStartup(object sender, StartupEventArgs e)
         {
-            //ThemeManager.Current.ChangeTheme(this, "Light.Blue");
+            RegistryKey softwareKey = Registry.CurrentUser.OpenSubKey("Software")!;
+            RegistryKey? jsKey = softwareKey.OpenSubKey("JordanSoft");
+            RegistryKey? a101Key = jsKey?.OpenSubKey("Accounting101");
+            if (a101Key is null)
+            {
+                return;
+            }
+            _theme = (string?)a101Key.GetValue("ThemeName");
+            if (string.IsNullOrWhiteSpace(_theme))
+            {
+                a101Key.SetValue("ThemeName", "Light.Blue");
+                _theme = "Light.Blue";
+            }
+            ThemeManager.Current.ChangeTheme(this, _theme);
+            ThemeManager.Current.SyncTheme();
         }
 
         protected override void OnExit(ExitEventArgs e)

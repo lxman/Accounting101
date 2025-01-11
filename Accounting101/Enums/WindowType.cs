@@ -14,5 +14,6 @@ public enum WindowType
     EditClient,
     EditAccount,
     BalanceSheet,
-    ProfitAndLoss
+    ProfitAndLoss,
+    UpdateTheme
 }

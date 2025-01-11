@@ -213,6 +213,12 @@ namespace Accounting101
                     MenuViewModel.CurrentScreen = WindowType.ProfitAndLoss;
                     break;
 
+                case WindowType.UpdateTheme:
+                    _enableTransactionKeyWatcher = false;
+                    CurrentScreen = new UpdateThemeView();
+                    MenuViewModel.CurrentScreen = WindowType.UpdateTheme;
+                    break;
+
                 default:
                     throw new ArgumentOutOfRangeException();
             }

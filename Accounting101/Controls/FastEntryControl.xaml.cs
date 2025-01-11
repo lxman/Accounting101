@@ -15,6 +15,8 @@ namespace Accounting101.Controls
     [ObservableObject]
     public partial class FastEntryControl : UserControl
     {
+        public event EventHandler<bool>? EditingStateChanged;
+
         public ReadOnlyObservableCollection<string>? OtherAccounts { get; private set; }
 
         public DateOnly When
@@ -86,12 +88,20 @@ namespace Accounting101.Controls
 
         public void CreateNew()
         {
+            if (_editing)
+            {
+                return;
+            }
             DatePicker.Focus();
             SetEditingState(true, "creating");
         }
 
         public void EditEntry(TransactionInfoLine entry)
         {
+            if (_editing)
+            {
+                return;
+            }
             _id = entry.Id;
             When = entry.When;
             Credit = entry.Credit.HasValue;
@@ -150,12 +160,13 @@ namespace Accounting101.Controls
 
         private void SetEditingState(bool state, string type = "")
         {
+            EditingStateChanged?.Invoke(this, state);
             if (!state)
             {
                 ClearControls();
             }
             _editing = state;
-            Background = state ? type == "creating" ? Brushes.LightGreen : Brushes.Yellow : Brushes.Transparent;
+            Background = state ? type == "creating" ? Brushes.LightGreen : Brushes.PaleVioletRed : Brushes.Transparent;
             WeakReferenceMessenger.Default.Send(new EditingTransactionMessage(state));
         }
 

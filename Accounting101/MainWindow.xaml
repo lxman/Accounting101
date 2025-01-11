@@ -43,6 +43,7 @@
                 <MenuItem Header="_Profit and Loss" Background="Transparent" Command="{Binding ReportsProfitAndLossCommand}" Visibility="{Binding ShowReportsProfitAndLossCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
             </MenuItem>
             <MenuItem Header="_Client List" Background="Transparent" Visibility="{Binding ShowClientListCommand, Converter={StaticResource BooleanToVisibilityConverter}}" Command="{Binding ClientListCommand}" />
+            <MenuItem Header="_Theme" Background="Transparent" Visibility="{Binding ShowChangeThemeCommand, Converter={StaticResource BooleanToVisibilityConverter}}" Command="{Binding ChangeThemeCommand}" />
         </Menu>
         <mah:TransitioningContentControl
             x:Name="ScreenDisplayControl"

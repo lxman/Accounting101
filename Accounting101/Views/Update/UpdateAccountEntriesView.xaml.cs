@@ -1,6 +1,5 @@
 ﻿using System.Windows.Controls;
 using System.Windows.Input;
-using Accounting101.Controls;
 using Accounting101.Messages;
 using Accounting101.Models;
 using CommunityToolkit.Mvvm.Messaging;
@@ -8,7 +7,6 @@ using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
-using Timer = System.Timers.Timer;
 
 #pragma warning disable CS8618, CS9264
 
@@ -19,22 +17,13 @@ namespace Accounting101.Views.Update
         private IDataStore _dataStore;
         private JoinableTaskFactory _taskFactory;
         private Guid _accountId;
-        private readonly Timer _t = new(500);
         private List<AccountWithInfo>? _otherAccounts;
 
         public UpdateAccountEntriesView()
         {
             WeakReferenceMessenger.Default.RegisterAll(this);
-            _t.Elapsed += TimerElapsed;
             DataContext = this;
             InitializeComponent();
-            SizeChanged += (s, e) => PerformLayout();
-        }
-
-        private void TimerElapsed(object? sender, System.Timers.ElapsedEventArgs e)
-        {
-            _t.Stop();
-            TransactionList.PerformLayout();
         }
 
         public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, ClientWithInfo client, AccountWithTransactions account)
@@ -52,13 +41,8 @@ namespace Accounting101.Views.Update
             FastEntryControl.SetAccountList(_otherAccounts);
             AccountHeaderView.SetInfo(new AccountWithInfo(account, account.Info));
             TransactionList.SetInfo(dataStore, taskFactory, account, _otherAccounts);
+            FastEntryControl.EditingStateChanged += (sender, editing) => TransactionList.IsEnabled = !editing;
             UpdateAccountBalance();
-        }
-
-        private void PerformLayout()
-        {
-            if (_t.Enabled) return;
-            _t.Start();
         }
 
         private void UpdateAccountBalance()
@@ -71,7 +55,7 @@ namespace Accounting101.Views.Update
             switch (message.Value)
             {
                 case Key.E:
-                    LedgerLineControl? ledgerLine = TransactionList.GetSelected();
+                    TransactionInfoLine? ledgerLine = TransactionList.GetSelected();
                     if (ledgerLine is null)
                     {
                         return;
@@ -79,7 +63,7 @@ namespace Accounting101.Views.Update
 
                     TransactionInfoLine til = new(
                         ledgerLine.Id,
-                        DateOnly.Parse(ledgerLine.When),
+                        ledgerLine.When,
                         ledgerLine.Credit,
                         ledgerLine.Debit,
                         ledgerLine.Balance,

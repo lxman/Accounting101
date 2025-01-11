@@ -45,11 +45,10 @@ namespace Accounting101.ViewModels.Read
             HasAccounts = accounts.Count > 0;
         }
 
-        public void ItemSelected(int index)
+        public void ItemSelected(Guid accountId)
         {
-            Guid selectedAccountId = Source[index].Id;
             WeakReferenceMessenger.Default.Send(new ShowAccountTransactionEditor(
-                new ShowAccountTransactionMessage { AccountId = selectedAccountId, Value = true }));
+                new ShowAccountTransactionMessage { AccountId = accountId, Value = true }));
         }
     }
 }
