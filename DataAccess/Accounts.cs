@@ -50,6 +50,16 @@ namespace DataAccess
             if (result > 0) store.NotifyChange(typeof(Accounts), ChangeType.Created);
         }
 
+        public static async Task<AccountWithEverything?> GetAccountWithEverythingAsync(this IDataStore store,
+            Guid accountId)
+        {
+            AccountWithInfo? acct = await store.GetAccountWithInfoAsync(accountId);
+            if (acct is null) return null;
+            List<Transaction> transactions = (await store.TransactionsForAccountAsync(acct.Id)) ?? [];
+            CheckPoint? checkPoint = await store.GetCheckpointAsync(acct.Id);
+            return new AccountWithEverything(acct, transactions, checkPoint);
+        }
+
         public static async Task<AccountWithInfo?> FindAccountByNameAsync(this IDataStore store, string name)
         {
             ILiteCollectionAsync<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfo);
@@ -66,10 +76,10 @@ namespace DataAccess
                 : new AccountWithInfo(a, info);
         }
 
-        public static async Task<IEnumerable<AccountWithInfo>?> AccountsForClientAsync(this IDataStore store, Guid id)
+        public static async Task<IEnumerable<AccountWithInfo>?> AccountsForClientAsync(this IDataStore store, Guid clientId)
         {
             IEnumerable<Account>? accts = await store.GetCollection<Account>(CollectionNames.Account)
-                ?.FindAsync(a => a.ClientId == id)!;
+                ?.FindAsync(a => a.ClientId == clientId)!;
             if (accts is null) return null;
             ILiteCollectionAsync<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfo);
             if (infos is null) return null;
@@ -81,9 +91,9 @@ namespace DataAccess
             return acctsWInfos;
         }
 
-        public static async Task<DateRange?> GetAccountDateRangeAsync(this IDataStore store, Guid id)
+        public static async Task<DateRange?> GetAccountTransactionsDateRangeAsync(this IDataStore store, Guid accountId)
         {
-            Account? acct = await store.GetCollection<Account>(CollectionNames.Account)?.FindByIdAsync(id)!;
+            Account? acct = await store.GetCollection<Account>(CollectionNames.Account)?.FindByIdAsync(accountId)!;
             if (acct is null) return null;
             List<Transaction>? transactions = await store.TransactionsForAccountAsync(acct.Id);
             if (transactions is null) return null;
@@ -91,9 +101,9 @@ namespace DataAccess
             return dateRange;
         }
 
-        public static async Task<decimal> GetAccountBalanceAsync(this IDataStore store, Guid id)
+        public static async Task<decimal> GetAccountBalanceAsync(this IDataStore store, Guid accountId)
         {
-            Account? acct = await store.GetCollection<Account>(CollectionNames.Account)?.FindByIdAsync(id)!;
+            Account? acct = await store.GetCollection<Account>(CollectionNames.Account)?.FindByIdAsync(accountId)!;
             if (acct is null) return 0;
             List<Transaction>? transactions = await store.TransactionsForAccountAsync(acct.Id);
             if (transactions is null) return 0;
@@ -121,9 +131,9 @@ namespace DataAccess
             return balance;
         }
 
-        public static async Task<decimal> GetAccountBalanceOnDateAsync(this IDataStore store, Guid id, DateOnly date)
+        public static async Task<decimal> GetAccountBalanceOnDateAsync(this IDataStore store, Guid accountId, DateOnly date)
         {
-            AccountWithInfo? acct = await store.GetAccountWithInfoAsync(id);
+            AccountWithInfo? acct = await store.GetAccountWithInfoAsync(accountId);
             if (acct is null || acct.Created > date) return 0;
             List<Transaction>? transactions = await store.TransactionsForAccountAsync(acct.Id);
             if (transactions is null) return acct.StartBalance;
@@ -131,9 +141,9 @@ namespace DataAccess
             return BalanceCalculator.Calculate(acct, inDate);
         }
 
-        public static async Task<AccountWithInfo?> GetAccountWithInfoAsync(this IDataStore store, Guid id)
+        public static async Task<AccountWithInfo?> GetAccountWithInfoAsync(this IDataStore store, Guid accountId)
         {
-            Account? acct = await store.GetCollection<Account>(CollectionNames.Account)?.FindByIdAsync(id)!;
+            Account? acct = await store.GetCollection<Account>(CollectionNames.Account)?.FindByIdAsync(accountId)!;
             if (acct is null) return null;
             AccountInfo? info = await store.GetCollection<AccountInfo>(CollectionNames.AccountInfo)?.FindByIdAsync(acct.InfoId)!;
             return info is null
