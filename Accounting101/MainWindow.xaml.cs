@@ -64,6 +64,8 @@ namespace Accounting101
 
         private static readonly List<Key> EditingKeys =
         [
+            Key.C,
+            Key.D,
             Key.Escape,
             Key.Return,
             Key.Delete,

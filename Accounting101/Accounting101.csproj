@@ -41,6 +41,7 @@
   <ItemGroup>
     <Folder Include="ViewModels\Delete\" />
     <Folder Include="Views\Delete\" />
+    <Folder Include="Views\Read\Reports\" />
   </ItemGroup>
 
 </Project>

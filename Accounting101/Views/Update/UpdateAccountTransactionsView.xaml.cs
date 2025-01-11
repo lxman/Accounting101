@@ -1,7 +1,6 @@
 ﻿using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
 using Accounting101.Messages;
 using Accounting101.Models;
 using Accounting101.ViewModels.Update;
@@ -99,6 +98,7 @@ namespace Accounting101.Views.Update
             DataGridColumn? lastColumn = dataGrid.Columns.Last();
 
             Style elementStyle = new(typeof(DataGridCell), firstColumn.CellStyle);
+            firstColumn.CellStyle ??= new Style();
             firstColumn.CellStyle.Triggers.ToList().ForEach(t => elementStyle.Triggers.Add(t));
 
             elementStyle.Setters.Add(new Setter { Property = VerticalAlignmentProperty, Value = VerticalAlignment.Center });
@@ -107,10 +107,6 @@ namespace Accounting101.Views.Update
             Trigger selectedTrigger = new() { Property = DataGridCell.IsSelectedProperty, Value = true };
             selectedTrigger.Setters.Add(new Setter { Property = BorderThicknessProperty, Value = new Thickness(0) });
             elementStyle.Triggers.Add(selectedTrigger);
-
-            Trigger unselectedTrigger = new() { Property = DataGridCell.IsSelectedProperty, Value = false };
-            unselectedTrigger.Setters.Add(new Setter { Property = BackgroundProperty, Value = Brushes.Transparent });
-            elementStyle.Triggers.Add(unselectedTrigger);
 
             Style elementStyleLeft = new(typeof(DataGridCell), elementStyle);
             elementStyleLeft.Setters.Add(new Setter { Property = TextBlock.TextAlignmentProperty, Value = TextAlignment.Left });
@@ -127,32 +123,6 @@ namespace Accounting101.Views.Update
             balanceColumn.CellStyle = elementStyleRight;
             lastColumn.Width = new DataGridLength(5, DataGridLengthUnitType.Star);
             lastColumn.CellStyle = elementStyleRight;
-        }
-
-        private void DataGridSelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (sender is not DataGrid dataGrid)
-            {
-                return;
-            }
-
-            if (e.RemovedItems.Count > 0)
-            {
-                DataGridRow? removed = (DataGridRow)dataGrid.ItemContainerGenerator.ContainerFromItem(e.RemovedItems[0]);
-                if (removed is not null)
-                {
-                    removed.Style = _baseRowStyle;
-                }
-            }
-            if (dataGrid.SelectedItem is null)
-            {
-                return;
-            }
-            DataGridRow row = (DataGridRow)dataGrid.ItemContainerGenerator.ContainerFromItem(dataGrid.SelectedItem);
-            _baseRowStyle ??= new Style(typeof(DataGridRow), row.Style);
-            Style rowStyle = new(typeof(DataGridRow), _baseRowStyle);
-            rowStyle.Setters.Add(new Setter { Property = BackgroundProperty, Value = Brushes.Red });
-            row.Style = rowStyle;
         }
     }
 }

@@ -54,6 +54,11 @@ namespace Accounting101.Views.Update
         {
             switch (message.Value)
             {
+                case Key.C:
+                case Key.D:
+                case Key.Tab:
+                    FastEntryControl.KeyPressed(message.Value);
+                    break;
                 case Key.E:
                     TransactionInfoLine? ledgerLine = TransactionList.GetSelected();
                     if (ledgerLine is null)
@@ -97,10 +102,6 @@ namespace Accounting101.Views.Update
                     Transaction t = new(wasCredited ? _accountId : otherAccount.Value, wasCredited ? otherAccount.Value : _accountId, amount, line.When);
                     _taskFactory.Run(() => _dataStore.CreateTransactionAsync(t));
                     WeakReferenceMessenger.Default.Send(new UpdateTransactionLayoutMessage(null));
-                    break;
-
-                case Key.Tab:
-                    FastEntryControl.TabPressed();
                     break;
             }
         }

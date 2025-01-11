@@ -13,8 +13,8 @@
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition />
-            <RowDefinition />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <Grid Grid.Row="0">
             <Grid.RowDefinitions>
@@ -24,6 +24,8 @@
             <RadioButton Grid.Row="0" Content="Light" Background="Transparent" IsChecked="{Binding LightChecked}" Foreground="{DynamicResource MahApps.Brushes.IdealForeground}" />
             <RadioButton Grid.Row="1" Content="Dark" Background="Transparent" IsChecked="{Binding DarkChecked}" Foreground="{DynamicResource MahApps.Brushes.IdealForeground}" />
         </Grid>
-        <WrapPanel Grid.Row="1" x:Name="Panel" />
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <WrapPanel x:Name="Panel" />
+        </ScrollViewer>
     </Grid>
 </UserControl>

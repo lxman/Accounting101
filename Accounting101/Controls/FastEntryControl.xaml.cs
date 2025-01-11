@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using Accounting101.Messages;
 using Accounting101.Models;
@@ -8,6 +9,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess.Models;
 
+// ReSharper disable SwitchStatementMissingSomeEnumCasesNoDefault
+#pragma warning disable CS0169 // Field is never used
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101.Controls
@@ -117,23 +120,44 @@ namespace Accounting101.Controls
             SetEditingState(false);
         }
 
-        public void TabPressed()
+        public void KeyPressed(Key key)
         {
-            if (DatePicker.IsKeyboardFocusWithin)
+            switch (key)
             {
-                AccountSelector.Focus();
-            }
-            else if (AccountSelector.IsFocused)
-            {
-                AmountBox.Focus();
-            }
-            else if (AmountBox.IsFocused)
-            {
-                AcceptButton.Focus();
-            }
-            else if (AcceptButton.IsFocused)
-            {
-                DatePicker.Focus();
+                case Key.C:
+                    Credit = true;
+                    break;
+
+                case Key.D:
+                    Debit = true;
+                    break;
+
+                case Key.Tab:
+                    if (DatePicker.IsKeyboardFocusWithin)
+                    {
+                        CreditButton.Focus();
+                    }
+                    else if (CreditButton.IsFocused)
+                    {
+                        DebitButton.Focus();
+                    }
+                    else if (DebitButton.IsFocused)
+                    {
+                        AccountSelector.Focus();
+                    }
+                    else if (AccountSelector.IsFocused)
+                    {
+                        AmountBox.Focus();
+                    }
+                    else if (AmountBox.IsFocused)
+                    {
+                        AcceptButton.Focus();
+                    }
+                    else if (AcceptButton.IsFocused)
+                    {
+                        DatePicker.Focus();
+                    }
+                    break;
             }
         }
 
