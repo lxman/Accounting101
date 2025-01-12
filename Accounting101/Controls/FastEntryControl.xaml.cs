@@ -165,7 +165,7 @@ namespace Accounting101.Controls
         {
             if (AmountBox.IsFocused || AcceptButton.IsFocused)
             {
-                TransactionInfoLine line = new(_id, When, Credit ? _amount : null, Debit ? _amount : null, 0, OtherAccount ?? string.Empty);
+                TransactionInfoLine line = new(_id, When, Credit ? _amount : null, Debit ? _amount : null, 0, OtherAccount ?? string.Empty, true);
                 SetEditingState(false);
                 return line;
             }

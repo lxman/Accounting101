@@ -31,7 +31,7 @@ namespace Accounting101.Views.Create
             ClientInfo info = _viewModel.GetClientInfo();
             Guid addressId = _taskFactory.Run(() => _dataStore.CreateAddressAsync(info.Address!));
             Guid personNameId = _taskFactory.Run(() => _dataStore.CreateNameAsync(info.PersonName!));
-            _taskFactory.Run(() => _dataStore.CreateClientAsync(new Client()
+            _taskFactory.Run(() => _dataStore.CreateClientAsync(new Client
             {
                 AddressId = addressId,
                 BusinessName = info.BusinessName,

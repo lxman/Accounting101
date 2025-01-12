@@ -23,6 +23,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <controls:StyledLabel
@@ -51,10 +52,22 @@
             Grid.Column="0"
             Grid.Row="2"
             VerticalAlignment="Top"
-            LabelContent="Address" />
+            LabelContent="CheckPoint" />
         <TextBlock
             Grid.Column="1"
             Grid.Row="2"
+            VerticalAlignment="Center"
+            Margin="10,0,0,0"
+            Text="{Binding CheckPoint}"
+            d:Text="None" />
+        <controls:StyledLabel
+            Grid.Column="0"
+            Grid.Row="3"
+            VerticalAlignment="Top"
+            LabelContent="Address" />
+        <TextBlock
+            Grid.Column="1"
+            Grid.Row="3"
             Margin="10,8,0,0"
             Text="{Binding Address}" />
     </Grid>

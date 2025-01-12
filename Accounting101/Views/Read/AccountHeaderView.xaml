@@ -11,6 +11,9 @@
              Background="Transparent"
              d:DesignHeight="450" d:DesignWidth="800"
              PreviewMouseDown="AccountHeaderViewPreviewMouseDown">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibilityConverter" />
+    </UserControl.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto" />
@@ -37,6 +40,7 @@
         <controls:StyledLabel Grid.Column="2" Grid.Row="1" LabelContent="Type" />
         <TextBlock Grid.Column="3" Grid.Row="1" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding Type}" d:Text="Asset" />
         <Label Grid.Column="4" Grid.Row="1" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Content="{Binding DebitCredit}" d:Content="Debit account" />
+        <Label Grid.Column="6" Grid.Row="1" VerticalAlignment="Center" Content="{Binding CheckPointActive}" Visibility="{Binding ShowCheckPointActive, Converter={StaticResource VisibilityConverter}}" Foreground="Red" />
         <controls:StyledLabel Grid.Column="6" Grid.Row="0" HorizontalAlignment="Right" LabelContent="Current balance" />
         <TextBlock Grid.Column="7" Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Center" Text="{Binding CurrentBalance}" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" d:Text="42.42" />
     </Grid>

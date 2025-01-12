@@ -1,4 +1,5 @@
 ﻿using System.Windows.Controls;
+using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
@@ -14,7 +15,12 @@ namespace Accounting101.Views.Create
 
         public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, ClientWithInfo client)
         {
-            HeaderView.SetInfo(client);
+            CheckPoint? checkPoint = null;
+            if (client.CheckPointId is not null)
+            {
+                checkPoint = taskFactory.Run(() => dataStore.GetCheckpointAsync(client.Id));
+            }
+            HeaderView.SetInfo(client, checkPoint);
             AccountView.SetInfo(dataStore, taskFactory, client);
         }
 

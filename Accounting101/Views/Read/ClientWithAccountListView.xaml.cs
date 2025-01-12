@@ -2,6 +2,7 @@
 using System.Windows.Controls;
 using Accounting101.Messages;
 using CommunityToolkit.Mvvm.Messaging;
+using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
@@ -17,12 +18,17 @@ namespace Accounting101.Views.Read
 
         public ClientWithAccountListView(IDataStore dataStore, JoinableTaskFactory taskFactory, ClientWithInfo client)
         {
+            CheckPoint? checkPoint = null;
+            if (client.CheckPointId is not null)
+            {
+                checkPoint = taskFactory.Run(() => dataStore.GetCheckpointAsync(client.Id));
+            }
             WeakReferenceMessenger.Default.Register(this);
             _dataStore = dataStore;
             _taskFactory = taskFactory;
             _client = client;
             InitializeComponent();
-            ClientHeader.SetInfo(client);
+            ClientHeader.SetInfo(client, checkPoint);
             AccountsGrid.SetInfo(dataStore, taskFactory, client);
             AccountEntriesEditor.IsVisibleChanged += AccountEntriesEditorVisibleChanged;
             CreateCoAView.CoACreated += CreateCoAViewCoACreated;
@@ -66,8 +72,14 @@ namespace Accounting101.Views.Read
             }
 
             _accountId = message.Value.AccountId;
+            AccountWithEverything? accountWithEverything =
+                _taskFactory.Run(() => _dataStore.GetAccountWithEverythingAsync(_accountId.Value));
+            if (accountWithEverything is null)
+            {
+                return;
+            }
             AccountWithTransactions awt = new(_dataStore, _taskFactory, message.Value.AccountId);
-            AccountEntriesEditor.SetInfo(_dataStore, _taskFactory, _client, awt);
+            AccountEntriesEditor.SetInfo(_dataStore, _taskFactory, _client, accountWithEverything);
             AccountEntriesEditor.Visibility = Visibility.Visible;
             AccountsGrid.Visibility = Visibility.Hidden;
             CreateCoAView.Visibility = Visibility.Hidden;

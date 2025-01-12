@@ -6,7 +6,8 @@
         decimal? credit,
         decimal? debit,
         decimal balance,
-        string otherAccountInfo)
+        string otherAccountInfo,
+        bool editable)
     {
         public Guid Id { get; set; } = id;
 
@@ -19,5 +20,7 @@
         public decimal Balance { get; set; } = balance;
 
         public string OtherAccountInfo { get; set; } = otherAccountInfo;
+
+        public bool Editable { get; set; } = editable;
     }
 }

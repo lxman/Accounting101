@@ -17,12 +17,14 @@ namespace DataAccess.Models
             AddressId = a.Id;
             Name = n;
             Address = a;
+            CheckPointId = c.CheckPointId;
         }
 
         public ClientWithInfo(IDataStore dataStore, Client c) : base(c)
         {
             Name = dataStore.GetCollection<PersonName>(CollectionNames.PersonName)?.FindByIdAsync(c.PersonNameId).GetAwaiter().GetResult();
             Address = dataStore.GetCollection<IAddress>(CollectionNames.Address)?.FindByIdAsync(c.AddressId).GetAwaiter().GetResult();
+            CheckPointId = c.CheckPointId;
         }
     }
 }

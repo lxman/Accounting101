@@ -12,6 +12,8 @@ namespace DataAccess.Models
 
         public Guid AddressId { get; set; }
 
+        public Guid? CheckPointId { get; set; }
+
         public Client()
         {
         }
@@ -22,6 +24,7 @@ namespace DataAccess.Models
             BusinessName = c.BusinessName;
             PersonNameId = c.PersonNameId;
             AddressId = c.AddressId;
+            CheckPointId = c.CheckPointId;
         }
     }
 }

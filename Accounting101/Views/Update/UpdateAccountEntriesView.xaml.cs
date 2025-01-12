@@ -26,20 +26,20 @@ namespace Accounting101.Views.Update
             InitializeComponent();
         }
 
-        public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, ClientWithInfo client, AccountWithTransactions account)
+        public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, ClientWithInfo client, AccountWithEverything account)
         {
             _dataStore = dataStore;
             _taskFactory = taskFactory;
-            _accountId = account.Id;
+            _accountId = account.Account.Id;
             _otherAccounts = taskFactory.Run(() => dataStore.AccountsForClientAsync(client.Id))?.ToList();
             if (_otherAccounts is null)
             {
                 return;
             }
 
-            _otherAccounts.Remove(account);
+            _otherAccounts.Remove(new AccountWithInfo(account.Account, account.Info));
             FastEntryControl.SetAccountList(_otherAccounts);
-            AccountHeaderView.SetInfo(new AccountWithInfo(account, account.Info));
+            AccountHeaderView.SetInfo(account);
             TransactionList.SetInfo(dataStore, taskFactory, account, _otherAccounts);
             FastEntryControl.EditingStateChanged += (sender, editing) => TransactionList.IsEnabled = !editing;
             UpdateAccountBalance();
@@ -72,7 +72,8 @@ namespace Accounting101.Views.Update
                         ledgerLine.Credit,
                         ledgerLine.Debit,
                         ledgerLine.Balance,
-                        ledgerLine.OtherAccountInfo);
+                        ledgerLine.OtherAccountInfo,
+                        true);
                     FastEntryControl.EditEntry(til);
                     break;
 

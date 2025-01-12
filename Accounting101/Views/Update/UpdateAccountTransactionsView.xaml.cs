@@ -1,10 +1,12 @@
 ﻿using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using Accounting101.Messages;
 using Accounting101.Models;
 using Accounting101.ViewModels.Update;
 using CommunityToolkit.Mvvm.Messaging;
+using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
@@ -20,7 +22,6 @@ namespace Accounting101.Views.Update
         private JoinableTaskFactory _taskFactory;
         private List<AccountWithInfo> _otherAccounts;
         private Guid _accountId;
-        private Style? _baseRowStyle;
 
         public UpdateAccountTransactionsView()
         {
@@ -29,11 +30,11 @@ namespace Accounting101.Views.Update
             InitializeComponent();
         }
 
-        public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, AccountWithTransactions account, List<AccountWithInfo> otherAccounts)
+        public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, AccountWithEverything account, List<AccountWithInfo> otherAccounts)
         {
             _dataStore = dataStore;
             _taskFactory = taskFactory;
-            _accountId = account.Id;
+            _accountId = account.Account.Id;
             _otherAccounts = otherAccounts;
             _viewModel.SetInfo(account, otherAccounts);
         }
@@ -45,7 +46,13 @@ namespace Accounting101.Views.Update
 
         public void Receive(UpdateTransactionLayoutMessage message)
         {
-            _viewModel.SetInfo(new AccountWithTransactions(_dataStore, _taskFactory, _accountId), _otherAccounts);
+            AccountWithEverything? account =
+                _taskFactory.Run(() => _dataStore.GetAccountWithEverythingAsync(_accountId));
+            if (account is null)
+            {
+                return;
+            }
+            _viewModel.SetInfo(account, _otherAccounts);
         }
 
         private void DataGridAutoGeneratingColumn(object? sender, DataGridAutoGeneratingColumnEventArgs e)
@@ -54,7 +61,7 @@ namespace Accounting101.Views.Update
             e.Column.Header = propertyDescriptor.DisplayName;
             switch (propertyDescriptor.DisplayName)
             {
-                case "Id":
+                case "Id" or "Editable":
                     e.Cancel = true;
                     return;
                 case "When":
@@ -123,6 +130,17 @@ namespace Accounting101.Views.Update
             balanceColumn.CellStyle = elementStyleRight;
             lastColumn.Width = new DataGridLength(5, DataGridLengthUnitType.Star);
             lastColumn.CellStyle = elementStyleRight;
+        }
+
+        private void DataGridLoadingRow(object? sender, DataGridRowEventArgs e)
+        {
+            TransactionInfoLine line = (TransactionInfoLine)e.Row.Item;
+            if (line.Editable)
+            {
+                return;
+            }
+            e.Row.IsHitTestVisible = false;
+            e.Row.Background = Brushes.LightGray;
         }
     }
 }

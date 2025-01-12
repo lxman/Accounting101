@@ -22,6 +22,21 @@ namespace Accounting101.Views.Read
 
         public string DebitCredit { get; private set; } = string.Empty;
 
+        public string CheckPointActive
+        {
+            get => _checkPointActive;
+            set
+            {
+                _checkPointActive = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ShowCheckPointActive));
+            }
+        }
+
+        public bool ShowCheckPointActive => !string.IsNullOrEmpty(CheckPointActive);
+
+        private string _checkPointActive = string.Empty;
+
         public decimal CurrentBalance
         {
             get => _currentBalance;
@@ -40,20 +55,24 @@ namespace Accounting101.Views.Read
             InitializeComponent();
         }
 
-        public void SetInfo(AccountWithInfo acct)
+        public void SetInfo(AccountWithEverything acct)
         {
-            Created = acct.Created.ToString("MM/dd/yyyy");
+            Created = acct.Account.Created.ToString("MM/dd/yyyy");
             AccountName = acct.Info.Name;
             CoAId = acct.Info.CoAId;
-            StartBalance = acct.StartBalance;
-            Type = acct.Type.ToString();
-            DebitCredit = acct.IsDebitAccount ? "Debit account" : "Credit account";
+            StartBalance = acct.Account.StartBalance;
+            Type = acct.Account.Type.ToString();
+            DebitCredit = acct.Account.IsDebitAccount ? "Debit account" : "Credit account";
             OnPropertyChanged(nameof(Created));
             OnPropertyChanged(nameof(AccountName));
             OnPropertyChanged(nameof(CoAId));
             OnPropertyChanged(nameof(StartBalance));
             OnPropertyChanged(nameof(Type));
             OnPropertyChanged(nameof(DebitCredit));
+            if (acct.CheckPoint is not null)
+            {
+                CheckPointActive = $"Check point active: {acct.CheckPoint.Date.ToString("MM/dd/yyyy")}";
+            }
         }
 
         private void AccountHeaderViewPreviewMouseDown(object sender, MouseButtonEventArgs e)
