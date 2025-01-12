@@ -57,5 +57,19 @@ namespace DataAccess
             }
             return await checkPoints.FindOneAsync(cp => cp.ClientId == clientId);
         }
+
+        public static async Task ClearCheckpointAsync(this IDataStore store, Guid clientId)
+        {
+            ILiteCollectionAsync<CheckPoint>? checkPoints = store.GetCollection<CheckPoint>(CollectionNames.CheckPoint);
+            if (checkPoints is null)
+            {
+                return;
+            }
+            CheckPoint? existing = await checkPoints.FindOneAsync(cp => cp.ClientId == clientId);
+            if (existing is not null)
+            {
+                await checkPoints.DeleteAsync(existing.Id);
+            }
+        }
     }
 }

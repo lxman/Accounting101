@@ -49,6 +49,8 @@
             x:Name="ScreenDisplayControl"
             Grid.Row="1"
             Background="Transparent"
+            RestartTransitionOnContentChange="True"
+            Transition="RightReplace"
             DataContext="{Binding ElementName=Self}"
             Content="{Binding CurrentScreen}"
             IsTabStop="False" />
