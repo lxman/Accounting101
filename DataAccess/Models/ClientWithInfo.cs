@@ -9,6 +9,11 @@ namespace DataAccess.Models
 
         public IAddress? Address { get; set; }
 
+        public ClientWithInfo()
+        {
+
+        }
+
         public ClientWithInfo(Client c, PersonName n, IAddress a)
         {
             BusinessName = c.BusinessName;

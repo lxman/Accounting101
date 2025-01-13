@@ -58,7 +58,7 @@ namespace Accounting101
         {
             RegistryKey softwareKey = Registry.CurrentUser.OpenSubKey("Software")!;
             RegistryKey? jsKey = softwareKey.OpenSubKey("JordanSoft");
-            RegistryKey? a101Key = jsKey?.OpenSubKey("Accounting101");
+            RegistryKey? a101Key = jsKey?.OpenSubKey("Accounting101", writable: true);
             if (a101Key is null)
             {
                 return;
@@ -66,7 +66,7 @@ namespace Accounting101
             _theme = (string?)a101Key.GetValue("ThemeName");
             if (string.IsNullOrWhiteSpace(_theme))
             {
-                a101Key.SetValue("ThemeName", "Light.Blue");
+                a101Key.SetValue("ThemeName", "Light.Blue", RegistryValueKind.String);
                 _theme = "Light.Blue";
             }
             ThemeManager.Current.ChangeTheme(this, _theme);
@@ -105,6 +105,8 @@ namespace Accounting101
             {
                 return WindowType.GetPassword;
             }
+            ConnectionString.ConnString = $"Filename={(string?)Registry.GetValue(@"HKEY_CURRENT_USER\Software\JordanSoft\Accounting101", "DbLocation", null)};";
+            store.InitDatabase();
 
             bool businessExists = taskFactory.Run(store.GetBusinessAsync) is not null;
             if (!businessExists)

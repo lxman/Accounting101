@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
+using LiteDB;
 using LiteDB.Async;
 
 namespace DataAccess
@@ -12,9 +13,10 @@ namespace DataAccess
     {
         public static async Task<bool> SetCheckpointAsync(this IDataStore store, Guid clientId, DateOnly date)
         {
+            Client? c = await store.GetClientWithInfoAsync(clientId);
             CheckPoint checkPoint = new(clientId, date);
             IEnumerable<AccountWithInfo>? accounts = await store.AccountsForClientAsync(clientId);
-            if (accounts is null)
+            if (accounts is null || c is null)
             {
                 return false;
             }
@@ -24,17 +26,21 @@ namespace DataAccess
             {
                 AccountWithInfo a = accountsList.ElementAt(x);
                 decimal balance = await store.GetAccountBalanceOnDateAsync(a.Id, date);
-                checkPoint.AccountCheckpoints.Add(new AccountCheckpoint(a.Id, balance));
+                checkPoint.AccountCheckpoints.Add(new AccountCheckpoint(clientId, a.Id, balance));
             }
 
             ILiteCollectionAsync<CheckPoint>? checkPoints = store.GetCollection<CheckPoint>(CollectionNames.CheckPoint);
-            if (checkPoints is null)
+            ILiteCollectionAsync<AccountCheckpoint>? accountCheckpoints = store.GetCollection<AccountCheckpoint>(CollectionNames.AccountCheckpoint);
+            if (checkPoints is null || accountCheckpoints is null)
             {
                 return false;
             }
+
+            Guid? id = null;
             if (await checkPoints.CountAsync() == 0)
             {
-                await checkPoints.InsertAsync(checkPoint);
+                id = (await checkPoints.InsertAsync(checkPoint)).AsGuid;
+                await accountCheckpoints.InsertBulkAsync(checkPoint.AccountCheckpoints);
             }
             else
             {
@@ -43,32 +49,48 @@ namespace DataAccess
                 {
                     await checkPoints.DeleteAsync(existing.Id);
                 }
-                await checkPoints.InsertAsync(checkPoint);
+                id = (await checkPoints.InsertAsync(checkPoint)).AsGuid;
+                await accountCheckpoints.InsertBulkAsync(checkPoint.AccountCheckpoints);
             }
+            c.CheckPointId = id;
+            await store.UpdateClientAsync(c);
             return true;
         }
 
         public static async Task<CheckPoint?> GetCheckpointAsync(this IDataStore store, Guid clientId)
         {
             ILiteCollectionAsync<CheckPoint>? checkPoints = store.GetCollection<CheckPoint>(CollectionNames.CheckPoint);
-            if (checkPoints is null)
+            ILiteCollectionAsync<AccountCheckpoint>? accountCheckpoints = store.GetCollection<AccountCheckpoint>(CollectionNames.AccountCheckpoint);
+            if (checkPoints is null || accountCheckpoints is null)
             {
                 return null;
             }
-            return await checkPoints.FindOneAsync(cp => cp.ClientId == clientId);
+
+            CheckPoint? checkPoint = await checkPoints.FindOneAsync(cp => cp.ClientId == clientId);
+            if (checkPoint is null)
+            {
+                return null;
+            }
+            checkPoint.AccountCheckpoints.AddRange(await accountCheckpoints.FindAsync(ac => ac.ClientId == clientId));
+            return checkPoint;
         }
 
         public static async Task ClearCheckpointAsync(this IDataStore store, Guid clientId)
         {
+            Client? c = await store.GetClientWithInfoAsync(clientId);
             ILiteCollectionAsync<CheckPoint>? checkPoints = store.GetCollection<CheckPoint>(CollectionNames.CheckPoint);
-            if (checkPoints is null)
+            if (checkPoints is null || c is null)
             {
                 return;
             }
             CheckPoint? existing = await checkPoints.FindOneAsync(cp => cp.ClientId == clientId);
-            if (existing is not null)
+            ILiteCollectionAsync<AccountCheckpoint>? accountCheckpoints = store.GetCollection<AccountCheckpoint>(CollectionNames.AccountCheckpoint);
+            if (existing is not null && accountCheckpoints is not null)
             {
+                await accountCheckpoints.DeleteManyAsync(ac => ac.ClientId == clientId);
                 await checkPoints.DeleteAsync(existing.Id);
+                c.CheckPointId = null;
+                await store.UpdateClientAsync(c);
             }
         }
     }

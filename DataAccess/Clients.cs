@@ -55,6 +55,13 @@ namespace DataAccess
             await addressCollection.UpdateAsync(client.Address);
         }
 
+        public static async Task UpdateClientAsync(this IDataStore store, Client client)
+        {
+            ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
+            await collection?.UpdateAsync(client);
+            store.NotifyChange(typeof(Client), ChangeType.Updated);
+        }
+
         public static async Task<Client?> FindClientByIdAsync(this IDataStore store, Guid id)
         {
             ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);

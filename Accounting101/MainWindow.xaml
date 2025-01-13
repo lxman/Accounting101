@@ -37,6 +37,7 @@
                 <MenuItem Header="_Business" Background="Transparent" Command="{Binding EditBusinessCommand}" Visibility="{Binding ShowEditBusinessCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <MenuItem Header="_Client" Background="Transparent" Command="{Binding EditClientCommand}" Visibility="{Binding ShowEditClientCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
                 <MenuItem Header="_Account" Background="Transparent" Command="{Binding EditAccountCommand}" Visibility="{Binding ShowEditAccountCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <MenuItem Header="Check_Point" Background="Transparent" Command="{Binding EditCheckPointCommand}" Visibility="{Binding ShowEditCheckPointCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
             </MenuItem>
             <MenuItem Header="_Reports" Background="Transparent" Visibility="{Binding ShowReportsMenu, Converter={StaticResource BooleanToVisibilityConverter}}">
                 <MenuItem Header="_Balance Sheet" Background="Transparent" Command="{Binding ReportsBalanceSheetCommand}" Visibility="{Binding ShowReportsBalanceSheetCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />

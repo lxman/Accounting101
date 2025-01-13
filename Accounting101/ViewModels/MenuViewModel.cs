@@ -89,7 +89,7 @@ namespace Accounting101.ViewModels
 
         public ICommand ExitCommand { get; }
 
-        public bool ShowEditMenu => ShowEditBusinessCommand || ShowEditClientCommand || ShowEditAccountCommand;
+        public bool ShowEditMenu => ShowEditBusinessCommand || ShowEditClientCommand || ShowEditAccountCommand || ShowEditCheckPointCommand;
 
         public ICommand EditBusinessCommand { get; }
 
@@ -123,6 +123,18 @@ namespace Accounting101.ViewModels
             set
             {
                 SetField(ref _showEditAccountCommand, value);
+                OnPropertyChanged(nameof(ShowEditMenu));
+            }
+        }
+
+        public ICommand EditCheckPointCommand { get; }
+
+        public bool ShowEditCheckPointCommand
+        {
+            get => _showEditCheckPointCommand;
+            set
+            {
+                SetField(ref _showEditCheckPointCommand, value);
                 OnPropertyChanged(nameof(ShowEditMenu));
             }
         }
@@ -220,6 +232,7 @@ namespace Accounting101.ViewModels
         private bool _showReportsProfitAndLossCommand;
         private bool _showClientListCommand;
         private bool _showChangeThemeCommand;
+        private bool _showEditCheckPointCommand;
         private WindowType _currentScreen;
 
         //private bool _showReportsIncomeStatementCommand;
@@ -243,6 +256,7 @@ namespace Accounting101.ViewModels
             NewAccountCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.CreateAccount)));
             EditBusinessCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.EditBusiness)));
             EditClientCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.EditClient)));
+            EditCheckPointCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.CheckPoints)));
             ChangeThemeCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.UpdateTheme)));
             ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
         }
@@ -257,7 +271,8 @@ namespace Accounting101.ViewModels
                 || CurrentScreen == WindowType.EditAccount
                 || CurrentScreen == WindowType.BalanceSheet
                 || CurrentScreen == WindowType.ProfitAndLoss
-                || CurrentScreen == WindowType.UpdateTheme;
+                || CurrentScreen == WindowType.UpdateTheme
+                || CurrentScreen == WindowType.CheckPoints;
             ShowNewClientCommand = (CurrentScreen == WindowType.EditBusiness && _clientExists)
                 || CurrentScreen == WindowType.CreateAccount
                 || CurrentScreen == WindowType.ClientList
@@ -298,6 +313,7 @@ namespace Accounting101.ViewModels
                 or WindowType.EditAccount
                 or WindowType.BalanceSheet
                 or WindowType.ProfitAndLoss;
+            ShowEditCheckPointCommand = ShowEditClientCommand;
         }
 
         public void SetSaveCommand(RelayCommand cmd)

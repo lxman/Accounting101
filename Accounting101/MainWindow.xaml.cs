@@ -221,6 +221,20 @@ namespace Accounting101
                     MenuViewModel.CurrentScreen = WindowType.UpdateTheme;
                     break;
 
+                case WindowType.CheckPoints:
+                    if (_client is null)
+                    {
+                        return;
+                    }
+                    _enableTransactionKeyWatcher = false;
+                    CreateCheckPointView createCheckPointView = new();
+                    createCheckPointView.SetInfo(_dataStore, _taskFactory, _client.Id);
+                    CurrentScreen = createCheckPointView;
+                    MenuViewModel.CurrentScreen = WindowType.CheckPoints;
+                    MenuViewModel.SetSaveCommand(new RelayCommand(() => createCheckPointView.Save()));
+                    MenuViewModel.ShowSaveCommand = true;
+                    break;
+
                 default:
                     throw new ArgumentOutOfRangeException();
             }

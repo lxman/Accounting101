@@ -10,7 +10,8 @@
              mc:Ignorable="d" 
              d:Background="Teal"
              d:DataContext="{d:DesignInstance create:CreateCheckPointViewModel}"
-             d:DesignHeight="450" d:DesignWidth="800">
+             d:DesignHeight="450" d:DesignWidth="800"
+             x:Name="Self">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="ControlVisibilityConverter" />
         <valueConverters:DateOnlyDateTimeConverter x:Key="DateTimeConverter" />
@@ -42,7 +43,13 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <controls:StyledLabel Grid.Column="0" LabelContent="There is an existing checkpoint at: " />
-            <controls:StyledLabel Grid.Column="1" LabelContent="{Binding Existing.Date, StringFormat='MM/dd/yyyy', Converter={StaticResource DateTimeConverter}}" d:LabelContent="1/1/2025" />
+            <Label
+                Grid.Column="1"
+                DataContext="{Binding ElementName=Self}"
+                VerticalContentAlignment="Center"
+                Foreground="{DynamicResource MahApps.Brushes.IdealForeground}"
+                Content="{Binding ViewModel.Existing.Date, StringFormat='MM/dd/yyyy', Converter={StaticResource DateTimeConverter}, FallbackValue=''}"
+                d:Content="1/1/2025" />
             <Button Grid.Column="2" MaxWidth="100" MinWidth="100" HorizontalAlignment="Left" mah:ControlsHelper.CornerRadius="10" Content="Delete" Command="{Binding DeleteCheckpoint}" />
         </Grid>
         <controls:StyledLabel Grid.Column="0" Grid.Row="3" LabelContent="Choose a date" />

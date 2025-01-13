@@ -57,7 +57,7 @@ namespace Accounting101.ViewModels.Create
 
         private void ClearCheckpoint()
         {
-            _taskFactory.Run(() => _dataStore.ClearCheckpointAsync(_existing!.Id));
+            _taskFactory.Run(() => _dataStore.ClearCheckpointAsync(_existing!.ClientId));
             Existing = null;
         }
     }

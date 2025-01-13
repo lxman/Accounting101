@@ -3,6 +3,7 @@
     public static class CollectionNames
     {
         public const string Account = nameof(Account);
+        public const string AccountCheckpoint = nameof(AccountCheckpoint);
         public const string AccountInfo = nameof(AccountInfo);
         public const string Address = nameof(Address);
         public const string Business = nameof(Business);

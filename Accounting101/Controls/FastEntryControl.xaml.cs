@@ -62,6 +62,12 @@ namespace Accounting101.Controls
             }
         }
 
+        public bool Enabled
+        {
+            get => _enabled;
+            set => SetProperty(ref _enabled, value);
+        }
+
         private Guid _id;
         private DateOnly _when;
         private bool _credit;
@@ -69,6 +75,7 @@ namespace Accounting101.Controls
         private string? _otherAccount = string.Empty;
         private decimal _amount;
         private bool _editing;
+        private bool _enabled;
 
         public FastEntryControl()
         {
@@ -95,8 +102,8 @@ namespace Accounting101.Controls
             {
                 return;
             }
-            DatePicker.Focus();
             SetEditingState(true, "creating");
+            DatePicker.Focus();
         }
 
         public void EditEntry(TransactionInfoLine entry)
@@ -112,6 +119,7 @@ namespace Accounting101.Controls
             OtherAccount = entry.OtherAccountInfo;
             Amount = entry.Credit.HasValue ? entry.Credit.Value.ToString(CultureInfo.CurrentCulture) : entry.Debit.HasValue ? entry.Debit.Value.ToString(CultureInfo.CurrentCulture) : "0";
             SetEditingState(true);
+            DatePicker.Focus();
         }
 
         public void AbortEdit()
@@ -184,6 +192,7 @@ namespace Accounting101.Controls
 
         private void SetEditingState(bool state, string type = "")
         {
+            Enabled = state;
             EditingStateChanged?.Invoke(this, state);
             if (!state)
             {

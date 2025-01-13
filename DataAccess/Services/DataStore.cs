@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using DataAccess.ZipCodeData;
+using LiteDB;
 using LiteDB.Async;
 using Microsoft.VisualStudio.Threading;
 using Microsoft.Win32;
