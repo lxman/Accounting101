@@ -6,6 +6,7 @@
         public const string AccountCheckpoint = nameof(AccountCheckpoint);
         public const string AccountInfo = nameof(AccountInfo);
         public const string Address = nameof(Address);
+        public const string AuditEntry = nameof(AuditEntry);
         public const string Business = nameof(Business);
         public const string CheckPoint = nameof(CheckPoint);
         public const string Client = nameof(Client);

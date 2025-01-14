@@ -24,8 +24,8 @@
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="Auto" />
         </Grid.ColumnDefinitions>
-        <DatePicker x:Name="DatePicker" Grid.Column="0" VerticalContentAlignment="Center" mah:ControlsHelper.CornerRadius="10" IsTabStop="True" SelectedDate="{Binding When, Converter={StaticResource DateConverter}}" />
-        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,10,0">
+        <DatePicker x:Name="DatePicker" Grid.Column="0" VerticalContentAlignment="Center" Background="{Binding DatePickerBackground}" mah:ControlsHelper.CornerRadius="10" IsTabStop="True" SelectedDate="{Binding When, Converter={StaticResource DateConverter}, Mode=TwoWay}" />
+        <StackPanel x:Name="CreditDebitPanel" Focusable="True" Grid.Column="1" VerticalAlignment="Center" Margin="10,0,10,0">
             <RadioButton x:Name="CreditButton" Content="Credit" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" IsTabStop="True" IsChecked="{Binding Credit}" />
             <RadioButton x:Name="DebitButton" Content="Debit" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" IsTabStop="True" IsChecked="{Binding Debit}" />
         </StackPanel>

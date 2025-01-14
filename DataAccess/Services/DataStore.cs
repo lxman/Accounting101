@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using DataAccess.Models;
+using DataAccess.Models.Auditing;
 using DataAccess.Services.Interfaces;
 using DataAccess.ZipCodeData;
 using LiteDB;
@@ -68,6 +69,12 @@ namespace DataAccess.Services
                 Directory.CreateDirectory(filePath);
             }
             CreateOrOpenDatabase();
+            ILiteCollectionAsync<AuditEntry>? entries = _db?.GetCollection<AuditEntry>(CollectionNames.AuditEntry);
+            if (entries is null)
+            {
+                throw new DataException("Error creating the AuditEntry collection.");
+            }
+            entries.InsertAsync(new AuditEntry() { Message = "Database created" }).GetAwaiter().GetResult();
         }
 
         public void NotifyChange(Type t, ChangeType ct)
@@ -132,7 +139,10 @@ namespace DataAccess.Services
 
         private void CreateOrOpenDatabase()
         {
-            if (string.IsNullOrWhiteSpace(ConnectionString.ConnString)) return;
+            if (string.IsNullOrWhiteSpace(ConnectionString.ConnString))
+            {
+                return;
+            }
             _db = new LiteDatabaseAsync(ConnectionString.ConnString);
             if (_db is null) throw new DataException("Error setting up database");
             JoinableTaskFactory jtf = new(new JoinableTaskCollection(new JoinableTaskContext()));

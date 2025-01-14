@@ -16,8 +16,8 @@ namespace Accounting101.Views.Update
     {
         private IDataStore _dataStore;
         private JoinableTaskFactory _taskFactory;
-        private Guid _accountId;
         private List<AccountWithInfo>? _otherAccounts;
+        private AccountWithEverything _account;
 
         public UpdateAccountEntriesView()
         {
@@ -30,7 +30,7 @@ namespace Accounting101.Views.Update
         {
             _dataStore = dataStore;
             _taskFactory = taskFactory;
-            _accountId = account.Account.Id;
+            _account = account;
             _otherAccounts = taskFactory.Run(() => dataStore.AccountsForClientAsync(client.Id))?.ToList();
             if (_otherAccounts is null)
             {
@@ -39,15 +39,18 @@ namespace Accounting101.Views.Update
 
             _otherAccounts.Remove(new AccountWithInfo(account.Account, account.Info));
             FastEntryControl.SetAccountList(_otherAccounts);
+            FastEntryControl.SetMinDate(account.Account.Created);
             AccountHeaderView.SetInfo(account);
             TransactionList.SetInfo(dataStore, taskFactory, account, _otherAccounts);
             FastEntryControl.EditingStateChanged += (sender, editing) => TransactionList.IsEnabled = !editing;
+            FastEntryControl.ErrorOccurred +=
+                (sender, error) => taskFactory.Run(() => dataStore.CreateAuditEntryAsync(error));
             UpdateAccountBalance();
         }
 
         private void UpdateAccountBalance()
         {
-            AccountHeaderView.CurrentBalance = _taskFactory.Run(() => _dataStore.GetAccountBalanceAsync(_accountId));
+            AccountHeaderView.CurrentBalance = _taskFactory.Run(() => _dataStore.GetAccountBalanceAsync(_account.Account.Id));
         }
 
         public void Receive(KeyPressedMessage message)
@@ -100,8 +103,9 @@ namespace Accounting101.Views.Update
 
                     bool wasCredited = line.Credit.HasValue;
                     decimal amount = line.Credit ?? line.Debit ?? 0;
-                    Transaction t = new(wasCredited ? _accountId : otherAccount.Value, wasCredited ? otherAccount.Value : _accountId, amount, line.When);
+                    Transaction t = new(wasCredited ? _account.Account.Id : otherAccount.Value, wasCredited ? otherAccount.Value : _account.Account.Id, amount, line.When);
                     _taskFactory.Run(() => _dataStore.CreateTransactionAsync(t));
+                    UpdateAccountBalance();
                     WeakReferenceMessenger.Default.Send(new UpdateTransactionLayoutMessage(null));
                     break;
             }

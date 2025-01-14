@@ -1,13 +1,19 @@
 ﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
+using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using Accounting101.Extensions;
 using Accounting101.Messages;
 using Accounting101.Models;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
+using ControlzEx.Theming;
 using DataAccess.Models;
+using DataAccess.Models.Auditing;
+using Timer = System.Timers.Timer;
 
 // ReSharper disable SwitchStatementMissingSomeEnumCasesNoDefault
 #pragma warning disable CS0169 // Field is never used
@@ -18,14 +24,40 @@ namespace Accounting101.Controls
     [ObservableObject]
     public partial class FastEntryControl : UserControl
     {
+        public event EventHandler<AuditEntry>? ErrorOccurred;
+
         public event EventHandler<bool>? EditingStateChanged;
 
         public ReadOnlyObservableCollection<string>? OtherAccounts { get; private set; }
 
+        public Brush DatePickerBackground
+        {
+            get => _datePickerBackground;
+            set => SetProperty(ref _datePickerBackground, value);
+        }
+
         public DateOnly When
         {
             get => _when;
-            set => SetProperty(ref _when, value);
+            set
+            {
+                DateTime date = value.ToDateTime(new TimeOnly());
+                if (date < DatePicker.DisplayDateStart)
+                {
+                    DatePicker.DisplayDate = DatePicker.DisplayDateStart ?? DateTime.Today;
+                    DatePicker.Text = DatePicker.DisplayDate.ToShortDateString();
+                    FlashDateBackgroundAsync(date);
+                }
+                else if (date > DatePicker.DisplayDateEnd)
+                {
+                    DatePicker.DisplayDate = DatePicker.DisplayDateEnd ?? DateTime.Today;
+                    DatePicker.Text = DatePicker.DisplayDate.ToShortDateString();
+                }
+                else
+                {
+                    SetProperty(ref _when, value);
+                }
+            }
         }
 
         public bool Credit
@@ -76,12 +108,55 @@ namespace Accounting101.Controls
         private decimal _amount;
         private bool _editing;
         private bool _enabled;
+        private Brush _datePickerBackground;
+        private readonly ToolTip _tooltip = new() { Content = "Transactions cannot predate the creation of the account" };
 
         public FastEntryControl()
         {
             DataContext = this;
             InitializeComponent();
             When = DateOnly.FromDateTime(DateTime.Now);
+            TypeConverter brushConverter = new BrushConverter();
+            Brush dark = (Brush)brushConverter.ConvertFromString("#FF252525")!;
+            DatePickerBackground = LightTheme() ? Brushes.White : dark;
+            DatePicker.ToolTip = _tooltip;
+        }
+
+        public Task FlashDateBackgroundAsync(DateTime date)
+        {
+            string accountCreationDate = DatePicker.DisplayDateStart.HasValue ? DatePicker.DisplayDateStart.Value.ToDateOnly().ToShortDateString() : "Unknown";
+            string message =
+                $"User attempted to create an entry dated {date.ToShortDateString()}. The date of account creation is {accountCreationDate}";
+            ErrorOccurred?.Invoke(this, new AuditEntry { Message = message });
+            int count = 0;
+            Brush originalBackground = DatePicker.Background;
+            _tooltip.IsOpen = true;
+            Timer t = new(500);
+            t.Elapsed += (sender, args) =>
+            {
+                count++;
+                if (DatePickerBackground == Brushes.Red)
+                {
+                    DatePickerBackground = originalBackground;
+                    _tooltip.Dispatcher.Invoke(() => _tooltip.IsOpen = false);
+                }
+                else
+                {
+                    DatePickerBackground = Brushes.Red;
+                    _tooltip.Dispatcher.Invoke(() => _tooltip.IsOpen = true);
+                }
+                if (count > 11)
+                {
+                    t.Stop();
+                    t.Dispose();
+                    DatePickerBackground = originalBackground;
+                    _tooltip.Dispatcher.Invoke(() => _tooltip.IsOpen = false);
+                }
+            };
+            DatePickerBackground = Brushes.Red;
+            t.AutoReset = true;
+            t.Start();
+            return Task.CompletedTask;
         }
 
         public void SetAccountList(List<AccountWithInfo> otherAccounts)
@@ -94,6 +169,11 @@ namespace Accounting101.Controls
             others = others.Order().ToList();
             OtherAccounts ??= new ReadOnlyObservableCollection<string>(new ObservableCollection<string>(others));
             OnPropertyChanged(nameof(OtherAccounts));
+        }
+
+        public void SetMinDate(DateOnly d)
+        {
+            DatePicker.DisplayDateStart = d.ToDateTime(new TimeOnly());
         }
 
         public void CreateNew()
@@ -143,13 +223,9 @@ namespace Accounting101.Controls
                 case Key.Tab:
                     if (DatePicker.IsKeyboardFocusWithin)
                     {
-                        CreditButton.Focus();
+                        CreditDebitPanel.Focus();
                     }
-                    else if (CreditButton.IsFocused)
-                    {
-                        DebitButton.Focus();
-                    }
-                    else if (DebitButton.IsFocused)
+                    else if (CreditDebitPanel.IsFocused)
                     {
                         AccountSelector.Focus();
                     }
@@ -210,6 +286,16 @@ namespace Accounting101.Controls
             Debit = false;
             OtherAccount = null;
             Amount = string.Empty;
+        }
+
+        private bool LightTheme()
+        {
+            Theme? theme = ThemeManager.Current.DetectTheme(Application.Current);
+            if (theme is null)
+            {
+                return true;
+            }
+            return theme.Name.Split('.')[0] == "Light";
         }
     }
 }

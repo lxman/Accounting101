@@ -58,7 +58,18 @@ namespace DataAccess
         public static async Task UpdateClientAsync(this IDataStore store, Client client)
         {
             ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
-            await collection?.UpdateAsync(client);
+            if (collection is null)
+            {
+                return;
+            }
+            await collection.UpdateAsync(new Client
+            {
+                AddressId = client.AddressId,
+                BusinessName = client.BusinessName,
+                CheckPointId = client.CheckPointId,
+                Id = client.Id,
+                PersonNameId = client.PersonNameId
+            });
             store.NotifyChange(typeof(Client), ChangeType.Updated);
         }
 

@@ -40,7 +40,7 @@ namespace Accounting101.ViewModels.Read
                 };
                 accounts.Add(avl);
             });
-            Source = new ReadOnlyObservableCollection<AccountsViewLine>(new ObservableCollection<AccountsViewLine>(accounts));
+            Source = new ReadOnlyObservableCollection<AccountsViewLine>(new ObservableCollection<AccountsViewLine>(accounts.OrderBy(a => a.CoAId)));
             OnPropertyChanged(nameof(Source));
             HasAccounts = accounts.Count > 0;
         }

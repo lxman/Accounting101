@@ -41,6 +41,7 @@ namespace Accounting101
             set
             {
                 _initialScreen = value;
+                MenuViewModel.CurrentScreen = value;
                 SetState();
             }
         }
