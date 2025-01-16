@@ -62,6 +62,7 @@ namespace Accounting101.Views.Update
                 case Key.Tab:
                     FastEntryControl.KeyPressed(message.Value);
                     break;
+
                 case Key.E:
                     TransactionInfoLine? ledgerLine = TransactionList.GetSelected();
                     if (ledgerLine is null)

@@ -64,6 +64,7 @@ namespace Accounting101.Views.Update
                 case "Id" or "Editable":
                     e.Cancel = true;
                     return;
+
                 case "When":
                     {
                         e.Column.Header = "Date";

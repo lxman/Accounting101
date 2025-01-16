@@ -24,7 +24,8 @@ namespace Accounting101
             IRecipient<FocusClientMessage>,
             IRecipient<SetEditAccountVisibleMessage>,
             IRecipient<BusinessEditedMessage>,
-            IRecipient<EditingTransactionMessage>
+            IRecipient<EditingTransactionMessage>,
+            IRecipient<EditAccountMessage>
     {
         public static readonly DependencyProperty CurrentScreenProperty = DependencyProperty.Register(
             nameof(CurrentScreen), typeof(object), typeof(MainWindow), new PropertyMetadata(default(object)));
@@ -107,6 +108,20 @@ namespace Accounting101
             }
             _accountId = message.Value;
             MenuViewModel.ShowEditAccountCommand = true;
+        }
+
+        public void Receive(EditAccountMessage message)
+        {
+            if (_accountId is null || !message.Value)
+            {
+                return;
+            }
+            if (CurrentScreen is ClientWithAccountListView clientWithAccountListView)
+            {
+                clientWithAccountListView.UpdateAccountInfo(_taskFactory.Run(() => _dataStore.GetAccountWithInfoAsync(_accountId.Value)));
+                MenuViewModel.SetSaveCommand(new RelayCommand(() => clientWithAccountListView.SaveAccountChanges()));
+                MenuViewModel.ShowSaveCommand = true;
+            }
         }
 
         public void Receive(ChangeScreenMessage message)

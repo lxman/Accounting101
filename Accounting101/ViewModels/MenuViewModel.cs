@@ -258,6 +258,7 @@ namespace Accounting101.ViewModels
             EditClientCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.EditClient)));
             EditCheckPointCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.CheckPoints)));
             ChangeThemeCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.UpdateTheme)));
+            EditAccountCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new EditAccountMessage(true)));
             ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
         }
 

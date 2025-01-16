@@ -17,6 +17,7 @@
         <local:ClientHeaderView x:Name="ClientHeader" Grid.Row="0" />
         <local:AccountsView x:Name="AccountsGrid" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" d:Visibility="Hidden" />
         <create:CreateCoAView x:Name="CreateCoAView" Grid.Row="1" d:Visibility="Hidden" />
+        <update:UpdateAccountView x:Name="EditAccount" Grid.Row="1" d:Visibility="Hidden" />
         <update:UpdateAccountEntriesView x:Name="AccountEntriesEditor" Grid.Row="1" Background="Transparent" d:Visibility="Visible" />
     </Grid>
 </UserControl>

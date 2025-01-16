@@ -7,6 +7,8 @@ using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 
+#pragma warning disable CS8618, CS9264
+
 namespace Accounting101.Views.Read
 {
     public partial class ClientWithAccountListView : UserControl, IRecipient<ShowAccountTransactionEditor>
@@ -15,6 +17,7 @@ namespace Accounting101.Views.Read
         private readonly JoinableTaskFactory _taskFactory;
         private readonly ClientWithInfo _client;
         private Guid? _accountId;
+        private AccountWithInfo _account;
 
         public ClientWithAccountListView(IDataStore dataStore, JoinableTaskFactory taskFactory, ClientWithInfo client)
         {
@@ -37,6 +40,7 @@ namespace Accounting101.Views.Read
                 AccountsGrid.Visibility = Visibility.Hidden;
                 AccountEntriesEditor.Visibility = Visibility.Hidden;
                 CreateCoAView.Visibility = Visibility.Visible;
+                EditAccount.Visibility = Visibility.Hidden;
                 CreateCoAView.SetInfo(dataStore, taskFactory, client);
             }
             else
@@ -44,24 +48,8 @@ namespace Accounting101.Views.Read
                 AccountsGrid.Visibility = Visibility.Visible;
                 AccountEntriesEditor.Visibility = Visibility.Hidden;
                 CreateCoAView.Visibility = Visibility.Hidden;
+                EditAccount.Visibility = Visibility.Hidden;
             }
-        }
-
-        private void CreateCoAViewCoACreated(object? sender, EventArgs e)
-        {
-            CreateCoAView.Visibility = Visibility.Hidden;
-            AccountsGrid.SetInfo(_dataStore, _taskFactory, _client);
-            AccountsGrid.Visibility = Visibility.Visible;
-        }
-
-        private void AccountEntriesEditorVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
-        {
-            if (!(bool)e.NewValue)
-            {
-                _accountId = null;
-            }
-            WeakReferenceMessenger.Default.Send(
-                new SetEditAccountVisibleMessage(_accountId));
         }
 
         public void Receive(ShowAccountTransactionEditor message)
@@ -83,6 +71,54 @@ namespace Accounting101.Views.Read
             AccountEntriesEditor.Visibility = Visibility.Visible;
             AccountsGrid.Visibility = Visibility.Hidden;
             CreateCoAView.Visibility = Visibility.Hidden;
+        }
+
+        public void UpdateAccountInfo(AccountWithInfo account)
+        {
+            _accountId = account.Id;
+            AccountsGrid.Visibility = Visibility.Hidden;
+            EditAccount.Visibility = Visibility.Visible;
+            AccountEntriesEditor.Visibility = Visibility.Hidden;
+            EditAccount.SetAccount(account);
+            EditAccount.SaveChanges += EditAccountSaveChanges;
+        }
+
+        public void SaveAccountChanges()
+        {
+            EditAccount.SaveAccountChanges();
+        }
+
+        private void EditAccountSaveChanges(object? sender, AccountWithInfo? e)
+        {
+            if (e is null)
+            {
+                return;
+            }
+            _taskFactory.Run(() => _dataStore.UpdateAccountAsync(e));
+            EditAccount.Visibility = Visibility.Hidden;
+            AccountEntriesEditor.Visibility = Visibility.Visible;
+        }
+
+        private void CreateCoAViewCoACreated(object? sender, EventArgs e)
+        {
+            CreateCoAView.Visibility = Visibility.Hidden;
+            AccountsGrid.SetInfo(_dataStore, _taskFactory, _client);
+            AccountsGrid.Visibility = Visibility.Visible;
+        }
+
+        private void AccountEntriesEditorVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (!(bool)e.NewValue && EditAccount.Visibility != Visibility.Visible)
+            {
+                _accountId = null;
+                WeakReferenceMessenger.Default.Send(
+                    new SetEditAccountVisibleMessage(_accountId));
+                return;
+            }
+
+            WeakReferenceMessenger.Default.Send(
+                new SetEditAccountVisibleMessage(_accountId));
+            _account = _taskFactory.Run(() => _dataStore.GetAccountWithInfoAsync(_accountId.Value));
         }
     }
 }
