@@ -259,6 +259,8 @@ namespace Accounting101.ViewModels
             EditCheckPointCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.CheckPoints)));
             ChangeThemeCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.UpdateTheme)));
             EditAccountCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new EditAccountMessage(true)));
+            ReportsBalanceSheetCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.BalanceSheet)));
+            ReportsProfitAndLossCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ProfitAndLoss)));
             ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
         }
 
@@ -315,6 +317,16 @@ namespace Accounting101.ViewModels
                 or WindowType.BalanceSheet
                 or WindowType.ProfitAndLoss;
             ShowEditCheckPointCommand = ShowEditClientCommand;
+            ShowReportsBalanceSheetCommand = CurrentScreen is WindowType.CreateAccount
+                or WindowType.ClientAccountList
+                or WindowType.EditClient
+                or WindowType.EditAccount
+                or WindowType.ProfitAndLoss;
+            ShowReportsProfitAndLossCommand = CurrentScreen is WindowType.CreateAccount
+                or WindowType.ClientAccountList
+                or WindowType.EditClient
+                or WindowType.EditAccount
+                or WindowType.BalanceSheet;
         }
 
         public void SetSaveCommand(RelayCommand cmd)

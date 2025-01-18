@@ -108,7 +108,7 @@ namespace Accounting101.Views.Read
 
         private void AccountEntriesEditorVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (!(bool)e.NewValue && EditAccount.Visibility != Visibility.Visible)
+            if (EditAccount.Visibility != Visibility.Visible)
             {
                 _accountId = null;
                 WeakReferenceMessenger.Default.Send(

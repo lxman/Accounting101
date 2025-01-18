@@ -3,14 +3,12 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:local="clr-namespace:Accounting101.Controls"
              mc:Ignorable="d"
-             d:DataContext="{d:DesignInstance local:StyledLabel}"
              d:Background="Teal"
              Background="Transparent"
-             d:DesignHeight="25" d:DesignWidth="50">
+             d:DesignHeight="25" d:DesignWidth="50"
+             x:Name="StyledLabelControl">
     <Label
-        Content="{Binding LabelContent}"
-        d:Content="{Binding LabelContent}"
+        Content="{Binding LabelContent, ElementName=StyledLabelControl}"
         Foreground="{DynamicResource MahApps.Brushes.IdealForeground}" />
 </UserControl>

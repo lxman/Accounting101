@@ -16,7 +16,6 @@ namespace Accounting101.Controls
 
         public StyledLabel()
         {
-            DataContext = this;
             InitializeComponent();
         }
     }

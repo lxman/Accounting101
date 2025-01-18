@@ -4,6 +4,7 @@ using Accounting101.Messages;
 using Accounting101.ViewModels;
 using Accounting101.Views.Create;
 using Accounting101.Views.Read;
+using Accounting101.Views.Read.Reports;
 using Accounting101.Views.Update;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -222,13 +223,25 @@ namespace Accounting101
                     break;
 
                 case WindowType.BalanceSheet:
+                    if (_client is null)
+                    {
+                        return;
+                    }
                     _enableTransactionKeyWatcher = false;
                     MenuViewModel.CurrentScreen = WindowType.BalanceSheet;
+                    CurrentScreen = new BalanceSheetView(_dataStore, _taskFactory, _client.Id);
+                    MenuViewModel.ShowSaveCommand = false;
                     break;
 
                 case WindowType.ProfitAndLoss:
+                    if (_client is null)
+                    {
+                        return;
+                    }
                     _enableTransactionKeyWatcher = false;
                     MenuViewModel.CurrentScreen = WindowType.ProfitAndLoss;
+                    CurrentScreen = new ProfitAndLossView(_dataStore, _taskFactory, _client.Id);
+                    MenuViewModel.ShowSaveCommand = false;
                     break;
 
                 case WindowType.UpdateTheme:
