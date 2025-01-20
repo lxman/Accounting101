@@ -10,26 +10,32 @@
              d:DataContext="{d:DesignInstance local:ReportSectionView}"
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="6*" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <controls:StyledLabel Grid.Row="0" LabelContent="{Binding SectionHeader}" d:LabelContent="Assets" />
-        <ListView Grid.Row="1" ItemsSource="{Binding Accounts}" Background="Transparent" d:Background="Transparent" d:ItemsSource="{d:SampleData ItemCount=5}">
+        <ListView Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Grid.IsSharedSizeScope="True" ItemsSource="{Binding Accounts}" Background="Transparent" d:Background="Transparent" d:ItemsSource="{d:SampleData ItemCount=5}">
             <ListView.ItemTemplate>
                 <ItemContainerTemplate>
                     <Grid Background="Transparent" d:Background="Transparent">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                            <ColumnDefinition />
-                            <ColumnDefinition />
-                            <ColumnDefinition />
-                            <ColumnDefinition />
+                            <ColumnDefinition Width="*" SharedSizeGroup="SpacerColumn" />
+                            <ColumnDefinition Width="*" SharedSizeGroup="CoaIdColumn" />
+                            <ColumnDefinition Width="*" SharedSizeGroup="NameColumn" />
+                            <ColumnDefinition Width="3*" />
+                            <ColumnDefinition Width="*" SharedSizeGroup="CurrentBalanceColumn" />
                         </Grid.ColumnDefinitions>
+                        <controls:StyledLabel Grid.Column="0" LabelContent="    " />
                         <controls:StyledLabel Grid.Column="1" LabelContent="{Binding CoAId}" />
                         <controls:StyledLabel Grid.Column="2" LabelContent="{Binding Name}" />
-                        <controls:StyledLabel Grid.Column="4" LabelContent="{Binding CurrentBalance}" />
+                        <controls:StyledLabel Grid.Column="4" LabelContent="{Binding CurrentBalance}" HorizontalAlignment="Right" />
                     </Grid>
                 </ItemContainerTemplate>
             </ListView.ItemTemplate>
@@ -43,6 +49,8 @@
                 </Style>
             </ListView.Resources>
         </ListView>
-        <controls:StyledLabel Grid.Row="2" LabelContent="{Binding Total}" HorizontalContentAlignment="Right" />
+        <Separator Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="3" LabelContent="Total:" HorizontalContentAlignment="Right" />
+        <controls:StyledLabel Grid.Column="1" Grid.Row="3" LabelContent="{Binding Total}" HorizontalContentAlignment="Right" />
     </Grid>
 </UserControl>

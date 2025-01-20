@@ -5,24 +5,22 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Accounting101.Views.Read.Reports"
              xmlns:controls="clr-namespace:Accounting101.Controls"
+             xmlns:valueConverters="clr-namespace:Accounting101.ValueConverters"
              mc:Ignorable="d" 
              d:Background="Teal"
+             d:DataContext="{d:DesignInstance local:ProfitAndLossView}"
              d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.Resources>
+        <valueConverters:DateOnlyDateTimeConverter x:Key="DateTimeConverter" />
+    </UserControl.Resources>
     <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" />
-            <ColumnDefinition Width="*" />
-        </Grid.ColumnDefinitions>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <controls:HeaderLabel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" LabelContent="Profit and Loss" />
-        <Grid Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2">
+        <controls:HeaderLabel Grid.Row="0" LabelContent="Profit and Loss" />
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
@@ -36,13 +34,22 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <controls:StyledLabel Grid.Column="0" LabelContent="From" />
-                <DatePicker Grid.Column="1" />
+                <DatePicker Grid.Column="1" SelectedDate="{Binding StartDate, Converter={StaticResource DateTimeConverter}}" />
                 <controls:StyledLabel Grid.Column="2" LabelContent="To" />
-                <DatePicker Grid.Column="3" />
+                <DatePicker Grid.Column="3" SelectedDate="{Binding EndDate, Converter={StaticResource DateTimeConverter}}" />
             </Grid>
         </Grid>
-        <local:ReportSectionView x:Name="Revenue" Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2" />
-        <local:ReportSectionView x:Name="Expenses" Grid.Column="0" Grid.Row="3" Grid.ColumnSpan="2" />
-        <local:ReportSectionView x:Name="Earnings" Grid.Column="0" Grid.Row="4" Grid.ColumnSpan="2" />
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+            <Grid IsHitTestVisible="False">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <local:ReportSectionView x:Name="Revenue" Grid.Row="0" />
+                <local:ReportSectionView x:Name="Expenses" Grid.Row="1" />
+                <local:ReportSectionView x:Name="Earnings" Grid.Row="2" />
+            </Grid>
+        </ScrollViewer>
     </Grid>
 </UserControl>

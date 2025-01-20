@@ -17,17 +17,6 @@ namespace Accounting101.Views.Read.Reports
 
         public ReadOnlyObservableCollection<AccountsViewLine> Accounts { get; private set; }
 
-        public DateOnly Date
-        {
-            get => _date;
-            set
-            {
-                _date = value;
-                OnPropertyChanged();
-                CalculateBalances();
-            }
-        }
-
         public decimal Total
         {
             get => _total;
@@ -39,10 +28,12 @@ namespace Accounting101.Views.Read.Reports
         }
 
         private decimal _total;
-        private DateOnly _date;
+        private DateOnly _startDate;
+        private DateOnly _endDate;
         private IDataStore _dataStore;
         private JoinableTaskFactory _taskFactory;
         private List<AccountWithInfo> _accounts;
+        private bool _isBalanceReport;
 
         public ReportSectionView()
         {
@@ -50,14 +41,37 @@ namespace Accounting101.Views.Read.Reports
             InitializeComponent();
         }
 
-        public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, string sectionHeader, List<AccountWithInfo> accounts, DateOnly date)
+        public void SetInfo(
+            IDataStore dataStore,
+            JoinableTaskFactory taskFactory,
+            string sectionHeader,
+            List<AccountWithInfo> accounts,
+            DateOnly startDate,
+            DateOnly endDate,
+            bool isBalanceReport)
         {
             _dataStore = dataStore;
             _taskFactory = taskFactory;
             _accounts = accounts;
+            _isBalanceReport = isBalanceReport;
             SectionHeader = sectionHeader;
             OnPropertyChanged(nameof(SectionHeader));
-            Date = date;
+            Recalculate(startDate, endDate);
+        }
+
+        public void Recalculate(DateOnly startDate, DateOnly endDate)
+        {
+            if (_isBalanceReport)
+            {
+                _endDate = endDate;
+                CalculateBalances();
+            }
+            else
+            {
+                _startDate = startDate;
+                _endDate = endDate;
+                CalculateChanges();
+            }
         }
 
         private void CalculateBalances()
@@ -66,13 +80,40 @@ namespace Accounting101.Views.Read.Reports
             _total = 0;
             _accounts.ForEach(a =>
             {
-                decimal balance = _taskFactory.Run(() => _dataStore.GetAccountBalanceOnDateAsync(a.Id, Date));
+                decimal balance = _taskFactory.Run(() => _dataStore.GetAccountBalanceOnDateAsync(a.Id, _endDate));
                 _total += balance;
                 accounts.Add(new AccountsViewLine
                 {
                     CoAId = a.Info.CoAId,
                     Created = a.Created,
                     CurrentBalance = balance,
+                    Id = a.Id,
+                    Name = a.Info.Name,
+                    Type = a.Type,
+                    StartBalance = a.StartBalance
+                });
+            });
+            Accounts = new ReadOnlyObservableCollection<AccountsViewLine>(
+                new ObservableCollection<AccountsViewLine>(accounts));
+            OnPropertyChanged(nameof(Accounts));
+            OnPropertyChanged(nameof(Total));
+        }
+
+        private void CalculateChanges()
+        {
+            List<AccountsViewLine> accounts = [];
+            _total = 0;
+            _accounts.ForEach(a =>
+            {
+                decimal startBalance = _taskFactory.Run(() => _dataStore.GetAccountBalanceOnDateAsync(a.Id, _startDate));
+                decimal endBalance = _taskFactory.Run(() => _dataStore.GetAccountBalanceOnDateAsync(a.Id, _endDate));
+                decimal change = endBalance - startBalance;
+                _total += change;
+                accounts.Add(new AccountsViewLine
+                {
+                    CoAId = a.Info.CoAId,
+                    Created = a.Created,
+                    CurrentBalance = change,
                     Id = a.Id,
                     Name = a.Info.Name,
                     Type = a.Type,
