@@ -2,16 +2,16 @@
 {
     public class ZipCodeEntry
     {
-        public string City { get; set; }
+        public string City { get; set; } = string.Empty;
 
-        public string State { get; set; }
+        public string State { get; set; } = string.Empty;
 
-        public string Zip { get; set; }
+        public string Zip { get; set; } = string.Empty;
 
-        public string AreaCode { get; set; }
+        public string AreaCode { get; set; } = string.Empty;
 
-        public string Fips { get; set; }
+        public string Fips { get; set; } = string.Empty;
 
-        public string County { get; set; }
+        public string County { get; set; } = string.Empty;
     }
 }

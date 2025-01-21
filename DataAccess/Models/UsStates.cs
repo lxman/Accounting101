@@ -3,6 +3,7 @@ using System.Linq;
 using DataAccess.Services.Interfaces;
 using DataAccess.ZipCodeData;
 using LiteDB.Async;
+#pragma warning disable VSTHRD002
 
 namespace DataAccess.Models
 {

@@ -23,7 +23,6 @@ namespace DataAccess
 
                 default:
                     throw new ArgumentException($"CoA type {type} not found.");
-                    break;
             }
         }
     }

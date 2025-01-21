@@ -28,7 +28,7 @@ namespace DataAccess
 
         public static async Task<bool> ClientsExistAsync(this IDataStore store)
         {
-            int count = await store.GetCollection<Client>(CollectionNames.Client)?.CountAsync();
+            int count = await store.GetCollection<Client>(CollectionNames.Client)?.CountAsync()!;
             return count > 0;
         }
 
@@ -42,8 +42,8 @@ namespace DataAccess
         public static async Task UpdateClientAsync(this IDataStore store, ClientWithInfo client)
         {
             ILiteCollectionAsync<Client> clientCollection = store.GetCollection<Client>(CollectionNames.Client)!;
-            ILiteCollectionAsync<PersonName> personNameCollection = store.GetCollection<PersonName>(CollectionNames.PersonName)!;
-            ILiteCollectionAsync<IAddress> addressCollection = store.GetCollection<IAddress>(CollectionNames.Address)!;
+            ILiteCollectionAsync<PersonName?> personNameCollection = store.GetCollection<PersonName>(CollectionNames.PersonName)!;
+            ILiteCollectionAsync<IAddress?> addressCollection = store.GetCollection<IAddress>(CollectionNames.Address)!;
             await clientCollection.UpdateAsync(new Client
             {
                 AddressId = client.AddressId,

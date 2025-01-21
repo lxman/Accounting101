@@ -248,7 +248,7 @@ namespace Accounting101.Controls
 
                 case Key.Delete:
                     IInputElement focused = Keyboard.FocusedElement;
-                    SimulateKeyEvent(focused, Key.Delete, Keyboard.KeyDownEvent);
+                    SimulateKeyDownEvent(focused, Key.Delete);
                     break;
             }
         }
@@ -274,9 +274,9 @@ namespace Accounting101.Controls
             return null;
         }
 
-        private void SimulateKeyEvent(IInputElement c, Key k, RoutedEvent e)
+        private static void SimulateKeyDownEvent(IInputElement c, Key k)
         {
-            c.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, Keyboard.PrimaryDevice.ActiveSource, 0, k) { RoutedEvent = e });
+            c.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, Keyboard.PrimaryDevice.ActiveSource, 0, k) { RoutedEvent = Keyboard.KeyDownEvent });
         }
 
         private void SetEditingState(bool state, string type = "")

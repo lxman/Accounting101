@@ -1,5 +1,6 @@
 ﻿using DataAccess.Interfaces;
 using DataAccess.Services.Interfaces;
+#pragma warning disable VSTHRD002
 
 namespace DataAccess.Models
 {

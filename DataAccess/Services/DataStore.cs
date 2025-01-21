@@ -12,6 +12,7 @@ using LiteDB;
 using LiteDB.Async;
 using Microsoft.VisualStudio.Threading;
 using Microsoft.Win32;
+#pragma warning disable VSTHRD002
 
 #pragma warning disable CA1416
 
