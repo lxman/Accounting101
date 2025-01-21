@@ -5,10 +5,14 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Accounting101.Views.Read.Reports"
              xmlns:controls="clr-namespace:Accounting101.Controls"
+             xmlns:valueConverters="clr-namespace:Accounting101.ValueConverters"
              mc:Ignorable="d" 
              d:Background="Teal"
              d:DataContext="{d:DesignInstance local:ReportSectionView}"
              d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.Resources>
+        <valueConverters:DecimalToAccountingStringConverter x:Key="AccountingStringConverter" />
+    </UserControl.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="6*" />
@@ -35,7 +39,7 @@
                         <controls:StyledLabel Grid.Column="0" LabelContent="    " />
                         <controls:StyledLabel Grid.Column="1" LabelContent="{Binding CoAId}" />
                         <controls:StyledLabel Grid.Column="2" LabelContent="{Binding Name}" />
-                        <controls:StyledLabel Grid.Column="4" LabelContent="{Binding CurrentBalance}" HorizontalAlignment="Right" />
+                        <controls:StyledLabel Grid.Column="4" LabelContent="{Binding CurrentBalance, Converter={StaticResource AccountingStringConverter}}" HorizontalAlignment="Right" />
                     </Grid>
                 </ItemContainerTemplate>
             </ListView.ItemTemplate>
@@ -51,6 +55,6 @@
         </ListView>
         <Separator Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2" />
         <controls:StyledLabel Grid.Column="0" Grid.Row="3" LabelContent="Total:" HorizontalContentAlignment="Right" />
-        <controls:StyledLabel Grid.Column="1" Grid.Row="3" LabelContent="{Binding Total}" HorizontalContentAlignment="Right" />
+        <controls:StyledLabel Grid.Column="1" Grid.Row="3" Margin="0,0,4,0" LabelContent="{Binding Total, Converter={StaticResource AccountingStringConverter}}" HorizontalContentAlignment="Right" />
     </Grid>
 </UserControl>

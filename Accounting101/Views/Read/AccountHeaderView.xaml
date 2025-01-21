@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:local="clr-namespace:Accounting101.Views.Read"
              xmlns:controls="clr-namespace:Accounting101.Controls"
+             xmlns:valueConverters="clr-namespace:Accounting101.ValueConverters"
              mc:Ignorable="d"
              d:Background="Teal"
              d:DataContext="{d:DesignInstance local:AccountHeaderView}"
@@ -13,6 +14,7 @@
              PreviewMouseDown="AccountHeaderViewPreviewMouseDown">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="VisibilityConverter" />
+        <valueConverters:DecimalToAccountingStringConverter x:Key="AccountingStringConverter" />
     </UserControl.Resources>
     <Grid>
         <Grid.ColumnDefinitions>
@@ -36,12 +38,12 @@
         <controls:StyledLabel Grid.Column="4" Grid.Row="0" LabelContent="Created" />
         <TextBlock Grid.Column="5" Grid.Row="0" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding Created}" d:Text="1/6/2025" />
         <controls:StyledLabel Grid.Column="0" Grid.Row="1" LabelContent="Starting Balance" />
-        <TextBlock Grid.Column="1" Grid.Row="1" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding StartBalance, StringFormat='#,##0.00;(#,##0.00);0'}" d:Text="10.00" />
+        <TextBlock Grid.Column="1" Grid.Row="1" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding StartBalance, Converter={StaticResource AccountingStringConverter}}" d:Text="10.00" />
         <controls:StyledLabel Grid.Column="2" Grid.Row="1" LabelContent="Type" />
         <TextBlock Grid.Column="3" Grid.Row="1" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding Type}" d:Text="Asset" />
         <Label Grid.Column="4" Grid.Row="1" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Content="{Binding DebitCredit}" d:Content="Debit account" />
         <Label Grid.Column="6" Grid.Row="1" VerticalAlignment="Center" Content="{Binding CheckPointActive}" Visibility="{Binding ShowCheckPointActive, Converter={StaticResource VisibilityConverter}}" Foreground="Red" />
         <controls:StyledLabel Grid.Column="6" Grid.Row="0" HorizontalAlignment="Right" LabelContent="Current balance" />
-        <TextBlock Grid.Column="7" Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Center" Text="{Binding CurrentBalance}" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" d:Text="42.42" />
+        <TextBlock Grid.Column="7" Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Center" Text="{Binding CurrentBalance, Converter={StaticResource AccountingStringConverter}}" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" d:Text="42.42" />
     </Grid>
 </UserControl>

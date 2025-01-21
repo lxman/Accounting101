@@ -1,9 +1,11 @@
 ﻿using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Media;
 using Accounting101.Messages;
 using Accounting101.Models;
+using Accounting101.ValueConverters;
 using Accounting101.ViewModels.Update;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess;
@@ -22,6 +24,9 @@ namespace Accounting101.Views.Update
         private JoinableTaskFactory _taskFactory;
         private List<AccountWithInfo> _otherAccounts;
         private Guid _accountId;
+        private readonly Binding _creditBinding = new("Credit") { Converter = new DecimalToAccountingStringConverter() };
+        private readonly Binding _debitBinding = new("Debit") { Converter = new DecimalToAccountingStringConverter() };
+        private readonly Binding _balanceBinding = new("Balance") { Converter = new DecimalToAccountingStringConverter() };
 
         public UpdateAccountTransactionsView()
         {
@@ -104,6 +109,10 @@ namespace Accounting101.Views.Update
             DataGridColumn? debitColumn = dataGrid.Columns.First(c => c.Header.ToString() == "Debit");
             DataGridColumn? balanceColumn = dataGrid.Columns.First(c => c.Header.ToString() == "Balance");
             DataGridColumn? lastColumn = dataGrid.Columns.Last();
+
+            ((DataGridTextColumn)creditColumn).Binding = _creditBinding;
+            ((DataGridTextColumn)debitColumn).Binding = _debitBinding;
+            ((DataGridTextColumn)balanceColumn).Binding = _balanceBinding;
 
             Style elementStyle = new(typeof(DataGridCell), firstColumn.CellStyle);
             firstColumn.CellStyle ??= new Style();
