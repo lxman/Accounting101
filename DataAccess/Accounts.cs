@@ -55,7 +55,7 @@ namespace DataAccess
         {
             AccountWithInfo? acct = await store.GetAccountWithInfoAsync(accountId);
             if (acct is null) return null;
-            List<Transaction> transactions = (await store.TransactionsForAccountAsync(acct.Id)) ?? [];
+            List<Transaction> transactions = (await store.TransactionsForAccountAsync(acct.Id))?.OrderBy(t => t.When).ToList() ?? [];
             CheckPoint? checkPoint = await store.GetCheckpointAsync(acct.Id);
             return new AccountWithEverything(acct, transactions, checkPoint);
         }

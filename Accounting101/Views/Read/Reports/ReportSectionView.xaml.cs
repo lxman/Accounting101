@@ -94,7 +94,7 @@ namespace Accounting101.Views.Read.Reports
                 });
             });
             Accounts = new ReadOnlyObservableCollection<AccountsViewLine>(
-                new ObservableCollection<AccountsViewLine>(accounts));
+                new ObservableCollection<AccountsViewLine>(accounts.OrderBy(a => a.CoAId)));
             OnPropertyChanged(nameof(Accounts));
             OnPropertyChanged(nameof(Total));
         }
@@ -121,7 +121,7 @@ namespace Accounting101.Views.Read.Reports
                 });
             });
             Accounts = new ReadOnlyObservableCollection<AccountsViewLine>(
-                new ObservableCollection<AccountsViewLine>(accounts));
+                new ObservableCollection<AccountsViewLine>(accounts.OrderBy(a => a.CoAId)));
             OnPropertyChanged(nameof(Accounts));
             OnPropertyChanged(nameof(Total));
         }

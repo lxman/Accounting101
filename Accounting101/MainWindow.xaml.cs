@@ -62,6 +62,7 @@ namespace Accounting101
         private static readonly List<Key> TransactionKeys =
         [
             Key.E,
+            Key.Delete,
             Key.N
         ];
 
@@ -71,7 +72,6 @@ namespace Accounting101
             Key.D,
             Key.Escape,
             Key.Return,
-            Key.Delete,
             Key.Tab
         ];
 

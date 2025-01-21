@@ -67,7 +67,7 @@ namespace Accounting101.ViewModels.Update
                         account.CheckPoint is null || (account.CheckPoint is not null && t.When > account.CheckPoint.Date)));
             });
             Transactions = null;
-            Transactions = new ReadOnlyObservableCollection<TransactionInfoLine>(new ObservableCollection<TransactionInfoLine>(ledgerLines));
+            Transactions = new ReadOnlyObservableCollection<TransactionInfoLine>(new ObservableCollection<TransactionInfoLine>(ledgerLines.OrderBy(l => l.When)));
             OnPropertyChanged(nameof(Transactions));
         }
 

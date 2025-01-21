@@ -100,13 +100,16 @@ namespace Accounting101.Controls
             set => SetProperty(ref _enabled, value);
         }
 
+        public bool Editing { get; private set; }
+
+        public bool EditingNew { get; private set; }
+
         private Guid _id;
         private DateOnly _when;
         private bool _credit;
         private bool _debit;
         private string? _otherAccount = string.Empty;
         private decimal _amount;
-        private bool _editing;
         private bool _enabled;
         private Brush _datePickerBackground;
         private readonly ToolTip _tooltip = new() { Content = "Transactions cannot predate the creation of the account" };
@@ -178,7 +181,7 @@ namespace Accounting101.Controls
 
         public void CreateNew()
         {
-            if (_editing)
+            if (Editing)
             {
                 return;
             }
@@ -188,7 +191,7 @@ namespace Accounting101.Controls
 
         public void EditEntry(TransactionInfoLine entry)
         {
-            if (_editing)
+            if (Editing)
             {
                 return;
             }
@@ -242,6 +245,11 @@ namespace Accounting101.Controls
                         DatePicker.Focus();
                     }
                     break;
+
+                case Key.Delete:
+                    IInputElement focused = Keyboard.FocusedElement;
+                    SimulateKeyEvent(focused, Key.Delete, Keyboard.KeyDownEvent);
+                    break;
             }
         }
 
@@ -266,15 +274,21 @@ namespace Accounting101.Controls
             return null;
         }
 
+        private void SimulateKeyEvent(IInputElement c, Key k, RoutedEvent e)
+        {
+            c.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, Keyboard.PrimaryDevice.ActiveSource, 0, k) { RoutedEvent = e });
+        }
+
         private void SetEditingState(bool state, string type = "")
         {
             Enabled = state;
+            EditingNew = type == "creating";
             EditingStateChanged?.Invoke(this, state);
             if (!state)
             {
                 ClearControls();
             }
-            _editing = state;
+            Editing = state;
             Background = state ? type == "creating" ? Brushes.LightGreen : Brushes.PaleVioletRed : Brushes.Transparent;
             WeakReferenceMessenger.Default.Send(new EditingTransactionMessage(state));
         }

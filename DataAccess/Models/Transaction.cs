@@ -23,5 +23,14 @@ namespace DataAccess.Models
             Amount = amount;
             When = when;
         }
+
+        public Transaction(Guid id, Guid creditedAccountId, Guid debitedAccountId, decimal amount, DateOnly when)
+        {
+            Id = id;
+            CreditedAccountId = creditedAccountId;
+            DebitedAccountId = debitedAccountId;
+            Amount = amount;
+            When = when;
+        }
     }
 }

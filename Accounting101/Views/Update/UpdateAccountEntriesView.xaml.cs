@@ -63,6 +63,22 @@ namespace Accounting101.Views.Update
                     FastEntryControl.KeyPressed(message.Value);
                     break;
 
+                case Key.Delete:
+                    if (FastEntryControl.Editing)
+                    {
+                        FastEntryControl.KeyPressed(Key.Delete);
+                        return;
+                    }
+                    TransactionInfoLine? selectedLine = TransactionList.GetSelected();
+                    if (selectedLine is null)
+                    {
+                        return;
+                    }
+                    _taskFactory.Run(() => _dataStore.DeleteTransactionAsync(selectedLine.Id));
+                    UpdateAccountBalance();
+                    WeakReferenceMessenger.Default.Send(new UpdateTransactionLayoutMessage(null));
+                    break;
+
                 case Key.E:
                     TransactionInfoLine? ledgerLine = TransactionList.GetSelected();
                     if (ledgerLine is null)
@@ -90,6 +106,7 @@ namespace Accounting101.Views.Update
                     break;
 
                 case Key.Enter:
+                    bool editingNew = FastEntryControl.EditingNew;
                     TransactionInfoLine? line = FastEntryControl.EnterPressed();
                     if (line is null)
                     {
@@ -102,12 +119,25 @@ namespace Accounting101.Views.Update
                         return;
                     }
 
-                    bool wasCredited = line.Credit.HasValue;
-                    decimal amount = line.Credit ?? line.Debit ?? 0;
-                    Transaction t = new(wasCredited ? _account.Account.Id : otherAccount.Value, wasCredited ? otherAccount.Value : _account.Account.Id, amount, line.When);
-                    _taskFactory.Run(() => _dataStore.CreateTransactionAsync(t));
-                    UpdateAccountBalance();
-                    WeakReferenceMessenger.Default.Send(new UpdateTransactionLayoutMessage(null));
+                    switch (editingNew)
+                    {
+                        case true:
+                            bool wasCredited = line.Credit.HasValue;
+                            decimal amount = line.Credit ?? line.Debit ?? 0;
+                            Transaction t = new(wasCredited ? _account.Account.Id : otherAccount.Value, wasCredited ? otherAccount.Value : _account.Account.Id, amount, line.When);
+                            _taskFactory.Run(() => _dataStore.CreateTransactionAsync(t));
+                            UpdateAccountBalance();
+                            WeakReferenceMessenger.Default.Send(new UpdateTransactionLayoutMessage(null));
+                            break;
+                        case false:
+                            wasCredited = line.Credit.HasValue;
+                            amount = line.Credit ?? line.Debit ?? 0;
+                            t = new Transaction(line.Id, wasCredited ? _account.Account.Id : otherAccount.Value, wasCredited ? otherAccount.Value : _account.Account.Id, amount, line.When);
+                            _taskFactory.Run(() => _dataStore.UpdateTransactionAsync(t));
+                            UpdateAccountBalance();
+                            WeakReferenceMessenger.Default.Send(new UpdateTransactionLayoutMessage(null));
+                            break;
+                    }
                     break;
             }
         }
