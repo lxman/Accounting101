@@ -41,10 +41,12 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <local:ReportSectionView x:Name="Assets" Grid.Row="0" />
                 <local:ReportSectionView x:Name="Liabilities" Grid.Row="1" />
                 <local:ReportSectionView x:Name="Equity" Grid.Row="2" />
+                <controls:StyledLabel Grid.Row="3" HorizontalAlignment="Right" FontWeight="Black" LabelContent="{Binding Balanced}" />
             </Grid>
         </ScrollViewer>
     </Grid>

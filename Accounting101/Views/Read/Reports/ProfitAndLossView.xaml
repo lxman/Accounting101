@@ -12,6 +12,7 @@
              d:DesignHeight="450" d:DesignWidth="800">
     <UserControl.Resources>
         <valueConverters:DateOnlyDateTimeConverter x:Key="DateTimeConverter" />
+        <valueConverters:DecimalToAccountingStringConverter x:Key="AccountingStringConverter" />
     </UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions>
@@ -41,14 +42,21 @@
         </Grid>
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
             <Grid IsHitTestVisible="False">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
-                <local:ReportSectionView x:Name="Revenue" Grid.Row="0" />
-                <local:ReportSectionView x:Name="Expenses" Grid.Row="1" />
-                <local:ReportSectionView x:Name="Earnings" Grid.Row="2" />
+                <local:ReportSectionView Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" x:Name="Revenue" />
+                <local:ReportSectionView Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" x:Name="Expenses" />
+                <local:ReportSectionView Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2" x:Name="Earnings" />
+                <controls:StyledLabel Grid.Column="0" Grid.Row="3" FontWeight="Black" LabelContent="{Binding ProfitLossText}" HorizontalAlignment="Right" />
+                <controls:StyledLabel Grid.Column="1" Grid.Row="3" Margin="0,0,4,0" LabelContent="{Binding GrandTotal, Converter={StaticResource AccountingStringConverter}}" />
             </Grid>
         </ScrollViewer>
     </Grid>

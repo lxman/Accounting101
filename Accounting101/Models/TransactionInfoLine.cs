@@ -13,9 +13,9 @@
 
         public DateOnly When { get; set; } = when;
 
-        public decimal? Credit { get; set; } = credit;
-
         public decimal? Debit { get; set; } = debit;
+
+        public decimal? Credit { get; set; } = credit;
 
         public decimal Balance { get; set; } = balance;
 

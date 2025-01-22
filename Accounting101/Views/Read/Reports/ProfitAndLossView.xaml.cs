@@ -40,6 +40,24 @@ namespace Accounting101.Views.Read.Reports
             }
         }
 
+        public string ProfitLossText => GrandTotal >= 0 ? "Profit:" : "Loss:";
+
+        public decimal GrandTotal
+        {
+            get => _grandTotal;
+            set
+            {
+                if (value == _grandTotal)
+                {
+                    return;
+                }
+                _grandTotal = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(ProfitLossText));
+            }
+        }
+
+        private decimal _grandTotal;
         private DateOnly _startDate;
         private DateOnly _endDate;
         private readonly List<AccountWithInfo> _revenue;
@@ -70,6 +88,7 @@ namespace Accounting101.Views.Read.Reports
             Revenue.SetInfo(_dataStore, _taskFactory, "Revenue", _revenue, _startDate, _endDate, false);
             Expenses.SetInfo(_dataStore, _taskFactory, "Expenses", _expenses, _startDate, _endDate, false);
             Earnings.SetInfo(_dataStore, _taskFactory, "Earnings", _earnings, _startDate, _endDate, false);
+            GrandTotal = Revenue.Total - Expenses.Total + Earnings.Total;
         }
 
         public void SetDates(DateOnly start, DateOnly end)
@@ -77,6 +96,7 @@ namespace Accounting101.Views.Read.Reports
             Revenue.Recalculate(start, end);
             Expenses.Recalculate(start, end);
             Earnings.Recalculate(start, end);
+            GrandTotal = Revenue.Total - Expenses.Total + Earnings.Total;
         }
     }
 }

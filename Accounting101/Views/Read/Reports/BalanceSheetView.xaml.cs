@@ -4,6 +4,7 @@ using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
+#pragma warning disable CS8618, CS9264
 
 namespace Accounting101.Views.Read.Reports
 {
@@ -25,6 +26,21 @@ namespace Accounting101.Views.Read.Reports
             }
         }
 
+        public string Balanced
+        {
+            get => _balanced;
+            set
+            {
+                if (value == _balanced)
+                {
+                    return;
+                }
+                _balanced = value;
+                OnPropertyChanged();
+            }
+        }
+
+        private string _balanced;
         private DateOnly _date;
         private readonly DateOnly _startDate;
         private readonly IDataStore _dataStore;
@@ -49,18 +65,25 @@ namespace Accounting101.Views.Read.Reports
             OnPropertyChanged(nameof(Date));
         }
 
-        private void Setup()
-        {
-            Assets.SetInfo(_dataStore, _taskFactory, "Assets", _assets, _startDate, Date, true);
-            Liabilities.SetInfo(_dataStore, _taskFactory, "Liabilities", _liabilities, _startDate, Date, true);
-            Equity.SetInfo(_dataStore, _taskFactory, "Equity", _equity, _startDate, Date, true);
-        }
-
         public void Recalculate()
         {
             Assets.Recalculate(_startDate, Date);
             Liabilities.Recalculate(_startDate, Date);
             Equity.Recalculate(_startDate, Date);
+            SetBalancedString();
+        }
+
+        private void Setup()
+        {
+            Assets.SetInfo(_dataStore, _taskFactory, "Assets", _assets, _startDate, Date, true);
+            Liabilities.SetInfo(_dataStore, _taskFactory, "Liabilities", _liabilities, _startDate, Date, true);
+            Equity.SetInfo(_dataStore, _taskFactory, "Equity", _equity, _startDate, Date, true);
+            SetBalancedString();
+        }
+
+        private void SetBalancedString()
+        {
+            Balanced = (Assets.Total - Liabilities.Total) == Equity.Total ? "Balanced" : "Not Balanced";
         }
     }
 }
