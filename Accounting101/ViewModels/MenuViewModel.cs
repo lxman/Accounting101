@@ -8,6 +8,9 @@ using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services;
 using DataAccess.Services.Interfaces;
+using Microsoft.VisualStudio.Threading;
+
+// ReSharper disable SwitchStatementMissingSomeEnumCasesNoDefault
 
 #pragma warning disable CS8618, CS9264
 
@@ -15,6 +18,8 @@ namespace Accounting101.ViewModels
 {
     public class MenuViewModel : BaseViewModel
     {
+        public event EventHandler? DeleteClient;
+
         public WindowType CurrentScreen
         {
             private get => _currentScreen;
@@ -193,7 +198,7 @@ namespace Accounting101.ViewModels
             set
             {
                 _businessExists = value;
-                ChangeMenuState();
+                SetMenus();
             }
         }
 
@@ -203,7 +208,7 @@ namespace Accounting101.ViewModels
             set
             {
                 _clientExists = value;
-                ChangeMenuState();
+                SetMenus();
             }
         }
 
@@ -213,7 +218,7 @@ namespace Accounting101.ViewModels
             set
             {
                 _accountExists = value;
-                ChangeMenuState();
+                SetMenus();
             }
         }
 
@@ -247,9 +252,12 @@ namespace Accounting101.ViewModels
         //private bool _showReportsCustomReportCommand;
         private readonly IDataStore _dataStore;
 
-        public MenuViewModel(IDataStore dataStore)
+        private readonly JoinableTaskFactory _taskFactory;
+
+        public MenuViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory)
         {
             _dataStore = dataStore;
+            _taskFactory = taskFactory;
             _dataStore.StoreChanged += StoreChanged;
             ClientListCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ClientList)));
             NewClientCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.CreateClient)));
@@ -261,6 +269,7 @@ namespace Accounting101.ViewModels
             EditAccountCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new EditAccountMessage(true)));
             ReportsBalanceSheetCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.BalanceSheet)));
             ReportsProfitAndLossCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ProfitAndLoss)));
+            DeleteClientCommand = new RelayCommand(() => DeleteClient?.Invoke(this, EventArgs.Empty));
             ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
         }
 
@@ -335,95 +344,62 @@ namespace Accounting101.ViewModels
             OnPropertyChanged(nameof(SaveCommand));
         }
 
-        private void ChangeMenuState()
-        {
-            switch (BusinessExists)
-            {
-                case false:
-                    ShowNewClientCommand = false;
-                    ShowNewAccountCommand = false;
-                    break;
-
-                case true when !ClientExists && !AccountExists:
-                    ShowNewClientCommand = true;
-                    ShowDeleteBusinessCommand = true;
-                    ShowDeleteClientCommand = false;
-                    ShowNewAccountCommand = false;
-                    ShowEditBusinessCommand = true;
-                    break;
-
-                case true when ClientExists && !AccountExists:
-                    ShowDeleteBusinessCommand = true;
-                    ShowDeleteClientCommand = true;
-                    ShowNewClientCommand = true;
-                    ShowNewAccountCommand = true;
-                    ShowEditBusinessCommand = true;
-                    break;
-
-                case true when ClientExists && AccountExists:
-                    ShowDeleteBusinessCommand = true;
-                    ShowDeleteClientCommand = true;
-                    ShowNewClientCommand = true;
-                    ShowNewAccountCommand = true;
-                    ShowEditBusinessCommand = true;
-                    break;
-            }
-        }
-
         private void StoreChanged(object? sender, ChangeEventArgs e)
         {
-            if (e.ChangeType == ChangeType.Created)
+            switch (e.ChangeType)
             {
-                if (e.ChangedType == typeof(Business))
-                {
+                case ChangeType.Created when e.ChangedType == typeof(Business):
                     BusinessExists = true;
-                }
-                else if (e.ChangedType == typeof(Client))
-                {
-                    ClientExists = true;
-                }
-                else if (e.ChangedType == typeof(Clients))
-                {
-                    ClientExists = true;
-                }
-                else if (e.ChangedType == typeof(Account))
-                {
-                    AccountExists = true;
-                }
-                else if (e.ChangedType == typeof(Accounts))
-                {
-                    AccountExists = true;
-                }
-                else if (e.ChangedType == typeof(Transaction))
-                {
-                }
-                else if (e.ChangedType == typeof(Transactions))
-                {
-                }
-            }
-            else
-            {
-                if (e.ChangedType == typeof(Transactions))
-                {
-                }
+                    break;
 
-                if (e.ChangedType == typeof(Transaction))
-                {
-                }
-                if (e.ChangedType == typeof(Accounts))
-                {
-                }
-                if (e.ChangedType == typeof(Account))
-                {
-                }
-                if (e.ChangedType == typeof(Clients))
-                {
-                }
-                if (e.ChangedType == typeof(Client))
-                {
-                }
+                case ChangeType.Created when e.ChangedType == typeof(Client):
+                case ChangeType.Created when e.ChangedType == typeof(Clients):
+                    ClientExists = true;
+                    break;
+
+                case ChangeType.Created when e.ChangedType == typeof(Account):
+                case ChangeType.Created when e.ChangedType == typeof(Accounts):
+                    AccountExists = true;
+                    break;
+
+                case ChangeType.Created when e.ChangedType == typeof(Transaction):
+                    break;
+
+                case ChangeType.Created:
+                    {
+                        if (e.ChangedType == typeof(Transactions))
+                        {
+                        }
+
+                        break;
+                    }
+                case ChangeType.Deleted:
+                    {
+                        if (e.ChangedType == typeof(Transactions))
+                        {
+                        }
+                        else if (e.ChangedType == typeof(Transaction))
+                        {
+                        }
+                        else if (e.ChangedType == typeof(Accounts))
+                        {
+                        }
+                        else if (e.ChangedType == typeof(Account))
+                        {
+                        }
+                        else if (e.ChangedType == typeof(Clients))
+                        {
+                        }
+                        else if (e.ChangedType == typeof(Client))
+                        {
+                            ClientExists = _taskFactory.Run(() => _dataStore.ClientsExistAsync());
+                        }
+
+                        break;
+                    }
             }
-            ChangeMenuState();
+
+            SetMenus();
         }
 
         private void DeleteBusiness()

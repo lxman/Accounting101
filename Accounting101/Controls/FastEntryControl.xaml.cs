@@ -15,6 +15,8 @@ using DataAccess.Models;
 using DataAccess.Models.Auditing;
 using Timer = System.Timers.Timer;
 
+#pragma warning disable VSTHRD110
+
 // ReSharper disable SwitchStatementMissingSomeEnumCasesNoDefault
 #pragma warning disable CS0169 // Field is never used
 #pragma warning disable CS8618, CS9264
@@ -22,7 +24,7 @@ using Timer = System.Timers.Timer;
 namespace Accounting101.Controls
 {
     [ObservableObject]
-    public partial class FastEntryControl : UserControl
+    public partial class FastEntryControl
     {
         public event EventHandler<AuditEntry>? ErrorOccurred;
 
@@ -135,7 +137,7 @@ namespace Accounting101.Controls
             Brush originalBackground = DatePicker.Background;
             _tooltip.IsOpen = true;
             Timer t = new(500);
-            t.Elapsed += (sender, args) =>
+            t.Elapsed += (_, _) =>
             {
                 count++;
                 if (DatePickerBackground == Brushes.Red)
@@ -276,7 +278,7 @@ namespace Accounting101.Controls
 
         private static void SimulateKeyDownEvent(IInputElement c, Key k)
         {
-            c.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, Keyboard.PrimaryDevice.ActiveSource, 0, k) { RoutedEvent = Keyboard.KeyDownEvent });
+            c.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, Keyboard.PrimaryDevice.ActiveSource!, 0, k) { RoutedEvent = Keyboard.KeyDownEvent });
         }
 
         private void SetEditingState(bool state, string type = "")

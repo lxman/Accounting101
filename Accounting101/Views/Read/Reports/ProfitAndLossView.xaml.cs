@@ -72,6 +72,9 @@ namespace Accounting101.Views.Read.Reports
             _taskFactory = taskFactory;
             DataContext = this;
             InitializeComponent();
+            ClientWithInfo client = taskFactory.Run(() => dataStore.GetClientWithInfoAsync(clientId)) ?? new ClientWithInfo();
+            CheckPoint? checkPoint = taskFactory.Run(() => dataStore.GetCheckpointAsync(clientId));
+            ClientHeader.SetInfo(client, checkPoint);
             List<AccountWithInfo> all = taskFactory.Run(() => dataStore.AccountsForClientAsync(clientId))?.ToList() ?? [];
             _startDate = all.Min(a => a.Created);
             _endDate = DateOnly.FromDateTime(DateTime.Today);

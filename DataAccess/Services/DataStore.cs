@@ -80,7 +80,7 @@ namespace DataAccess.Services
 
         public void NotifyChange(Type t, ChangeType ct)
         {
-            StoreChanged?.Invoke(this, new ChangeEventArgs { ChangedType = t });
+            StoreChanged?.Invoke(this, new ChangeEventArgs { ChangedType = t, ChangeType = ct });
         }
 
         public LiteDatabaseAsync? Instance() => _db;

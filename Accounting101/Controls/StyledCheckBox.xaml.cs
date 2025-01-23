@@ -1,12 +1,11 @@
 ﻿using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace Accounting101.Controls
 {
     [ObservableObject]
-    public partial class StyledCheckBox : UserControl
+    public partial class StyledCheckBox
     {
         public static readonly DependencyProperty BoxCheckedProperty = DependencyProperty.Register(
             nameof(BoxChecked), typeof(bool?), typeof(StyledCheckBox), new PropertyMetadata(false));

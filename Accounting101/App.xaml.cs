@@ -34,7 +34,6 @@ namespace Accounting101
             services.AddSingleton<IDataStore, DataStore>();
             services.AddSingleton(taskFactory);
             services.AddSingleton<MenuViewModel>();
-            services.AddSingleton<MainWindowViewModel>();
             services.AddSingleton<MainWindow>();
             _services = services.BuildServiceProvider();
 

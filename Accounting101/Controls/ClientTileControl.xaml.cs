@@ -2,11 +2,10 @@
 using Accounting101.Messages;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess.Models;
-using MahApps.Metro.Controls;
 
 namespace Accounting101.Controls
 {
-    public partial class ClientTileControl : Tile
+    public partial class ClientTileControl
     {
         public ClientWithInfo Client { get; }
 

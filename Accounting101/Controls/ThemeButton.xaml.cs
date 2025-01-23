@@ -5,7 +5,7 @@ using System.Windows.Media;
 
 namespace Accounting101.Controls
 {
-    public partial class ThemeButton : UserControl
+    public partial class ThemeButton
     {
         public event EventHandler<string>? ThemeButtonClicked;
 

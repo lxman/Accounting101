@@ -94,9 +94,23 @@ namespace DataAccess
 
         public static async Task<bool?> DeleteClientAsync(this IDataStore store, Guid id)
         {
-            ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
+            ILiteCollectionAsync<Client>? clients = store.GetCollection<Client>(CollectionNames.Client);
+            List<AccountWithInfo>? accounts = (await store.AccountsForClientAsync(id))?.ToList();
+            if (accounts is not null)
+            {
+                foreach (AccountWithInfo account in accounts)
+                {
+                    await store.DeleteAccountAsync(account.Id);
+                }
+            }
+            CheckPoint? checkPoint = await store.GetCheckpointAsync(id);
+            if (checkPoint is not null)
+            {
+                await store.ClearCheckpointAsync(checkPoint.Id);
+            }
+            bool result = await clients?.DeleteAsync(id)!;
             store.NotifyChange(typeof(Client), ChangeType.Deleted);
-            return await collection?.DeleteAsync(id)!;
+            return result;
         }
     }
 }

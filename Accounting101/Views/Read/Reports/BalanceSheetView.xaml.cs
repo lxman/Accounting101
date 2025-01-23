@@ -4,6 +4,7 @@ using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
+
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101.Views.Read.Reports
@@ -55,6 +56,9 @@ namespace Accounting101.Views.Read.Reports
             _taskFactory = taskFactory;
             DataContext = this;
             InitializeComponent();
+            ClientWithInfo client = taskFactory.Run(() => dataStore.GetClientWithInfoAsync(clientId)) ?? new ClientWithInfo();
+            CheckPoint? checkPoint = taskFactory.Run(() => dataStore.GetCheckpointAsync(clientId));
+            ClientHeader.SetInfo(client, checkPoint);
             List<AccountWithInfo> all = taskFactory.Run(() => dataStore.AccountsForClientAsync(clientId))?.ToList() ?? [];
             _startDate = all.Min(a => a.Created);
             _assets = all.Where(a => a.Type == BaseAccountTypes.Asset).ToList();

@@ -1,9 +1,8 @@
 ﻿using System.Windows;
-using System.Windows.Controls;
 
 namespace Accounting101.Controls
 {
-    public partial class HeaderLabel : UserControl
+    public partial class HeaderLabel
     {
         public static readonly DependencyProperty LabelContentProperty = DependencyProperty.Register(
             nameof(LabelContent), typeof(string), typeof(HeaderLabel), new PropertyMetadata(default(string)));

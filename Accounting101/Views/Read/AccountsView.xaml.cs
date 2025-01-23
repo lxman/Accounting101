@@ -46,6 +46,7 @@ namespace Accounting101.Views.Read
                 case "StartBalance":
                     e.Column.Header = "Start Balance";
                     break;
+
                 case "CurrentBalance":
                     e.Column.Header = "Current Balance";
                     break;

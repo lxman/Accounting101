@@ -7,7 +7,7 @@ namespace Accounting101.ValueConverters
     [ValueConversion(typeof(bool), typeof(bool?))]
     public sealed class BoolNullableBoolConverter : IValueConverter
     {
-        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             if (value is bool b)
             {

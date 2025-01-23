@@ -129,6 +129,7 @@ namespace Accounting101.Views.Update
                             UpdateAccountBalance();
                             WeakReferenceMessenger.Default.Send(new UpdateTransactionLayoutMessage(null));
                             break;
+
                         case false:
                             wasCredited = line.Credit.HasValue;
                             amount = line.Credit ?? line.Debit ?? 0;

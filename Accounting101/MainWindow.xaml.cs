@@ -11,22 +11,26 @@ using CommunityToolkit.Mvvm.Messaging;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
-using MahApps.Metro.Controls;
+using MahApps.Metro.Controls.Dialogs;
 using Microsoft.VisualStudio.Threading;
+
+// ReSharper disable SwitchStatementHandlesSomeKnownEnumValuesWithDefault
+// ReSharper disable RedundantJumpStatement
+// ReSharper disable AsyncVoidMethod
+#pragma warning disable VSTHRD100
 
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101
 {
     public partial class MainWindow
-        : MetroWindow,
-            IRecipient<ChangeScreenMessage>,
-            IRecipient<CreateDatabaseMessage>,
-            IRecipient<FocusClientMessage>,
-            IRecipient<SetEditAccountVisibleMessage>,
-            IRecipient<BusinessEditedMessage>,
-            IRecipient<EditingTransactionMessage>,
-            IRecipient<EditAccountMessage>
+        : IRecipient<ChangeScreenMessage>,
+          IRecipient<CreateDatabaseMessage>,
+          IRecipient<FocusClientMessage>,
+          IRecipient<SetEditAccountVisibleMessage>,
+          IRecipient<BusinessEditedMessage>,
+          IRecipient<EditingTransactionMessage>,
+          IRecipient<EditAccountMessage>
     {
         public static readonly DependencyProperty CurrentScreenProperty = DependencyProperty.Register(
             nameof(CurrentScreen), typeof(object), typeof(MainWindow), new PropertyMetadata(default(object)));
@@ -51,6 +55,7 @@ namespace Accounting101
         public MenuViewModel MenuViewModel { get; }
 
         private WindowType _initialScreen;
+        private bool _viewingReport;
         private readonly JoinableTaskFactory _taskFactory;
         private readonly IDataStore _dataStore;
         private List<string>? _states;
@@ -78,15 +83,15 @@ namespace Accounting101
         public MainWindow(
             IDataStore dataStore,
             JoinableTaskFactory taskFactory,
-            MainWindowViewModel mainWindowViewModel,
             MenuViewModel menuViewModel)
         {
             WeakReferenceMessenger.Default.RegisterAll(this);
             _taskFactory = taskFactory;
             _dataStore = dataStore;
-            DataContext = mainWindowViewModel;
+            DataContext = this;
             MenuViewModel = menuViewModel;
             InitializeComponent();
+            MenuViewModel.DeleteClient += DeleteClient;
         }
 
         public void Receive(BusinessEditedMessage message)
@@ -119,7 +124,7 @@ namespace Accounting101
             }
             if (CurrentScreen is ClientWithAccountListView clientWithAccountListView)
             {
-                clientWithAccountListView.UpdateAccountInfo(_taskFactory.Run(() => _dataStore.GetAccountWithInfoAsync(_accountId.Value)));
+                clientWithAccountListView.UpdateAccountInfo(_taskFactory.Run(() => _dataStore.GetAccountWithInfoAsync(_accountId.Value)) ?? new AccountWithInfo());
                 MenuViewModel.SetSaveCommand(new RelayCommand(() => clientWithAccountListView.SaveAccountChanges()));
                 MenuViewModel.ShowSaveCommand = true;
             }
@@ -127,145 +132,163 @@ namespace Accounting101
 
         public void Receive(ChangeScreenMessage message)
         {
-            if (_dataStore.Initialized)
+            while (true)
             {
-                if (!MenuViewModel.ClientExists)
+                if (_dataStore.Initialized)
                 {
-                    MenuViewModel.ClientExists = _taskFactory.Run(_dataStore.ClientsExistAsync);
+                    if (!MenuViewModel.ClientExists)
+                    {
+                        MenuViewModel.ClientExists = _taskFactory.Run(_dataStore.ClientsExistAsync);
+                    }
                 }
-            }
 
-            _states ??= _taskFactory.Run(_dataStore.GetStatesAsync).Order().ToList();
-            switch (message.Value)
-            {
-                case WindowType.CreateBusiness:
-                    _enableTransactionKeyWatcher = false;
-                    MenuViewModel.CurrentScreen = WindowType.CreateBusiness;
-                    MenuViewModel.ShowSaveCommand = true;
-                    MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateBusinessView)?.Save()));
-                    CurrentScreen = new CreateBusinessView(_dataStore, _taskFactory);
-                    break;
+                _states ??= _taskFactory.Run(_dataStore.GetStatesAsync).Order().ToList();
+                switch (message.Value)
+                {
+                    case WindowType.CreateBusiness:
+                        _enableTransactionKeyWatcher = false;
+                        MenuViewModel.CurrentScreen = WindowType.CreateBusiness;
+                        MenuViewModel.ShowSaveCommand = true;
+                        MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateBusinessView)?.Save()));
+                        CurrentScreen = new CreateBusinessView(_dataStore, _taskFactory);
+                        break;
 
-                case WindowType.GetPassword:
-                    _enableTransactionKeyWatcher = false;
-                    MenuViewModel.CurrentScreen = WindowType.GetPassword;
-                    CurrentScreen = new GetPasswordView(_dataStore, _taskFactory);
-                    break;
+                    case WindowType.GetPassword:
+                        _enableTransactionKeyWatcher = false;
+                        MenuViewModel.CurrentScreen = WindowType.GetPassword;
+                        CurrentScreen = new GetPasswordView(_dataStore, _taskFactory);
+                        break;
 
-                case WindowType.CreateClient:
-                    _enableTransactionKeyWatcher = false;
-                    MenuViewModel.CurrentScreen = WindowType.CreateClient;
-                    MenuViewModel.ShowSaveCommand = true;
-                    MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateClientView)?.Save()));
-                    CurrentScreen = new CreateClientView(_dataStore, _taskFactory);
-                    break;
+                    case WindowType.CreateClient:
+                        _enableTransactionKeyWatcher = false;
+                        MenuViewModel.CurrentScreen = WindowType.CreateClient;
+                        MenuViewModel.ShowSaveCommand = true;
+                        MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateClientView)?.Save()));
+                        CurrentScreen = new CreateClientView(_dataStore, _taskFactory);
+                        break;
 
-                case WindowType.ClientList:
-                    _enableTransactionKeyWatcher = false;
-                    MenuViewModel.CurrentScreen = WindowType.ClientList;
-                    CurrentScreen = new ClientListView(_dataStore, _taskFactory);
-                    _client = null;
-                    break;
+                    case WindowType.ClientList:
+                        if (_viewingReport)
+                        {
+                            _viewingReport = false;
+                            message = new ChangeScreenMessage(WindowType.ClientAccountList);
+                            continue;
+                        }
 
-                case WindowType.ClientAccountList:
-                    if (_client is null)
-                    {
-                        return;
-                    }
+                        _enableTransactionKeyWatcher = false;
+                        MenuViewModel.CurrentScreen = WindowType.ClientList;
+                        CurrentScreen = new ClientListView(_dataStore, _taskFactory);
+                        _client = null;
+                        break;
 
-                    _enableTransactionKeyWatcher = true;
-                    MenuViewModel.CurrentScreen = WindowType.ClientAccountList;
-                    CurrentScreen = new ClientWithAccountListView(_dataStore, _taskFactory, _client);
-                    break;
+                    case WindowType.ClientAccountList:
+                        if (_client is null)
+                        {
+                            return;
+                        }
 
-                case WindowType.CreateAccount:
-                    if (_client is null)
-                    {
-                        return;
-                    }
+                        _enableTransactionKeyWatcher = true;
+                        MenuViewModel.CurrentScreen = WindowType.ClientAccountList;
+                        CurrentScreen = new ClientWithAccountListView(_dataStore, _taskFactory, _client);
+                        break;
 
-                    _enableTransactionKeyWatcher = false;
-                    MenuViewModel.CurrentScreen = WindowType.CreateAccount;
-                    CreateAccountView createAccountView = new();
-                    createAccountView.SetInfo(_dataStore, _taskFactory, _client);
-                    CurrentScreen = createAccountView;
-                    MenuViewModel.SetSaveCommand(new RelayCommand(() => createAccountView.Save()));
-                    MenuViewModel.ShowSaveCommand = true;
-                    break;
+                    case WindowType.CreateAccount:
+                        if (_client is null)
+                        {
+                            return;
+                        }
 
-                case WindowType.EditBusiness:
-                    _enableTransactionKeyWatcher = false;
-                    MenuViewModel.CurrentScreen = WindowType.EditBusiness;
-                    UpdateBusinessView updateBusinessView = new();
-                    updateBusinessView.SetInfo(_dataStore, _taskFactory);
-                    CurrentScreen = updateBusinessView;
-                    MenuViewModel.SetSaveCommand(new RelayCommand(() => updateBusinessView.Save()));
-                    MenuViewModel.ShowSaveCommand = true;
-                    break;
+                        _enableTransactionKeyWatcher = false;
+                        MenuViewModel.CurrentScreen = WindowType.CreateAccount;
+                        CreateAccountView createAccountView = new();
+                        createAccountView.SetInfo(_dataStore, _taskFactory, _client);
+                        CurrentScreen = createAccountView;
+                        MenuViewModel.SetSaveCommand(new RelayCommand(() => createAccountView.Save()));
+                        MenuViewModel.ShowSaveCommand = true;
+                        break;
 
-                case WindowType.EditClient:
-                    if (_client is null)
-                    {
-                        return;
-                    }
-                    _enableTransactionKeyWatcher = false;
-                    MenuViewModel.CurrentScreen = WindowType.EditClient;
-                    UpdateClientView updateClientView = new();
-                    updateClientView.SetInfo(_dataStore, _taskFactory, _client, _states);
-                    CurrentScreen = updateClientView;
-                    MenuViewModel.SetSaveCommand(new RelayCommand(() => updateClientView.Save()));
-                    MenuViewModel.ShowSaveCommand = true;
-                    break;
+                    case WindowType.EditBusiness:
+                        _enableTransactionKeyWatcher = false;
+                        MenuViewModel.CurrentScreen = WindowType.EditBusiness;
+                        UpdateBusinessView updateBusinessView = new();
+                        updateBusinessView.SetInfo(_dataStore, _taskFactory);
+                        CurrentScreen = updateBusinessView;
+                        MenuViewModel.SetSaveCommand(new RelayCommand(() => updateBusinessView.Save()));
+                        MenuViewModel.ShowSaveCommand = true;
+                        break;
 
-                case WindowType.EditAccount:
-                    _enableTransactionKeyWatcher = false;
-                    MenuViewModel.CurrentScreen = WindowType.EditAccount;
-                    break;
+                    case WindowType.EditClient:
+                        if (_client is null)
+                        {
+                            return;
+                        }
 
-                case WindowType.BalanceSheet:
-                    if (_client is null)
-                    {
-                        return;
-                    }
-                    _enableTransactionKeyWatcher = false;
-                    MenuViewModel.CurrentScreen = WindowType.BalanceSheet;
-                    CurrentScreen = new BalanceSheetView(_dataStore, _taskFactory, _client.Id);
-                    MenuViewModel.ShowSaveCommand = false;
-                    break;
+                        _enableTransactionKeyWatcher = false;
+                        MenuViewModel.CurrentScreen = WindowType.EditClient;
+                        UpdateClientView updateClientView = new();
+                        updateClientView.SetInfo(_dataStore, _taskFactory, _client, _states);
+                        CurrentScreen = updateClientView;
+                        MenuViewModel.SetSaveCommand(new RelayCommand(() => updateClientView.Save()));
+                        MenuViewModel.ShowSaveCommand = true;
+                        break;
 
-                case WindowType.ProfitAndLoss:
-                    if (_client is null)
-                    {
-                        return;
-                    }
-                    _enableTransactionKeyWatcher = false;
-                    MenuViewModel.CurrentScreen = WindowType.ProfitAndLoss;
-                    CurrentScreen = new ProfitAndLossView(_dataStore, _taskFactory, _client.Id);
-                    MenuViewModel.ShowSaveCommand = false;
-                    break;
+                    case WindowType.EditAccount:
+                        _enableTransactionKeyWatcher = false;
+                        MenuViewModel.CurrentScreen = WindowType.EditAccount;
+                        break;
 
-                case WindowType.UpdateTheme:
-                    _enableTransactionKeyWatcher = false;
-                    CurrentScreen = new UpdateThemeView();
-                    MenuViewModel.CurrentScreen = WindowType.UpdateTheme;
-                    break;
+                    case WindowType.BalanceSheet:
+                        if (_client is null)
+                        {
+                            return;
+                        }
 
-                case WindowType.CheckPoints:
-                    if (_client is null)
-                    {
-                        return;
-                    }
-                    _enableTransactionKeyWatcher = false;
-                    CreateCheckPointView createCheckPointView = new();
-                    createCheckPointView.SetInfo(_dataStore, _taskFactory, _client.Id);
-                    CurrentScreen = createCheckPointView;
-                    MenuViewModel.CurrentScreen = WindowType.CheckPoints;
-                    MenuViewModel.SetSaveCommand(new RelayCommand(() => createCheckPointView.Save()));
-                    MenuViewModel.ShowSaveCommand = true;
-                    break;
+                        _viewingReport = true;
+                        _enableTransactionKeyWatcher = false;
+                        MenuViewModel.CurrentScreen = WindowType.BalanceSheet;
+                        CurrentScreen = new BalanceSheetView(_dataStore, _taskFactory, _client.Id);
+                        MenuViewModel.ShowSaveCommand = false;
+                        break;
 
-                default:
-                    throw new ArgumentOutOfRangeException();
+                    case WindowType.ProfitAndLoss:
+                        if (_client is null)
+                        {
+                            return;
+                        }
+
+                        _viewingReport = true;
+                        _enableTransactionKeyWatcher = false;
+                        MenuViewModel.CurrentScreen = WindowType.ProfitAndLoss;
+                        CurrentScreen = new ProfitAndLossView(_dataStore, _taskFactory, _client.Id);
+                        MenuViewModel.ShowSaveCommand = false;
+                        break;
+
+                    case WindowType.UpdateTheme:
+                        _enableTransactionKeyWatcher = false;
+                        CurrentScreen = new UpdateThemeView();
+                        MenuViewModel.CurrentScreen = WindowType.UpdateTheme;
+                        break;
+
+                    case WindowType.CheckPoints:
+                        if (_client is null)
+                        {
+                            return;
+                        }
+
+                        _enableTransactionKeyWatcher = false;
+                        CreateCheckPointView createCheckPointView = new();
+                        createCheckPointView.SetInfo(_dataStore, _taskFactory, _client.Id);
+                        CurrentScreen = createCheckPointView;
+                        MenuViewModel.CurrentScreen = WindowType.CheckPoints;
+                        MenuViewModel.SetSaveCommand(new RelayCommand(() => createCheckPointView.Save()));
+                        MenuViewModel.ShowSaveCommand = true;
+                        break;
+
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+
+                break;
             }
         }
 
@@ -283,6 +306,33 @@ namespace Accounting101
         public void Receive(EditingTransactionMessage message)
         {
             _enableEditingKeyWatcher = message.Value;
+        }
+
+        private async void DeleteClient(object? sender, EventArgs e)
+        {
+            if (_client is null)
+            {
+                return;
+            }
+            try
+            {
+                MessageDialogResult result = await this.ShowMessageAsync("Delete This Client", "Deleting this client will also delete all related accounts and information. Are you sure?", MessageDialogStyle.AffirmativeAndNegative, new MetroDialogSettings { AffirmativeButtonText = "OK", AnimateHide = true, AnimateShow = true, ColorScheme = MetroDialogColorScheme.Theme, DefaultButtonFocus = MessageDialogResult.Negative, NegativeButtonText = "Cancel" });
+                if (result == MessageDialogResult.Negative)
+                {
+                    return;
+                }
+                await _dataStore.DeleteClientAsync(_client.Id);
+                if (MenuViewModel.ClientExists)
+                {
+                    Receive(new ChangeScreenMessage(WindowType.ClientList));
+                    return;
+                }
+                Receive(new ChangeScreenMessage(WindowType.CreateClient));
+            }
+            catch (Exception)
+            {
+                return;
+            }
         }
 
         private void SetState()

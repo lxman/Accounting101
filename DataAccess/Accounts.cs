@@ -164,5 +164,25 @@ namespace DataAccess
             store.NotifyChange(typeof(Account), ChangeType.Updated);
             return result;
         }
+
+        public static async Task<bool> DeleteAccountAsync(this IDataStore store, Guid accountId)
+        {
+            ILiteCollectionAsync<Account>? accts = store.GetCollection<Account>(CollectionNames.Account);
+            if (accts is null) return false;
+            bool result = await accts.DeleteAsync(accountId);
+            if (!result) return false;
+            ILiteCollectionAsync<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfo);
+            if (infos is null) return false;
+            result = await infos.DeleteAsync(accountId);
+            if (!result) return false;
+            List<Transaction>? transactions = await store.TransactionsForAccountAsync(accountId);
+            if (transactions is null) return false;
+            foreach (Transaction t in transactions)
+            {
+                await store.DeleteTransactionAsync(t.Id);
+            }
+            store.NotifyChange(typeof(Account), ChangeType.Deleted);
+            return result;
+        }
     }
 }
