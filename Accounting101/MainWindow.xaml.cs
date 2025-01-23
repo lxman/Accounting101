@@ -308,6 +308,12 @@ namespace Accounting101
             _enableEditingKeyWatcher = message.Value;
         }
 
+        protected override void OnClosed(EventArgs e)
+        {
+            base.OnClosed(e);
+            Application.Current.Shutdown();
+        }
+
         private async void DeleteClient(object? sender, EventArgs e)
         {
             if (_client is null)
@@ -357,12 +363,6 @@ namespace Accounting101
                     MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateClientView)?.Save()));
                     break;
             }
-        }
-
-        protected override void OnClosed(EventArgs e)
-        {
-            base.OnClosed(e);
-            Application.Current.Shutdown();
         }
 
         private void MainWindowPreviewKeyDown(object sender, KeyEventArgs e)
