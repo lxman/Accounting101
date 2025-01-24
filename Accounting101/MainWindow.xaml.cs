@@ -11,8 +11,11 @@ using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess;
 using DataAccess.Models;
+using DataAccess.Services;
 using DataAccess.Services.Interfaces;
 using MahApps.Metro.Controls.Dialogs;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.VisualStudio.Threading;
 
 // ReSharper disable SwitchStatementHandlesSomeKnownEnumValuesWithDefault
@@ -57,12 +60,14 @@ namespace Accounting101
         private WindowType _initialScreen;
         private bool _viewingReport;
         private readonly JoinableTaskFactory _taskFactory;
-        private readonly IDataStore _dataStore;
+        private IDataStore _dataStore;
         private List<string>? _states;
         private ClientWithInfo? _client;
         private Guid? _accountId;
         private bool _enableTransactionKeyWatcher;
         private bool _enableEditingKeyWatcher;
+        private readonly IServiceCollection _serviceCollection;
+        private readonly IServiceProvider _serviceProvider;
 
         private static readonly List<Key> TransactionKeys =
         [
@@ -83,11 +88,15 @@ namespace Accounting101
         public MainWindow(
             IDataStore dataStore,
             JoinableTaskFactory taskFactory,
-            MenuViewModel menuViewModel)
+            MenuViewModel menuViewModel,
+            IServiceCollection serviceCollection,
+            IServiceProvider serviceProvider)
         {
             WeakReferenceMessenger.Default.RegisterAll(this);
             _taskFactory = taskFactory;
             _dataStore = dataStore;
+            _serviceCollection = serviceCollection;
+            _serviceProvider = serviceProvider;
             DataContext = this;
             MenuViewModel = menuViewModel;
             InitializeComponent();
@@ -133,6 +142,15 @@ namespace Accounting101
 
         public void Receive(ChangeScreenMessage message)
         {
+            if (message.Value == WindowType.SetupDatabase)
+            {
+                _enableTransactionKeyWatcher = false;
+                MenuViewModel.CurrentScreen = WindowType.SetupDatabase;
+                MenuViewModel.ShowSaveCommand = true;
+                MenuViewModel.SetSaveCommand(new RelayCommand(() => (CurrentScreen as CreateDatabaseView)?.Save()));
+                CurrentScreen = new CreateDatabaseView();
+                return;
+            }
             while (true)
             {
                 if (_dataStore.Initialized)
@@ -313,6 +331,7 @@ namespace Accounting101
         {
             base.OnClosed(e);
             Application.Current.Shutdown();
+            _dataStore.Dispose();
         }
 
         private async void DeleteClient(object? sender, EventArgs e)
@@ -355,6 +374,8 @@ namespace Accounting101
                 string dbLocation = _dataStore.GetDbLocation();
                 File.Delete(dbLocation);
                 _dataStore.ClearRegistry();
+                _dataStore = new DataStore();
+                _serviceCollection.Replace(new ServiceDescriptor(typeof(IDataStore), _dataStore));
                 Receive(new ChangeScreenMessage(WindowType.SetupDatabase));
             }
             catch (Exception)

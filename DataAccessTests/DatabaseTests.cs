@@ -7,7 +7,6 @@ using DataAccess.Interfaces;
 using DataAccess.Models;
 using DataAccess.Services;
 using DataAccess.Services.Interfaces;
-using FluentAssertions;
 using Xunit;
 
 namespace DataAccessTests
@@ -36,9 +35,9 @@ namespace DataAccessTests
                 };
                 acct.StartBalance = 0;
                 Guid id = await scope.Resolve<IDataStore>().CreateAccountAsync(acct, info);
-                _ = id.Should().NotBeEmpty();
+                Assert.NotEqual(id, Guid.Empty);
                 bool result = File.Exists(_dbFile);
-                _ = result.Should().BeTrue();
+                Assert.True(result);
                 scope.Resolve<IDataStore>().Dispose();
             }
             File.Delete(_dbFile);
@@ -55,14 +54,14 @@ namespace DataAccessTests
                 AccountInfo infoDebit = new() { Name = "Debit Account" };
                 IDataStore store = scope.Resolve<IDataStore>();
                 Guid idCredit = await store.CreateAccountAsync(acctCredit, infoCredit);
-                _ = idCredit.Should().NotBeEmpty();
+                Assert.NotEqual(idCredit, Guid.Empty);
                 Guid idDebit = await store.CreateAccountAsync(acctDebit, infoDebit);
-                _ = idDebit.Should().NotBeEmpty();
+                Assert.NotEqual(idDebit, Guid.Empty);
                 bool result = File.Exists(_dbFile);
-                _ = result.Should().BeTrue();
+                Assert.True(result);
                 Transaction tx = new(idCredit, idDebit, 0, DateOnly.FromDateTime(DateTime.Now));
                 Guid txId = await store.CreateTransactionAsync(tx);
-                _ = txId.Should().NotBeEmpty();
+                Assert.NotEqual(txId, Guid.Empty);
                 store.Dispose();
             }
             File.Delete(_dbFile);
@@ -93,15 +92,15 @@ namespace DataAccessTests
                 };
                 IDataStore store = scope.Resolve<IDataStore>();
                 Guid nameId = await store.CreateNameAsync(name);
-                _ = nameId.Should().NotBeEmpty();
+                Assert.NotEqual(nameId, Guid.Empty);
                 Guid addressId = await store.CreateAddressAsync(address);
-                _ = addressId.Should().NotBeEmpty();
+                Assert.NotEqual(addressId, Guid.Empty);
                 bool result = File.Exists(_dbFile);
-                _ = result.Should().BeTrue();
+                Assert.True(result);
                 c.PersonNameId = nameId;
                 c.AddressId = addressId;
                 Guid clientId = await store.CreateClientAsync(c);
-                _ = clientId.Should().NotBeEmpty();
+                Assert.NotEqual(clientId, Guid.Empty);
                 store.Dispose();
             }
             File.Delete(_dbFile);

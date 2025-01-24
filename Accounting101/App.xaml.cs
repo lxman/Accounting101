@@ -31,6 +31,7 @@ namespace Accounting101
             JoinableTaskFactory taskFactory = new(new JoinableTaskCollection(new JoinableTaskContext()));
 
             ServiceCollection services = new();
+            services.AddSingleton<IServiceCollection>(services);
             services.AddSingleton<IDataStore, DataStore>();
             services.AddSingleton(taskFactory);
             services.AddSingleton<MenuViewModel>();
