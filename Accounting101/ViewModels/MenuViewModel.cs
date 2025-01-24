@@ -1,5 +1,4 @@
-﻿using System.IO;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Input;
 using Accounting101.Messages;
 using CommunityToolkit.Mvvm.Input;
@@ -9,9 +8,10 @@ using DataAccess.Models;
 using DataAccess.Services;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
-
+// ReSharper disable RedundantCatchClause
+// ReSharper disable AsyncVoidMethod
 // ReSharper disable SwitchStatementMissingSomeEnumCasesNoDefault
-
+#pragma warning disable VSTHRD100
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101.ViewModels
@@ -19,6 +19,8 @@ namespace Accounting101.ViewModels
     public class MenuViewModel : BaseViewModel
     {
         public event EventHandler? DeleteClient;
+
+        public event EventHandler? DeleteBusiness;
 
         public WindowType CurrentScreen
         {
@@ -251,7 +253,6 @@ namespace Accounting101.ViewModels
         //private bool _showReportsTaxDetailCommand;
         //private bool _showReportsCustomReportCommand;
         private readonly IDataStore _dataStore;
-
         private readonly JoinableTaskFactory _taskFactory;
 
         public MenuViewModel(IDataStore dataStore, JoinableTaskFactory taskFactory)
@@ -270,6 +271,7 @@ namespace Accounting101.ViewModels
             ReportsBalanceSheetCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.BalanceSheet)));
             ReportsProfitAndLossCommand = new RelayCommand(() => WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ProfitAndLoss)));
             DeleteClientCommand = new RelayCommand(() => DeleteClient?.Invoke(this, EventArgs.Empty));
+            DeleteBusinessCommand = new RelayCommand(() => DeleteBusiness?.Invoke(this, EventArgs.Empty));
             ExitCommand = new RelayCommand(() => Application.Current.Shutdown());
         }
 
@@ -400,15 +402,6 @@ namespace Accounting101.ViewModels
             }
 
             SetMenus();
-        }
-
-        private void DeleteBusiness()
-        {
-            _dataStore.Dispose();
-            string dbLocation = _dataStore.GetDbLocation();
-            File.Delete(dbLocation);
-            _dataStore.ClearRegistry();
-            Application.Current.Shutdown(0);
         }
     }
 }

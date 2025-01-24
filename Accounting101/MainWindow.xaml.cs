@@ -1,4 +1,5 @@
-﻿using System.Windows;
+﻿using System.IO;
+using System.Windows;
 using System.Windows.Input;
 using Accounting101.Messages;
 using Accounting101.ViewModels;
@@ -18,7 +19,6 @@ using Microsoft.VisualStudio.Threading;
 // ReSharper disable RedundantJumpStatement
 // ReSharper disable AsyncVoidMethod
 #pragma warning disable VSTHRD100
-
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101
@@ -92,6 +92,7 @@ namespace Accounting101
             MenuViewModel = menuViewModel;
             InitializeComponent();
             MenuViewModel.DeleteClient += DeleteClient;
+            MenuViewModel.DeleteBusiness += DeleteBusiness;
         }
 
         public void Receive(BusinessEditedMessage message)
@@ -334,6 +335,27 @@ namespace Accounting101
                     return;
                 }
                 Receive(new ChangeScreenMessage(WindowType.CreateClient));
+            }
+            catch (Exception)
+            {
+                return;
+            }
+        }
+
+        private async void DeleteBusiness(object? sender, EventArgs e)
+        {
+            try
+            {
+                MessageDialogResult result = await this.ShowMessageAsync("Delete Business", "Are you sure you want to delete the business? This will delete the database and require setting up a new one.", MessageDialogStyle.AffirmativeAndNegative);
+                if (result != MessageDialogResult.Affirmative)
+                {
+                    return;
+                }
+                _dataStore.Dispose();
+                string dbLocation = _dataStore.GetDbLocation();
+                File.Delete(dbLocation);
+                _dataStore.ClearRegistry();
+                Receive(new ChangeScreenMessage(WindowType.SetupDatabase));
             }
             catch (Exception)
             {
