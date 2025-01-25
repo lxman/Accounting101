@@ -15,11 +15,11 @@ using DataAccess.Models;
 using DataAccess.Models.Auditing;
 using Timer = System.Timers.Timer;
 
-#pragma warning disable VSTHRD110
-
+// ReSharper disable MemberCanBeMadeStatic.Local
 // ReSharper disable SwitchStatementMissingSomeEnumCasesNoDefault
 #pragma warning disable CS0169 // Field is never used
 #pragma warning disable CS8618, CS9264
+#pragma warning disable VSTHRD110
 
 namespace Accounting101.Controls
 {
@@ -219,10 +219,12 @@ namespace Accounting101.Controls
             {
                 case Key.C:
                     Credit = true;
+                    AccountSelector.Focus();
                     break;
 
                 case Key.D:
                     Debit = true;
+                    AccountSelector.Focus();
                     break;
 
                 case Key.Tab:

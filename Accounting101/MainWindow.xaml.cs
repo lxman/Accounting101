@@ -67,7 +67,6 @@ namespace Accounting101
         private bool _enableTransactionKeyWatcher;
         private bool _enableEditingKeyWatcher;
         private readonly IServiceCollection _serviceCollection;
-        private readonly IServiceProvider _serviceProvider;
 
         private static readonly List<Key> TransactionKeys =
         [
@@ -89,14 +88,12 @@ namespace Accounting101
             IDataStore dataStore,
             JoinableTaskFactory taskFactory,
             MenuViewModel menuViewModel,
-            IServiceCollection serviceCollection,
-            IServiceProvider serviceProvider)
+            IServiceCollection serviceCollection)
         {
             WeakReferenceMessenger.Default.RegisterAll(this);
             _taskFactory = taskFactory;
             _dataStore = dataStore;
             _serviceCollection = serviceCollection;
-            _serviceProvider = serviceProvider;
             DataContext = this;
             MenuViewModel = menuViewModel;
             InitializeComponent();
