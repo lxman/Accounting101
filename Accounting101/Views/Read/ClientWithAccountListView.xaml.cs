@@ -1,5 +1,4 @@
 ﻿using System.Windows;
-using System.Windows.Controls;
 using Accounting101.Messages;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess;
@@ -7,11 +6,14 @@ using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 
+// ReSharper disable NotAccessedField.Local
+#pragma warning disable CS8629 // Nullable value type may be null.
+#pragma warning disable CS8601 // Possible null reference assignment.
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101.Views.Read
 {
-    public partial class ClientWithAccountListView : UserControl, IRecipient<ShowAccountTransactionEditor>
+    public partial class ClientWithAccountListView : IRecipient<ShowAccountTransactionEditor>
     {
         private readonly IDataStore _dataStore;
         private readonly JoinableTaskFactory _taskFactory;
@@ -66,7 +68,6 @@ namespace Accounting101.Views.Read
             {
                 return;
             }
-            AccountWithTransactions awt = new(_dataStore, _taskFactory, message.Value.AccountId);
             AccountEntriesEditor.SetInfo(_dataStore, _taskFactory, _client, accountWithEverything);
             AccountEntriesEditor.Visibility = Visibility.Visible;
             AccountsGrid.Visibility = Visibility.Hidden;

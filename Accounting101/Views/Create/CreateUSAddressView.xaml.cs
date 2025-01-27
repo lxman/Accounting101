@@ -1,10 +1,9 @@
-﻿using System.Windows.Controls;
-using Accounting101.ViewModels.Create;
+﻿using Accounting101.ViewModels.Create;
 using DataAccess.Models;
 
 namespace Accounting101.Views.Create
 {
-    public partial class CreateUSAddressView : UserControl
+    public partial class CreateUSAddressView
     {
         private readonly CreateUSAddressViewModel _viewModel = new();
 

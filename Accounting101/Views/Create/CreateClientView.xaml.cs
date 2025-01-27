@@ -1,5 +1,4 @@
-﻿using System.Windows.Controls;
-using Accounting101.Messages;
+﻿using Accounting101.Messages;
 using Accounting101.Models;
 using Accounting101.ViewModels.Create;
 using CommunityToolkit.Mvvm.Messaging;
@@ -10,7 +9,7 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.Views.Create
 {
-    public partial class CreateClientView : UserControl
+    public partial class CreateClientView
     {
         private readonly CreateClientViewModel _viewModel;
         private readonly IDataStore _dataStore;

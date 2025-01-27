@@ -1,12 +1,11 @@
-﻿using System.Windows.Controls;
-using Accounting101.ViewModels.Create;
+﻿using Accounting101.ViewModels.Create;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.Views.Create
 {
-    public partial class CreateCoAView : UserControl
+    public partial class CreateCoAView
     {
         public event EventHandler? CoACreated;
 

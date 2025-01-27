@@ -1,5 +1,4 @@
 ﻿using System.Collections.ObjectModel;
-using System.Windows.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DataAccess.Models;
 
@@ -8,7 +7,7 @@ using DataAccess.Models;
 namespace Accounting101.Views.Update
 {
     [ObservableObject]
-    public partial class UpdateUSAddressView : UserControl
+    public partial class UpdateUSAddressView
     {
         public ReadOnlyObservableCollection<string> States { get; private set; }
 
@@ -75,14 +74,17 @@ namespace Accounting101.Views.Update
             InitializeComponent();
         }
 
-        public void SetAddress(UsAddress address)
+        public void SetAddress(UsAddress? address)
         {
-            _id = address.Id;
-            Line1 = address.Line1;
-            Line2 = address.Line2;
-            City = address.City;
-            State = address.State;
-            Zip = address.Zip;
+            if (address != null)
+            {
+                _id = address.Id;
+                Line1 = address.Line1;
+                Line2 = address.Line2;
+                City = address.City;
+                State = address.State;
+                Zip = address.Zip;
+            }
         }
 
         public void SetStates(List<string> states)

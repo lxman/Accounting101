@@ -10,7 +10,7 @@ using Microsoft.VisualStudio.Threading;
 namespace Accounting101.Views.Create
 {
     [ObservableObject]
-    public partial class CreateBusinessView : UserControl
+    public partial class CreateBusinessView
     {
         public string BusinessName { get; set; } = string.Empty;
 

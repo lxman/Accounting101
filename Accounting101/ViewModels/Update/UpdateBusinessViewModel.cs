@@ -101,7 +101,7 @@ namespace Accounting101.ViewModels.Update
             {
                 UpdateUSAddressView usAddressView => usAddressView.GetAddress(),
                 UpdateForeignAddressView foreignAddressView => foreignAddressView.GetAddress(),
-                _ => throw new DataException($"Unexpected address view type: {AddressView?.GetType()}")
+                _ => throw new DataException($"Unexpected address view type: {AddressView.GetType()}")
             };
             _business.Name = BusinessName;
             _taskFactory.Run(() => _dataStore.UpdateBusinessAsync(_business));

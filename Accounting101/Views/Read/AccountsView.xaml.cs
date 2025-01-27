@@ -9,10 +9,11 @@ using Accounting101.ViewModels.Read;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
 
 namespace Accounting101.Views.Read
 {
-    public partial class AccountsView : UserControl
+    public partial class AccountsView
     {
         public bool HasAccounts => _viewModel.HasAccounts;
 
@@ -56,15 +57,15 @@ namespace Accounting101.Views.Read
         private void AccountListLoadingRow(object? sender, DataGridRowEventArgs e)
         {
             e.Row.Background = Brushes.Transparent;
-            e.Row.MouseEnter += (s, _) =>
+            e.Row.MouseEnter += (_, _) =>
             {
                 e.Row.Background = _focusColor;
             };
-            e.Row.MouseLeave += (s, _) =>
+            e.Row.MouseLeave += (_, _) =>
             {
                 e.Row.Background = Brushes.Transparent;
             };
-            e.Row.PreviewMouseDown += (s, _) =>
+            e.Row.PreviewMouseDown += (_, _) =>
             {
                 Guid accountId = ((AccountsViewLine)e.Row.Item).Id;
                 _viewModel.ItemSelected(accountId);
@@ -81,8 +82,8 @@ namespace Accounting101.Views.Read
             DataGridColumn? sbColumn = dataGrid.Columns.FirstOrDefault(c => c.Header.ToString() == "Start Balance");
             DataGridColumn? cbColumn = dataGrid.Columns.FirstOrDefault(c => c.Header.ToString() == "Current Balance");
 
-            ((DataGridTextColumn)sbColumn).Binding = _sbBinding;
-            ((DataGridTextColumn)cbColumn).Binding = _cbBinding;
+            (sbColumn as DataGridTextColumn).Binding = _sbBinding;
+            (cbColumn as DataGridTextColumn).Binding = _cbBinding;
 
             Style style = new(typeof(DataGridCell), sbColumn.CellStyle);
             style.Setters.Add(new Setter

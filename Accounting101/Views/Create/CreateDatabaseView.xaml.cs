@@ -1,6 +1,5 @@
 ﻿using System.IO;
 using System.Windows;
-using System.Windows.Controls;
 using Accounting101.Messages;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess;
@@ -8,7 +7,7 @@ using Microsoft.Win32;
 
 namespace Accounting101.Views.Create
 {
-    public partial class CreateDatabaseView : UserControl
+    public partial class CreateDatabaseView
     {
         private string _dbLocation = $"{Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Accounting101", "Accounts.db")}";
         private string _password = string.Empty;

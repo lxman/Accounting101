@@ -10,7 +10,7 @@ using Microsoft.Win32;
 
 namespace Accounting101.Views.Read
 {
-    public partial class GetPasswordView : UserControl
+    public partial class GetPasswordView
     {
         private readonly IDataStore _dataStore;
         private readonly JoinableTaskFactory _taskFactory;

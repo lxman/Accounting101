@@ -1,5 +1,4 @@
 ﻿using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Media;
 using Accounting101.Controls;
 using Accounting101.ViewModels.Update;
@@ -8,7 +7,7 @@ using Microsoft.Win32;
 
 namespace Accounting101.Views.Update
 {
-    public partial class UpdateThemeView : UserControl
+    public partial class UpdateThemeView
     {
         private readonly UpdateThemeViewModel _viewModel = new();
         private static readonly BrushConverter BrushConverter = new();
@@ -48,11 +47,11 @@ namespace Accounting101.Views.Update
             DataContext = _viewModel;
             InitializeComponent();
             _viewModel.Initialize(_themeName);
-            string color = _themeName.Split('.')[1];
+            string? color = _themeName?.Split('.')[1];
             _colors.ForEach(c =>
             {
                 ThemeButton button = new() { ButtonBackground = c.Brush, Text = c.Name, ButtonForeground = Brushes.Black, Width = 75, Padding = new Thickness(10, 10, 10, 10) };
-                button.ThemeButtonClicked += (sender, colorName) => _viewModel.SetTheme(colorName);
+                button.ThemeButtonClicked += (_, colorName) => _viewModel.SetTheme(colorName);
                 if (button.Text == color)
                 {
                     button.BorderBrush = Brushes.Black;

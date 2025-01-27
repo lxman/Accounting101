@@ -1,12 +1,11 @@
-﻿using System.Windows.Controls;
-using DataAccess;
+﻿using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.Views.Create
 {
-    public partial class CreateAccountView : UserControl
+    public partial class CreateAccountView
     {
         public CreateAccountView()
         {

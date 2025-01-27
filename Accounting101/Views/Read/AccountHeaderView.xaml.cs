@@ -1,5 +1,4 @@
-﻿using System.Windows.Controls;
-using System.Windows.Input;
+﻿using System.Windows.Input;
 using Accounting101.Messages;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
@@ -8,7 +7,7 @@ using DataAccess.Models;
 namespace Accounting101.Views.Read
 {
     [ObservableObject]
-    public partial class AccountHeaderView : UserControl
+    public partial class AccountHeaderView
     {
         public string Created { get; private set; } = string.Empty;
 

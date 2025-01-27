@@ -13,7 +13,7 @@ using Microsoft.VisualStudio.Threading;
 namespace Accounting101.Views.Update
 {
     [ObservableObject]
-    public partial class UpdateClientView : UserControl
+    public partial class UpdateClientView
     {
         public string BusinessName
         {
@@ -25,7 +25,7 @@ namespace Accounting101.Views.Update
             }
         }
 
-        public PersonName PersonName
+        public PersonName? PersonName
         {
             get => _personName;
             set
@@ -66,7 +66,7 @@ namespace Accounting101.Views.Update
         }
 
         private string _businessName = string.Empty;
-        private PersonName _personName;
+        private PersonName? _personName;
         private bool? _foreign = false;
         private UserControl? _addressView;
         private readonly UpdateUSAddressView _usAddressView = new();
@@ -112,7 +112,7 @@ namespace Accounting101.Views.Update
             ClientInfo client = GetClient();
             Client c = new() { Id = _client.Id, AddressId = client.AddressId, PersonNameId = client.PersonNameId, BusinessName = client.BusinessName };
             _taskFactory.Run(() =>
-                _dataStore.UpdateClientAsync(new ClientWithInfo(c, client.PersonName, client.Address)));
+                _dataStore.UpdateClientAsync(new ClientWithInfo(c, client.PersonName!, client.Address!)));
             WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ClientList));
         }
 

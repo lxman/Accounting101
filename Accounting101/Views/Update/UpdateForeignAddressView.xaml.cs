@@ -1,5 +1,4 @@
-﻿using System.Windows.Controls;
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using DataAccess.Models;
 
 #pragma warning disable CS8618, CS9264
@@ -7,7 +6,7 @@ using DataAccess.Models;
 namespace Accounting101.Views.Update
 {
     [ObservableObject]
-    public partial class UpdateForeignAddressView : UserControl
+    public partial class UpdateForeignAddressView
     {
         public string Line1
         {
