@@ -1,6 +1,5 @@
 ﻿using System.Collections.ObjectModel;
 using System.Windows;
-using System.Windows.Controls;
 using Accounting101.Controls;
 using DataAccess;
 using DataAccess.Models;
@@ -9,18 +8,14 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.Views.Read
 {
-    public partial class ClientListView : UserControl
+    public partial class ClientListView
     {
         public ReadOnlyObservableCollection<ClientTileControl> ClientTiles { get; }
 
-        private readonly IDataStore _dataStore;
-        private readonly JoinableTaskFactory _taskFactory;
-
         public ClientListView(IDataStore dataStore, JoinableTaskFactory taskFactory)
         {
-            _dataStore = dataStore;
-            _taskFactory = taskFactory;
-            List<ClientWithInfo> clients = _taskFactory.Run(() => _dataStore.AllClientsWithInfosAsync())?.ToList() ?? [];
+            IDataStore dataStore1 = dataStore;
+            List<ClientWithInfo> clients = taskFactory.Run(() => dataStore1.AllClientsWithInfosAsync())?.ToList() ?? [];
             DataContext = this;
             ObservableCollection<ClientTileControl> clientTiles = [];
             clients.ForEach(c => clientTiles.Add(new ClientTileControl(c)));
@@ -30,12 +25,14 @@ namespace Accounting101.Views.Read
 
         private void ClientListViewSizeChanged(object sender, SizeChangedEventArgs e)
         {
-            if (e.WidthChanged)
+            if (!e.WidthChanged)
             {
-                foreach (ClientTileControl control in ClientTiles)
-                {
-                    control.Width = e.NewSize.Width * 0.9;
-                }
+                return;
+            }
+
+            foreach (ClientTileControl control in ClientTiles)
+            {
+                control.Width = e.NewSize.Width * 0.9;
             }
         }
     }

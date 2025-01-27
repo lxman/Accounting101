@@ -1,10 +1,9 @@
-﻿using System.Windows.Controls;
-using Accounting101.ViewModels.Update;
+﻿using Accounting101.ViewModels.Update;
 using DataAccess.Models;
 
 namespace Accounting101.Views.Update
 {
-    public partial class UpdateAccountView : UserControl
+    public partial class UpdateAccountView
     {
         public event EventHandler<AccountWithInfo?>? SaveChanges;
 

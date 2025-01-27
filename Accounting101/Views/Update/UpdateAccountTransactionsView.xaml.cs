@@ -17,7 +17,7 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.Views.Update
 {
-    public partial class UpdateAccountTransactionsView : UserControl, IRecipient<UpdateTransactionLayoutMessage>
+    public partial class UpdateAccountTransactionsView : IRecipient<UpdateTransactionLayoutMessage>
     {
         private readonly UpdateAccountTransactionsViewModel _viewModel = new();
         private IDataStore _dataStore;

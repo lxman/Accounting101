@@ -1,11 +1,10 @@
-﻿using System.Windows.Controls;
-using Accounting101.ViewModels.Update;
+﻿using Accounting101.ViewModels.Update;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.Views.Update
 {
-    public partial class UpdateBusinessView : UserControl
+    public partial class UpdateBusinessView
     {
         private readonly UpdateBusinessViewModel _viewModel = new();
 

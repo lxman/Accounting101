@@ -1,5 +1,4 @@
-﻿using System.Windows.Controls;
-using System.Windows.Input;
+﻿using System.Windows.Input;
 using Accounting101.Messages;
 using Accounting101.Models;
 using CommunityToolkit.Mvvm.Messaging;
@@ -12,7 +11,7 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.Views.Update
 {
-    public partial class UpdateAccountEntriesView : UserControl, IRecipient<KeyPressedMessage>
+    public partial class UpdateAccountEntriesView : IRecipient<KeyPressedMessage>
     {
         private IDataStore _dataStore;
         private JoinableTaskFactory _taskFactory;
@@ -42,9 +41,9 @@ namespace Accounting101.Views.Update
             FastEntryControl.SetMinDate(account.Account.Created);
             AccountHeaderView.SetInfo(account);
             TransactionList.SetInfo(dataStore, taskFactory, account, _otherAccounts);
-            FastEntryControl.EditingStateChanged += (sender, editing) => TransactionList.IsEnabled = !editing;
+            FastEntryControl.EditingStateChanged += (_, editing) => TransactionList.IsEnabled = !editing;
             FastEntryControl.ErrorOccurred +=
-                (sender, error) => taskFactory.Run(() => dataStore.CreateAuditEntryAsync(error));
+                (_, error) => taskFactory.Run(() => dataStore.CreateAuditEntryAsync(error));
             UpdateAccountBalance();
         }
 

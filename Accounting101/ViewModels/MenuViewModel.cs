@@ -11,6 +11,7 @@ using Microsoft.VisualStudio.Threading;
 // ReSharper disable RedundantCatchClause
 // ReSharper disable AsyncVoidMethod
 // ReSharper disable SwitchStatementMissingSomeEnumCasesNoDefault
+// ReSharper disable UnusedMember.Local
 #pragma warning disable VSTHRD100
 #pragma warning disable CS8618, CS9264
 

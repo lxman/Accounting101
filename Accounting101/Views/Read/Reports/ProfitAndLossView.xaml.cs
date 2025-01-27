@@ -1,5 +1,4 @@
-﻿using System.Windows.Controls;
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
@@ -8,7 +7,7 @@ using Microsoft.VisualStudio.Threading;
 namespace Accounting101.Views.Read.Reports
 {
     [ObservableObject]
-    public partial class ProfitAndLossView : UserControl
+    public partial class ProfitAndLossView
     {
         public DateOnly StartDate
         {

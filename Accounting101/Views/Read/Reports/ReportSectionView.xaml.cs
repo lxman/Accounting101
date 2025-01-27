@@ -1,5 +1,4 @@
 ﻿using System.Collections.ObjectModel;
-using System.Windows.Controls;
 using Accounting101.Models;
 using CommunityToolkit.Mvvm.ComponentModel;
 using DataAccess;
@@ -12,7 +11,7 @@ using Microsoft.VisualStudio.Threading;
 namespace Accounting101.Views.Read.Reports
 {
     [ObservableObject]
-    public partial class ReportSectionView : UserControl
+    public partial class ReportSectionView
     {
         public string SectionHeader { get; private set; }
 

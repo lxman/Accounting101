@@ -36,14 +36,14 @@ namespace Accounting101.ViewModels.Update
         private bool _darkChecked;
         private string? _color = ThemeManager.Current.DetectTheme(Application.Current)?.Name.Split('.')[1];
 
-        public void Initialize(string theme)
+        public void Initialize(string? theme)
         {
-            string[] themeParts = theme.Split('.');
-            LightChecked = themeParts[0] == "Light";
-            DarkChecked = themeParts[0] == "Dark";
+            string[]? themeParts = theme?.Split('.');
+            LightChecked = themeParts?[0] == "Light";
+            DarkChecked = themeParts?[0] == "Dark";
         }
 
-        public void SetTheme(string colorName, string? theme = null)
+        public void SetTheme(string? colorName, string? theme = null)
         {
             _color = colorName;
             string themeName = $"{theme ?? (LightChecked ? "Light" : "Dark")}.{colorName}";

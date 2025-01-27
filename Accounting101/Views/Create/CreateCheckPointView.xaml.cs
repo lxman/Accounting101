@@ -1,11 +1,10 @@
-﻿using System.Windows.Controls;
-using Accounting101.ViewModels.Create;
+﻿using Accounting101.ViewModels.Create;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.Views.Create
 {
-    public partial class CreateCheckPointView : UserControl
+    public partial class CreateCheckPointView
     {
         public CreateCheckPointViewModel ViewModel { get; } = new();
 
