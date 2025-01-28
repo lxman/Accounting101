@@ -1,15 +1,14 @@
 ﻿using System;
 using LiteDB;
 
-namespace DataAccess.Models.Auditing
+namespace DataAccess.Models.Auditing;
+
+public class AuditEntry
 {
-    public class AuditEntry
-    {
-        [BsonId]
-        Guid Id { get; set; } = Guid.NewGuid();
+    [BsonId]
+    Guid Id { get; set; } = Guid.NewGuid();
 
-        public DateTime Created { get; set; } = DateTime.UtcNow;
+    public DateTime Created { get; set; } = DateTime.UtcNow;
 
-        public string Message { get; set; } = string.Empty;
-    }
+    public string Message { get; set; } = string.Empty;
 }

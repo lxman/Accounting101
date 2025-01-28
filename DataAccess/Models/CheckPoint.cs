@@ -2,18 +2,17 @@
 using System.Collections.Generic;
 using LiteDB;
 
-namespace DataAccess.Models
+namespace DataAccess.Models;
+
+public class CheckPoint(Guid clientId, DateOnly date)
 {
-    public class CheckPoint(Guid clientId, DateOnly date)
-    {
-        [BsonId]
-        public Guid Id { get; set; }
+    [BsonId]
+    public Guid Id { get; set; }
 
-        public Guid ClientId { get; init; } = clientId;
+    public Guid ClientId { get; init; } = clientId;
 
-        public DateOnly Date { get; init; } = date;
+    public DateOnly Date { get; init; } = date;
 
-        [BsonIgnore]
-        public List<AccountCheckpoint> AccountCheckpoints { get; } = [];
-    }
+    [BsonIgnore]
+    public List<AccountCheckpoint> AccountCheckpoints { get; } = [];
 }

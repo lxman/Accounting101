@@ -3,21 +3,20 @@ using Accounting101.Messages;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess.Models;
 
-namespace Accounting101.Controls
+namespace Accounting101.Controls;
+
+public partial class ClientTileControl
 {
-    public partial class ClientTileControl
+    public ClientWithInfo Client { get; }
+
+    public ClientTileControl(ClientWithInfo client)
     {
-        public ClientWithInfo Client { get; }
+        Client = client;
+        InitializeComponent();
+    }
 
-        public ClientTileControl(ClientWithInfo client)
-        {
-            Client = client;
-            InitializeComponent();
-        }
-
-        private void ClientTileControlClick(object sender, RoutedEventArgs e)
-        {
-            WeakReferenceMessenger.Default.Send(new FocusClientMessage(Client));
-        }
+    private void ClientTileControlClick(object sender, RoutedEventArgs e)
+    {
+        WeakReferenceMessenger.Default.Send(new FocusClientMessage(Client));
     }
 }

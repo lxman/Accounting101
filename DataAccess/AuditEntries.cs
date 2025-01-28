@@ -4,18 +4,17 @@ using DataAccess.Models.Auditing;
 using DataAccess.Services.Interfaces;
 using LiteDB.Async;
 
-namespace DataAccess
+namespace DataAccess;
+
+public static class AuditEntries
 {
-    public static class AuditEntries
+    public static async Task CreateAuditEntryAsync(this IDataStore store, AuditEntry entry)
     {
-        public static async Task CreateAuditEntryAsync(this IDataStore store, AuditEntry entry)
+        ILiteCollectionAsync<AuditEntry>? entries = store.GetCollection<AuditEntry>(CollectionNames.AuditEntry);
+        if (entries is null)
         {
-            ILiteCollectionAsync<AuditEntry>? entries = store.GetCollection<AuditEntry>(CollectionNames.AuditEntry);
-            if (entries is null)
-            {
-                return;
-            }
-            await entries.InsertAsync(entry);
+            return;
         }
+        await entries.InsertAsync(entry);
     }
 }

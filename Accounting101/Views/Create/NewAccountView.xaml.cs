@@ -3,26 +3,25 @@ using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 
-namespace Accounting101.Views.Create
+namespace Accounting101.Views.Create;
+
+public partial class NewAccountView
 {
-    public partial class NewAccountView
+    private readonly NewAccountViewModel _viewModel = new();
+
+    public NewAccountView()
     {
-        private readonly NewAccountViewModel _viewModel = new();
+        DataContext = _viewModel;
+        InitializeComponent();
+    }
 
-        public NewAccountView()
-        {
-            DataContext = _viewModel;
-            InitializeComponent();
-        }
+    public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, Client client)
+    {
+        _viewModel.SetInfo(dataStore, taskFactory, client);
+    }
 
-        public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, Client client)
-        {
-            _viewModel.SetInfo(dataStore, taskFactory, client);
-        }
-
-        public void Save()
-        {
-            _viewModel.Save();
-        }
+    public void Save()
+    {
+        _viewModel.Save();
     }
 }

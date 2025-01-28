@@ -1,28 +1,27 @@
 ﻿using Accounting101.ViewModels.Update;
 using DataAccess.Models;
 
-namespace Accounting101.Views.Update
+namespace Accounting101.Views.Update;
+
+public partial class UpdateAccountView
 {
-    public partial class UpdateAccountView
+    public event EventHandler<AccountWithInfo?>? SaveChanges;
+
+    private readonly UpdateAccountViewModel _viewModel = new();
+
+    public UpdateAccountView()
     {
-        public event EventHandler<AccountWithInfo?>? SaveChanges;
+        DataContext = _viewModel;
+        InitializeComponent();
+    }
 
-        private readonly UpdateAccountViewModel _viewModel = new();
+    public void SetAccount(AccountWithInfo account)
+    {
+        _viewModel.SetAccount(account);
+    }
 
-        public UpdateAccountView()
-        {
-            DataContext = _viewModel;
-            InitializeComponent();
-        }
-
-        public void SetAccount(AccountWithInfo account)
-        {
-            _viewModel.SetAccount(account);
-        }
-
-        public void SaveAccountChanges()
-        {
-            SaveChanges?.Invoke(this, _viewModel.Account);
-        }
+    public void SaveAccountChanges()
+    {
+        SaveChanges?.Invoke(this, _viewModel.Account);
     }
 }

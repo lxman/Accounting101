@@ -1,13 +1,12 @@
 ﻿using System;
 
-namespace DataAccess.Models
+namespace DataAccess.Models;
+
+public class AccountCheckpoint(Guid clientId, Guid accountId, decimal balance)
 {
-    public class AccountCheckpoint(Guid clientId, Guid accountId, decimal balance)
-    {
-        public Guid ClientId { get; init; } = clientId;
+    public Guid ClientId { get; init; } = clientId;
 
-        public Guid AccountId { get; init; } = accountId;
+    public Guid AccountId { get; init; } = accountId;
 
-        public decimal Balance { get; init; } = balance;
-    }
+    public decimal Balance { get; init; } = balance;
 }

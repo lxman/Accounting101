@@ -15,142 +15,141 @@ using Microsoft.VisualStudio.Threading;
 
 #pragma warning disable CS8618, CS9264
 
-namespace Accounting101.Views.Update
+namespace Accounting101.Views.Update;
+
+public partial class UpdateAccountTransactionsView : IRecipient<UpdateTransactionLayoutMessage>
 {
-    public partial class UpdateAccountTransactionsView : IRecipient<UpdateTransactionLayoutMessage>
+    private readonly UpdateAccountTransactionsViewModel _viewModel = new();
+    private IDataStore _dataStore;
+    private JoinableTaskFactory _taskFactory;
+    private List<AccountWithInfo> _otherAccounts;
+    private Guid _accountId;
+    private readonly Binding _creditBinding = new("Credit") { Converter = new DecimalToAccountingStringConverter() };
+    private readonly Binding _debitBinding = new("Debit") { Converter = new DecimalToAccountingStringConverter() };
+    private readonly Binding _balanceBinding = new("Balance") { Converter = new DecimalToAccountingStringConverter() };
+
+    public UpdateAccountTransactionsView()
     {
-        private readonly UpdateAccountTransactionsViewModel _viewModel = new();
-        private IDataStore _dataStore;
-        private JoinableTaskFactory _taskFactory;
-        private List<AccountWithInfo> _otherAccounts;
-        private Guid _accountId;
-        private readonly Binding _creditBinding = new("Credit") { Converter = new DecimalToAccountingStringConverter() };
-        private readonly Binding _debitBinding = new("Debit") { Converter = new DecimalToAccountingStringConverter() };
-        private readonly Binding _balanceBinding = new("Balance") { Converter = new DecimalToAccountingStringConverter() };
+        WeakReferenceMessenger.Default.RegisterAll(this);
+        DataContext = _viewModel;
+        InitializeComponent();
+    }
 
-        public UpdateAccountTransactionsView()
+    public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, AccountWithEverything account, List<AccountWithInfo> otherAccounts)
+    {
+        _dataStore = dataStore;
+        _taskFactory = taskFactory;
+        _accountId = account.Account.Id;
+        _otherAccounts = otherAccounts;
+        _viewModel.SetInfo(account, otherAccounts);
+    }
+
+    public TransactionInfoLine? GetSelected()
+    {
+        return _viewModel.GetSelectedLine();
+    }
+
+    public void Receive(UpdateTransactionLayoutMessage message)
+    {
+        AccountWithEverything? account =
+            _taskFactory.Run(() => _dataStore.GetAccountWithEverythingAsync(_accountId));
+        if (account is null)
         {
-            WeakReferenceMessenger.Default.RegisterAll(this);
-            DataContext = _viewModel;
-            InitializeComponent();
+            return;
         }
+        _viewModel.SetInfo(account, _otherAccounts);
+    }
 
-        public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, AccountWithEverything account, List<AccountWithInfo> otherAccounts)
+    private void DataGridAutoGeneratingColumn(object? sender, DataGridAutoGeneratingColumnEventArgs e)
+    {
+        PropertyDescriptor propertyDescriptor = (PropertyDescriptor)e.PropertyDescriptor;
+        e.Column.Header = propertyDescriptor.DisplayName;
+        switch (propertyDescriptor.DisplayName)
         {
-            _dataStore = dataStore;
-            _taskFactory = taskFactory;
-            _accountId = account.Account.Id;
-            _otherAccounts = otherAccounts;
-            _viewModel.SetInfo(account, otherAccounts);
-        }
-
-        public TransactionInfoLine? GetSelected()
-        {
-            return _viewModel.GetSelectedLine();
-        }
-
-        public void Receive(UpdateTransactionLayoutMessage message)
-        {
-            AccountWithEverything? account =
-                _taskFactory.Run(() => _dataStore.GetAccountWithEverythingAsync(_accountId));
-            if (account is null)
-            {
+            case "Id" or "Editable":
+                e.Cancel = true;
                 return;
-            }
-            _viewModel.SetInfo(account, _otherAccounts);
-        }
 
-        private void DataGridAutoGeneratingColumn(object? sender, DataGridAutoGeneratingColumnEventArgs e)
+            case "When":
+                {
+                    e.Column.Header = "Date";
+                    Style headerStyle = new();
+                    headerStyle.Setters.Add(new Setter { Property = HorizontalContentAlignmentProperty, Value = HorizontalAlignment.Left });
+                    e.Column.HeaderStyle = headerStyle;
+                    break;
+                }
+            case "Debit" or "Credit" or "Balance":
+                {
+                    Style headerStyle = new();
+                    headerStyle.Setters.Add(new Setter { Property = HorizontalContentAlignmentProperty, Value = HorizontalAlignment.Right });
+                    e.Column.HeaderStyle = headerStyle;
+                    break;
+                }
+            case "OtherAccountInfo":
+                {
+                    e.Column.Header = "Other Account";
+                    Style headerStyle = new();
+                    headerStyle.Setters.Add(new Setter { Property = HorizontalContentAlignmentProperty, Value = HorizontalAlignment.Right });
+                    e.Column.HeaderStyle = headerStyle;
+                    e.Column.Width = new DataGridLength(1, DataGridLengthUnitType.Star);
+                    break;
+                }
+        }
+    }
+
+    private void DataGridAutoGeneratedColumns(object? sender, EventArgs e)
+    {
+        if (sender is not DataGrid { Columns.Count: > 0 } dataGrid)
         {
-            PropertyDescriptor propertyDescriptor = (PropertyDescriptor)e.PropertyDescriptor;
-            e.Column.Header = propertyDescriptor.DisplayName;
-            switch (propertyDescriptor.DisplayName)
-            {
-                case "Id" or "Editable":
-                    e.Cancel = true;
-                    return;
-
-                case "When":
-                    {
-                        e.Column.Header = "Date";
-                        Style headerStyle = new();
-                        headerStyle.Setters.Add(new Setter { Property = HorizontalContentAlignmentProperty, Value = HorizontalAlignment.Left });
-                        e.Column.HeaderStyle = headerStyle;
-                        break;
-                    }
-                case "Debit" or "Credit" or "Balance":
-                    {
-                        Style headerStyle = new();
-                        headerStyle.Setters.Add(new Setter { Property = HorizontalContentAlignmentProperty, Value = HorizontalAlignment.Right });
-                        e.Column.HeaderStyle = headerStyle;
-                        break;
-                    }
-                case "OtherAccountInfo":
-                    {
-                        e.Column.Header = "Other Account";
-                        Style headerStyle = new();
-                        headerStyle.Setters.Add(new Setter { Property = HorizontalContentAlignmentProperty, Value = HorizontalAlignment.Right });
-                        e.Column.HeaderStyle = headerStyle;
-                        e.Column.Width = new DataGridLength(1, DataGridLengthUnitType.Star);
-                        break;
-                    }
-            }
+            return;
         }
 
-        private void DataGridAutoGeneratedColumns(object? sender, EventArgs e)
+        DataGridColumn? firstColumn = dataGrid.Columns.First();
+        DataGridColumn? creditColumn = dataGrid.Columns.First(c => c.Header.ToString() == "Credit");
+        DataGridColumn? debitColumn = dataGrid.Columns.First(c => c.Header.ToString() == "Debit");
+        DataGridColumn? balanceColumn = dataGrid.Columns.First(c => c.Header.ToString() == "Balance");
+        DataGridColumn? lastColumn = dataGrid.Columns.Last();
+
+        ((DataGridTextColumn)creditColumn).Binding = _creditBinding;
+        ((DataGridTextColumn)debitColumn).Binding = _debitBinding;
+        ((DataGridTextColumn)balanceColumn).Binding = _balanceBinding;
+
+        Style elementStyle = new(typeof(DataGridCell), firstColumn.CellStyle);
+        firstColumn.CellStyle ??= new Style();
+        firstColumn.CellStyle.Triggers.ToList().ForEach(t => elementStyle.Triggers.Add(t));
+
+        elementStyle.Setters.Add(new Setter { Property = VerticalAlignmentProperty, Value = VerticalAlignment.Center });
+        elementStyle.Setters.Add(new Setter { Property = IsTabStopProperty, Value = false });
+
+        Trigger selectedTrigger = new() { Property = DataGridCell.IsSelectedProperty, Value = true };
+        selectedTrigger.Setters.Add(new Setter { Property = BorderThicknessProperty, Value = new Thickness(0) });
+        elementStyle.Triggers.Add(selectedTrigger);
+
+        Style elementStyleLeft = new(typeof(DataGridCell), elementStyle);
+        elementStyleLeft.Setters.Add(new Setter { Property = TextBlock.TextAlignmentProperty, Value = TextAlignment.Left });
+        Style elementStyleRight = new(typeof(DataGridCell), elementStyle);
+        elementStyleRight.Setters.Add(new Setter { Property = TextBlock.TextAlignmentProperty, Value = TextAlignment.Right });
+
+        firstColumn.Width = new DataGridLength(1, DataGridLengthUnitType.Star);
+        firstColumn.CellStyle = elementStyleLeft;
+        creditColumn.Width = new DataGridLength(1, DataGridLengthUnitType.Star);
+        creditColumn.CellStyle = elementStyleRight;
+        debitColumn.Width = new DataGridLength(1, DataGridLengthUnitType.Star);
+        debitColumn.CellStyle = elementStyleRight;
+        balanceColumn.Width = new DataGridLength(1, DataGridLengthUnitType.Star);
+        balanceColumn.CellStyle = elementStyleRight;
+        lastColumn.Width = new DataGridLength(5, DataGridLengthUnitType.Star);
+        lastColumn.CellStyle = elementStyleRight;
+    }
+
+    private void DataGridLoadingRow(object? sender, DataGridRowEventArgs e)
+    {
+        TransactionInfoLine line = (TransactionInfoLine)e.Row.Item;
+        if (line.Editable)
         {
-            if (sender is not DataGrid { Columns.Count: > 0 } dataGrid)
-            {
-                return;
-            }
-
-            DataGridColumn? firstColumn = dataGrid.Columns.First();
-            DataGridColumn? creditColumn = dataGrid.Columns.First(c => c.Header.ToString() == "Credit");
-            DataGridColumn? debitColumn = dataGrid.Columns.First(c => c.Header.ToString() == "Debit");
-            DataGridColumn? balanceColumn = dataGrid.Columns.First(c => c.Header.ToString() == "Balance");
-            DataGridColumn? lastColumn = dataGrid.Columns.Last();
-
-            ((DataGridTextColumn)creditColumn).Binding = _creditBinding;
-            ((DataGridTextColumn)debitColumn).Binding = _debitBinding;
-            ((DataGridTextColumn)balanceColumn).Binding = _balanceBinding;
-
-            Style elementStyle = new(typeof(DataGridCell), firstColumn.CellStyle);
-            firstColumn.CellStyle ??= new Style();
-            firstColumn.CellStyle.Triggers.ToList().ForEach(t => elementStyle.Triggers.Add(t));
-
-            elementStyle.Setters.Add(new Setter { Property = VerticalAlignmentProperty, Value = VerticalAlignment.Center });
-            elementStyle.Setters.Add(new Setter { Property = IsTabStopProperty, Value = false });
-
-            Trigger selectedTrigger = new() { Property = DataGridCell.IsSelectedProperty, Value = true };
-            selectedTrigger.Setters.Add(new Setter { Property = BorderThicknessProperty, Value = new Thickness(0) });
-            elementStyle.Triggers.Add(selectedTrigger);
-
-            Style elementStyleLeft = new(typeof(DataGridCell), elementStyle);
-            elementStyleLeft.Setters.Add(new Setter { Property = TextBlock.TextAlignmentProperty, Value = TextAlignment.Left });
-            Style elementStyleRight = new(typeof(DataGridCell), elementStyle);
-            elementStyleRight.Setters.Add(new Setter { Property = TextBlock.TextAlignmentProperty, Value = TextAlignment.Right });
-
-            firstColumn.Width = new DataGridLength(1, DataGridLengthUnitType.Star);
-            firstColumn.CellStyle = elementStyleLeft;
-            creditColumn.Width = new DataGridLength(1, DataGridLengthUnitType.Star);
-            creditColumn.CellStyle = elementStyleRight;
-            debitColumn.Width = new DataGridLength(1, DataGridLengthUnitType.Star);
-            debitColumn.CellStyle = elementStyleRight;
-            balanceColumn.Width = new DataGridLength(1, DataGridLengthUnitType.Star);
-            balanceColumn.CellStyle = elementStyleRight;
-            lastColumn.Width = new DataGridLength(5, DataGridLengthUnitType.Star);
-            lastColumn.CellStyle = elementStyleRight;
+            return;
         }
-
-        private void DataGridLoadingRow(object? sender, DataGridRowEventArgs e)
-        {
-            TransactionInfoLine line = (TransactionInfoLine)e.Row.Item;
-            if (line.Editable)
-            {
-                return;
-            }
-            e.Row.IsHitTestVisible = false;
-            e.Row.Background = Brushes.LightGray;
-        }
+        e.Row.IsHitTestVisible = false;
+        e.Row.Background = Brushes.LightGray;
     }
 }

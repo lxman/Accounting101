@@ -1,12 +1,11 @@
-﻿namespace DataAccess.Models
-{
-    public class PhoneNumber
-    {
-        public string Number { get; set; }
+﻿namespace DataAccess.Models;
 
-        public PhoneNumber(string number)
-        {
-            Number = number;
-        }
+public class PhoneNumber
+{
+    public string Number { get; set; }
+
+    public PhoneNumber(string number)
+    {
+        Number = number;
     }
 }
