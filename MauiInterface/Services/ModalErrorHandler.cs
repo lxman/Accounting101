@@ -1,33 +1,32 @@
-namespace MauiInterface.Services
+namespace MauiInterface.Services;
+
+/// <summary>
+/// Modal Error Handler.
+/// </summary>
+public class ModalErrorHandler : IErrorHandler
 {
+    SemaphoreSlim _semaphore = new(1, 1);
+
     /// <summary>
-    /// Modal Error Handler.
+    /// Handle error in UI.
     /// </summary>
-    public class ModalErrorHandler : IErrorHandler
+    /// <param name="ex">Exception.</param>
+    public void HandleError(Exception ex)
     {
-        SemaphoreSlim _semaphore = new(1, 1);
+        DisplayAlert(ex).FireAndForgetSafeAsync();
+    }
 
-        /// <summary>
-        /// Handle error in UI.
-        /// </summary>
-        /// <param name="ex">Exception.</param>
-        public void HandleError(Exception ex)
+    async Task DisplayAlert(Exception ex)
+    {
+        try
         {
-            DisplayAlert(ex).FireAndForgetSafeAsync();
+            await _semaphore.WaitAsync();
+            if (Shell.Current is Shell shell)
+                await shell.DisplayAlert("Error", ex.Message, "OK");
         }
-
-        async Task DisplayAlert(Exception ex)
+        finally
         {
-            try
-            {
-                await _semaphore.WaitAsync();
-                if (Shell.Current is Shell shell)
-                    await shell.DisplayAlert("Error", ex.Message, "OK");
-            }
-            finally
-            {
-                _semaphore.Release();
-            }
+            _semaphore.Release();
         }
     }
 }

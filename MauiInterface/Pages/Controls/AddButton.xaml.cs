@@ -1,10 +1,9 @@
-namespace MauiInterface.Pages.Controls
+namespace MauiInterface.Pages.Controls;
+
+public partial class AddButton
 {
-    public partial class AddButton
+    public AddButton()
     {
-        public AddButton()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
     }
 }

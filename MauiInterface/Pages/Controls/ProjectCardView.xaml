@@ -5,6 +5,7 @@
         xmlns:models="clr-namespace:MauiInterface.Models"
         xmlns:pageModels="clr-namespace:MauiInterface.PageModels"
         xmlns:shimmer="clr-namespace:Syncfusion.Maui.Toolkit.Shimmer;assembly=Syncfusion.Maui.Toolkit"
+        xmlns:fonts="clr-namespace:MauiInterface.Resources.Fonts"
         x:Class="MauiInterface.Pages.Controls.ProjectCardView"
         Style="{StaticResource CardStyle}"
         x:DataType="models:Project">

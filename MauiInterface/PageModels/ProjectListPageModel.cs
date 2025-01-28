@@ -3,34 +3,33 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using MauiInterface.Models;
 
-namespace MauiInterface.PageModels
+namespace MauiInterface.PageModels;
+
+public partial class ProjectListPageModel : ObservableObject
 {
-    public partial class ProjectListPageModel : ObservableObject
+    private readonly ProjectRepository _projectRepository;
+
+    [ObservableProperty]
+    private List<Project> _projects = [];
+
+    public ProjectListPageModel(ProjectRepository projectRepository)
     {
-        private readonly ProjectRepository _projectRepository;
+        _projectRepository = projectRepository;
+    }
 
-        [ObservableProperty]
-        private List<Project> _projects = [];
+    [RelayCommand]
+    private async Task Appearing()
+    {
+        Projects = await _projectRepository.ListAsync();
+    }
 
-        public ProjectListPageModel(ProjectRepository projectRepository)
-        {
-            _projectRepository = projectRepository;
-        }
+    [RelayCommand]
+    Task NavigateToProject(Project project)
+        => Shell.Current.GoToAsync($"project?id={project.ID}");
 
-        [RelayCommand]
-        private async Task Appearing()
-        {
-            Projects = await _projectRepository.ListAsync();
-        }
-
-        [RelayCommand]
-        Task NavigateToProject(Project project)
-            => Shell.Current.GoToAsync($"project?id={project.ID}");
-
-        [RelayCommand]
-        async Task AddProject()
-        {
-            await Shell.Current.GoToAsync($"project");
-        }
+    [RelayCommand]
+    async Task AddProject()
+    {
+        await Shell.Current.GoToAsync($"project");
     }
 }

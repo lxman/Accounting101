@@ -1,14 +1,10 @@
-﻿using MauiInterface.Models;
-using MauiInterface.PageModels;
+﻿namespace MauiInterface.Pages;
 
-namespace MauiInterface.Pages
+public partial class MainPage : ContentPage
 {
-    public partial class MainPage : ContentPage
+    public MainPage(MainPageModel model)
     {
-        public MainPage(MainPageModel model)
-        {
-            InitializeComponent();
-            BindingContext = model;
-        }
+        InitializeComponent();
+        BindingContext = model;
     }
 }

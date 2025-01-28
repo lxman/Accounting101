@@ -6,6 +6,7 @@
              xmlns:pages="clr-namespace:MauiInterface.Pages"
              xmlns:sf="clr-namespace:Syncfusion.Maui.Toolkit.TextInputLayout;assembly=Syncfusion.Maui.Toolkit"
              xmlns:controls="clr-namespace:MauiInterface.Pages.Controls"
+             xmlns:fonts="clr-namespace:MauiInterface.Resources.Fonts"
              x:Class="MauiInterface.Pages.ProjectDetailPage"
              x:DataType="pageModels:ProjectDetailPageModel"
              Title="Project">

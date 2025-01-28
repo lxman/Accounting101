@@ -1,12 +1,11 @@
 using Syncfusion.Maui.Toolkit.Charts;
 
-namespace MauiInterface.Pages.Controls
+namespace MauiInterface.Pages.Controls;
+
+public class LegendExt : ChartLegend
 {
-    public class LegendExt : ChartLegend
+    protected override double GetMaximumSizeCoefficient()
     {
-        protected override double GetMaximumSizeCoefficient()
-        {
-            return 0.5;
-        }
+        return 0.5;
     }
 }
