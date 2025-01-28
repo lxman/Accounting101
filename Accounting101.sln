@@ -24,6 +24,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "Accounting101Setup", "Accounting101Setup\Accounting101Setup.vdproj", "{5C8A14F6-9D92-4E68-B8D0-2F146A4D8189}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MauiInterface", "MauiInterface\MauiInterface.csproj", "{470ACA6C-6B5D-403B-8411-F48A2D0D6275}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -100,6 +102,18 @@ Global
 		{5C8A14F6-9D92-4E68-B8D0-2F146A4D8189}.Release|Any CPU.ActiveCfg = Release
 		{5C8A14F6-9D92-4E68-B8D0-2F146A4D8189}.Release|x64.ActiveCfg = Release
 		{5C8A14F6-9D92-4E68-B8D0-2F146A4D8189}.Release|x86.ActiveCfg = Release
+		{470ACA6C-6B5D-403B-8411-F48A2D0D6275}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{470ACA6C-6B5D-403B-8411-F48A2D0D6275}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{470ACA6C-6B5D-403B-8411-F48A2D0D6275}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{470ACA6C-6B5D-403B-8411-F48A2D0D6275}.Debug|x64.Build.0 = Debug|Any CPU
+		{470ACA6C-6B5D-403B-8411-F48A2D0D6275}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{470ACA6C-6B5D-403B-8411-F48A2D0D6275}.Debug|x86.Build.0 = Debug|Any CPU
+		{470ACA6C-6B5D-403B-8411-F48A2D0D6275}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{470ACA6C-6B5D-403B-8411-F48A2D0D6275}.Release|Any CPU.Build.0 = Release|Any CPU
+		{470ACA6C-6B5D-403B-8411-F48A2D0D6275}.Release|x64.ActiveCfg = Release|Any CPU
+		{470ACA6C-6B5D-403B-8411-F48A2D0D6275}.Release|x64.Build.0 = Release|Any CPU
+		{470ACA6C-6B5D-403B-8411-F48A2D0D6275}.Release|x86.ActiveCfg = Release|Any CPU
+		{470ACA6C-6B5D-403B-8411-F48A2D0D6275}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
