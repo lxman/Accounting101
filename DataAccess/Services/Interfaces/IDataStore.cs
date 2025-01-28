@@ -4,36 +4,35 @@ using System.Threading.Tasks;
 using DataAccess.Models;
 using LiteDB.Async;
 
-namespace DataAccess.Services.Interfaces
+namespace DataAccess.Services.Interfaces;
+
+public interface IDataStore
 {
-    public interface IDataStore
-    {
-        event EventHandler<ChangeEventArgs> StoreChanged;
+    event EventHandler<ChangeEventArgs> StoreChanged;
 
-        bool Initialized { get; }
+    bool Initialized { get; }
 
-        void NotifyChange(Type t, ChangeType ct);
+    void NotifyChange(Type t, ChangeType ct);
 
-        LiteDatabaseAsync? Instance();
+    LiteDatabaseAsync? Instance();
 
-        ILiteCollectionAsync<T>? GetCollection<T>(string name);
+    ILiteCollectionAsync<T>? GetCollection<T>(string name);
 
-        void InitDatabase();
+    void InitDatabase();
 
-        void CreateDatabase(string location);
+    void CreateDatabase(string location);
 
-        Task<bool> CreateBusinessAsync(Business business);
+    Task<bool> CreateBusinessAsync(Business business);
 
-        Task<Business?> GetBusinessAsync();
+    Task<Business?> GetBusinessAsync();
 
-        Task<bool> UpdateBusinessAsync(Business business);
+    Task<bool> UpdateBusinessAsync(Business business);
 
-        Task<List<string>> GetStatesAsync();
+    Task<List<string>> GetStatesAsync();
 
-        string GetDbLocation();
+    string GetDbLocation();
 
-        void ClearRegistry();
+    void ClearRegistry();
 
-        void Dispose();
-    }
+    void Dispose();
 }

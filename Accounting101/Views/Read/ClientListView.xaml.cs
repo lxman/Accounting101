@@ -6,34 +6,33 @@ using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 
-namespace Accounting101.Views.Read
-{
-    public partial class ClientListView
-    {
-        public ReadOnlyObservableCollection<ClientTileControl> ClientTiles { get; }
+namespace Accounting101.Views.Read;
 
-        public ClientListView(IDataStore dataStore, JoinableTaskFactory taskFactory)
+public partial class ClientListView
+{
+    public ReadOnlyObservableCollection<ClientTileControl> ClientTiles { get; }
+
+    public ClientListView(IDataStore dataStore, JoinableTaskFactory taskFactory)
+    {
+        IDataStore dataStore1 = dataStore;
+        List<ClientWithInfo> clients = taskFactory.Run(() => dataStore1.AllClientsWithInfosAsync())?.ToList() ?? [];
+        DataContext = this;
+        ObservableCollection<ClientTileControl> clientTiles = [];
+        clients.ForEach(c => clientTiles.Add(new ClientTileControl(c)));
+        ClientTiles = new ReadOnlyObservableCollection<ClientTileControl>(clientTiles);
+        InitializeComponent();
+    }
+
+    private void ClientListViewSizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (!e.WidthChanged)
         {
-            IDataStore dataStore1 = dataStore;
-            List<ClientWithInfo> clients = taskFactory.Run(() => dataStore1.AllClientsWithInfosAsync())?.ToList() ?? [];
-            DataContext = this;
-            ObservableCollection<ClientTileControl> clientTiles = [];
-            clients.ForEach(c => clientTiles.Add(new ClientTileControl(c)));
-            ClientTiles = new ReadOnlyObservableCollection<ClientTileControl>(clientTiles);
-            InitializeComponent();
+            return;
         }
 
-        private void ClientListViewSizeChanged(object sender, SizeChangedEventArgs e)
+        foreach (ClientTileControl control in ClientTiles)
         {
-            if (!e.WidthChanged)
-            {
-                return;
-            }
-
-            foreach (ClientTileControl control in ClientTiles)
-            {
-                control.Width = e.NewSize.Width * 0.9;
-            }
+            control.Width = e.NewSize.Width * 0.9;
         }
     }
 }

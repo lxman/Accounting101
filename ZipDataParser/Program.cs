@@ -5,32 +5,31 @@ using LiteDB;
 
 // ReSharper disable StringLiteralTypo
 
-namespace ZipDataParser
+namespace ZipDataParser;
+
+internal class Program
 {
-    internal class Program
+    private static void Main(string[] args)
     {
-        private static void Main(string[] args)
+        List<string> data = File.ReadAllLines("ziplist5.txt").ToList();
+        List<ZipCodeEntry> entries = [];
+        data.ForEach(d =>
         {
-            List<string> data = File.ReadAllLines("ziplist5.txt").ToList();
-            List<ZipCodeEntry> entries = [];
-            data.ForEach(d =>
+            string[] parts = d.Split(',');
+            ZipCodeEntry e = new()
             {
-                string[] parts = d.Split(',');
-                ZipCodeEntry e = new()
-                {
-                    City = parts[0],
-                    State = parts[1],
-                    Zip = parts[2],
-                    AreaCode = parts[3],
-                    Fips = parts[4],
-                    County = parts[5]
-                };
-                entries.Add(e);
-            });
-            LiteDatabase db = new("ZipInfo.db");
-            ILiteCollection<ZipCodeEntry> zColl = db.GetCollection<ZipCodeEntry>("ZipInfo");
-            zColl.InsertBulk(entries);
-            db.Dispose();
-        }
+                City = parts[0],
+                State = parts[1],
+                Zip = parts[2],
+                AreaCode = parts[3],
+                Fips = parts[4],
+                County = parts[5]
+            };
+            entries.Add(e);
+        });
+        LiteDatabase db = new("ZipInfo.db");
+        ILiteCollection<ZipCodeEntry> zColl = db.GetCollection<ZipCodeEntry>("ZipInfo");
+        zColl.InsertBulk(entries);
+        db.Dispose();
     }
 }

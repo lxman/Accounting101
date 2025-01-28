@@ -1,42 +1,41 @@
 ﻿using System.Collections.ObjectModel;
 using DataAccess.Models;
 
-namespace Accounting101.ViewModels.Update
+namespace Accounting101.ViewModels.Update;
+
+public class UpdateAccountViewModel : BaseViewModel
 {
-    public class UpdateAccountViewModel : BaseViewModel
+    private readonly ObservableCollection<BaseAccountTypes> _accountTypes =
+    [
+        BaseAccountTypes.Asset,
+        BaseAccountTypes.Liability,
+        BaseAccountTypes.Equity,
+        BaseAccountTypes.Revenue,
+        BaseAccountTypes.Expense,
+        BaseAccountTypes.Earnings
+    ];
+
+    public ReadOnlyObservableCollection<BaseAccountTypes> AccountTypes => new(_accountTypes);
+
+    public AccountWithInfo? Account
     {
-        private readonly ObservableCollection<BaseAccountTypes> _accountTypes =
-        [
-            BaseAccountTypes.Asset,
-            BaseAccountTypes.Liability,
-            BaseAccountTypes.Equity,
-            BaseAccountTypes.Revenue,
-            BaseAccountTypes.Expense,
-            BaseAccountTypes.Earnings
-        ];
-
-        public ReadOnlyObservableCollection<BaseAccountTypes> AccountTypes => new(_accountTypes);
-
-        public AccountWithInfo? Account
+        get => _account;
+        set
         {
-            get => _account;
-            set
-            {
-                _account = value;
-                OnPropertyChanged();
-            }
+            _account = value;
+            OnPropertyChanged();
         }
+    }
 
-        private AccountWithInfo? _account;
+    private AccountWithInfo? _account;
 
-        public void SetAccount(AccountWithInfo account)
-        {
-            Account = account;
-            OnPropertyChanged(nameof(Account.StartBalance));
-            OnPropertyChanged(nameof(Account.Info.CoAId));
-            OnPropertyChanged(nameof(Account.Info.Name));
-            OnPropertyChanged(nameof(Account.Type));
-            OnPropertyChanged(nameof(Account.Created));
-        }
+    public void SetAccount(AccountWithInfo account)
+    {
+        Account = account;
+        OnPropertyChanged(nameof(Account.StartBalance));
+        OnPropertyChanged(nameof(Account.Info.CoAId));
+        OnPropertyChanged(nameof(Account.Info.Name));
+        OnPropertyChanged(nameof(Account.Type));
+        OnPropertyChanged(nameof(Account.Created));
     }
 }

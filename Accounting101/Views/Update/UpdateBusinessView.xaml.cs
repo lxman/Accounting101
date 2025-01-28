@@ -2,26 +2,25 @@
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 
-namespace Accounting101.Views.Update
+namespace Accounting101.Views.Update;
+
+public partial class UpdateBusinessView
 {
-    public partial class UpdateBusinessView
+    private readonly UpdateBusinessViewModel _viewModel = new();
+
+    public UpdateBusinessView()
     {
-        private readonly UpdateBusinessViewModel _viewModel = new();
+        DataContext = _viewModel;
+        InitializeComponent();
+    }
 
-        public UpdateBusinessView()
-        {
-            DataContext = _viewModel;
-            InitializeComponent();
-        }
+    public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory)
+    {
+        _viewModel.SetInfo(dataStore, taskFactory);
+    }
 
-        public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory)
-        {
-            _viewModel.SetInfo(dataStore, taskFactory);
-        }
-
-        public void Save()
-        {
-            _viewModel.Save();
-        }
+    public void Save()
+    {
+        _viewModel.Save();
     }
 }

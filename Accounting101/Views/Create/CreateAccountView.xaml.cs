@@ -3,29 +3,28 @@ using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 
-namespace Accounting101.Views.Create
+namespace Accounting101.Views.Create;
+
+public partial class CreateAccountView
 {
-    public partial class CreateAccountView
+    public CreateAccountView()
     {
-        public CreateAccountView()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
+    }
 
-        public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, ClientWithInfo client)
+    public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, ClientWithInfo client)
+    {
+        CheckPoint? checkPoint = null;
+        if (client.CheckPointId is not null)
         {
-            CheckPoint? checkPoint = null;
-            if (client.CheckPointId is not null)
-            {
-                checkPoint = taskFactory.Run(() => dataStore.GetCheckpointAsync(client.Id));
-            }
-            HeaderView.SetInfo(client, checkPoint);
-            AccountView.SetInfo(dataStore, taskFactory, client);
+            checkPoint = taskFactory.Run(() => dataStore.GetCheckpointAsync(client.Id));
         }
+        HeaderView.SetInfo(client, checkPoint);
+        AccountView.SetInfo(dataStore, taskFactory, client);
+    }
 
-        public void Save()
-        {
-            AccountView.Save();
-        }
+    public void Save()
+    {
+        AccountView.Save();
     }
 }

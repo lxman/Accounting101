@@ -8,69 +8,68 @@ using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 using Microsoft.Win32;
 
-namespace Accounting101.Views.Read
+namespace Accounting101.Views.Read;
+
+public partial class GetPasswordView
 {
-    public partial class GetPasswordView
+    private readonly IDataStore _dataStore;
+    private readonly JoinableTaskFactory _taskFactory;
+    private string _password = string.Empty;
+
+    public GetPasswordView(IDataStore dataStore, JoinableTaskFactory taskFactory)
     {
-        private readonly IDataStore _dataStore;
-        private readonly JoinableTaskFactory _taskFactory;
-        private string _password = string.Empty;
+        Loaded += (_, _) => GetPasswordBox.Focus();
+        _dataStore = dataStore;
+        _taskFactory = taskFactory;
+        InitializeComponent();
+    }
 
-        public GetPasswordView(IDataStore dataStore, JoinableTaskFactory taskFactory)
+    private static void SetConnectionString(string dbLocation, string? password)
+    {
+        ConnectionString.ConnString = $"Filename={dbLocation};";
+        if (!string.IsNullOrWhiteSpace(password))
         {
-            Loaded += (_, _) => GetPasswordBox.Focus();
-            _dataStore = dataStore;
-            _taskFactory = taskFactory;
-            InitializeComponent();
+            ConnectionString.ConnString += $"Password={password};";
+        }
+    }
+
+    private static string GetDbLocation()
+    {
+        RegistryKey softwareKey = Registry.CurrentUser.OpenSubKey("Software")!;
+        RegistryKey? jsKey = softwareKey.OpenSubKey("JordanSoft");
+        RegistryKey? a101Key = jsKey?.OpenSubKey("Accounting101");
+        if (a101Key is null)
+        {
+            return string.Empty;
         }
 
-        private static void SetConnectionString(string dbLocation, string? password)
+        return a101Key.GetValue("DbLocation")?.ToString() ?? string.Empty;
+    }
+
+    private void PasswordBoxPasswordChanged(object sender, RoutedEventArgs e)
+    {
+        _password = ((PasswordBox)sender).Password;
+    }
+
+    private void UiElementPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter)
         {
-            ConnectionString.ConnString = $"Filename={dbLocation};";
-            if (!string.IsNullOrWhiteSpace(password))
-            {
-                ConnectionString.ConnString += $"Password={password};";
-            }
+            return;
         }
-
-        private static string GetDbLocation()
+        SetConnectionString(GetDbLocation(), _password);
+        _dataStore.InitDatabase();
+        if (_taskFactory.Run(_dataStore.GetBusinessAsync) is null)
         {
-            RegistryKey softwareKey = Registry.CurrentUser.OpenSubKey("Software")!;
-            RegistryKey? jsKey = softwareKey.OpenSubKey("JordanSoft");
-            RegistryKey? a101Key = jsKey?.OpenSubKey("Accounting101");
-            if (a101Key is null)
-            {
-                return string.Empty;
-            }
-
-            return a101Key.GetValue("DbLocation")?.ToString() ?? string.Empty;
+            WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.CreateBusiness));
         }
-
-        private void PasswordBoxPasswordChanged(object sender, RoutedEventArgs e)
+        else if (_taskFactory.Run(_dataStore.AllClientsAsync)?.Any() ?? false)
         {
-            _password = ((PasswordBox)sender).Password;
+            WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ClientList));
         }
-
-        private void UiElementPreviewKeyDown(object sender, KeyEventArgs e)
+        else
         {
-            if (e.Key != Key.Enter)
-            {
-                return;
-            }
-            SetConnectionString(GetDbLocation(), _password);
-            _dataStore.InitDatabase();
-            if (_taskFactory.Run(_dataStore.GetBusinessAsync) is null)
-            {
-                WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.CreateBusiness));
-            }
-            else if (_taskFactory.Run(_dataStore.AllClientsAsync)?.Any() ?? false)
-            {
-                WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ClientList));
-            }
-            else
-            {
-                WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.CreateClient));
-            }
+            WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.CreateClient));
         }
     }
 }

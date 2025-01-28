@@ -2,29 +2,28 @@
 using System.Windows;
 using System.Windows.Data;
 
-namespace Accounting101.ValueConverters
+namespace Accounting101.ValueConverters;
+
+[ValueConversion(typeof(bool), typeof(bool?))]
+public sealed class BoolNullableBoolConverter : IValueConverter
 {
-    [ValueConversion(typeof(bool), typeof(bool?))]
-    public sealed class BoolNullableBoolConverter : IValueConverter
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        if (value is bool b)
         {
-            if (value is bool b)
-            {
-                return b;
-            }
-
-            return false;
+            return b;
         }
 
-        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        return false;
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        return value switch
         {
-            return value switch
-            {
-                null => false,
-                bool b => b,
-                _ => DependencyProperty.UnsetValue
-            };
-        }
+            null => false,
+            bool b => b,
+            _ => DependencyProperty.UnsetValue
+        };
     }
 }

@@ -4,40 +4,39 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Messaging;
 using DataAccess.Models;
 
-namespace Accounting101.Views.Read
+namespace Accounting101.Views.Read;
+
+[ObservableObject]
+public partial class ClientHeaderView
 {
-    [ObservableObject]
-    public partial class ClientHeaderView
+    public string BusinessName { get; private set; } = string.Empty;
+
+    public string Contact { get; private set; } = string.Empty;
+
+    public string Address { get; private set; } = string.Empty;
+
+    public string CheckPoint { get; private set; } = string.Empty;
+
+    public ClientHeaderView()
     {
-        public string BusinessName { get; private set; } = string.Empty;
+        DataContext = this;
+        InitializeComponent();
+    }
 
-        public string Contact { get; private set; } = string.Empty;
+    public void SetInfo(ClientWithInfo client, CheckPoint? checkPoint)
+    {
+        BusinessName = client.BusinessName;
+        Contact = client.Name?.ToString() ?? string.Empty;
+        Address = client.Address?.ToString() ?? string.Empty;
+        CheckPoint = checkPoint is null ? "None" : checkPoint.Date.ToString("MM/dd/yyyy");
+        OnPropertyChanged(nameof(BusinessName));
+        OnPropertyChanged(nameof(Contact));
+        OnPropertyChanged(nameof(Address));
+        OnPropertyChanged(nameof(CheckPoint));
+    }
 
-        public string Address { get; private set; } = string.Empty;
-
-        public string CheckPoint { get; private set; } = string.Empty;
-
-        public ClientHeaderView()
-        {
-            DataContext = this;
-            InitializeComponent();
-        }
-
-        public void SetInfo(ClientWithInfo client, CheckPoint? checkPoint)
-        {
-            BusinessName = client.BusinessName;
-            Contact = client.Name?.ToString() ?? string.Empty;
-            Address = client.Address?.ToString() ?? string.Empty;
-            CheckPoint = checkPoint is null ? "None" : checkPoint.Date.ToString("MM/dd/yyyy");
-            OnPropertyChanged(nameof(BusinessName));
-            OnPropertyChanged(nameof(Contact));
-            OnPropertyChanged(nameof(Address));
-            OnPropertyChanged(nameof(CheckPoint));
-        }
-
-        private void ClientHeaderViewPreviewMouseDown(object sender, MouseButtonEventArgs e)
-        {
-            WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ClientList));
-        }
+    private void ClientHeaderViewPreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        WeakReferenceMessenger.Default.Send(new ChangeScreenMessage(WindowType.ClientList));
     }
 }

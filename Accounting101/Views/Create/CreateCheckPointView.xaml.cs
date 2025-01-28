@@ -2,26 +2,25 @@
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
 
-namespace Accounting101.Views.Create
+namespace Accounting101.Views.Create;
+
+public partial class CreateCheckPointView
 {
-    public partial class CreateCheckPointView
+    public CreateCheckPointViewModel ViewModel { get; } = new();
+
+    public CreateCheckPointView()
     {
-        public CreateCheckPointViewModel ViewModel { get; } = new();
+        DataContext = ViewModel;
+        InitializeComponent();
+    }
 
-        public CreateCheckPointView()
-        {
-            DataContext = ViewModel;
-            InitializeComponent();
-        }
+    public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, Guid clientId)
+    {
+        ViewModel.SetInfo(dataStore, taskFactory, clientId);
+    }
 
-        public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, Guid clientId)
-        {
-            ViewModel.SetInfo(dataStore, taskFactory, clientId);
-        }
-
-        public void Save()
-        {
-            ViewModel.Save();
-        }
+    public void Save()
+    {
+        ViewModel.Save();
     }
 }
