@@ -1,6 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
 using Accounting101.Messages;
@@ -109,6 +110,23 @@ public partial class UpdateAccountTransactionsView : IRecipient<UpdateTransactio
         DataGridColumn? debitColumn = dataGrid.Columns.First(c => c.Header.ToString() == "Debit");
         DataGridColumn? balanceColumn = dataGrid.Columns.First(c => c.Header.ToString() == "Balance");
         DataGridColumn? lastColumn = dataGrid.Columns.Last();
+        DataGridTemplateColumn replacement = new()
+        {
+            Header = lastColumn.Header,
+            CellStyle = lastColumn.CellStyle,
+            CellTemplate = new DataTemplate()
+        };
+        FrameworkElementFactory buttonFactory = new(typeof(Button));
+        Binding buttonBinding = new() { Path = new PropertyPath("OtherAccountInfo") };
+        buttonFactory.SetValue(ContentProperty, buttonBinding);
+        buttonFactory.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
+        buttonFactory.SetValue(HorizontalAlignmentProperty, HorizontalAlignment.Right);
+        buttonFactory.SetValue(StyleProperty, FindResource("ButtonAsLinkStyle") as Style);
+        buttonFactory.AddHandler(ButtonBase.ClickEvent, new RoutedEventHandler(EditButtonClicked));
+        replacement.CellTemplate.VisualTree = buttonFactory;
+        dataGrid.Columns.Remove(lastColumn);
+        dataGrid.Columns.Add(replacement);
+        lastColumn = replacement;
 
         ((DataGridTextColumn)creditColumn).Binding = _creditBinding;
         ((DataGridTextColumn)debitColumn).Binding = _debitBinding;
@@ -140,6 +158,22 @@ public partial class UpdateAccountTransactionsView : IRecipient<UpdateTransactio
         balanceColumn.CellStyle = elementStyleRight;
         lastColumn.Width = new DataGridLength(5, DataGridLengthUnitType.Star);
         lastColumn.CellStyle = elementStyleRight;
+    }
+
+    private void EditButtonClicked(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button)
+        {
+            return;
+        }
+        if (button.DataContext is not TransactionInfoLine line)
+        {
+            return;
+        }
+        if (!line.Editable)
+        {
+            return;
+        }
     }
 
     private void DataGridLoadingRow(object? sender, DataGridRowEventArgs e)

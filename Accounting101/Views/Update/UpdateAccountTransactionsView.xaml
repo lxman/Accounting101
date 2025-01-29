@@ -9,6 +9,26 @@
              d:DataContext="{d:DesignInstance update:UpdateAccountTransactionsViewModel}"
              d:Background="Teal"
              d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.Resources>
+        <Style x:Key="ButtonAsLinkStyle" TargetType="{x:Type Button}">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type Button}">
+                        <TextBlock HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                            <ContentPresenter ContentStringFormat="{TemplateBinding ContentStringFormat}" />
+                        </TextBlock>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Foreground" Value="Blue" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Foreground" Value="Red" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Resources>
     <Grid>
         <DataGrid
             mah:DataGridHelper.SelectionUnit="FullRow"
