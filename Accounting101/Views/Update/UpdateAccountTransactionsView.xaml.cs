@@ -20,6 +20,8 @@ namespace Accounting101.Views.Update;
 
 public partial class UpdateAccountTransactionsView : IRecipient<UpdateTransactionLayoutMessage>
 {
+    public event EventHandler<TransactionInfoLine>? LinkClick;
+
     private readonly UpdateAccountTransactionsViewModel _viewModel = new();
     private IDataStore _dataStore;
     private JoinableTaskFactory _taskFactory;
@@ -38,6 +40,7 @@ public partial class UpdateAccountTransactionsView : IRecipient<UpdateTransactio
 
     public void SetInfo(IDataStore dataStore, JoinableTaskFactory taskFactory, AccountWithEverything account, List<AccountWithInfo> otherAccounts)
     {
+        TransactionGrid.Columns.Clear();
         _dataStore = dataStore;
         _taskFactory = taskFactory;
         _accountId = account.Account.Id;
@@ -110,6 +113,8 @@ public partial class UpdateAccountTransactionsView : IRecipient<UpdateTransactio
         DataGridColumn? debitColumn = dataGrid.Columns.First(c => c.Header.ToString() == "Debit");
         DataGridColumn? balanceColumn = dataGrid.Columns.First(c => c.Header.ToString() == "Balance");
         DataGridColumn? lastColumn = dataGrid.Columns.Last();
+
+        // Replace the last column with a link button
         DataGridTemplateColumn replacement = new()
         {
             Header = lastColumn.Header,
@@ -122,7 +127,7 @@ public partial class UpdateAccountTransactionsView : IRecipient<UpdateTransactio
         buttonFactory.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
         buttonFactory.SetValue(HorizontalAlignmentProperty, HorizontalAlignment.Right);
         buttonFactory.SetValue(StyleProperty, FindResource("ButtonAsLinkStyle") as Style);
-        buttonFactory.AddHandler(ButtonBase.ClickEvent, new RoutedEventHandler(EditButtonClicked));
+        buttonFactory.AddHandler(ButtonBase.ClickEvent, new RoutedEventHandler(LinkClicked));
         replacement.CellTemplate.VisualTree = buttonFactory;
         dataGrid.Columns.Remove(lastColumn);
         dataGrid.Columns.Add(replacement);
@@ -160,7 +165,7 @@ public partial class UpdateAccountTransactionsView : IRecipient<UpdateTransactio
         lastColumn.CellStyle = elementStyleRight;
     }
 
-    private void EditButtonClicked(object? sender, RoutedEventArgs e)
+    private void LinkClicked(object? sender, RoutedEventArgs e)
     {
         if (sender is not Button button)
         {
@@ -170,10 +175,7 @@ public partial class UpdateAccountTransactionsView : IRecipient<UpdateTransactio
         {
             return;
         }
-        if (!line.Editable)
-        {
-            return;
-        }
+        LinkClick?.Invoke(this, line);
     }
 
     private void DataGridLoadingRow(object? sender, DataGridRowEventArgs e)

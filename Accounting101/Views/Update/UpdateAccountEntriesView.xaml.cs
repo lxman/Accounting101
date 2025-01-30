@@ -6,7 +6,9 @@ using DataAccess;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
-
+// ReSharper disable SwitchStatementMissingSomeEnumCasesNoDefault
+#pragma warning disable VSTHRD104
+#pragma warning disable VSTHRD102
 #pragma warning disable CS8618, CS9264
 
 namespace Accounting101.Views.Update;
@@ -16,7 +18,8 @@ public partial class UpdateAccountEntriesView : IRecipient<KeyPressedMessage>
     private IDataStore _dataStore;
     private JoinableTaskFactory _taskFactory;
     private List<AccountWithInfo>? _otherAccounts;
-    private AccountWithEverything _account;
+    private AccountWithEverything? _account;
+    private ClientWithInfo _client;
 
     public UpdateAccountEntriesView()
     {
@@ -30,6 +33,7 @@ public partial class UpdateAccountEntriesView : IRecipient<KeyPressedMessage>
         _dataStore = dataStore;
         _taskFactory = taskFactory;
         _account = account;
+        _client = client;
         _otherAccounts = taskFactory.Run(() => dataStore.AccountsForClientAsync(client.Id))?.ToList();
         if (_otherAccounts is null)
         {
@@ -41,15 +45,11 @@ public partial class UpdateAccountEntriesView : IRecipient<KeyPressedMessage>
         FastEntryControl.SetMinDate(account.Account.Created);
         AccountHeaderView.SetInfo(account);
         TransactionList.SetInfo(dataStore, taskFactory, account, _otherAccounts);
+        TransactionList.LinkClick += (_, line) => LinkClicked(line);
         FastEntryControl.EditingStateChanged += (_, editing) => TransactionList.IsEnabled = !editing;
         FastEntryControl.ErrorOccurred +=
             (_, error) => taskFactory.Run(() => dataStore.CreateAuditEntryAsync(error));
         UpdateAccountBalance();
-    }
-
-    private void UpdateAccountBalance()
-    {
-        AccountHeaderView.CurrentBalance = _taskFactory.Run(() => _dataStore.GetAccountBalanceAsync(_account.Account.Id));
     }
 
     public void Receive(KeyPressedMessage message)
@@ -123,7 +123,7 @@ public partial class UpdateAccountEntriesView : IRecipient<KeyPressedMessage>
                     case true:
                         bool wasCredited = line.Credit.HasValue;
                         decimal amount = line.Credit ?? line.Debit ?? 0;
-                        Transaction t = new(wasCredited ? _account.Account.Id : otherAccount.Value, wasCredited ? otherAccount.Value : _account.Account.Id, amount, line.When);
+                        Transaction t = new(wasCredited ? _account!.Account.Id : otherAccount.Value, wasCredited ? otherAccount.Value : _account!.Account.Id, amount, line.When);
                         _taskFactory.Run(() => _dataStore.CreateTransactionAsync(t));
                         UpdateAccountBalance();
                         WeakReferenceMessenger.Default.Send(new UpdateTransactionLayoutMessage(null));
@@ -132,7 +132,7 @@ public partial class UpdateAccountEntriesView : IRecipient<KeyPressedMessage>
                     case false:
                         wasCredited = line.Credit.HasValue;
                         amount = line.Credit ?? line.Debit ?? 0;
-                        t = new Transaction(line.Id, wasCredited ? _account.Account.Id : otherAccount.Value, wasCredited ? otherAccount.Value : _account.Account.Id, amount, line.When);
+                        t = new Transaction(line.Id, wasCredited ? _account!.Account.Id : otherAccount.Value, wasCredited ? otherAccount.Value : _account!.Account.Id, amount, line.When);
                         _taskFactory.Run(() => _dataStore.UpdateTransactionAsync(t));
                         UpdateAccountBalance();
                         WeakReferenceMessenger.Default.Send(new UpdateTransactionLayoutMessage(null));
@@ -140,5 +140,37 @@ public partial class UpdateAccountEntriesView : IRecipient<KeyPressedMessage>
                 }
                 break;
         }
+    }
+
+    private void UpdateAccountBalance()
+    {
+        AccountHeaderView.CurrentBalance = _taskFactory.Run(() => _dataStore.GetAccountBalanceAsync(_account!.Account.Id));
+    }
+
+    private void LinkClicked(TransactionInfoLine line)
+    {
+        AccountWithInfo? clickedAccount = _otherAccounts?.FirstOrDefault(a => a.Info.CoAId == line.OtherAccountInfo.Split(' ')[0]);
+        if (clickedAccount is null)
+        {
+            return;
+        }
+        _account = _taskFactory.Run(() => _dataStore.GetAccountWithEverythingAsync(clickedAccount.Id));
+        if (_account is null)
+        {
+            return;
+        }
+        _otherAccounts = _taskFactory.Run(() => _dataStore.AccountsForClientAsync(_client.Id))?.ToList();
+        if (_otherAccounts is null)
+        {
+            return;
+        }
+
+        _otherAccounts.Remove(new AccountWithInfo(_account.Account, _account.Info));
+        FastEntryControl.AbortEdit();
+        FastEntryControl.SetAccountList(_otherAccounts);
+        FastEntryControl.SetMinDate(_account.Account.Created);
+        AccountHeaderView.SetInfo(_account);
+        TransactionList.SetInfo(_dataStore, _taskFactory, _account, _otherAccounts);
+        UpdateAccountBalance();
     }
 }
