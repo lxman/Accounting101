@@ -2,20 +2,19 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DataAccess.Extensions;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
-using LiteDB;
-using LiteDB.Async;
 
 namespace DataAccess;
 
 public static class CheckPoints
 {
-    public static async Task<bool> SetCheckpointAsync(this IDataStore store, Guid clientId, DateOnly date)
+    public static async Task<bool> SetCheckpointAsync(this IDataStore store, string dbName, Guid clientId, DateOnly date)
     {
-        Client? c = await store.GetClientWithInfoAsync(clientId);
+        Client? c = await store.GetClientWithInfoAsync(dbName, clientId);
         CheckPoint checkPoint = new(clientId, date);
-        IEnumerable<AccountWithInfo>? accounts = await store.AccountsForClientAsync(clientId);
+        IEnumerable<AccountWithInfo>? accounts = await store.AccountsForClientAsync(dbName, clientId);
         if (accounts is null || c is null)
         {
             return false;
@@ -25,72 +24,66 @@ public static class CheckPoints
         for (int x = 0; x < accountsList.Count; x++)
         {
             AccountWithInfo a = accountsList.ElementAt(x);
-            decimal balance = await store.GetAccountBalanceOnDateAsync(a.Id, date);
+            decimal balance = await store.GetAccountBalanceOnDateAsync(dbName, a.Id, date);
             checkPoint.AccountCheckpoints.Add(new AccountCheckpoint(clientId, a.Id, balance));
         }
 
-        ILiteCollectionAsync<CheckPoint>? checkPoints = store.GetCollection<CheckPoint>(CollectionNames.CheckPoint);
-        ILiteCollectionAsync<AccountCheckpoint>? accountCheckpoints = store.GetCollection<AccountCheckpoint>(CollectionNames.AccountCheckpoint);
+        List<CheckPoint>? checkPoints = await store.ReadAllAsync<CheckPoint>(dbName);
+        List<AccountCheckpoint>? accountCheckpoints = await store.ReadAllAsync<AccountCheckpoint>(dbName);
         if (checkPoints is null || accountCheckpoints is null)
         {
             return false;
         }
 
         Guid? id = null;
-        if (await checkPoints.CountAsync() == 0)
+        if (checkPoints.Count == 0)
         {
-            id = (await checkPoints.InsertAsync(checkPoint)).AsGuid;
-            await accountCheckpoints.InsertBulkAsync(checkPoint.AccountCheckpoints);
+            id = await store.CreateOneAsync(dbName, checkPoint);
+            accountCheckpoints.AddRange(checkPoint.AccountCheckpoints);
         }
         else
         {
-            CheckPoint? existing = await checkPoints.FindOneAsync(cp => cp.ClientId == clientId);
+            CheckPoint? existing = checkPoints.FirstOrDefault(cp => cp.ClientId == clientId);
             if (existing is not null)
             {
-                await checkPoints.DeleteAsync(existing.Id);
+                await store.DeleteOneAsync<CheckPoint>(dbName, existing.Id);
             }
-            id = (await checkPoints.InsertAsync(checkPoint)).AsGuid;
-            await accountCheckpoints.InsertBulkAsync(checkPoint.AccountCheckpoints);
+            checkPoints.Add(checkPoint);
+            id = await store.CreateOneAsync(dbName, checkPoint);
+            await store.CreateManyAsync(dbName, checkPoint.AccountCheckpoints);
         }
         c.CheckPointId = id;
-        await store.UpdateClientAsync(c);
+        await store.UpdateClientAsync(dbName, c);
         return true;
     }
 
-    public static async Task<CheckPoint?> GetCheckpointAsync(this IDataStore store, Guid clientId)
+    public static async Task<CheckPoint?> GetCheckpointAsync(this IDataStore store, string dbName, Guid clientId)
     {
-        ILiteCollectionAsync<CheckPoint>? checkPoints = store.GetCollection<CheckPoint>(CollectionNames.CheckPoint);
-        ILiteCollectionAsync<AccountCheckpoint>? accountCheckpoints = store.GetCollection<AccountCheckpoint>(CollectionNames.AccountCheckpoint);
-        if (checkPoints is null || accountCheckpoints is null)
+        CheckPoint? checkPoint = (await store.ReadOneAsync<CheckPoint>(dbName, clientId))!.FirstOrDefault();
+        List<AccountCheckpoint>? accountCheckpoints = (await store.ReadAllAsync<AccountCheckpoint>(dbName))!;
+        if (checkPoint is null || accountCheckpoints is null)
         {
             return null;
         }
-
-        CheckPoint? checkPoint = await checkPoints.FindOneAsync(cp => cp.ClientId == clientId);
-        if (checkPoint is null)
-        {
-            return null;
-        }
-        checkPoint.AccountCheckpoints.AddRange(await accountCheckpoints.FindAsync(ac => ac.ClientId == clientId));
+        checkPoint.AccountCheckpoints.AddRange(accountCheckpoints.Where(ac => ac.ClientId == clientId));
         return checkPoint;
     }
 
-    public static async Task ClearCheckpointAsync(this IDataStore store, Guid clientId)
+    public static async Task ClearCheckpointAsync(this IDataStore store, string dbName, Guid clientId)
     {
-        Client? c = await store.GetClientWithInfoAsync(clientId);
-        ILiteCollectionAsync<CheckPoint>? checkPoints = store.GetCollection<CheckPoint>(CollectionNames.CheckPoint);
-        if (checkPoints is null || c is null)
+        Client? c = await store.GetClientWithInfoAsync(dbName, clientId);
+        CheckPoint? existing = (await store.ReadOneAsync<CheckPoint>(dbName, clientId))!.FirstOrDefault();
+        if (c is null || existing is null)
         {
             return;
         }
-        CheckPoint? existing = await checkPoints.FindOneAsync(cp => cp.ClientId == clientId);
-        ILiteCollectionAsync<AccountCheckpoint>? accountCheckpoints = store.GetCollection<AccountCheckpoint>(CollectionNames.AccountCheckpoint);
-        if (existing is not null && accountCheckpoints is not null)
+        List<AccountCheckpoint>? accountCheckpoints = (await store.ReadAllAsync<AccountCheckpoint>(dbName))!;
+        if (accountCheckpoints is not null)
         {
-            await accountCheckpoints.DeleteManyAsync(ac => ac.ClientId == clientId);
-            await checkPoints.DeleteAsync(existing.Id);
+            await store.DeleteManyAsync<AccountCheckpoint>(dbName, accountCheckpoints.Where(ac => ac.ClientId == clientId).Select(ac => ac.Id));
+            await store.DeleteOneAsync<CheckPoint>(dbName, existing.Id);
             c.CheckPointId = null;
-            await store.UpdateClientAsync(c);
+            await store.UpdateClientAsync(dbName, c);
         }
     }
 }

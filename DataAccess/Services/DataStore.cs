@@ -8,10 +8,14 @@ using DataAccess.Models;
 using DataAccess.Models.Auditing;
 using DataAccess.Services.Interfaces;
 using DataAccess.ZipCodeData;
-using LiteDB;
-using LiteDB.Async;
 using Microsoft.VisualStudio.Threading;
 using Microsoft.Win32;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
+using MongoDB.Bson.Serialization.Serializers;
+using MongoDB.Driver;
+using MongoDB.Driver.Linq;
+
 #pragma warning disable VSTHRD002
 
 #pragma warning disable CA1416
@@ -26,12 +30,15 @@ public class DataStore : IDataStore, IDisposable
 
     public bool Initialized { get; private set; }
 
-    private LiteDatabaseAsync? _db;
+    private MongoClient? _db;
     private bool _disposedValue;
     private List<string>? _statesCached;
 
     public DataStore()
     {
+        BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
+        ObjectSerializer objectSerializer = new(type => ObjectSerializer.DefaultAllowedTypes(type) || true);
+        BsonSerializer.RegisterSerializer(objectSerializer);
         if (!IsDbRegistered())
         {
             return;
@@ -47,7 +54,7 @@ public class DataStore : IDataStore, IDisposable
     /// <exception cref="DataException"></exception>
     public DataStore(string connString)
     {
-        _db ??= new LiteDatabaseAsync(connString);
+        _db ??= new MongoClient(connString);
         if (_db is null || !InitZipCodeDataAsync().GetAwaiter().GetResult()) throw new DataException("Error setting up database");
     }
 
@@ -57,25 +64,15 @@ public class DataStore : IDataStore, IDisposable
         Initialized = true;
     }
 
-    public void CreateDatabase(string location)
+    public void CreateDatabase(string dbName)
     {
-        string? filePath = Path.GetDirectoryName(location);
-        if (filePath is null)
-        {
-            throw new DataException("Invalid file path for database.");
-        }
-
-        if (!Directory.Exists(filePath))
-        {
-            Directory.CreateDirectory(filePath);
-        }
         CreateOrOpenDatabase();
-        ILiteCollectionAsync<AuditEntry>? entries = _db?.GetCollection<AuditEntry>(CollectionNames.AuditEntry);
+        IMongoCollection<AuditEntry>? entries = _db?.GetDatabase(dbName).GetCollection<AuditEntry>(CollectionNames.AuditEntry);
         if (entries is null)
         {
             throw new DataException("Error creating the AuditEntry collection.");
         }
-        entries.InsertAsync(new AuditEntry() { Message = "Database created" }).GetAwaiter().GetResult();
+        entries.InsertOne(new AuditEntry { Message = "Database created" });
     }
 
     public void NotifyChange(Type t, ChangeType ct)
@@ -83,9 +80,9 @@ public class DataStore : IDataStore, IDisposable
         StoreChanged?.Invoke(this, new ChangeEventArgs { ChangedType = t, ChangeType = ct });
     }
 
-    public LiteDatabaseAsync? Instance() => _db;
+    public IMongoDatabase? Instance(string dbName) => _db?.GetDatabase(dbName);
 
-    public ILiteCollectionAsync<T>? GetCollection<T>(string name) => _db?.GetCollection<T>(name);
+    public IMongoCollection<T>? GetCollection<T>(string dbName, string tableName) => _db?.GetDatabase(dbName).GetCollection<T>(tableName);
 
     public string GetDbLocation()
     {
@@ -102,38 +99,46 @@ public class DataStore : IDataStore, IDisposable
         jsKey?.DeleteSubKeyTree("Accounting101");
     }
 
-    public async Task<bool> CreateBusinessAsync(Business business)
+    public async Task<bool> CreateBusinessAsync(string dbName, Business business)
     {
         if (_db is null) return false;
-        await _db.GetCollection<Business>().InsertAsync(business);
+        await _db.GetDatabase(dbName).GetCollection<Business>(CollectionNames.Business).InsertOneAsync(business);
         NotifyChange(typeof(Business), ChangeType.Created);
         return true;
     }
 
-    public async Task<bool> UpdateBusinessAsync(Business business)
+    public async Task<bool> UpdateBusinessAsync(string dbName, Business business)
     {
         if (_db is null) return false;
-        bool result = await _db.GetCollection<Business>().UpdateAsync(business);
-        if (result) NotifyChange(typeof(Business), ChangeType.Updated);
-        return result;
+        FilterDefinition<Business>? filter = Builders<Business>.Filter.Eq(x => x.Id, business.Id);
+        UpdateDefinition<Business>? update = Builders<Business>.Update
+            .Set(x => x.Name, business.Name)
+            .Set(x => x.Address, business.Address);
+        UpdateResult? result = await _db.GetDatabase(dbName).GetCollection<Business>(CollectionNames.Business).UpdateOneAsync(filter, update);
+        if (result.IsAcknowledged) NotifyChange(typeof(Business), ChangeType.Updated);
+        return result.IsAcknowledged;
     }
 
-    public async Task<Business?> GetBusinessAsync()
+    public async Task<Business?> GetBusinessAsync(string dbName)
     {
-        List<Business> businesses = (await _db?.GetCollection<Business>()?.FindAllAsync()!).ToList() ?? [];
-        return businesses.Count == 1 ? businesses[0] : null;
+        IMongoCollection<Business>? businesses = _db?.GetDatabase(dbName).GetCollection<Business>(CollectionNames.Business);
+        if (businesses is null)
+        {
+            return null;
+        }
+        return await businesses.AsQueryable().CountAsync() == 1 ? await businesses.AsQueryable().FirstAsync() : null;
     }
 
     public async Task<List<string>> GetStatesAsync()
     {
         if (_statesCached?.Count > 0) return _statesCached;
-        ILiteCollectionAsync<ZipCodeEntry>? collection = _db?.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo);
+        IMongoCollection<ZipCodeEntry>? collection = _db?.GetDatabase("ZipInfo").GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo);
         if (collection is null)
         {
             throw new DataException("Error accessing the ZipCodeEntry collection.");
         }
 
-        _statesCached = (await collection.Query().Select(x => x.State).ToListAsync()).Distinct().ToList();
+        _statesCached = (await collection.AsQueryable().Select(x => x.State).ToListAsync()).Distinct().ToList();
 
         return _statesCached;
     }
@@ -144,7 +149,7 @@ public class DataStore : IDataStore, IDisposable
         {
             return;
         }
-        _db = new LiteDatabaseAsync(ConnectionString.ConnString);
+        _db = new MongoClient();
         if (_db is null) throw new DataException("Error setting up database");
         JoinableTaskFactory jtf = new(new JoinableTaskCollection(new JoinableTaskContext()));
         if (jtf.Run(ZipCodeEntryCountAsync) == 0) jtf.Run(InitZipCodeDataAsync);
@@ -157,7 +162,7 @@ public class DataStore : IDataStore, IDisposable
 
     private async Task<int> ZipCodeEntryCountAsync()
     {
-        return await _db?.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo).CountAsync()!;
+        return await _db?.GetDatabase("ZipInfo").GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo).AsQueryable().CountAsync()!;
     }
 
     private async Task<bool> InitZipCodeDataAsync()
@@ -178,12 +183,12 @@ public class DataStore : IDataStore, IDisposable
             };
             entries.Add(e);
         });
-        ILiteCollectionAsync<ZipCodeEntry>? zipCollection = _db?.GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo);
+        IMongoCollection<ZipCodeEntry>? zipCollection = _db?.GetDatabase("ZipInfo").GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo);
         if (zipCollection is null)
         {
             return false;
         }
-        await zipCollection.InsertBulkAsync(entries);
+        await zipCollection.InsertManyAsync(entries);
         return true;
     }
 

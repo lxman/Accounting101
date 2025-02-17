@@ -1,12 +1,13 @@
 ﻿using System;
-using LiteDB;
+using DataAccess.Interfaces;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace DataAccess.Models.Auditing;
 
-public class AuditEntry
+public class AuditEntry : IModel
 {
     [BsonId]
-    Guid Id { get; set; } = Guid.NewGuid();
+    public Guid Id { get; set; } = Guid.NewGuid();
 
     public DateTime Created { get; set; } = DateTime.UtcNow;
 

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using DataAccess.Models;
-using LiteDB.Async;
+using MongoDB.Driver;
 
 namespace DataAccess.Services.Interfaces;
 
@@ -14,19 +14,19 @@ public interface IDataStore
 
     void NotifyChange(Type t, ChangeType ct);
 
-    LiteDatabaseAsync? Instance();
+    IMongoDatabase? Instance(string dbName);
 
-    ILiteCollectionAsync<T>? GetCollection<T>(string name);
+    IMongoCollection<T>? GetCollection<T>(string dbName, string tableName);
 
     void InitDatabase();
 
     void CreateDatabase(string location);
 
-    Task<bool> CreateBusinessAsync(Business business);
+    Task<bool> CreateBusinessAsync(string dbName, Business business);
 
-    Task<Business?> GetBusinessAsync();
+    Task<Business?> GetBusinessAsync(string dbName);
 
-    Task<bool> UpdateBusinessAsync(Business business);
+    Task<bool> UpdateBusinessAsync(string dbName, Business business);
 
     Task<List<string>> GetStatesAsync();
 

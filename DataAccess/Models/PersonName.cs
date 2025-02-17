@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using DataAccess.Interfaces;
 
 namespace DataAccess.Models;
 
-public class PersonName
+public class PersonName : IModel
 {
     public Guid Id { get; set; }
 

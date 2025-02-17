@@ -1,8 +1,9 @@
 ﻿using System;
+using DataAccess.Interfaces;
 
 namespace DataAccess.Models;
 
-public class Client
+public class Client : IModel
 {
     public Guid Id { get; set; }
 

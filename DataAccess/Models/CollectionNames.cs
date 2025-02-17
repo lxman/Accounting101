@@ -14,4 +14,6 @@ public static class CollectionNames
     public const string Setting = nameof(Setting);
     public const string Transaction = nameof(Transaction);
     public const string ZipInfo = nameof(ZipInfo);
+
+    public static string GetCollectionName<T>() => typeof(T).Name;
 }

@@ -1,10 +1,11 @@
 ﻿using System;
+using DataAccess.Interfaces;
 
 // ReSharper disable ConvertToPrimaryConstructor
 
 namespace DataAccess.Models;
 
-public class Transaction
+public class Transaction : IModel
 {
     public Guid Id { get; set; }
 

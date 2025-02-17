@@ -2,50 +2,38 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DataAccess.Extensions;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
-using LiteDB.Async;
 
 namespace DataAccess;
 
 public static class Transactions
 {
-    public static async Task<Guid> CreateTransactionAsync(this IDataStore store, Transaction tx)
+    public static async Task<Guid> CreateTransactionAsync(this IDataStore store, string dbName, Transaction tx)
     {
-        ILiteCollectionAsync<Account>? accts = store.GetCollection<Account>(CollectionNames.Account);
-        if (accts is null)
-        {
-            return Guid.Empty;
-        }
-
-        Account credAcct = await accts.FindOneAsync(a => a.Id == tx.CreditedAccountId);
-        Account debAcct = await accts.FindOneAsync(a => a.Id == tx.DebitedAccountId);
+        Account? credAcct = (await store.ReadOneAsync<Account>(dbName, tx.CreditedAccountId))?.FirstOrDefault();
+        Account? debAcct = (await store.ReadOneAsync<Account>(dbName, tx.DebitedAccountId))?.FirstOrDefault();
         Guid result = credAcct is null
                       || debAcct is null
                       || tx.When < credAcct.Created
                       || tx.When < debAcct.Created
             ? Guid.Empty
-            : (await store.GetCollection<Transaction>(CollectionNames.Transaction)?.InsertAsync(tx)!).AsGuid;
+            : await store.CreateOneAsync(dbName, tx);
         if (result != Guid.Empty) store.NotifyChange(typeof(Transaction), ChangeType.Created);
         return result;
     }
 
-    public static async Task<List<Transaction>> BulkInsertTransactionsAsync(this IDataStore store, List<Transaction> txs, bool verify = false)
+    public static async Task<List<Transaction>> BulkInsertTransactionsAsync(this IDataStore store, string dbName, List<Transaction> txs, bool verify = false)
     {
-        ILiteCollectionAsync<Account>? accts = store.GetCollection<Account>(CollectionNames.Account);
-        if (accts is null)
-        {
-            return txs;
-        }
-
         List<Transaction> toInsert = [];
         List<Transaction> invalid = [];
         if (verify)
         {
             foreach (Transaction t in txs)
             {
-                Account credAcct = await accts.FindOneAsync(a => a.Id == t.CreditedAccountId);
-                Account debAcct = await accts.FindOneAsync(a => a.Id == t.DebitedAccountId);
+                Account? credAcct = (await store.ReadOneAsync<Account>(dbName, t.CreditedAccountId))?.FirstOrDefault();
+                Account? debAcct = (await store.ReadOneAsync<Account>(dbName, t.DebitedAccountId))?.FirstOrDefault();
                 if (credAcct is null
                     || debAcct is null
                     || t.When < credAcct.Created
@@ -64,49 +52,33 @@ public static class Transactions
         {
             toInsert.AddRange(txs);
         }
-        int? result = await store.GetCollection<Transaction>(CollectionNames.Transaction)?.InsertBulkAsync(toInsert)!;
-        if (result > 0) store.NotifyChange(typeof(Transactions), ChangeType.Created);
+        await store.CreateManyAsync(dbName, toInsert);
+        store.NotifyChange(typeof(Transactions), ChangeType.Created);
         return invalid;
     }
 
-    public static async Task<List<Transaction>?> TransactionsForAccountAsync(this IDataStore store, Guid acct)
+    public static async Task<List<Transaction>?> TransactionsForAccountAsync(this IDataStore store, string dbName, Guid acct)
     {
-        return (await store.GetCollection<Transaction>(CollectionNames.Transaction)
-            ?.FindAsync(t => t.CreditedAccountId == acct || t.DebitedAccountId == acct)!).ToList();
+        return (await store.ReadAllAsync<Transaction>(dbName))?.Where(t => t.CreditedAccountId == acct || t.DebitedAccountId == acct).ToList();
     }
 
-    public static async Task<List<Transaction>?> TransactionsForAccountByDateAsync(this IDataStore store, Guid acct, DateRange range)
+    public static async Task<List<Transaction>?> TransactionsForAccountByDateAsync(this IDataStore store, string dbName, Guid acct, DateRange range)
     {
-        return (await store.GetCollection<Transaction>(CollectionNames.Transaction)
-                ?.FindAsync(t =>
-                    (t.CreditedAccountId == acct || t.DebitedAccountId == acct)
-                    && t.When >= range.Start
-                    && t.When <= range.End)!)
-            .ToList();
+        return (await store.ReadAllAsync<Transaction>(dbName))
+            ?.Where(t => (t.CreditedAccountId == acct || t.DebitedAccountId == acct) && t.When >= range.Start && t.When <= range.End).ToList();
     }
 
-    public static async Task<bool> UpdateTransactionAsync(this IDataStore store, Transaction tx)
+    public static async Task<bool> UpdateTransactionAsync(this IDataStore store, string dbName, Transaction tx)
     {
-        ILiteCollectionAsync<Transaction>? collection = store.GetCollection<Transaction>(CollectionNames.Transaction);
-        if (collection is null)
-        {
-            return false;
-        }
-
-        bool result = await collection.UpdateAsync(tx);
-        if (result) store.NotifyChange(typeof(Transaction), ChangeType.Updated);
-        return result;
+        bool? result = await store.UpdateOneAsync(dbName, tx);
+        if (result.HasValue && result.Value) store.NotifyChange(typeof(Transaction), ChangeType.Updated);
+        return result.HasValue && result.Value;
     }
 
-    public static async Task<bool> DeleteTransactionAsync(this IDataStore store, Guid id)
+    public static async Task<bool> DeleteTransactionAsync(this IDataStore store, string dbName, Guid id)
     {
-        ILiteCollectionAsync<Transaction>? collection = store.GetCollection<Transaction>(CollectionNames.Transaction);
-        if (collection is null)
-        {
-            return false;
-        }
-        bool result = await collection.DeleteAsync(id);
-        if (result) store.NotifyChange(typeof(Transaction), ChangeType.Deleted);
-        return result;
+        bool? result = await store.DeleteOneAsync<Transaction>(dbName, id);
+        if (result.HasValue && result.Value) store.NotifyChange(typeof(Transaction), ChangeType.Deleted);
+        return result.HasValue && result.Value;
     }
 }

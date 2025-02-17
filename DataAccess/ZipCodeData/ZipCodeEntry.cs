@@ -1,7 +1,12 @@
-﻿namespace DataAccess.ZipCodeData;
+﻿using System;
+using DataAccess.Interfaces;
 
-public class ZipCodeEntry
+namespace DataAccess.ZipCodeData;
+
+public class ZipCodeEntry : IModel
 {
+    public Guid Id { get; set; }
+
     public string City { get; set; } = string.Empty;
 
     public string State { get; set; } = string.Empty;

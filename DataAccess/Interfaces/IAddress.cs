@@ -3,11 +3,9 @@ using System.Collections.Generic;
 
 namespace DataAccess.Interfaces;
 
-public interface IAddress
+public interface IAddress : IModel
 {
-    public Guid Id { get; set; }
-
-    public List<Guid> UsedByIds { get; }
+    List<Guid> UsedByIds { get; }
 
     string Country { get; set; }
 

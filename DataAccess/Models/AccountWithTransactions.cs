@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using DataAccess.Extensions;
 using DataAccess.Services.Interfaces;
-using LiteDB.Async;
 using Microsoft.VisualStudio.Threading;
 
 #pragma warning disable VSTHRD002
@@ -14,13 +14,12 @@ public class AccountWithTransactions : AccountWithInfo
 {
     public List<Transaction> Transactions { get; }
 
-    public AccountWithTransactions(IDataStore dataStore, JoinableTaskFactory taskFactory, Guid accountId)
+    public AccountWithTransactions(IDataStore dataStore, string dbName, JoinableTaskFactory taskFactory, Guid accountId)
     {
         Id = accountId;
         Info = new AccountInfo();
-        ILiteCollectionAsync<Transaction>? txDb = dataStore.GetCollection<Transaction>(CollectionNames.Transaction);
-        AccountWithInfo? accountWithInfo = taskFactory.Run(() => dataStore.GetAccountWithInfoAsync(accountId));
-        if (txDb is null || accountWithInfo is null) return;
+        AccountWithInfo? accountWithInfo = taskFactory.Run(() => dataStore.GetAccountWithInfoAsync(dbName, accountId));
+        if (accountWithInfo is null) return;
         Info.Name = accountWithInfo.Info.Name;
         Info.CoAId = accountWithInfo.Info.CoAId;
         Info.Id = accountWithInfo.Info.Id;
@@ -29,6 +28,6 @@ public class AccountWithTransactions : AccountWithInfo
         StartBalance = accountWithInfo.StartBalance;
         Created = accountWithInfo.Created;
         ClientId = accountWithInfo.ClientId;
-        Transactions = taskFactory.Run(() => txDb.FindAllAsync()).Where(tx => tx.DebitedAccountId == Id || tx.CreditedAccountId == Id).ToList();
+        Transactions = taskFactory.Run(() => dataStore.ReadAllAsync<Transaction>(dbName))?.Where(tx => tx.DebitedAccountId == Id || tx.CreditedAccountId == Id).ToList()!;
     }
 }

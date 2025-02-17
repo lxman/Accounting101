@@ -2,12 +2,14 @@
 using System.Collections.Generic;
 using System.Text;
 using DataAccess.Interfaces;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace DataAccess.Models;
 
+[BsonDiscriminator(nameof(UsAddress))]
 public class UsAddress : IAddress
 {
-    public Guid Id { get; set; }
+    public Guid Id { get; set; } = Guid.NewGuid();
 
     public List<Guid> UsedByIds { get; } = [];
 

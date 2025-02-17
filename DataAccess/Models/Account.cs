@@ -1,8 +1,9 @@
 ﻿using System;
+using DataAccess.Interfaces;
 
 namespace DataAccess.Models;
 
-public class Account
+public class Account : IModel
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 

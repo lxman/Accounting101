@@ -8,7 +8,7 @@ namespace DataAccess;
 
 public static class CreateCoA
 {
-    public static async Task CreateChartAsync(this IDataStore dataStore, AvailableCoAs type, Client c)
+    public static async Task CreateChartAsync(this IDataStore dataStore, string dbName, AvailableCoAs type, Client c)
     {
         switch (type)
         {
@@ -16,7 +16,7 @@ public static class CreateCoA
                 ChartOfAccounts accts = SmallBusiness.CreateCoA(c);
                 foreach (AccountWithInfo a in accts.Accounts)
                 {
-                    await dataStore.CreateAccountAsync(a);
+                    await dataStore.CreateAccountAsync(dbName, a);
                 }
                 dataStore.NotifyChange(typeof(Accounts), ChangeType.Created);
                 break;

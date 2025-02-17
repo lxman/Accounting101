@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
-using LiteDB;
+using DataAccess.Interfaces;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace DataAccess.Models;
 
-public class CheckPoint(Guid clientId, DateOnly date)
+public class CheckPoint(Guid clientId, DateOnly date) : IModel
 {
     [BsonId]
     public Guid Id { get; set; }

@@ -1,5 +1,8 @@
-﻿using DataAccess.Interfaces;
+﻿using System.Linq;
+using DataAccess.Extensions;
+using DataAccess.Interfaces;
 using DataAccess.Services.Interfaces;
+
 #pragma warning disable VSTHRD002
 
 namespace DataAccess.Models;
@@ -26,10 +29,10 @@ public class ClientWithInfo : Client
         CheckPointId = c.CheckPointId;
     }
 
-    public ClientWithInfo(IDataStore dataStore, Client c) : base(c)
+    public ClientWithInfo(IDataStore dataStore, string dbName, Client c) : base(c)
     {
-        Name = dataStore.GetCollection<PersonName>(CollectionNames.PersonName)?.FindByIdAsync(c.PersonNameId).GetAwaiter().GetResult();
-        Address = dataStore.GetCollection<IAddress>(CollectionNames.Address)?.FindByIdAsync(c.AddressId).GetAwaiter().GetResult();
+        Name = dataStore.ReadOneAsync<PersonName>(dbName, c.PersonNameId).Result?.FirstOrDefault();
+        Address = dataStore.ReadOneAsync<IAddress>(dbName, c.AddressId).Result?.FirstOrDefault();
         CheckPointId = c.CheckPointId;
     }
 }

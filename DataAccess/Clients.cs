@@ -2,113 +2,85 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using DataAccess.Interfaces;
+using DataAccess.Extensions;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
-using LiteDB.Async;
 
 namespace DataAccess;
 
 public static class Clients
 {
-    public static async Task<Guid> CreateClientAsync(this IDataStore store, Client c)
+    public static async Task<Guid> CreateClientAsync(this IDataStore store, string dbName, Client c)
     {
-        ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
-        Guid result = (await collection?.InsertAsync(c)!)?.AsGuid ?? Guid.Empty;
+        Guid result = await store.CreateOneAsync(dbName, c);
         if (result != Guid.Empty) store.NotifyChange(typeof(Client), ChangeType.Created);
         return result;
     }
 
-    public static async Task<ClientWithInfo?> GetClientWithInfoAsync(this IDataStore store, Guid id)
+    public static async Task<ClientWithInfo?> GetClientWithInfoAsync(this IDataStore store, string dbName, Guid id)
     {
-        ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
-        Client? c = await collection?.FindByIdAsync(id)!;
-        return c is null ? null : new ClientWithInfo(store, c);
+        Client? c = (await store.ReadOneAsync<Client>(dbName, id))!.FirstOrDefault();
+        return c is null ? null : new ClientWithInfo(store, dbName, c);
     }
 
-    public static async Task<bool> ClientsExistAsync(this IDataStore store)
+    public static async Task<bool> ClientsExistAsync(this IDataStore store, string dbName)
     {
-        int count = await store.GetCollection<Client>(CollectionNames.Client)?.CountAsync()!;
-        return count > 0;
+        return (await store.ReadAllAsync<Client>(dbName))!.Count > 0;
     }
 
-    public static async Task BulkInsertClientsAsync(this IDataStore store, IEnumerable<Client> clients)
+    public static async Task BulkInsertClientsAsync(this IDataStore store, string dbName, IEnumerable<Client> clients)
     {
-        ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
-        int result = await collection?.InsertBulkAsync(clients)!;
-        if (result > 0) store.NotifyChange(typeof(Clients), ChangeType.Created);
+        await store.CreateManyAsync(dbName, clients);
+        store.NotifyChange(typeof(Clients), ChangeType.Created);
     }
 
-    public static async Task UpdateClientAsync(this IDataStore store, ClientWithInfo client)
+    public static async Task UpdateClientAsync(this IDataStore store, string dbName, ClientWithInfo client)
     {
-        ILiteCollectionAsync<Client> clientCollection = store.GetCollection<Client>(CollectionNames.Client)!;
-        ILiteCollectionAsync<PersonName?> personNameCollection = store.GetCollection<PersonName>(CollectionNames.PersonName)!;
-        ILiteCollectionAsync<IAddress?> addressCollection = store.GetCollection<IAddress>(CollectionNames.Address)!;
-        await clientCollection.UpdateAsync(new Client
-        {
-            AddressId = client.AddressId,
-            BusinessName = client.BusinessName,
-            Id = client.Id,
-            PersonNameId = client.PersonNameId
-        });
-        await personNameCollection.UpdateAsync(client.Name);
-        await addressCollection.UpdateAsync(client.Address);
+        await store.UpdateOneAsync<Client>(dbName, client);
+        await store.UpdateOneAsync(dbName, client.Name!);
+        await store.UpdateOneAsync(dbName, client.Address!);
+        store.NotifyChange(typeof(ClientWithInfo), ChangeType.Updated);
     }
 
-    public static async Task UpdateClientAsync(this IDataStore store, Client client)
+    public static async Task UpdateClientAsync(this IDataStore store, string dbName, Client client)
     {
-        ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
-        if (collection is null)
-        {
-            return;
-        }
-        await collection.UpdateAsync(new Client
-        {
-            AddressId = client.AddressId,
-            BusinessName = client.BusinessName,
-            CheckPointId = client.CheckPointId,
-            Id = client.Id,
-            PersonNameId = client.PersonNameId
-        });
+        await store.UpdateOneAsync(dbName, client);
         store.NotifyChange(typeof(Client), ChangeType.Updated);
     }
 
-    public static async Task<Client?> FindClientByIdAsync(this IDataStore store, Guid id)
+    public static async Task<Client?> FindClientByIdAsync(this IDataStore store, string dbName, Guid id)
     {
-        ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
-        return await collection?.FindByIdAsync(id)!;
+        return (await store.ReadOneAsync<Client>(dbName, id))!.FirstOrDefault();
     }
 
-    public static async Task<IEnumerable<Client>?> AllClientsAsync(this IDataStore store)
+    public static async Task<IEnumerable<Client>?> AllClientsAsync(this IDataStore store, string dbName)
     {
-        ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
-        return await collection?.FindAllAsync()!;
+        return await store.ReadAllAsync<Client>(dbName);
     }
 
-    public static async Task<IEnumerable<ClientWithInfo>?> AllClientsWithInfosAsync(this IDataStore store)
+    public static async Task<IEnumerable<ClientWithInfo>?> AllClientsWithInfosAsync(this IDataStore store, string dbName)
     {
-        ILiteCollectionAsync<Client>? collection = store.GetCollection<Client>(CollectionNames.Client);
-        IEnumerable<Client>? clients = await collection?.FindAllAsync()!;
-        return clients?.Select(c => new ClientWithInfo(store, c));
+        List<Client>? clients = (await store.AllClientsAsync(dbName))?.ToList();
+        return clients?.Select(c => new ClientWithInfo(store, dbName, c));
     }
 
-    public static async Task<bool?> DeleteClientAsync(this IDataStore store, Guid id)
+    public static async Task<bool?> DeleteClientAsync(this IDataStore store, string dbName, Guid id)
     {
-        ILiteCollectionAsync<Client>? clients = store.GetCollection<Client>(CollectionNames.Client);
-        List<AccountWithInfo>? accounts = (await store.AccountsForClientAsync(id))?.ToList();
+        List<AccountWithInfo>? accounts = (await store.AccountsForClientAsync(dbName, id))?.ToList();
         if (accounts is not null)
         {
             foreach (AccountWithInfo account in accounts)
             {
-                await store.DeleteAccountAsync(account.Id);
+                await store.DeleteAccountAsync(dbName, account.Id);
             }
         }
-        CheckPoint? checkPoint = await store.GetCheckpointAsync(id);
+        CheckPoint? checkPoint = await store.GetCheckpointAsync(dbName, id);
         if (checkPoint is not null)
         {
-            await store.ClearCheckpointAsync(checkPoint.Id);
+            await store.ClearCheckpointAsync(dbName, checkPoint.Id);
         }
-        bool result = await clients?.DeleteAsync(id)!;
+
+        bool? result = await store.DeleteOneAsync<Client>(dbName, id);
         store.NotifyChange(typeof(Client), ChangeType.Deleted);
         return result;
     }

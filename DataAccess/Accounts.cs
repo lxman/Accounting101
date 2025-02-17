@@ -2,110 +2,112 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DataAccess.Extensions;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
-using LiteDB.Async;
+using MongoDB.Driver;
+using MongoDB.Driver.Linq;
 
 namespace DataAccess;
 
 public static class Accounts
 {
-    public static async Task<Guid> CreateAccountAsync(this IDataStore store, Account acct, AccountInfo info)
+    public static async Task<Guid> CreateAccountAsync(this IDataStore store, string dbName, Account acct, AccountInfo info)
     {
-        Guid infoId = (await store.GetCollection<AccountInfo>(CollectionNames.AccountInfo)?.InsertAsync(info)!).AsGuid;
-        if (infoId == Guid.Empty)
+        await store.CreateOneAsync(dbName, info);
+        if (info.Id == Guid.Empty)
         {
             return Guid.Empty;
         }
 
-        acct.InfoId = infoId;
-        Guid result = (await store.GetCollection<Account>(CollectionNames.Account)?.InsertAsync(acct)!).AsGuid;
-        if (result != Guid.Empty) store.NotifyChange(typeof(Account), ChangeType.Created);
-        return result;
+        acct.InfoId = info.Id;
+        await store.CreateOneAsync(dbName, acct);
+        store.NotifyChange(typeof(Account), ChangeType.Created);
+        return acct.Id;
     }
 
-    public static async Task<Guid> CreateAccountAsync(this IDataStore store, AccountWithInfo acct)
+    public static async Task<Guid> CreateAccountAsync(this IDataStore store, string dbName, AccountWithInfo acct)
     {
-        Guid infoId = (await store.GetCollection<AccountInfo>(CollectionNames.AccountInfo)?.InsertAsync(acct.Info)!).AsGuid;
-        if (infoId == Guid.Empty)
+        await store.CreateOneAsync(dbName, acct.Info);
+        if (acct.Id == Guid.Empty)
         {
             return Guid.Empty;
         }
 
-        acct.Info.Id = infoId;
-        acct.InfoId = infoId;
-        Guid result = (await store.GetCollection<Account>(CollectionNames.Account)?.InsertAsync(new Account(acct))!).AsGuid;
-        if (result != Guid.Empty) store.NotifyChange(typeof(Account), ChangeType.Created);
-        return result;
+        acct.Info.Id = acct.Id;
+        acct.InfoId = acct.Id;
+        await store.CreateOneAsync(dbName, acct);
+        store.NotifyChange(typeof(Account), ChangeType.Created);
+        return acct.Id;
     }
 
-    public static async Task BulkInsertAccountsAsync(this IDataStore store, List<AccountWithInfo> accts)
+    public static async Task BulkInsertAccountsAsync(this IDataStore store, string dbName, List<AccountWithInfo> accts)
     {
-        ILiteCollectionAsync<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfo);
+        IMongoCollection<AccountInfo>? infos = store.GetCollection<AccountInfo>(dbName, CollectionNames.AccountInfo);
         accts.ForEach(a =>
         {
-            a.Info.Id = infos?.InsertAsync(a.Info).GetAwaiter().GetResult().AsGuid ?? Guid.Empty;
+            infos?.InsertOne(a.Info);
+            a.InfoId = a.Info.Id;
         });
-        int? result = await store.GetCollection<Account>(CollectionNames.Account)?.InsertBulkAsync(accts.Select(a => new Account(a)))!;
-        if (result > 0) store.NotifyChange(typeof(Accounts), ChangeType.Created);
+        await store.GetCollection<Account>(dbName, CollectionNames.Account)?.InsertManyAsync(accts.Select(a => new Account(a)))!;
+        store.NotifyChange(typeof(Accounts), ChangeType.Created);
     }
 
-    public static async Task<AccountWithEverything?> GetAccountWithEverythingAsync(this IDataStore store,
+    public static async Task<AccountWithEverything?> GetAccountWithEverythingAsync(this IDataStore store, string dbName,
         Guid accountId)
     {
-        AccountWithInfo? acct = await store.GetAccountWithInfoAsync(accountId);
+        AccountWithInfo? acct = await store.GetAccountWithInfoAsync(dbName, accountId);
         if (acct is null) return null;
-        List<Transaction> transactions = (await store.TransactionsForAccountAsync(acct.Id))?.OrderBy(t => t.When).ToList() ?? [];
-        CheckPoint? checkPoint = await store.GetCheckpointAsync(acct.Id);
+        List<Transaction> transactions = (await store.TransactionsForAccountAsync(dbName, acct.Id))?.OrderBy(t => t.When).ToList() ?? [];
+        CheckPoint? checkPoint = await store.GetCheckpointAsync(dbName, acct.Id);
         return new AccountWithEverything(acct, transactions, checkPoint);
     }
 
-    public static async Task<AccountWithInfo?> FindAccountByNameAsync(this IDataStore store, string name)
+    public static async Task<AccountWithInfo?> FindAccountByNameAsync(this IDataStore store, string dbName, string name)
     {
-        ILiteCollectionAsync<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfo);
-        AccountInfo? info = await infos?.FindOneAsync(i => i.Name == name)! ?? null;
+        IMongoCollection<AccountInfo>? infos = store.GetCollection<AccountInfo>(dbName, CollectionNames.AccountInfo);
+        AccountInfo? info = await infos?.AsQueryable().FirstAsync(i => i.Name == name)! ?? null;
         if (info is null)
         {
             return null;
         }
 
-        ILiteCollectionAsync<Account>? accts = store.GetCollection<Account>(CollectionNames.Account);
-        Account? a = await accts?.FindOneAsync(a => a.InfoId == info.Id)!;
+        IMongoCollection<Account>? accts = store.GetCollection<Account>(dbName, CollectionNames.Account);
+        Account? a = await accts?.AsQueryable().FirstAsync(a => a.InfoId == info.Id)!;
         return a is null
             ? null
             : new AccountWithInfo(a, info);
     }
 
-    public static async Task<IEnumerable<AccountWithInfo>?> AccountsForClientAsync(this IDataStore store, Guid clientId)
+    public static async Task<IEnumerable<AccountWithInfo>?> AccountsForClientAsync(this IDataStore store, string dbName, Guid clientId)
     {
-        IEnumerable<Account>? accts = await store.GetCollection<Account>(CollectionNames.Account)
-            ?.FindAsync(a => a.ClientId == clientId)!;
+        List<Account>? accts = await store.ReadOneAsync<Account>(dbName, clientId);
         if (accts is null) return null;
-        ILiteCollectionAsync<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfo);
+        List<AccountInfo>? infos = await store.ReadOneAsync<AccountInfo>(dbName, clientId);
         if (infos is null) return null;
         List<AccountWithInfo> acctsWInfos = [];
         accts.ToList().ForEach(a =>
         {
-            acctsWInfos.Add(new AccountWithInfo(a, infos.FindOneAsync(i => i.Id == a.InfoId).GetAwaiter().GetResult()));
+            acctsWInfos.Add(new AccountWithInfo(a, infos.First(i => i.Id == a.InfoId)));
         });
         return acctsWInfos;
     }
 
-    public static async Task<DateRange?> GetAccountTransactionsDateRangeAsync(this IDataStore store, Guid accountId)
+    public static async Task<DateRange?> GetAccountTransactionsDateRangeAsync(this IDataStore store, string dbName, Guid accountId)
     {
-        Account? acct = await store.GetCollection<Account>(CollectionNames.Account)?.FindByIdAsync(accountId)!;
+        Account? acct = await store.GetCollection<Account>(dbName, CollectionNames.Account)?.AsQueryable().FirstOrDefaultAsync(a => a.Id == accountId)!;
         if (acct is null) return null;
-        List<Transaction>? transactions = await store.TransactionsForAccountAsync(acct.Id);
+        List<Transaction>? transactions = await store.TransactionsForAccountAsync(dbName, acct.Id);
         if (transactions is null) return null;
         DateRange dateRange = new(acct.Created, transactions.Max(t => t.When));
         return dateRange;
     }
 
-    public static async Task<decimal> GetAccountBalanceAsync(this IDataStore store, Guid accountId)
+    public static async Task<decimal> GetAccountBalanceAsync(this IDataStore store, string dbName, Guid accountId)
     {
-        Account? acct = await store.GetCollection<Account>(CollectionNames.Account)?.FindByIdAsync(accountId)!;
+        Account? acct = await store.GetCollection<Account>(dbName, CollectionNames.Account)?.AsQueryable().FirstOrDefaultAsync(a => a.Id == accountId)!;
         if (acct is null) return 0;
-        List<Transaction>? transactions = await store.TransactionsForAccountAsync(acct.Id);
+        List<Transaction>? transactions = await store.TransactionsForAccountAsync(dbName, acct.Id);
         if (transactions is null) return 0;
         decimal balance = 0;
         bool isDebit = acct.IsDebitAccount;
@@ -131,57 +133,51 @@ public static class Accounts
         return balance;
     }
 
-    public static async Task<decimal> GetAccountBalanceOnDateAsync(this IDataStore store, Guid accountId, DateOnly date)
+    public static async Task<decimal> GetAccountBalanceOnDateAsync(this IDataStore store, string dbName, Guid accountId, DateOnly date)
     {
-        AccountWithInfo? acct = await store.GetAccountWithInfoAsync(accountId);
+        AccountWithInfo? acct = await store.GetAccountWithInfoAsync(dbName, accountId);
         if (acct is null || acct.Created > date) return 0;
-        List<Transaction>? transactions = await store.TransactionsForAccountAsync(acct.Id);
+        List<Transaction>? transactions = await store.TransactionsForAccountAsync(dbName, acct.Id);
         if (transactions is null) return acct.StartBalance;
         List<Transaction> inDate = transactions.Where(t => t.When <= date).ToList();
         return BalanceCalculator.Calculate(acct, inDate);
     }
 
-    public static async Task<AccountWithInfo?> GetAccountWithInfoAsync(this IDataStore store, Guid accountId)
+    public static async Task<AccountWithInfo?> GetAccountWithInfoAsync(this IDataStore store, string dbName, Guid accountId)
     {
-        Account? acct = await store.GetCollection<Account>(CollectionNames.Account)?.FindByIdAsync(accountId)!;
+        Account? acct = (await store.ReadOneAsync<Account>(dbName, accountId))!.FirstOrDefault();
         if (acct is null) return null;
-        AccountInfo? info = await store.GetCollection<AccountInfo>(CollectionNames.AccountInfo)?.FindByIdAsync(acct.InfoId)!;
+        AccountInfo? info = (await store.ReadOneAsync<AccountInfo>(dbName, acct.InfoId))!.FirstOrDefault();
         return info is null
             ? null
             : new AccountWithInfo(acct, info);
     }
 
-    public static async Task<bool> UpdateAccountAsync(this IDataStore store, AccountWithInfo acct)
+    public static async Task<bool> UpdateAccountAsync(this IDataStore store, string dbName, AccountWithInfo acct)
     {
-        ILiteCollectionAsync<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfo);
-        if (infos is null) return false;
-        bool result = await infos.UpdateAsync(acct.Info);
-        if (!result) return false;
-        ILiteCollectionAsync<Account>? accts = store.GetCollection<Account>(CollectionNames.Account);
-        if (accts is null) return false;
-        result = await accts.UpdateAsync(new Account(acct));
-        if (!result) return false;
+        bool? result = await store.UpdateOneAsync(dbName, acct.Info);
+        if (!result.HasValue || !result.Value) return false;
+        result = await store.UpdateOneAsync(dbName, acct);
+        if (!result.HasValue || !result.Value) return false;
         store.NotifyChange(typeof(Account), ChangeType.Updated);
-        return result;
+        return result.Value;
     }
 
-    public static async Task<bool> DeleteAccountAsync(this IDataStore store, Guid accountId)
+    public static async Task<bool> DeleteAccountAsync(this IDataStore store, string dbName, Guid accountId)
     {
-        ILiteCollectionAsync<Account>? accts = store.GetCollection<Account>(CollectionNames.Account);
-        if (accts is null) return false;
-        bool result = await accts.DeleteAsync(accountId);
-        if (!result) return false;
-        ILiteCollectionAsync<AccountInfo>? infos = store.GetCollection<AccountInfo>(CollectionNames.AccountInfo);
-        if (infos is null) return false;
-        result = await infos.DeleteAsync(accountId);
-        if (!result) return false;
-        List<Transaction>? transactions = await store.TransactionsForAccountAsync(accountId);
+        Account? acct = (await store.ReadOneAsync<Account>(dbName, accountId))!.FirstOrDefault();
+        if (acct is null) return false;
+        bool? result = await store.DeleteOneAsync<AccountInfo>(dbName, acct.InfoId);
+        if (!result.HasValue || !result.Value) return false;
+        result = await store.DeleteOneAsync<Account>(dbName, accountId);
+        if (!result.HasValue || !result.Value) return false;
+        List<Transaction>? transactions = await store.TransactionsForAccountAsync(dbName, accountId);
         if (transactions is null) return false;
         foreach (Transaction t in transactions)
         {
-            await store.DeleteTransactionAsync(t.Id);
+            await store.DeleteTransactionAsync(dbName, t.Id);
         }
         store.NotifyChange(typeof(Account), ChangeType.Deleted);
-        return result;
+        return result.Value;
     }
 }

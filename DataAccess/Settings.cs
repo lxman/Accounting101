@@ -1,32 +1,31 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using DataAccess.Extensions;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
-using LiteDB.Async;
 
 namespace DataAccess;
 
 public static class Settings
 {
-    public static async Task<Guid> CreateSettingAsync(this IDataStore store, Setting setting)
+    public static async Task<Guid> CreateSettingAsync(this IDataStore store, string dbName, Setting setting)
     {
-        ILiteCollectionAsync<Setting>? collection = store.GetCollection<Setting>(CollectionNames.Setting);
-        Guid result = (await collection?.InsertAsync(setting)!).AsGuid;
-        if (result != Guid.Empty) store.NotifyChange(typeof(Setting), ChangeType.Created);
+        Guid result = await store.CreateOneAsync(dbName, setting);
+        store.NotifyChange(typeof(Setting), ChangeType.Created);
         return result;
     }
 
-    public static async Task<IEnumerable<Setting>> FindSettingAsync(this IDataStore store, string key)
+    public static async Task<Setting?> FindSettingAsync(this IDataStore store, string dbName, string key)
     {
-        ILiteCollectionAsync<Setting>? collection = store.GetCollection<Setting>(CollectionNames.Setting);
-        return await collection?.FindAsync(s => s.Key == key)! ?? new List<Setting>();
+        return (await store.ReadAllAsync<Setting>(dbName))!.FirstOrDefault(s => s.Key == key);
     }
 
-    public static async Task RemoveSettingAsync(this IDataStore store, string key)
+    public static async Task RemoveSettingAsync(this IDataStore store, string dbName, string key)
     {
-        ILiteCollectionAsync<Setting>? collection = store.GetCollection<Setting>(CollectionNames.Setting);
-        int result = await collection?.DeleteManyAsync(s => s.Key == key)!;
-        if (result > 0) store.NotifyChange(typeof(Setting), ChangeType.Deleted);
+        Setting? setting = (await store.ReadAllAsync<Setting>(dbName))!.FirstOrDefault(s => s.Key == key);
+        if (setting is null) return;
+        await store.DeleteOneAsync<Setting>(dbName, setting.Id);
+        store.NotifyChange(typeof(Setting), ChangeType.Deleted);
     }
 }

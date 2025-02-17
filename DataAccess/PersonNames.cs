@@ -1,46 +1,41 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using DataAccess.Extensions;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
-using LiteDB.Async;
 
 namespace DataAccess;
 
 public static class PersonNames
 {
-    public static async Task<Guid> CreateNameAsync(this IDataStore store, PersonName name)
+    public static async Task<Guid> CreateNameAsync(this IDataStore store, string dbName, PersonName name)
     {
-        ILiteCollectionAsync<PersonName>? collection = store.GetCollection<PersonName>(CollectionNames.PersonName);
-        Guid result = (await collection?.InsertAsync(name)!)?.AsGuid ?? Guid.Empty;
+        Guid result = await store.CreateOneAsync(dbName, name);
         if (result != Guid.Empty) store.NotifyChange(typeof(PersonName), ChangeType.Created);
         return result;
     }
 
-    public static async Task BulkInsertNamesAsync(this IDataStore store, IEnumerable<PersonName> names)
+    public static async Task BulkInsertNamesAsync(this IDataStore store, string dbName, IEnumerable<PersonName> names)
     {
-        ILiteCollectionAsync<PersonName>? collection = store.GetCollection<PersonName>(CollectionNames.PersonName);
-        int result = await collection?.InsertBulkAsync(names)!;
-        if (result > 0) store.NotifyChange(typeof(PersonNames), ChangeType.Created);
+        await store.CreateManyAsync(dbName, names);
+        store.NotifyChange(typeof(PersonNames), ChangeType.Created);
     }
 
-    public static async Task<IEnumerable<PersonName>?> AllNamesAsync(this IDataStore store)
+    public static async Task<IEnumerable<PersonName>?> AllNamesAsync(this IDataStore store, string dbName)
     {
-        ILiteCollectionAsync<PersonName>? collection = store.GetCollection<PersonName>(CollectionNames.PersonName);
-        return await collection?.FindAllAsync()!;
+        return await store.ReadAllAsync<PersonName>(dbName);
     }
 
-    public static async Task<PersonName?> FindNameByIdAsync(this IDataStore store, Guid id)
+    public static async Task<PersonName?> FindNameByIdAsync(this IDataStore store, string dbName, Guid id)
     {
-        ILiteCollectionAsync<PersonName>? collection = store.GetCollection<PersonName>(CollectionNames.PersonName);
-        return await collection?.FindByIdAsync(id)!;
+        return (await store.ReadOneAsync<PersonName>(dbName, id))!.FirstOrDefault();
     }
 
-    public static async Task<bool> UpdateNameAsync(this IDataStore store, PersonName name)
+    public static async Task<bool> UpdateNameAsync(this IDataStore store, string dbName, PersonName name)
     {
-        ILiteCollectionAsync<PersonName>? collection = store.GetCollection<PersonName>(CollectionNames.PersonName);
-        bool result = await collection?.UpdateAsync(name)!;
-        if (result) store.NotifyChange(typeof(PersonName), ChangeType.Updated);
-        return result;
+        bool? result = await store.UpdateOneAsync(dbName, name);
+        return result.HasValue && result.Value;
     }
 }
