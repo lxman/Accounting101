@@ -8,7 +8,7 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        WebAssemblyHostBuilder? builder = WebAssemblyHostBuilder.CreateDefault(args);
+        WebAssemblyHostBuilder builder = WebAssemblyHostBuilder.CreateDefault(args);
 
         builder.Services.AddAuthorizationCore();
         builder.Services.AddCascadingAuthenticationState();

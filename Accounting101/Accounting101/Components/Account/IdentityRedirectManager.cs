@@ -35,8 +35,8 @@ internal sealed class IdentityRedirectManager(NavigationManager navigationManage
     [DoesNotReturn]
     public void RedirectTo(string uri, Dictionary<string, object?> queryParameters)
     {
-        string? uriWithoutQuery = navigationManager.ToAbsoluteUri(uri).GetLeftPart(UriPartial.Path);
-        string? newUri = navigationManager.GetUriWithQueryParameters(uriWithoutQuery, queryParameters);
+        string uriWithoutQuery = navigationManager.ToAbsoluteUri(uri).GetLeftPart(UriPartial.Path);
+        string newUri = navigationManager.GetUriWithQueryParameters(uriWithoutQuery, queryParameters);
         RedirectTo(newUri);
     }
 

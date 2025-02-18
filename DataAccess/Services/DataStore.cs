@@ -139,7 +139,7 @@ public class DataStore : IDataStore, IDisposable
 
         if (disposing)
         {
-            _db?.Dispose();
+            //_db?.Dispose();
         }
 
         _disposedValue = true;

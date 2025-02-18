@@ -13,7 +13,7 @@
 
 <h1>Two-factor authentication</h1>
 <hr />
-<StatusMessage Message="@message" />
+<StatusMessage Message="@_message" />
 <p>Your login is protected with an authenticator app. Enter your authenticator code below.</p>
 <div class="row">
     <div class="col-md-4">
@@ -45,8 +45,8 @@
 </p>
 
 @code {
-    private string? message;
-    private ApplicationUser user = default!;
+    private string? _message;
+    private ApplicationUser _user = null!;
 
     [SupplyParameterFromForm]
     private InputModel Input { get; set; } = new();
@@ -60,15 +60,15 @@
     protected override async Task OnInitializedAsync()
     {
         // Ensure the user has gone through the username & password screen first
-        user = await SignInManager.GetTwoFactorAuthenticationUserAsync() ??
+        _user = await SignInManager.GetTwoFactorAuthenticationUserAsync() ??
             throw new InvalidOperationException("Unable to load two-factor authentication user.");
     }
 
     private async Task OnValidSubmitAsync()
     {
-        string? authenticatorCode = Input.TwoFactorCode!.Replace(" ", string.Empty).Replace("-", string.Empty);
-        SignInResult? result = await SignInManager.TwoFactorAuthenticatorSignInAsync(authenticatorCode, RememberMe, Input.RememberMachine);
-        string? userId = await UserManager.GetUserIdAsync(user);
+        string authenticatorCode = Input.TwoFactorCode!.Replace(" ", string.Empty).Replace("-", string.Empty);
+        SignInResult result = await SignInManager.TwoFactorAuthenticatorSignInAsync(authenticatorCode, RememberMe, Input.RememberMachine);
+        string userId = await UserManager.GetUserIdAsync(_user);
 
         if (result.Succeeded)
         {
@@ -83,7 +83,7 @@
         else
         {
             Logger.LogWarning("Invalid authenticator code entered for user with ID '{UserId}'.", userId);
-            message = "Error: Invalid authenticator code.";
+            _message = "Error: Invalid authenticator code.";
         }
     }
 

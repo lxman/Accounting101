@@ -1,0 +1,27 @@
+﻿@page "/Administration/RoleManager"
+
+@using Accounting101.Data
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Identity
+
+@inject RoleManager<ApplicationRole> UserRoleManager
+
+@attribute [Authorize(Roles = "Administrator")]
+
+<h3>RoleManager</h3>
+
+@* <div>
+    <InputText></InputText>
+</div>
+ *@
+
+@code {
+    private readonly List<ApplicationRole> _availableRoles = [];
+
+    protected override Task OnInitializedAsync()
+    {
+        _availableRoles.AddRange(UserRoleManager.Roles);
+        return Task.CompletedTask;
+    }
+
+}

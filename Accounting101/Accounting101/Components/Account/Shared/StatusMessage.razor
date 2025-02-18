@@ -1,27 +1,27 @@
 ﻿@if (!string.IsNullOrEmpty(DisplayMessage))
 {
-    string? statusMessageClass = DisplayMessage.StartsWith("Error") ? "danger" : "success";
+    string statusMessageClass = DisplayMessage.StartsWith("Error") ? "danger" : "success";
     <div class="alert alert-@statusMessageClass" role="alert">
         @DisplayMessage
     </div>
 }
 
 @code {
-    private string? messageFromCookie;
+    private string? _messageFromCookie;
 
     [Parameter]
     public string? Message { get; set; }
 
     [CascadingParameter]
-    private HttpContext HttpContext { get; set; } = default!;
+    private HttpContext HttpContext { get; set; } = null!;
 
-    private string? DisplayMessage => Message ?? messageFromCookie;
+    private string? DisplayMessage => Message ?? _messageFromCookie;
 
     protected override void OnInitialized()
     {
-        messageFromCookie = HttpContext.Request.Cookies[IdentityRedirectManager.StatusCookieName];
+        _messageFromCookie = HttpContext.Request.Cookies[IdentityRedirectManager.StatusCookieName];
 
-        if (messageFromCookie is not null)
+        if (_messageFromCookie is not null)
         {
             HttpContext.Response.Cookies.Delete(IdentityRedirectManager.StatusCookieName);
         }

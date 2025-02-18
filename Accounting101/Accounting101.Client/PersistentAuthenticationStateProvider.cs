@@ -14,10 +14,10 @@ namespace Accounting101.Client;
 // cookie that will be included on HttpClient requests to the server.
 internal class PersistentAuthenticationStateProvider : AuthenticationStateProvider
 {
-    private static readonly Task<AuthenticationState> defaultUnauthenticatedTask =
+    private static readonly Task<AuthenticationState> DefaultUnauthenticatedTask =
         Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())));
 
-    private readonly Task<AuthenticationState> authenticationStateTask = defaultUnauthenticatedTask;
+    private readonly Task<AuthenticationState> _authenticationStateTask = DefaultUnauthenticatedTask;
 
     public PersistentAuthenticationStateProvider(PersistentComponentState state)
     {
@@ -31,10 +31,10 @@ internal class PersistentAuthenticationStateProvider : AuthenticationStateProvid
             new Claim(ClaimTypes.Name, userInfo.Email),
             new Claim(ClaimTypes.Email, userInfo.Email) ];
 
-        authenticationStateTask = Task.FromResult(
+        _authenticationStateTask = Task.FromResult(
             new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity(claims,
                 authenticationType: nameof(PersistentAuthenticationStateProvider)))));
     }
 
-    public override Task<AuthenticationState> GetAuthenticationStateAsync() => authenticationStateTask;
+    public override Task<AuthenticationState> GetAuthenticationStateAsync() => _authenticationStateTask;
 }

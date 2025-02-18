@@ -13,13 +13,13 @@
 
 <h1>Confirm email change</h1>
 
-<StatusMessage Message="@message" />
+<StatusMessage Message="@_message" />
 
 @code {
-    private string? message;
+    private string? _message;
 
     [CascadingParameter]
-    private HttpContext HttpContext { get; set; } = default!;
+    private HttpContext HttpContext { get; set; } = null!;
 
     [SupplyParameterFromQuery]
     private string? UserId { get; set; }
@@ -41,28 +41,28 @@
         ApplicationUser? user = await UserManager.FindByIdAsync(UserId);
         if (user is null)
         {
-            message = "Unable to find user with Id '{userId}'";
+            _message = "Unable to find user with Id '{userId}'";
             return;
         }
 
-        string? code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(Code));
-        IdentityResult? result = await UserManager.ChangeEmailAsync(user, Email, code);
+        string code = Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(Code));
+        IdentityResult result = await UserManager.ChangeEmailAsync(user, Email, code);
         if (!result.Succeeded)
         {
-            message = "Error changing email.";
+            _message = "Error changing email.";
             return;
         }
 
         // In our UI email and user name are one and the same, so when we update the email
         // we need to update the user name.
-        IdentityResult? setUserNameResult = await UserManager.SetUserNameAsync(user, Email);
+        IdentityResult setUserNameResult = await UserManager.SetUserNameAsync(user, Email);
         if (!setUserNameResult.Succeeded)
         {
-            message = "Error changing user name.";
+            _message = "Error changing user name.";
             return;
         }
 
         await SignInManager.RefreshSignInAsync(user);
-        message = "Thank you for confirming your email change.";
+        _message = "Thank you for confirming your email change.";
     }
 }

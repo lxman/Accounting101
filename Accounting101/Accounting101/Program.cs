@@ -1,8 +1,11 @@
 using Accounting101.Components;
 using Accounting101.Components.Account;
 using Accounting101.Data;
+using DataAccess.Services;
+using DataAccess.Services.Interfaces;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.VisualStudio.Threading;
 using MongoDB.Driver;
 
 namespace Accounting101;
@@ -30,6 +33,10 @@ public class Program
             });
 
         string mongoConnectionString = builder.Configuration.GetConnectionString("MongoConnection") ?? throw new InvalidOperationException("Connection string 'MongoConnection' not found.");
+        DataStore dataStore = new(mongoConnectionString);
+
+        builder.Services.AddSingleton<IDataStore>(dataStore);
+
         builder.Services.AddIdentity<ApplicationUser, ApplicationRole>()
             .AddSignInManager()
             .AddDefaultTokenProviders()
@@ -47,6 +54,33 @@ public class Program
         builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
         WebApplication app = builder.Build();
+
+        // For async
+        JoinableTaskFactory jtf = new(new JoinableTaskCollection(new JoinableTaskContext()));
+
+        // Make sure the initial roles of User and Administrator are created.
+        IServiceProvider services = app.Services;
+        using IServiceScope scope = services.CreateScope();
+        RoleManager<ApplicationRole> roleManager =
+            scope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
+        if (!jtf.Run(() => roleManager.RoleExistsAsync("User")))
+        {
+            jtf.Run(() => roleManager.CreateAsync(new ApplicationRole { Name = "User" }));
+        }
+
+        if (!jtf.Run(() => roleManager.RoleExistsAsync("Administrator")))
+        {
+            jtf.Run(() => roleManager.CreateAsync(new ApplicationRole { Name = "Administrator" }));
+        }
+
+        // Create the initial Administrator user if it doesn't exist.
+        UserManager<ApplicationUser> userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        ApplicationUser? me = jtf.Run(() => userManager.FindByNameAsync("jordan.mymail@gmail.com"));
+        bool isAdministrator = me is not null && jtf.Run(() => userManager.IsInRoleAsync(me, "Administrator"));
+        if (me is not null && !jtf.Run(() => userManager.IsInRoleAsync(me, "Administrator")))
+        {
+            jtf.Run(() => userManager.AddToRolesAsync(me, new List<string> { "Administrator", "User" }));
+        }
 
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
