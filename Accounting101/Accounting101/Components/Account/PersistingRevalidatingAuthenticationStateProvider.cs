@@ -1,13 +1,13 @@
 using System.Diagnostics;
 using System.Security.Claims;
-using Accounting101.Client;
-using Accounting101.Data;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
+using Accounting101.Client;
+using Accounting101.Data;
 
 namespace Accounting101.Components.Account;
 
@@ -16,13 +16,13 @@ namespace Accounting101.Components.Account;
 // authentication state to the client which is then fixed for the lifetime of the WebAssembly application.
 internal sealed class PersistingRevalidatingAuthenticationStateProvider : RevalidatingServerAuthenticationStateProvider
 {
-    private readonly IServiceScopeFactory _scopeFactory;
-    private readonly PersistentComponentState _state;
-    private readonly IdentityOptions _options;
+    private readonly IServiceScopeFactory scopeFactory;
+    private readonly PersistentComponentState state;
+    private readonly IdentityOptions options;
 
-    private readonly PersistingComponentStateSubscription _subscription;
+    private readonly PersistingComponentStateSubscription subscription;
 
-    private Task<AuthenticationState>? _authenticationStateTask;
+    private Task<AuthenticationState>? authenticationStateTask;
 
     public PersistingRevalidatingAuthenticationStateProvider(
         ILoggerFactory loggerFactory,
@@ -31,12 +31,12 @@ internal sealed class PersistingRevalidatingAuthenticationStateProvider : Revali
         IOptions<IdentityOptions> optionsAccessor)
         : base(loggerFactory)
     {
-        _scopeFactory = serviceScopeFactory;
-        _state = persistentComponentState;
-        _options = optionsAccessor.Value;
+        scopeFactory = serviceScopeFactory;
+        state = persistentComponentState;
+        options = optionsAccessor.Value;
 
         AuthenticationStateChanged += OnAuthenticationStateChanged;
-        _subscription = _state.RegisterOnPersisting(OnPersistingAsync, RenderMode.InteractiveWebAssembly);
+        subscription = state.RegisterOnPersisting(OnPersistingAsync, RenderMode.InteractiveWebAssembly);
     }
 
     protected override TimeSpan RevalidationInterval => TimeSpan.FromMinutes(30);
@@ -45,8 +45,8 @@ internal sealed class PersistingRevalidatingAuthenticationStateProvider : Revali
         AuthenticationState authenticationState, CancellationToken cancellationToken)
     {
         // Get the user manager from a new scope to ensure it fetches fresh data
-        await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
-        UserManager<ApplicationUser> userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+        await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+        UserManager<ApplicationUser>? userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         return await ValidateSecurityStampAsync(userManager, authenticationState.User);
     }
 
@@ -63,35 +63,35 @@ internal sealed class PersistingRevalidatingAuthenticationStateProvider : Revali
         }
         else
         {
-            string? principalStamp = principal.FindFirstValue(_options.ClaimsIdentity.SecurityStampClaimType);
-            string userStamp = await userManager.GetSecurityStampAsync(user);
+            string? principalStamp = principal.FindFirstValue(options.ClaimsIdentity.SecurityStampClaimType);
+            string? userStamp = await userManager.GetSecurityStampAsync(user);
             return principalStamp == userStamp;
         }
     }
 
     private void OnAuthenticationStateChanged(Task<AuthenticationState> task)
     {
-        _authenticationStateTask = task;
+        authenticationStateTask = task;
     }
 
     private async Task OnPersistingAsync()
     {
-        if (_authenticationStateTask is null)
+        if (authenticationStateTask is null)
         {
             throw new UnreachableException($"Authentication state not set in {nameof(OnPersistingAsync)}().");
         }
 
-        AuthenticationState authenticationState = await _authenticationStateTask;
-        ClaimsPrincipal principal = authenticationState.User;
+        AuthenticationState? authenticationState = await authenticationStateTask;
+        ClaimsPrincipal? principal = authenticationState.User;
 
         if (principal.Identity?.IsAuthenticated == true)
         {
-            string? userId = principal.FindFirst(_options.ClaimsIdentity.UserIdClaimType)?.Value;
-            string? email = principal.FindFirst(_options.ClaimsIdentity.EmailClaimType)?.Value;
+            string? userId = principal.FindFirst(options.ClaimsIdentity.UserIdClaimType)?.Value;
+            string? email = principal.FindFirst(options.ClaimsIdentity.EmailClaimType)?.Value;
 
             if (userId != null && email != null)
             {
-                _state.PersistAsJson(nameof(UserInfo), new UserInfo
+                state.PersistAsJson(nameof(UserInfo), new UserInfo
                 {
                     UserId = userId,
                     Email = email,
@@ -102,7 +102,7 @@ internal sealed class PersistingRevalidatingAuthenticationStateProvider : Revali
 
     protected override void Dispose(bool disposing)
     {
-        _subscription.Dispose();
+        subscription.Dispose();
         AuthenticationStateChanged -= OnAuthenticationStateChanged;
         base.Dispose(disposing);
     }

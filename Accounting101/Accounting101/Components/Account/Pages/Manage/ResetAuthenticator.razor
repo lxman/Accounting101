@@ -32,14 +32,14 @@
 
 @code {
     [CascadingParameter]
-    private HttpContext HttpContext { get; set; } = null!;
+    private HttpContext HttpContext { get; set; } = default!;
 
     private async Task OnSubmitAsync()
     {
-        ApplicationUser user = await UserAccessor.GetRequiredUserAsync(HttpContext);
+        ApplicationUser? user = await UserAccessor.GetRequiredUserAsync(HttpContext);
         await UserManager.SetTwoFactorEnabledAsync(user, false);
         await UserManager.ResetAuthenticatorKeyAsync(user);
-        string userId = await UserManager.GetUserIdAsync(user);
+        string? userId = await UserManager.GetUserIdAsync(user);
         Logger.LogInformation("User with ID '{UserId}' has reset their authentication app key.", userId);
 
         await SignInManager.RefreshSignInAsync(user);

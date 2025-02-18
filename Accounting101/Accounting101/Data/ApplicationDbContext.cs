@@ -4,14 +4,18 @@ using MongoDbGenericRepository;
 
 namespace Accounting101.Data;
 
-public class ApplicationDbContext() : IMongoDbContext
+public class ApplicationDbContext(IMongoClient client, IMongoDatabase db) : IMongoDbContext
 {
-    public IMongoCollection<TDocument> GetCollection<TDocument>(string partitionKey = null)
+    public IMongoClient Client { get; } = client;
+
+    public IMongoDatabase Database { get; } = db;
+
+    public IMongoCollection<TDocument> GetCollection<TDocument>(string? partitionKey = null)
     {
         throw new NotImplementedException();
     }
 
-    public void DropCollection<TDocument>(string partitionKey = null)
+    public void DropCollection<TDocument>(string? partitionKey = null)
     {
         throw new NotImplementedException();
     }
@@ -20,7 +24,4 @@ public class ApplicationDbContext() : IMongoDbContext
     {
         throw new NotImplementedException();
     }
-
-    public IMongoClient Client { get; }
-    public IMongoDatabase Database { get; }
 }

@@ -1,15 +1,10 @@
-﻿@using Accounting101.Components.Account
-@using Accounting101.Data
-
-@implements IDisposable
+﻿@implements IDisposable
 
 @inject NavigationManager NavigationManager
-@inject IdentityUserAccessor UserAccessor
-@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">Accounting 101</a>
+        <a class="navbar-brand" href="">Accounting101</a>
     </div>
 </div>
 
@@ -45,28 +40,13 @@
             <Authorized>
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="Account/Manage">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span>
-                        @if (_isAuthenticated)
-                        {
-                            <span>@_user.FirstName</span>
-                        }
-                        else
-                        {
-                            <span>Account</span>
-                        }
+                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
                     </NavLink>
                 </div>
-                <AuthorizeView Context="AnotherContext" Roles="Administrator">
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="Roles/RoleManager">
-                            <span class="bi bi-person-badge-nav-menu"></span> Roles
-                        </NavLink>
-                    </div>
-                </AuthorizeView>
                 <div class="nav-item px-3">
                     <form action="Account/Logout" method="post">
                         <AntiforgeryToken />
-                        <input type="hidden" name="ReturnUrl" value="@_currentUrl" />
+                        <input type="hidden" name="ReturnUrl" value="@currentUrl" />
                         <button type="submit" class="nav-link">
                             <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
                         </button>
@@ -90,32 +70,17 @@
 </div>
 
 @code {
-    private string? _currentUrl;
-    private ApplicationUser _user = null!;
-    private bool _isAuthenticated;
-
-    [CascadingParameter]
-    private HttpContext HttpContext { get; set; } = null!;
+    private string? currentUrl;
 
     protected override void OnInitialized()
     {
-        _currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
         NavigationManager.LocationChanged += OnLocationChanged;
-    }
-
-    protected override async Task OnInitializedAsync()
-    {
-        AuthenticationState state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        if (state.User.Identity?.IsAuthenticated == true)
-        {
-            _user = await UserAccessor.GetRequiredUserAsync(HttpContext);
-            _isAuthenticated = true;
-        }
     }
 
     private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
     {
-        _currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
         StateHasChanged();
     }
 
@@ -124,3 +89,4 @@
         NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
+

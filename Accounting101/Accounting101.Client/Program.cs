@@ -1,3 +1,4 @@
+using Accounting101.Client;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 
@@ -7,7 +8,7 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        WebAssemblyHostBuilder builder = WebAssemblyHostBuilder.CreateDefault(args);
+        WebAssemblyHostBuilder? builder = WebAssemblyHostBuilder.CreateDefault(args);
 
         builder.Services.AddAuthorizationCore();
         builder.Services.AddCascadingAuthenticationState();

@@ -17,7 +17,7 @@
 <h1>Resend email confirmation</h1>
 <h2>Enter your email.</h2>
 <hr />
-<StatusMessage Message="@_message" />
+<StatusMessage Message="@message" />
 <div class="row">
     <div class="col-md-4">
         <EditForm Model="Input" FormName="resend-email-confirmation" OnValidSubmit="OnValidSubmitAsync" method="post">
@@ -34,7 +34,7 @@
 </div>
 
 @code {
-    private string? _message;
+    private string? message;
 
     [SupplyParameterFromForm]
     private InputModel Input { get; set; } = new();
@@ -44,19 +44,19 @@
         ApplicationUser? user = await UserManager.FindByEmailAsync(Input.Email!);
         if (user is null)
         {
-            _message = "Verification email sent. Please check your email.";
+            message = "Verification email sent. Please check your email.";
             return;
         }
 
-        string userId = await UserManager.GetUserIdAsync(user);
-        string code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
+        string? userId = await UserManager.GetUserIdAsync(user);
+        string? code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
         code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-        string callbackUrl = NavigationManager.GetUriWithQueryParameters(
+        string? callbackUrl = NavigationManager.GetUriWithQueryParameters(
             NavigationManager.ToAbsoluteUri("Account/ConfirmEmail").AbsoluteUri,
             new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code });
         await EmailSender.SendConfirmationLinkAsync(user, Input.Email, HtmlEncoder.Default.Encode(callbackUrl));
 
-        _message = "Verification email sent. Please check your email.";
+        message = "Verification email sent. Please check your email.";
     }
 
     private sealed class InputModel

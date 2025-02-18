@@ -1,9 +1,9 @@
 using Accounting101.Components;
 using Accounting101.Components.Account;
 using Accounting101.Data;
-using DataAccess.Services.Interfaces;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
+using MongoDB.Driver;
 
 namespace Accounting101;
 
@@ -18,33 +18,31 @@ public class Program
             .AddInteractiveServerComponents()
             .AddInteractiveWebAssemblyComponents();
 
-        string connString = builder.Configuration.GetSection("DataStoreSettings")["ConnectionString"]
-                            ?? throw new InvalidOperationException("Connection string 'DataStoreSettings:ConnectionString' not found.");
-
-        DataAccess.Services.DataStore dataStore = new(connString);
-
         builder.Services.AddCascadingAuthenticationState();
         builder.Services.AddScoped<IdentityUserAccessor>();
         builder.Services.AddScoped<IdentityRedirectManager>();
         builder.Services.AddScoped<AuthenticationStateProvider, PersistingRevalidatingAuthenticationStateProvider>();
-        builder.Services.AddSingleton<IDataStore>(dataStore);
 
         builder.Services.AddAuthentication(options =>
             {
                 options.DefaultScheme = IdentityConstants.ApplicationScheme;
                 options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
-            })
-            .AddIdentityCookies();
+            });
 
-        string connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-        builder.Services<ApplicationDbContext>(options =>
-            options.UseSqlServer(connectionString), ServiceLifetime.Transient);
-
-        builder.Services.AddIdentityCore<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
-            .AddRoles<IdentityRole>()
-            .AddMongoDbStores<ApplicationDbContext>()
+        string mongoConnectionString = builder.Configuration.GetConnectionString("MongoConnection") ?? throw new InvalidOperationException("Connection string 'MongoConnection' not found.");
+        builder.Services.AddIdentity<ApplicationUser, ApplicationRole>()
             .AddSignInManager()
-            .AddDefaultTokenProviders();
+            .AddDefaultTokenProviders()
+            .AddMongoDbStores<ApplicationUser, ApplicationRole, Guid>
+            (
+                mongoConnectionString, "Identity"
+            );
+
+        MongoClient client = new(mongoConnectionString);
+        IMongoDatabase db = client.GetDatabase("Identity");
+        builder.Services.AddSingleton(db);
+        builder.Services.AddSingleton<IMongoClient>(client);
+        builder.Services.AddSingleton(new ApplicationDbContext(client, db));
 
         builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
@@ -54,7 +52,6 @@ public class Program
         if (app.Environment.IsDevelopment())
         {
             app.UseWebAssemblyDebugging();
-            app.UseMigrationsEndPoint();
         }
         else
         {

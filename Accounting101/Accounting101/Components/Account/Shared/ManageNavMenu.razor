@@ -13,7 +13,7 @@
     <li class="nav-item">
         <NavLink class="nav-link" href="Account/Manage/ChangePassword">Password</NavLink>
     </li>
-    @if (_hasExternalLogins)
+    @if (hasExternalLogins)
     {
         <li class="nav-item">
             <NavLink class="nav-link" href="Account/Manage/ExternalLogins">External logins</NavLink>
@@ -28,10 +28,10 @@
 </ul>
 
 @code {
-    private bool _hasExternalLogins;
+    private bool hasExternalLogins;
 
     protected override async Task OnInitializedAsync()
     {
-        _hasExternalLogins = (await SignInManager.GetExternalAuthenticationSchemesAsync()).Any();
+        hasExternalLogins = (await SignInManager.GetExternalAuthenticationSchemesAsync()).Any();
     }
 }
