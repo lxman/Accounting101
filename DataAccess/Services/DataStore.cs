@@ -5,11 +5,9 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using DataAccess.Models;
-using DataAccess.Models.Auditing;
 using DataAccess.Services.Interfaces;
 using DataAccess.ZipCodeData;
 using Microsoft.VisualStudio.Threading;
-using Microsoft.Win32;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
@@ -28,51 +26,23 @@ public class DataStore : IDataStore, IDisposable
 {
     public event EventHandler<ChangeEventArgs>? StoreChanged;
 
-    public bool Initialized { get; private set; }
-
-    private MongoClient? _db;
+    private readonly MongoClient? _db;
     private bool _disposedValue;
     private List<string>? _statesCached;
 
-    public DataStore()
+    public DataStore(string connString, bool unitTesting = false)
     {
+        if (unitTesting)
+        {
+            _db ??= new MongoClient(connString);
+            return;
+        }
         BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
         ObjectSerializer objectSerializer = new(type => ObjectSerializer.DefaultAllowedTypes(type) || true);
         BsonSerializer.RegisterSerializer(objectSerializer);
-        if (!IsDbRegistered())
-        {
-            return;
-        }
-
-        CreateOrOpenDatabase();
-    }
-
-    /// <summary>
-    /// Constructor for unit testing purposes
-    /// </summary>
-    /// <param name="connString"></param>
-    /// <exception cref="DataException"></exception>
-    public DataStore(string connString)
-    {
-        _db ??= new MongoClient(connString);
-        if (_db is null || !InitZipCodeDataAsync().GetAwaiter().GetResult()) throw new DataException("Error setting up database");
-    }
-
-    public void InitDatabase()
-    {
-        CreateOrOpenDatabase();
-        Initialized = true;
-    }
-
-    public void CreateDatabase(string dbName)
-    {
-        CreateOrOpenDatabase();
-        IMongoCollection<AuditEntry>? entries = _db?.GetDatabase(dbName).GetCollection<AuditEntry>(CollectionNames.AuditEntry);
-        if (entries is null)
-        {
-            throw new DataException("Error creating the AuditEntry collection.");
-        }
-        entries.InsertOne(new AuditEntry { Message = "Database created" });
+        _db = new MongoClient(connString);
+        JoinableTaskFactory jtf = new(new JoinableTaskCollection(new JoinableTaskContext()));
+        if (jtf.Run(ZipCodeEntryCountAsync) == 0) jtf.Run(InitZipCodeDataAsync);
     }
 
     public void NotifyChange(Type t, ChangeType ct)
@@ -83,21 +53,6 @@ public class DataStore : IDataStore, IDisposable
     public IMongoDatabase? Instance(string dbName) => _db?.GetDatabase(dbName);
 
     public IMongoCollection<T>? GetCollection<T>(string dbName, string tableName) => _db?.GetDatabase(dbName).GetCollection<T>(tableName);
-
-    public string GetDbLocation()
-    {
-        RegistryKey softwareKey = Registry.CurrentUser.OpenSubKey("Software")!;
-        RegistryKey? jsKey = softwareKey.OpenSubKey("JordanSoft");
-        RegistryKey? a101Key = jsKey?.OpenSubKey("Accounting101");
-        return a101Key?.GetValue("DbLocation") as string ?? string.Empty;
-    }
-
-    public void ClearRegistry()
-    {
-        RegistryKey softwareKey = Registry.CurrentUser.OpenSubKey("Software")!;
-        RegistryKey? jsKey = softwareKey.OpenSubKey("JordanSoft", true);
-        jsKey?.DeleteSubKeyTree("Accounting101");
-    }
 
     public async Task<bool> CreateBusinessAsync(string dbName, Business business)
     {
@@ -138,26 +93,9 @@ public class DataStore : IDataStore, IDisposable
             throw new DataException("Error accessing the ZipCodeEntry collection.");
         }
 
-        _statesCached = (await collection.AsQueryable().Select(x => x.State).ToListAsync()).Distinct().ToList();
+        _statesCached = await collection.AsQueryable().Select(x => x.State).Distinct().ToListAsync();
 
         return _statesCached;
-    }
-
-    private void CreateOrOpenDatabase()
-    {
-        if (string.IsNullOrWhiteSpace(ConnectionString.ConnString))
-        {
-            return;
-        }
-        _db = new MongoClient();
-        if (_db is null) throw new DataException("Error setting up database");
-        JoinableTaskFactory jtf = new(new JoinableTaskCollection(new JoinableTaskContext()));
-        if (jtf.Run(ZipCodeEntryCountAsync) == 0) jtf.Run(InitZipCodeDataAsync);
-    }
-
-    private bool IsDbRegistered()
-    {
-        return !string.IsNullOrWhiteSpace(GetDbLocation());
     }
 
     private async Task<int> ZipCodeEntryCountAsync()

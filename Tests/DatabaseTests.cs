@@ -20,7 +20,7 @@ public class DatabaseTests
     {
         _fixture = fixture;
         ContainerBuilder builder = new();
-        _ = builder.RegisterInstance<IDataStore>(new DataStore("mongodb://localhost:27017/"));
+        _ = builder.RegisterInstance<IDataStore>(new DataStore("mongodb://localhost:27017/", true));
         _container = builder.Build();
     }
 

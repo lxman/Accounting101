@@ -1,0 +1,21 @@
+﻿@page "/"
+@using DataAccess.Services.Interfaces
+
+@inject IDataStore DataStore
+
+<PageTitle>Home</PageTitle>
+
+<h1>Hello, world!</h1>
+
+<p>Welcome to your new app.</p>
+<p>The data store has @_states.Count states.</p>
+
+@code
+{
+    private readonly List<string> _states = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _states.AddRange(await DataStore.GetStatesAsync());
+    }
+}

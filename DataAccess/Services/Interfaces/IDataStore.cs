@@ -10,17 +10,11 @@ public interface IDataStore
 {
     event EventHandler<ChangeEventArgs> StoreChanged;
 
-    bool Initialized { get; }
-
     void NotifyChange(Type t, ChangeType ct);
 
     IMongoDatabase? Instance(string dbName);
 
     IMongoCollection<T>? GetCollection<T>(string dbName, string tableName);
-
-    void InitDatabase();
-
-    void CreateDatabase(string location);
 
     Task<bool> CreateBusinessAsync(string dbName, Business business);
 
@@ -29,10 +23,6 @@ public interface IDataStore
     Task<bool> UpdateBusinessAsync(string dbName, Business business);
 
     Task<List<string>> GetStatesAsync();
-
-    string GetDbLocation();
-
-    void ClearRegistry();
 
     void Dispose();
 }
