@@ -28,12 +28,12 @@
             <hr />
             <ValidationSummary class="text-danger" role="alert" />
             <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.FirstName" class="form-control" autocomplete="first-name" aria-required="true" />
+                <InputText @bind-Value="Input.FirstName" class="form-control" autocomplete="first-name" aria-required="true" placeholder="first name" />
                 <label for="first-name">First Name</label>
                 <ValidationMessage For="() => Input.FirstName" class="text-danger" />
             </div>
             <div class="form-floating mb-3">
-                <InputText @bind-Value="Input.LastName" class="form-control" autocomplete="last-name" aria-required="true" />
+                <InputText @bind-Value="Input.LastName" class="form-control" autocomplete="last-name" aria-required="true" placeholder="last name" />
                 <label for="last-name">Last Name</label>
                 <ValidationMessage For="() => Input.LastName" class="text-danger" />
             </div>
@@ -112,7 +112,7 @@
         RedirectManager.RedirectTo(ReturnUrl);
     }
 
-    private ApplicationUser CreateUser()
+    private static ApplicationUser CreateUser()
     {
         try
         {
