@@ -16,4 +16,13 @@
     <PackageReference Include="MongoDbGenericRepository" Version="1.6.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Components\Accounting\Pages\Components\Delete\" />
+    <Folder Include="Components\Accounting\Pages\Components\Update\" />
+    <Folder Include="Components\Accounting\Pages\Components\Read\" />
+    <Folder Include="Components\Accounting\Pages\Delete\" />
+    <Folder Include="Components\Accounting\Pages\Update\" />
+    <Folder Include="Components\Accounting\Pages\Read\" />
+  </ItemGroup>
+
 </Project>

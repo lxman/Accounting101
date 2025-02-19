@@ -4,6 +4,7 @@ using System.Data;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using DataAccess.CountryData;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using DataAccess.ZipCodeData;
@@ -29,6 +30,7 @@ public class DataStore : IDataStore, IDisposable
     private readonly MongoClient? _db;
     private bool _disposedValue;
     private List<string>? _statesCached;
+    private List<string>? _countriesCached;
 
     public DataStore(string connString, bool unitTesting = false)
     {
@@ -43,6 +45,7 @@ public class DataStore : IDataStore, IDisposable
         _db = new MongoClient(connString);
         JoinableTaskFactory jtf = new(new JoinableTaskCollection(new JoinableTaskContext()));
         if (jtf.Run(ZipCodeEntryCountAsync) == 0) jtf.Run(InitZipCodeDataAsync);
+        if (jtf.Run(CountryInfoCountAsync) == 0) jtf.Run(InitCountryDataAsync);
     }
 
     public void NotifyChange(Type t, ChangeType ct)
@@ -98,9 +101,37 @@ public class DataStore : IDataStore, IDisposable
         return _statesCached;
     }
 
-    private async Task<int> ZipCodeEntryCountAsync()
+    private async Task<int> CountryInfoCountAsync() =>
+        await _db?.GetDatabase("CountryInfo").GetCollection<CountryList>(CollectionNames.CountryInfo).AsQueryable().CountAsync()!;
+
+    public async Task<List<string>> GetCountriesAsync()
     {
-        return await _db?.GetDatabase("ZipInfo").GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo).AsQueryable().CountAsync()!;
+        if (_countriesCached?.Count > 0) return _countriesCached;
+        IMongoCollection<CountryList>? collection = _db?.GetDatabase("CountryInfo").GetCollection<CountryList>(CollectionNames.CountryInfo);
+        if (collection is null)
+        {
+            throw new DataException("Error accessing the ZipCodeEntry collection.");
+        }
+
+        _countriesCached = (await collection.AsQueryable().FirstAsync()).Countries;
+        return _countriesCached;
+    }
+
+    private async Task<int> ZipCodeEntryCountAsync() =>
+        await _db?.GetDatabase("ZipInfo").GetCollection<ZipCodeEntry>(CollectionNames.ZipInfo).AsQueryable().CountAsync()!;
+
+    private async Task<bool> InitCountryDataAsync()
+    {
+        IMongoCollection<CountryList>? countryCollection = _db?.GetDatabase("CountryInfo").GetCollection<CountryList>(CollectionNames.CountryInfo);
+        if (countryCollection is null)
+        {
+            return false;
+        }
+
+        CountryList countries = new();
+        countries.Countries.AddRange(Countries.Data);
+        await countryCollection.InsertOneAsync(countries);
+        return true;
     }
 
     private async Task<bool> InitZipCodeDataAsync()

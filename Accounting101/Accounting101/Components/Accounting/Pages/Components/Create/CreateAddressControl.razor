@@ -1,0 +1,144 @@
+﻿@page "/Accounting/CreateAddress"
+@using DataAccess.Services.Interfaces
+
+@rendermode InteractiveServer
+
+@inject IDataStore DataStore
+
+<AuthorizeView Roles="User">
+    <Authorized>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="form-floating mb-3">
+                    <InputCheckbox id="foreign" @bind-Value="Foreign" />
+                    <span class="ml-3">Foreign</span>
+                </div>
+                @if (_foreign)
+                {
+                    <div class="form-floating mb-3">
+                        <InputSelect id="country" TValue="string" @bind-Value="Address.Country" class="form-control" autocomplete="country" aria-required="true">
+                            @foreach (string country in _countries)
+                            {
+                                <option value="@country">@country</option>
+                            }
+                        </InputSelect>
+                        <label for="country">Country</label>
+                    </div>
+                }
+                <div class="form-floating mb-3">
+                    <InputText id="line-1" @bind-Value="Address.Line1" class="form-control" autocomplete="line1" aria-required="true" placeholder="line 1"/>
+                    <label for="line-1">Line 1</label>
+                </div>
+                <div class="form-floating mb-3">
+                    <InputText id="line-2" @bind-Value="Address.Line2" class="form-control" autocomplete="line2" aria-required="true" placeholder="line 2"/>
+                    <label for="line-2">Line 2</label>
+                </div>
+                @if (!_foreign)
+                {
+                    <div class="form-floating mb-3">
+                        <InputText id="city" @bind-Value="Address.City" class="form-control" autocomplete="city" aria-required="true" placeholder="city"/>
+                        <label for="city">City</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <InputSelect id="state" TValue="string" @bind-Value="Address.State" class="form-control" aria-required="true">
+                            @foreach (string state in _states)
+                            {
+                                <option value="@state">@state</option>
+                            }
+                        </InputSelect>
+                        <label for="state">State</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <InputText id="zip-code" @bind-Value="Address.Code" class="form-control" aria-required="true" placeholder="zip code"/>
+                        <label for="zip-code">Zip Code</label>
+                    </div>
+                }
+                else
+                {
+                    <div class="form-floating mb-3">
+                        <InputText @bind-Value="Address.Province" class="form-control" autocomplete="province" aria-required="true" placeholder="province"/>
+                        <label for="province">Province</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <InputText @bind-Value="Address.Code" class="form-control" aria-required="true" placeholder="postal code"/>
+                        <label for="postal-code">Postal Code</label>
+                    </div>
+                }
+            </div>
+        </div>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private AddressModel Address { get; set; } = new();
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private readonly List<string> _states = [];
+    private readonly List<string> _countries = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _states.AddRange((await DataStore.GetStatesAsync()).Order());
+        _countries.AddRange((await DataStore.GetCountriesAsync()).Order());
+    }
+
+    private bool Foreign
+    {
+        get => _foreign;
+        set
+        {
+            if (_foreign == value)
+            {
+                return;
+            }
+            _foreign = value;
+            StateHasChanged();
+        }
+    }
+
+    private bool _foreign;
+
+    public IAddress GetAddress()
+    {
+        IAddress address = _foreign switch
+        {
+            true => new ForeignAddress
+                {
+                    Country = Address.Country ?? string.Empty,
+                    Line1 = Address.Line1 ?? string.Empty,
+                    Line2 = Address.Line2 ?? string.Empty,
+                    Province = Address.Province ?? string.Empty,
+                    PostalCode = Address.Code ?? string.Empty
+                },
+            false => new UsAddress
+                {
+                    Line1 = Address.Line1 ?? string.Empty,
+                    Line2 = Address.Line2 ?? string.Empty,
+                    City = Address.City ?? string.Empty,
+                    State = Address.State ?? string.Empty,
+                    Zip = Address.Code ?? string.Empty,
+                    Country = "US"
+                }
+        };
+        return address;
+    }
+
+    private sealed class AddressModel
+    {
+        public string? Line1 { get; set; }
+
+        public string? Line2 { get; set; }
+
+        public string? Country { get; set; }
+
+        public string? City { get; set; }
+
+        public string? State { get; set; }
+
+        public string? Province { get; set; }
+
+        public string? Code { get; set; }
+    }
+}

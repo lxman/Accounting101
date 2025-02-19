@@ -10,6 +10,7 @@ public static class CollectionNames
     public const string Business = nameof(Business);
     public const string CheckPoint = nameof(CheckPoint);
     public const string Client = nameof(Client);
+    public const string CountryInfo = nameof(CountryInfo);
     public const string PersonName = nameof(PersonName);
     public const string Setting = nameof(Setting);
     public const string Transaction = nameof(Transaction);

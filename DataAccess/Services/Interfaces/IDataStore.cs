@@ -24,5 +24,7 @@ public interface IDataStore
 
     Task<List<string>> GetStatesAsync();
 
+    Task<List<string>> GetCountriesAsync();
+
     void Dispose();
 }
