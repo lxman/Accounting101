@@ -4,6 +4,6 @@ namespace Accounting101.Client;
 // to expose more information about the authenticated user to the client.
 public class UserInfo
 {
-    public required string UserId { get; set; }
-    public required string Email { get; set; }
+    public string UserId { get; set; }
+    public string Email { get; set; }
 }

@@ -1,13 +1,13 @@
 using System.Diagnostics;
 using System.Security.Claims;
+using Accounting101.Client;
+using Accounting101.Data;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
-using Accounting101.Client;
-using Accounting101.Data;
 
 namespace Accounting101.Components.Account;
 

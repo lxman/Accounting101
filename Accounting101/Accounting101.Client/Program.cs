@@ -3,9 +3,9 @@ using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 
 namespace Accounting101.Client;
 
-class Program
+internal class Program
 {
-    static async Task Main(string[] args)
+    private static async Task Main(string[] args)
     {
         WebAssemblyHostBuilder builder = WebAssemblyHostBuilder.CreateDefault(args);
 
