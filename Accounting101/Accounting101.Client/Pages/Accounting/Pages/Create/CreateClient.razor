@@ -1,7 +1,65 @@
 ﻿@page "/accounting/create-client"
 
+@using System.Security.Claims
+@using Accounting101.Client.Pages.Accounting.Comoponents.Create
+@using DataAccess
+@using DataAccess.Interfaces
+@using DataAccess.Models
+@using DataAccess.Services.Interfaces
+
+@inject IDataStore DataStore
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+@rendermode InteractiveServer
+
 <h3>Create a client</h3>
 
-@code {
+<AuthorizeView Roles="User">
+    <Authorized>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="form-floating mb-3">
+                    <InputText id="business-name" @bind-Value="@_businessName" class="form-control" autocomplete="name" aria-required="true" placeholder="Business Name" />
+                    <label for="business-name">Business Name</label>
+                </div>
+            </div>
+            <CreatePersonNameControl @ref="_personNameControl" Caption="Contact name" />
+            <CreateAddressControl @ref="_addressControl" />
+            <div class="col-md-4">
+                <div class="form-floating mb-3">
+                    <button type="button" class="btn btn-primary" @onclick="SaveClient">Save</button>
+                </div>
+            </div>
+        </div>
+    </Authorized>
+</AuthorizeView>
 
+@code {
+    private string _businessName = string.Empty;
+    private CreatePersonNameControl? _personNameControl;
+    private CreateAddressControl? _addressControl;
+
+    private async Task SaveClient()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        ClaimsPrincipal user = authState.User;
+        if (user.Identity?.IsAuthenticated ?? false)
+        {
+            // ReSharper disable once StringLiteralTypo
+            string id = user.Claims.AsQueryable().FirstOrDefault(c => c.Type.EndsWith("nameidentifier"))?.Value ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return;
+            }
+            IAddress address = _addressControl!.GetAddress();
+            PersonName personName = _personNameControl!.GetPersonName();
+            Client client = new()
+            {
+                BusinessName = _businessName,
+                AddressId = await DataStore.CreateAddressAsync(id, address),
+                PersonNameId = await DataStore.CreateNameAsync(id, personName)
+            };
+            await DataStore.CreateClientAsync(id, client);
+        }
+    }
 }

@@ -8,6 +8,8 @@
 
 @rendermode InteractiveAuto
 
+<h4>Address</h4>
+
 <AuthorizeView Roles="User">
     <Authorized>
         <div class="row">
@@ -59,11 +61,11 @@
                 else
                 {
                     <div class="form-floating mb-3">
-                        <InputText @bind-Value="Address.Province" class="form-control" autocomplete="province" aria-required="true" placeholder="province"/>
+                        <InputText id="province" @bind-Value="Address.Province" class="form-control" autocomplete="province" aria-required="true" placeholder="province"/>
                         <label for="province">Province</label>
                     </div>
                     <div class="form-floating mb-3">
-                        <InputText @bind-Value="Address.Code" class="form-control" aria-required="true" placeholder="postal code"/>
+                        <InputText id="postal-code" @bind-Value="Address.Code" class="form-control" aria-required="true" placeholder="postal code"/>
                         <label for="postal-code">Postal Code</label>
                     </div>
                 }

@@ -15,7 +15,6 @@
 
   <ItemGroup>
     <Folder Include="Pages\Accounting\Comoponents\Delete\" />
-    <Folder Include="Pages\Accounting\Comoponents\Read\" />
     <Folder Include="Pages\Accounting\Comoponents\Update\" />
     <Folder Include="Pages\Accounting\Pages\Delete\" />
     <Folder Include="Pages\Accounting\Pages\Read\" />
