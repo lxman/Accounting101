@@ -1,14 +1,20 @@
 ﻿@page "/"
 
 @using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Identity
 @using Accounting101.Data
+@using Accounting101.Data.Interfaces
 
 @inject SignInManager<ApplicationUser> SignInManager
 @inject ILogger<Login> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject IDbManagement DbManagement
+@inject ILoggedInUser LoggedInUser
 
 <PageTitle>Log in</PageTitle>
 
@@ -83,6 +89,25 @@
             // Clear the existing external cookie to ensure a clean login process
             await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
         }
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        ClaimsPrincipal user = authState.User;
+        if (user.Identity?.IsAuthenticated ?? false)
+        {
+            ApplicationUser? applicationUser = await UserManager.GetUserAsync(user);
+            if (applicationUser != null)
+            {
+                LoggedInUser.SetUser(applicationUser);
+
+                // Create the customer database if it doesn't exist
+                if (!await DbManagement.CustomerDatabaseExistsAsync(applicationUser.Id))
+                {
+                    await DbManagement.CreateCustomerDatabaseAsync(applicationUser.Id);
+                }
+                StateHasChanged();
+            }
+            RedirectManager.RedirectTo("Home");
+        }
+        LoggedInUser.ClearUser();
     }
 
     public async Task LoginUser()

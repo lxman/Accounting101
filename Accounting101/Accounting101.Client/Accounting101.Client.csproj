@@ -13,4 +13,17 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Authentication" Version="8.0.13" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Pages\Accounting\Comoponents\Delete\" />
+    <Folder Include="Pages\Accounting\Comoponents\Read\" />
+    <Folder Include="Pages\Accounting\Comoponents\Update\" />
+    <Folder Include="Pages\Accounting\Pages\Delete\" />
+    <Folder Include="Pages\Accounting\Pages\Read\" />
+    <Folder Include="Pages\Accounting\Pages\Update\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\DataAccess\DataAccess.csproj" />
+  </ItemGroup>
+
 </Project>

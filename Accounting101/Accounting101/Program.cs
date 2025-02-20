@@ -1,6 +1,7 @@
 using Accounting101.Components;
 using Accounting101.Components.Account;
 using Accounting101.Data;
+using Accounting101.Data.Interfaces;
 using DataAccess.Services;
 using DataAccess.Services.Interfaces;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -36,6 +37,8 @@ public class Program
         DataStore dataStore = new(mongoConnectionString);
 
         builder.Services.AddSingleton<IDataStore>(dataStore);
+        builder.Services.AddSingleton<IDbManagement, DbManagement>();
+        builder.Services.AddSingleton<ILoggedInUser, LoggedInUser>();
 
         builder.Services.AddIdentity<ApplicationUser, ApplicationRole>()
             .AddSignInManager()
@@ -61,6 +64,8 @@ public class Program
         // Make sure the initial roles of User and Administrator are created.
         IServiceProvider services = app.Services;
         using IServiceScope scope = services.CreateScope();
+
+        // Create the initial roles if they don't exist.
         RoleManager<ApplicationRole> roleManager =
             scope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
         if (!jtf.Run(() => roleManager.RoleExistsAsync("User")))
@@ -76,7 +81,6 @@ public class Program
         // Create the initial Administrator user if it doesn't exist.
         UserManager<ApplicationUser> userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
         ApplicationUser? me = jtf.Run(() => userManager.FindByNameAsync("jordan.mymail@gmail.com"));
-        bool isAdministrator = me is not null && jtf.Run(() => userManager.IsInRoleAsync(me, "Administrator"));
         if (me is not null && !jtf.Run(() => userManager.IsInRoleAsync(me, "Administrator")))
         {
             jtf.Run(() => userManager.AddToRolesAsync(me, new List<string> { "Administrator", "User" }));

@@ -1,0 +1,60 @@
+﻿@page "/accounting/create-business"
+
+@using System.Security.Claims
+@using DataAccess.Services.Interfaces
+@using Accounting101.Client.Pages.Accounting.Comoponents.Create
+@using DataAccess.Interfaces
+@using DataAccess.Models
+
+@inject IDataStore DataStore
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+@rendermode InteractiveServer
+
+<h3>Create The Business</h3>
+
+<AuthorizeView Roles="User">
+    <Authorized>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="form-floating mb-3">
+                    <InputText id="business-name" @bind-Value="@_name" class="form-control" autocomplete="name" aria-required="true" placeholder="Business Name" />
+                    <label for="business-name">Business Name</label>
+                </div>
+            </div>
+            <CreateAddressControl @ref="_addressControl" />
+            <div class="col-md-4">
+                <div class="form-floating mb-3">
+                    <button type="button" class="btn btn-primary" @onclick="SaveBusiness">Save</button>
+                </div>
+            </div>
+        </div>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private CreateAddressControl? _addressControl;
+    private string? _name;
+
+    private async Task SaveBusiness()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        ClaimsPrincipal user = authState.User;
+        if (user.Identity?.IsAuthenticated ?? false)
+        {
+            // ReSharper disable once StringLiteralTypo
+            string id = user.Claims.AsQueryable().FirstOrDefault(c => c.Type.EndsWith("nameidentifier"))?.Value ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return;
+            }
+            IAddress address = _addressControl!.GetAddress();
+            Business business = new()
+            {
+                Name = _name ?? string.Empty,
+                Address = address
+            };
+            await DataStore.CreateBusinessAsync(id, business);
+        }
+    }
+}

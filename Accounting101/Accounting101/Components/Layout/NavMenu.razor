@@ -1,5 +1,8 @@
-﻿@using System.Security.Claims
+﻿@using System.Security.Authentication
+@using System.Security.Claims
 @using Accounting101.Data
+@using Accounting101.Data.Interfaces
+@using DataAccess.Services.Interfaces
 @using Microsoft.AspNetCore.Identity
 
 @implements IDisposable
@@ -7,6 +10,9 @@
 @inject NavigationManager NavigationManager
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject UserManager<ApplicationUser> UserManager
+@inject IDataStore DataStore
+@inject IDbManagement DbManagement
+@inject ILoggedInUser LoggedInUser
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
@@ -36,8 +42,8 @@
                     </NavLink>
                 </div>
                 <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Accounting/CreateAddress">
-                        <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Create Address
+                    <NavLink class="nav-link" href="accounting/create-business">
+                        <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Create Business
                     </NavLink>
                 </div>
                 <div class="nav-item px-3">
@@ -51,6 +57,10 @@
                         @if (context.User.Identity?.IsAuthenticated ?? false)
                         {
                             <span>@_applicationUser?.FirstName</span>
+                        }
+                        else
+                        {
+                            throw new AuthenticationException();
                         }
                     </NavLink>
                 </div>
@@ -103,11 +113,19 @@
         ClaimsPrincipal user = authState.User;
         if (user.Identity?.IsAuthenticated ?? false)
         {
-            _applicationUser = await UserManager.GetUserAsync(user);
-            if (_applicationUser != null)
+            if (_applicationUser is null)
             {
-                StateHasChanged();
+                _applicationUser = await UserManager.GetUserAsync(user);
+                if (_applicationUser != null)
+                {
+                    LoggedInUser.SetUser(_applicationUser);
+                    StateHasChanged();
+                }
             }
+        }
+        else
+        {
+            LoggedInUser.ClearUser();
         }
     }
 

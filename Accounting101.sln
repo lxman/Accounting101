@@ -10,10 +10,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{71A0699B-C374-4188-AD4F-E856E4F5F581}"
 	ProjectSection(SolutionItems) = preProject
 		.editorconfig = .editorconfig
-		Resources\Accounting101Icon.ico = Resources\Accounting101Icon.ico
 		LICENSE = LICENSE
 		README.md = README.md
-		Resources\Source.afdesign = Resources\Source.afdesign
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{E47225B7-A5C7-411D-ABE9-DC8EDA0717F4}"

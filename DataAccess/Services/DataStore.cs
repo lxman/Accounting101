@@ -53,6 +53,15 @@ public class DataStore : IDataStore, IDisposable
         StoreChanged?.Invoke(this, new ChangeEventArgs { ChangedType = t, ChangeType = ct });
     }
 
+    public Task DropDatabaseAsync(string dbName) => _db?.DropDatabaseAsync(dbName) ?? Task.CompletedTask;
+
+    public async Task<bool> DatabaseExistsAsync(string dbName)
+    {
+        if (_db is null) return false;
+        IAsyncCursor<string>? cursor = await _db.ListDatabaseNamesAsync();
+        return (await cursor.ToListAsync()).Contains(dbName);
+    }
+
     public IMongoDatabase? Instance(string dbName) => _db?.GetDatabase(dbName);
 
     public IMongoCollection<T>? GetCollection<T>(string dbName, string tableName) => _db?.GetDatabase(dbName).GetCollection<T>(tableName);

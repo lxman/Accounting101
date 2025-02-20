@@ -26,5 +26,9 @@ public interface IDataStore
 
     Task<List<string>> GetCountriesAsync();
 
+    Task<bool> DatabaseExistsAsync(string dbName);
+
+    Task DropDatabaseAsync(string dbName);
+
     void Dispose();
 }

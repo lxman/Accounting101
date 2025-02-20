@@ -1,9 +1,12 @@
-﻿@page "/Accounting/CreateAddress"
+﻿@page "/accounting/create-address"
+
+@using DataAccess.Interfaces
+@using DataAccess.Models
 @using DataAccess.Services.Interfaces
 
-@rendermode InteractiveServer
-
 @inject IDataStore DataStore
+
+@rendermode InteractiveAuto
 
 <AuthorizeView Roles="User">
     <Authorized>
@@ -72,16 +75,13 @@
 @code {
     private AddressModel Address { get; set; } = new();
 
-    [SupplyParameterFromQuery]
-    private string? ReturnUrl { get; set; }
-
     private readonly List<string> _states = [];
     private readonly List<string> _countries = [];
 
     protected override async Task OnInitializedAsync()
     {
         _states.AddRange((await DataStore.GetStatesAsync()).Order());
-        _countries.AddRange((await DataStore.GetCountriesAsync()).Order());
+        _countries.AddRange(await DataStore.GetCountriesAsync());
     }
 
     private bool Foreign

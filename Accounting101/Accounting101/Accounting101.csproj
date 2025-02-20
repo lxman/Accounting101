@@ -17,9 +17,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Components\Accounting\Pages\Components\Delete\" />
-    <Folder Include="Components\Accounting\Pages\Components\Update\" />
-    <Folder Include="Components\Accounting\Pages\Components\Read\" />
+    <Folder Include="Components\Accounting\Components\Create\" />
+    <Folder Include="Components\Accounting\Components\Delete\" />
+    <Folder Include="Components\Accounting\Components\Update\" />
+    <Folder Include="Components\Accounting\Components\Read\" />
+    <Folder Include="Components\Accounting\Pages\Create\" />
     <Folder Include="Components\Accounting\Pages\Delete\" />
     <Folder Include="Components\Accounting\Pages\Update\" />
     <Folder Include="Components\Accounting\Pages\Read\" />
