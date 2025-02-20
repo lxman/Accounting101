@@ -93,6 +93,8 @@ public class DataStore : IDataStore, IDisposable
         {
             return null;
         }
+
+        var busness = businesses.ToBsonDocument().AsQueryable().First();
         return await businesses.AsQueryable().CountAsync() == 1 ? await businesses.AsQueryable().FirstAsync() : null;
     }
 

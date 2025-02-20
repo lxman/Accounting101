@@ -41,11 +41,14 @@
                         <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
                     </NavLink>
                 </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="accounting/create-business">
-                        <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Create Business
-                    </NavLink>
-                </div>
+                @if (!_businessExists)
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="accounting/create-business">
+                            <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Create Business
+                        </NavLink>
+                    </div>
+                }
                 <div class="nav-item px-3">
                     <NavLink class="nav-link" href="auth">
                         <span class="bi bi-lock-nav-menu" aria-hidden="true"></span> Auth Required
@@ -100,6 +103,7 @@
 @code {
     private string? _currentUrl;
     private ApplicationUser? _applicationUser;
+    private bool _businessExists;
 
     protected override void OnInitialized()
     {
@@ -119,6 +123,7 @@
                 if (_applicationUser != null)
                 {
                     LoggedInUser.SetUser(_applicationUser);
+                    _businessExists = await DataStore.GetBusinessAsync(_applicationUser.Id.ToString()) is not null;
                     StateHasChanged();
                 }
             }
