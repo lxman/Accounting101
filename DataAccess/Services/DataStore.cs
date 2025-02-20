@@ -42,6 +42,8 @@ public class DataStore : IDataStore, IDisposable
         BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
         ObjectSerializer objectSerializer = new(type => ObjectSerializer.DefaultAllowedTypes(type) || true);
         BsonSerializer.RegisterSerializer(objectSerializer);
+        BsonClassMap.RegisterClassMap<UsAddress>();
+        BsonClassMap.RegisterClassMap<ForeignAddress>();
         _db = new MongoClient(connString);
         JoinableTaskFactory jtf = new(new JoinableTaskCollection(new JoinableTaskContext()));
         if (jtf.Run(ZipCodeEntryCountAsync) == 0) jtf.Run(InitZipCodeDataAsync);
@@ -94,8 +96,9 @@ public class DataStore : IDataStore, IDisposable
             return null;
         }
 
-        var busness = businesses.ToBsonDocument().AsQueryable().First();
-        return await businesses.AsQueryable().CountAsync() == 1 ? await businesses.AsQueryable().FirstAsync() : null;
+        return await businesses.CountDocumentsAsync(x => x.Id != ObjectId.Empty) == 1
+            ? await businesses.AsQueryable().FirstOrDefaultAsync()
+            : null;
     }
 
     public async Task<List<string>> GetStatesAsync()
