@@ -8,22 +8,38 @@
 @inject IDataStore DataStore
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
+@rendermode InteractiveServer
+
 <h3>Client Selector</h3>
 
-<AuthorizeView Roles="User">
-    <Authorized>
-        @foreach (ClientWithInfo client in _clients)
-        {
-            <div class="row">
-                <div class="col-md-4">
-                    <div class="form-floating mb-4">
-                        <button type="button" class="btn btn-link">@client.BusinessName</button>
+@foreach (ClientWithInfo client in _clients)
+{
+    <div class="row">
+        <div class="col-md-4">
+            <div class="form-floating mb-3">
+                <div class="card shadow" @onclick="() => ClientClicked(client.Id.ToString())">
+                    <div class="card-header">
+                        <div class="card-link">
+                            <h5>@client.BusinessName</h5>
+                        </div>
+                    </div>
+                    <div class="card-subtitle">
+                        <h6>Contact</h6>
+                        <div class="card-body">
+                            @client.Name?.ToString()
+                        </div>
+                    </div>
+                    <div class="card-subtitle">
+                        <h6>Address</h6>
+                        <div class="card-body">
+                            @client.Address?.ToString()
+                        </div>
                     </div>
                 </div>
             </div>
-        }
-    </Authorized>
-</AuthorizeView>
+        </div>
+    </div>
+}
 
 @code {
     private readonly List<ClientWithInfo> _clients = [];
@@ -43,5 +59,10 @@
             _clients.AddRange(await DataStore.AllClientsWithInfosAsync(id) ?? []);
             StateHasChanged();
         }
+    }
+
+    private void ClientClicked(string id)
+    {
+        
     }
 }

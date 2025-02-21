@@ -14,25 +14,21 @@
 
 <h3>Create a client</h3>
 
-<AuthorizeView Roles="User">
-    <Authorized>
-        <div class="row">
-            <div class="col-md-4">
-                <div class="form-floating mb-3">
-                    <InputText id="business-name" @bind-Value="@_businessName" class="form-control" autocomplete="name" aria-required="true" placeholder="Business Name" />
-                    <label for="business-name">Business Name</label>
-                </div>
-            </div>
-            <CreatePersonNameControl @ref="_personNameControl" Caption="Contact name" />
-            <CreateAddressControl @ref="_addressControl" />
-            <div class="col-md-4">
-                <div class="form-floating mb-3">
-                    <button type="button" class="btn btn-primary" @onclick="SaveClient">Save</button>
-                </div>
-            </div>
+<div class="row">
+    <div class="col-md-4">
+        <div class="form-floating mb-3">
+            <InputText id="business-name" @bind-Value="@_businessName" class="form-control" autocomplete="name" aria-required="true" placeholder="Business Name" />
+            <label for="business-name">Business Name</label>
         </div>
-    </Authorized>
-</AuthorizeView>
+    </div>
+    <CreatePersonNameControl @ref="_personNameControl" Caption="Contact name" />
+    <CreateAddressControl @ref="_addressControl" />
+    <div class="col-md-4">
+        <div class="form-floating mb-3">
+            <button type="button" class="btn btn-primary" @onclick="SaveClient">Save</button>
+        </div>
+    </div>
+</div>
 
 @code {
     private string _businessName = string.Empty;

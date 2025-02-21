@@ -13,24 +13,20 @@
 
 <h3>Create The Business</h3>
 
-<AuthorizeView Roles="User">
-    <Authorized>
-        <div class="row">
-            <div class="col-md-4">
-                <div class="form-floating mb-3">
-                    <InputText id="business-name" @bind-Value="@_name" class="form-control" autocomplete="name" aria-required="true" placeholder="Business Name" />
-                    <label for="business-name">Business Name</label>
-                </div>
-            </div>
-            <CreateAddressControl @ref="_addressControl" />
-            <div class="col-md-4">
-                <div class="form-floating mb-3">
-                    <button type="button" class="btn btn-primary" @onclick="SaveBusiness">Save</button>
-                </div>
-            </div>
+<div class="row">
+    <div class="col-md-4">
+        <div class="form-floating mb-3">
+            <InputText id="business-name" @bind-Value="@_name" class="form-control" autocomplete="name" aria-required="true" placeholder="Business Name" />
+            <label for="business-name">Business Name</label>
         </div>
-    </Authorized>
-</AuthorizeView>
+    </div>
+    <CreateAddressControl @ref="_addressControl" />
+    <div class="col-md-4">
+        <div class="form-floating mb-3">
+            <button type="button" class="btn btn-primary" @onclick="SaveBusiness">Save</button>
+        </div>
+    </div>
+</div>
 
 @code {
     private CreateAddressControl? _addressControl;

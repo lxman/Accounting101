@@ -5,34 +5,30 @@
     <h4>@Caption</h4>
 }
 
-<AuthorizeView Roles="User">
-    <Authorized>
-        <div class="row">
-            <div class="col-md-4">
-                <div class="form-floating mb-3">
-                    <InputText id="prefix" @bind-Value="_personName.Prefix" class="form-control" autocomplete="prefix" aria-required="true" placeholder="Prefix"/>
-                    <label for="prefix">Prefix</label>
-                </div>
-                <div class="form-floating mb-3">
-                    <InputText id="first" @bind-Value="_personName.First" class="form-control" autocomplete="first-name" aria-required="true" placeholder="First" />
-                    <label for="first">First Name</label>
-                </div>
-                <div class="form-floating mb-3">
-                    <InputText id="middle" @bind-Value="_personName.Middle" class="form-control" autocomplete="middle-name" placeholder="Middle" />
-                    <label for="middle">Middle Name</label>
-                </div>
-                <div class="form-floating mb-3">
-                    <InputText id="last" @bind-Value="_personName.Last" class="form-control" autocomplete="last-name" aria-required="true" placeholder="Last" />
-                    <label for="last">Last Name</label>
-                </div>
-                <div class="form-floating mb-3">
-                    <InputText id="suffix" @bind-Value="_personName.Suffix" class="form-control" autocomplete="suffix" placeholder="Suffix" />
-                    <label for="suffix">Suffix</label>
-                </div>
-            </div>
+<div class="row">
+    <div class="col-md-4">
+        <div class="form-floating mb-3">
+            <InputText id="prefix" @bind-Value="_personName.Prefix" class="form-control" autocomplete="prefix" aria-required="true" placeholder="Prefix"/>
+            <label for="prefix">Prefix</label>
         </div>
-    </Authorized>
-</AuthorizeView>
+        <div class="form-floating mb-3">
+            <InputText id="first" @bind-Value="_personName.First" class="form-control" autocomplete="first-name" aria-required="true" placeholder="First" />
+            <label for="first">First Name</label>
+        </div>
+        <div class="form-floating mb-3">
+            <InputText id="middle" @bind-Value="_personName.Middle" class="form-control" autocomplete="middle-name" placeholder="Middle" />
+            <label for="middle">Middle Name</label>
+        </div>
+        <div class="form-floating mb-3">
+            <InputText id="last" @bind-Value="_personName.Last" class="form-control" autocomplete="last-name" aria-required="true" placeholder="Last" />
+            <label for="last">Last Name</label>
+        </div>
+        <div class="form-floating mb-3">
+            <InputText id="suffix" @bind-Value="_personName.Suffix" class="form-control" autocomplete="suffix" placeholder="Suffix" />
+            <label for="suffix">Suffix</label>
+        </div>
+    </div>
+</div>
 
 @code {
     [Parameter]
