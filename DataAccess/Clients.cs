@@ -38,7 +38,7 @@ public static class Clients
     {
         await store.UpdateOneAsync<Client>(dbName, client);
         await store.UpdateOneAsync(dbName, client.Name!);
-        await store.UpdateOneAsync(dbName, client.Address!);
+        await store.UpdateAddressAsync(dbName, client.Address!);
         store.NotifyChange(typeof(ClientWithInfo), ChangeType.Updated);
     }
 

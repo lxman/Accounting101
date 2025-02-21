@@ -9,11 +9,13 @@ namespace Accounting101.Client;
 // be fixed for the lifetime of the WebAssembly application. So, if the user needs to log in or out, a full
 // page reload is required.
 //
-// This only provides a user name and email for display purposes. It does not actually include any tokens
+// This only provides a username and email for display purposes. It does not actually include any tokens
 // that authenticate to the server when making subsequent requests. That works separately using a
 // cookie that will be included on HttpClient requests to the server.
 internal class PersistentAuthenticationStateProvider : AuthenticationStateProvider
 {
+    public override Task<AuthenticationState> GetAuthenticationStateAsync() => _authenticationStateTask;
+
     private static readonly Task<AuthenticationState> DefaultUnauthenticatedTask =
         Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())));
 
@@ -21,20 +23,18 @@ internal class PersistentAuthenticationStateProvider : AuthenticationStateProvid
 
     public PersistentAuthenticationStateProvider(PersistentComponentState state)
     {
-        if (!state.TryTakeFromJson<UserInfo>(nameof(UserInfo), out UserInfo? userInfo) || userInfo is null)
+        if (!state.TryTakeFromJson(nameof(UserInfo), out UserInfo? userInfo) || userInfo is null)
         {
             return;
         }
 
         Claim[] claims = [
-            new Claim(ClaimTypes.NameIdentifier, userInfo.UserId),
-            new Claim(ClaimTypes.Name, userInfo.Email),
-            new Claim(ClaimTypes.Email, userInfo.Email) ];
+            new(ClaimTypes.NameIdentifier, userInfo.UserId),
+            new(ClaimTypes.Name, userInfo.Email),
+            new(ClaimTypes.Email, userInfo.Email) ];
 
         _authenticationStateTask = Task.FromResult(
             new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity(claims,
                 authenticationType: nameof(PersistentAuthenticationStateProvider)))));
     }
-
-    public override Task<AuthenticationState> GetAuthenticationStateAsync() => _authenticationStateTask;
 }

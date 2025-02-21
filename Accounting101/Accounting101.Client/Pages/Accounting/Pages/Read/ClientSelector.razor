@@ -1,0 +1,47 @@
+﻿@page "/accounting/clients"
+
+@using System.Security.Claims
+@using DataAccess
+@using DataAccess.Models
+@using DataAccess.Services.Interfaces
+
+@inject IDataStore DataStore
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<h3>Client Selector</h3>
+
+<AuthorizeView Roles="User">
+    <Authorized>
+        @foreach (ClientWithInfo client in _clients)
+        {
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="form-floating mb-4">
+                        <button type="button" class="btn btn-link">@client.BusinessName</button>
+                    </div>
+                </div>
+            </div>
+        }
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private readonly List<ClientWithInfo> _clients = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationState authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        ClaimsPrincipal user = authState.User;
+        if (user.Identity?.IsAuthenticated ?? false)
+        {
+            // ReSharper disable once StringLiteralTypo
+            string id = user.Claims.AsQueryable().FirstOrDefault(c => c.Type.EndsWith("nameidentifier"))?.Value ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                return;
+            }
+            _clients.AddRange(await DataStore.AllClientsWithInfosAsync(id) ?? []);
+            StateHasChanged();
+        }
+    }
+}

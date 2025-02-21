@@ -1,8 +1,10 @@
 ﻿using System;
 using DataAccess.Interfaces;
+using MongoDB.Bson.Serialization.Attributes;
 
 namespace DataAccess.Models;
 
+[BsonKnownTypes(typeof(ClientWithInfo))]
 public class Client : IModel
 {
     public Guid Id { get; set; }

@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using DataAccess.Extensions;
 using DataAccess.Interfaces;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
+using MongoDB.Driver;
 
 namespace DataAccess;
 
@@ -13,9 +13,9 @@ public static class Addresses
 {
     public static async Task<Guid> CreateAddressAsync(this IDataStore store, string dbName, IAddress address)
     {
-        Guid result = await store.CreateOneAsync(dbName, address);
+        await store.GetCollection<IAddress>(dbName, CollectionNames.Address)?.InsertOneAsync(address)!;
         store.NotifyChange(typeof(IAddress), ChangeType.Created);
-        return result;
+        return address.Id;
     }
 
     public static async Task BulkInsertAddressesAsync(this IDataStore store, string dbName, IEnumerable<IAddress> addresses)
@@ -26,25 +26,29 @@ public static class Addresses
 
     public static async Task<IEnumerable<IAddress>?> AllAddressesAsync(IDataStore store, string dbName)
     {
-        return await store.ReadAllAsync<IAddress>(dbName);
+        return await store.GetCollection<IAddress>(dbName, CollectionNames.Address)?.AsQueryable().ToListAsync()!;
     }
 
-    public static async Task<IAddress?> FindAddressByIdAsync(this IDataStore store, string dbName, Guid id)
+    public static IAddress? FindAddressById(this IDataStore store, string dbName, Guid id)
     {
-        return (await store.ReadOneAsync<IAddress>(dbName, id))!.FirstOrDefault();
+        return (store.GetCollection<IAddress>(dbName, CollectionNames.Address)?.AsQueryable().Where(x => x.Id == id) ?? null)?.FirstOrDefault();
     }
 
     public static async Task<bool?> UpdateAddressAsync(this IDataStore store, string dbName, IAddress address)
     {
-        bool? result = await store.UpdateOneAsync(dbName, address);
-        if (result.HasValue && result.Value) store.NotifyChange(typeof(IAddress), ChangeType.Updated);
-        return result;
+        FilterDefinition<IAddress> filter = Builders<IAddress>.Filter.Eq(x => x.Id, address.Id);
+        UpdateDefinition<IAddress> update = Builders<IAddress>.Update.Set(x => x, address);
+        UpdateResult? result =
+            await store.GetCollection<IAddress>(dbName, CollectionNames.Address)!.UpdateOneAsync(filter, update);
+        if (result.IsAcknowledged) store.NotifyChange(typeof(IAddress), ChangeType.Updated);
+        return result.IsAcknowledged;
     }
 
     public static async Task<bool?> DeleteAddressAsync(this IDataStore store, string dbName, Guid id)
     {
-        bool? result = await store.DeleteOneAsync<IAddress>(dbName, id);
-        if (result.HasValue && result.Value) store.NotifyChange(typeof(IAddress), ChangeType.Deleted);
-        return result;
+        FilterDefinition<IAddress> filter = Builders<IAddress>.Filter.Eq(x => x.Id, id);
+        DeleteResult? result = await store.GetCollection<IAddress>(dbName, CollectionNames.Address)!.DeleteOneAsync(filter);
+        if (result.IsAcknowledged) store.NotifyChange(typeof(IAddress), ChangeType.Deleted);
+        return result.IsAcknowledged;
     }
 }

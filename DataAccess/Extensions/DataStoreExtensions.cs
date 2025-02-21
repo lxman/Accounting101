@@ -6,7 +6,6 @@ using DataAccess.Interfaces;
 using DataAccess.Models;
 using DataAccess.Services.Interfaces;
 using MongoDB.Driver;
-using MongoDB.Driver.Linq;
 
 namespace DataAccess.Extensions
 {
@@ -30,7 +29,7 @@ namespace DataAccess.Extensions
         public static async Task<List<T>?> ReadOneAsync<T>(this IDataStore store, string dbName, Guid id)
             where T : IModel
         {
-            return await store.GetCollection<T>(dbName, CollectionNames.GetCollectionName<T>())?.AsQueryable().Where(x => x.Id == id).ToListAsync()!;
+            return (await store.GetCollection<T>(dbName, CollectionNames.GetCollectionName<T>()).AsQueryable().ToListAsync()).Where(x => x.Id == id).ToList();
         }
 
         public static async Task<List<T>?> ReadAllAsync<T>(this IDataStore store, string dbName)

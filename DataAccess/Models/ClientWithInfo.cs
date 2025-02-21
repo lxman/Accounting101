@@ -2,6 +2,7 @@
 using DataAccess.Extensions;
 using DataAccess.Interfaces;
 using DataAccess.Services.Interfaces;
+using Microsoft.VisualStudio.Threading;
 
 #pragma warning disable VSTHRD002
 
@@ -18,6 +19,8 @@ public class ClientWithInfo : Client
 
     }
 
+    private readonly JoinableTaskFactory _jtf = new(new JoinableTaskCollection(new JoinableTaskContext()));
+
     public ClientWithInfo(Client c, PersonName n, IAddress a)
     {
         BusinessName = c.BusinessName;
@@ -31,8 +34,8 @@ public class ClientWithInfo : Client
 
     public ClientWithInfo(IDataStore dataStore, string dbName, Client c) : base(c)
     {
-        Name = dataStore.ReadOneAsync<PersonName>(dbName, c.PersonNameId).Result?.FirstOrDefault();
-        Address = dataStore.ReadOneAsync<IAddress>(dbName, c.AddressId).Result?.FirstOrDefault();
+        Name = _jtf.Run(() => dataStore.ReadOneAsync<PersonName>(dbName, c.PersonNameId))?.FirstOrDefault();
+        Address = dataStore.FindAddressById(dbName, AddressId);
         CheckPointId = c.CheckPointId;
     }
 }

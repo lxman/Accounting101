@@ -23,8 +23,8 @@
     <Folder Include="Components\Accounting\Components\Read\" />
     <Folder Include="Components\Accounting\Pages\Create\" />
     <Folder Include="Components\Accounting\Pages\Delete\" />
-    <Folder Include="Components\Accounting\Pages\Update\" />
     <Folder Include="Components\Accounting\Pages\Read\" />
+    <Folder Include="Components\Accounting\Pages\Update\" />
   </ItemGroup>
 
 </Project>

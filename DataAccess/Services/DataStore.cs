@@ -14,6 +14,7 @@ using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Driver;
 using MongoDB.Driver.Linq;
+// ReSharper disable StringLiteralTypo
 
 #pragma warning disable VSTHRD002
 
@@ -44,6 +45,8 @@ public class DataStore : IDataStore, IDisposable
         BsonSerializer.RegisterSerializer(objectSerializer);
         BsonClassMap.RegisterClassMap<UsAddress>();
         BsonClassMap.RegisterClassMap<ForeignAddress>();
+        BsonClassMap.RegisterClassMap<ClientWithInfo>();
+        //BsonClassMap.RegisterClassMap<IAddress>();
         _db = new MongoClient(connString);
         JoinableTaskFactory jtf = new(new JoinableTaskCollection(new JoinableTaskContext()));
         if (jtf.Run(ZipCodeEntryCountAsync) == 0) jtf.Run(InitZipCodeDataAsync);
@@ -150,7 +153,7 @@ public class DataStore : IDataStore, IDisposable
 
     private async Task<bool> InitZipCodeDataAsync()
     {
-        List<string> data = (await File.ReadAllLinesAsync(@"ZipCodeData\ziplist5.txt")).ToList();
+        List<string> data = (await File.ReadAllLinesAsync(@"..\..\DataAccess\ZipCodeData\ziplist5.txt")).ToList();
         List<ZipCodeEntry> entries = [];
         data.ForEach(d =>
         {

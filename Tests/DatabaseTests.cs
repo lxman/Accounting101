@@ -6,6 +6,7 @@ using DataAccess.Models;
 using DataAccess.Services;
 using DataAccess.Services.Interfaces;
 using DataAccess.ZipCodeData;
+using MongoDB.Driver;
 
 namespace Tests;
 
@@ -100,9 +101,10 @@ public class DatabaseTests
         await store.DeleteOneAsync<PersonName>(DatabaseName, nameId);
         await store.DropCollectionAsync<Client>(DatabaseName, CollectionNames.Client);
         await store.DropCollectionAsync<PersonName>(DatabaseName, CollectionNames.PersonName);
-        await store.DropCollectionAsync<UsAddress>(DatabaseName, CollectionNames.Address);
+        await store.Instance(DatabaseName)?.DropCollectionAsync(CollectionNames.Address);
         await CleanupAsync(scope);
-        await store.DeleteOneAsync<UsAddress>(DatabaseName, addressId);
+        FilterDefinition<IAddress> filter = Builders<IAddress>.Filter.Eq(x => x.Id, addressId);
+        await store.DeleteAddressAsync(DatabaseName, addressId);
         store.Dispose();
     }
 
