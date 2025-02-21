@@ -2,6 +2,7 @@ using Accounting101.Components;
 using Accounting101.Components.Account;
 using Accounting101.Data;
 using Accounting101.Data.Interfaces;
+using Accounting101.State;
 using DataAccess.Services;
 using DataAccess.Services.Interfaces;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -26,6 +27,7 @@ public class Program
         builder.Services.AddScoped<IdentityUserAccessor>();
         builder.Services.AddScoped<IdentityRedirectManager>();
         builder.Services.AddScoped<AuthenticationStateProvider, PersistingRevalidatingAuthenticationStateProvider>();
+        builder.Services.AddScoped<IStateRepresentation, StateRepresentation>();
 
         builder.Services.AddAuthentication(options =>
             {

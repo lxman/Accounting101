@@ -2,6 +2,7 @@
 @using System.Security.Claims
 @using Accounting101.Data
 @using Accounting101.Data.Interfaces
+@using Accounting101.State
 @using DataAccess.Services.Interfaces
 @using Microsoft.AspNetCore.Identity
 
@@ -12,6 +13,7 @@
 @inject UserManager<ApplicationUser> UserManager
 @inject IDataStore DataStore
 @inject ILoggedInUser LoggedInUser
+@inject IStateRepresentation State
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
@@ -21,110 +23,119 @@
 
 <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="flex-column">
-        <AuthorizeView Roles="User">
-            <Authorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Home" Match="NavLinkMatch.All">
-                        <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="counter">
-                        <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="weather">
-                        <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-                    </NavLink>
-                </div>
-                @if (_clientsExist)
-                {
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="accounting/clients">
-                            <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Clients
-                        </NavLink>
-                    </div>
-                }
-                @if (!_businessExists)
-                {
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="accounting/create-business">
-                            <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Create Business
-                        </NavLink>
-                    </div>
-                }
-                else
-                {
-                    <div class="nav-item px-3">
-                        <NavLink class="nav-link" href="accounting/create-client">
-                            <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Create Client
-                        </NavLink>
-                    </div>
-                }
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="auth">
-                        <span class="bi bi-lock-nav-menu" aria-hidden="true"></span> Auth Required
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Manage">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span>
-                        @if (context.User.Identity?.IsAuthenticated ?? false)
+@switch (_state)
+{
+    case CurrentState.Level1:
+        <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+            <nav class="flex-column">
+                <AuthorizeView Roles="User">
+                    <Authorized>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="Home" Match="NavLinkMatch.All">
+                                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="counter">
+                                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="weather">
+                                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
+                            </NavLink>
+                        </div>
+                        @if (_clientsExist)
                         {
-                            <span>@_applicationUser?.FirstName</span>
+                            <div class="nav-item px-3">
+                                <NavLink class="nav-link" href="accounting/clients">
+                                    <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Clients
+                                </NavLink>
+                            </div>
+                        }
+                        @if (!_businessExists)
+                        {
+                            <div class="nav-item px-3">
+                                <NavLink class="nav-link" href="accounting/create-business">
+                                    <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Create Business
+                                </NavLink>
+                            </div>
                         }
                         else
                         {
-                            throw new AuthenticationException();
+                            <div class="nav-item px-3">
+                                <NavLink class="nav-link" href="accounting/create-client">
+                                    <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Create Client
+                                </NavLink>
+                            </div>
                         }
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <AuthorizeView Context="Other" Roles="Administrator">
-                        <NavLink class="nav-link" href="Administration/RoleManager">
-                            <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Roles
-                        </NavLink>
-                    </AuthorizeView>
-                </div>
-                <div class="nav-item px-3">
-                    <form action="Account/Logout" method="post">
-                        <AntiforgeryToken/>
-                        <input type="hidden" name="ReturnUrl" value="@string.Empty"/>
-                        <button type="submit" class="nav-link">
-                            <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
-                        </button>
-                    </form>
-                </div>
-            </Authorized>
-            <NotAuthorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Register">
-                        <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Register
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
-                    </NavLink>
-                </div>
-            </NotAuthorized>
-        </AuthorizeView>
-    </nav>
-</div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="auth">
+                                <span class="bi bi-lock-nav-menu" aria-hidden="true"></span> Auth Required
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="Account/Manage">
+                                <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span>
+                                @if (context.User.Identity?.IsAuthenticated ?? false)
+                                {
+                                    <span>@_applicationUser?.FirstName</span>
+                                }
+                                else
+                                {
+                                    throw new AuthenticationException();
+                                }
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <AuthorizeView Context="Other" Roles="Administrator">
+                                <NavLink class="nav-link" href="Administration/RoleManager">
+                                    <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Roles
+                                </NavLink>
+                            </AuthorizeView>
+                        </div>
+                        <div class="nav-item px-3">
+                            <form action="Account/Logout" method="post">
+                                <AntiforgeryToken />
+                                <input type="hidden" name="ReturnUrl" value="@string.Empty" />
+                                <button type="submit" class="nav-link">
+                                    <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
+                                </button>
+                            </form>
+                        </div>
+                    </Authorized>
+                    <NotAuthorized>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="Account/Register">
+                                <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Register
+                            </NavLink>
+                        </div>
+                        <div class="nav-item px-3">
+                            <NavLink class="nav-link" href="">
+                                <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
+                            </NavLink>
+                        </div>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </nav>
+        </div>
+        break;
+    case CurrentState.Level2:
+        break;
+}
 
 @code {
     private string? _currentUrl;
     private ApplicationUser? _applicationUser;
     private bool _businessExists;
     private bool _clientsExist;
+    private CurrentState _state;
 
     protected override void OnInitialized()
     {
         _currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
         NavigationManager.LocationChanged += OnLocationChanged;
+        _state = State.State;
     }
 
     protected override async Task OnInitializedAsync()

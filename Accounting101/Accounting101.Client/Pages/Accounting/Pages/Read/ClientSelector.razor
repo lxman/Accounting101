@@ -5,8 +5,8 @@
 @using DataAccess.Models
 @using DataAccess.Services.Interfaces
 
-@inject IDataStore DataStore
 @inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IDataStore DataStore
 
 @rendermode InteractiveServer
 
@@ -18,18 +18,16 @@
         <div class="col-md-4">
             <div class="form-floating mb-3">
                 <div class="card shadow" @onclick="() => ClientClicked(client.Id.ToString())">
-                    <div class="card-header">
-                        <div class="card-link">
-                            <h5>@client.BusinessName</h5>
-                        </div>
+                    <div class="card-header bg-info">
+                        <h5 class="p-lg-3">@client.BusinessName</h5>
                     </div>
-                    <div class="card-subtitle">
+                    <div class="card-subtitle p-sm-3">
                         <h6>Contact</h6>
                         <div class="card-body">
                             @client.Name?.ToString()
                         </div>
                     </div>
-                    <div class="card-subtitle">
+                    <div class="card-subtitle p-sm-3">
                         <h6>Address</h6>
                         <div class="card-body">
                             @client.Address?.ToString()
