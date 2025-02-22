@@ -1,14 +1,16 @@
-﻿@page "/accounting/clients"
+﻿@page "/Accounting/Clients"
 
 @using System.Security.Claims
-@using DataAccess
-@using DataAccess.Models
+@using Accounting101.InMemoryState
 @using DataAccess.Services.Interfaces
 
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject IDataStore DataStore
+@inject StateContainer StateContainer
 
 @rendermode InteractiveServer
+
+<PageTitle>Clients</PageTitle>
 
 <h3>Client Selector</h3>
 
@@ -61,6 +63,8 @@
 
     private void ClientClicked(string id)
     {
-        
+        StateContainer.Property = "client";
+        StateContainer.SelectedClient = id;
+        StateContainer.NotifyStateChanged();
     }
 }

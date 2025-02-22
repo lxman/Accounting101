@@ -1,22 +1,22 @@
 ﻿@page "/Home"
 
-@using DataAccess.Services.Interfaces
+@using Accounting101.InMemoryState
 
-@inject IDataStore DataStore
+@inject StateContainer StateContainer
 
-<PageTitle>Home</PageTitle>
+@rendermode InteractiveAuto
 
-<h1>Hello, world!</h1>
+<PageTitle>Accounting 101</PageTitle>
 
-<p>Welcome to your new app.</p>
-<p>The data store contains @_states.Count states.</p>
+<h1>The best accounting app in the world!</h1>
 
 @code
 {
-    private readonly List<string> _states = [];
-
-    protected override async Task OnInitializedAsync()
+    protected override void OnInitialized()
     {
-        _states.AddRange(await DataStore.GetStatesAsync());
+        StateContainer.Property = null;
+        StateContainer.SelectedClient = null;
+        StateContainer.NotifyStateChanged();
+        base.OnInitialized();
     }
 }
