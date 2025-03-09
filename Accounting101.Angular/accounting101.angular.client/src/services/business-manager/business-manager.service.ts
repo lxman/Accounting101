@@ -14,7 +14,7 @@ export class BusinessManagerService {
   constructor(private client: HttpClient, private userManager: UserManagerService) { }
 
   getBusiness(): Observable<BusinessModel> {
-    return this.client.get<BusinessModel>(`${this.baseUrl}/business/${this.userManager.id}`, { withCredentials: true })
+    return this.client.get<BusinessModel>(`${this.baseUrl}/business/${this.userManager.databaseId}`, { withCredentials: true })
       .pipe(catchError(this.handleError));
   }
 

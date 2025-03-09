@@ -5,7 +5,7 @@ import { RouterOutlet } from '@angular/router';
     selector: 'app-root',
     templateUrl: './app.component.html',
     styleUrls: ['../styles.scss', './app.component.scss'],
-    imports: [RouterOutlet],
+    imports: [RouterOutlet]
 })
 
 export class AppComponent implements OnInit {

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, Input, Optional, Self } from '@angular/core';
+import { Component, inject, Input, OnDestroy, Optional, Self } from '@angular/core';
 import { MatOptionModule } from '@angular/material/core';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldControl } from '@angular/material/form-field';
@@ -20,7 +20,7 @@ import { Subject } from 'rxjs';
   ]
 })
 
-export class SelectComponent implements MatFormFieldControl<string>, ControlValueAccessor {
+export class SelectComponent implements MatFormFieldControl<string>, ControlValueAccessor, OnDestroy {
   @Input() items: any[] = [];
   @Input() show: boolean = false;
   @Input() required: boolean = false;

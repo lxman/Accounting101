@@ -37,7 +37,7 @@ public static class Clients
     public static async Task UpdateClientAsync(this IDataStore store, string dbName, ClientWithInfo client)
     {
         await store.UpdateOneAsync<Client>(dbName, client);
-        await store.UpdateOneAsync(dbName, client.Name!);
+        await store.UpdateOneAsync(dbName, client.ContactName!);
         await store.UpdateAddressAsync(dbName, client.Address!);
         store.NotifyChange(typeof(ClientWithInfo), ChangeType.Updated);
     }

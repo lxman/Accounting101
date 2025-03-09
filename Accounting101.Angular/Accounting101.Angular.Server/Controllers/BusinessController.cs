@@ -12,8 +12,6 @@ public class BusinessController(
     ILogger<BusinessController> logger)
 : ControllerBase
 {
-    private readonly ILogger<BusinessController> _logger = logger;
-
     [HttpGet("{dbId:guid}")]
     public async Task<IActionResult> GetBusinessAsync(Guid dbId)
     {

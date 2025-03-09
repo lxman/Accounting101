@@ -7,4 +7,10 @@
     <!-- Folder where production build objects will be placed -->
     <BuildOutputFolder>$(MSBuildProjectDirectory)\dist\angulartest.client\browser\</BuildOutputFolder>
   </PropertyGroup>
+  <ItemGroup>
+    <None Remove=".vscode\**" />
+    <None Remove="dist\**" />
+    <TypeScriptConfiguration Remove=".vscode\**" />
+    <TypeScriptConfiguration Remove="dist\**" />
+  </ItemGroup>
 </Project>

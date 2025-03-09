@@ -9,7 +9,7 @@ import { catchError } from 'rxjs/operators';
   providedIn: 'root'
 })
 export class UserManagerService {
-  public id: string = '';
+  public databaseId: string = '';
   private baseUrl = 'https://localhost:7165';
   private readonly headers = new HttpHeaders({
     'Content-Type': 'application/json',

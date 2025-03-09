@@ -10,7 +10,7 @@ namespace Accounting101.Angular.DataAccess.Models;
 
 public class ClientWithInfo : Client
 {
-    public PersonName? Name { get; set; }
+    public PersonName? ContactName { get; set; }
 
     public IAddress? Address { get; set; }
 
@@ -27,14 +27,14 @@ public class ClientWithInfo : Client
         Id = c.Id;
         PersonNameId = n.Id;
         AddressId = a.Id;
-        Name = n;
+        ContactName = n;
         Address = a;
         CheckPointId = c.CheckPointId;
     }
 
     public ClientWithInfo(IDataStore dataStore, string dbName, Client c) : base(c)
     {
-        Name = _jtf.Run(() => dataStore.ReadOneAsync<PersonName>(dbName, c.PersonNameId))?.FirstOrDefault();
+        ContactName = _jtf.Run(() => dataStore.ReadOneAsync<PersonName>(dbName, c.PersonNameId))?.FirstOrDefault();
         Address = dataStore.FindAddressById(dbName, AddressId);
         CheckPointId = c.CheckPointId;
     }

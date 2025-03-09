@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { LoginModel } from '../../../Models/login.model';
 import { UserManagerService } from '../../services/user-manager/user-manager.service';
 import { BusinessManagerService } from '../../services/business-manager/business-manager.service';
+import { ClientManagerService } from '../../services/client-manager/client-manager.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { FormGroup, FormControl, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -24,10 +25,12 @@ export class LoginComponent {
     twoFactorAuthenticationCodeReset: new FormControl('')
   });
   f = this.loginForm.controls;
+  businessExists = false;
 
   constructor(
     private readonly userManager: UserManagerService,
     private readonly businessManager: BusinessManagerService,
+    private readonly clientManager: ClientManagerService,
     private readonly toastService: MatSnackBar,
     private readonly router: Router
   ) {}
@@ -38,23 +41,36 @@ export class LoginComponent {
     login.password = this.loginForm.get('password')!.value!;
     // login.twoFactorAuthenticationCode = this.loginForm.get('twoFactorAuthenticationCode')!.value!;
     // login.twoFactorAuthenticationCodeReset = this.loginForm.get('twoFactorAuthenticationCodeReset')!.value!;
-    console.log(login);
     this.userManager.loginUser(login).subscribe({
-      next: (id) => {
+      next: (databaseId) => {
         this.toastService.open('Login successful', 'Close', {
           duration: 3000,
           verticalPosition: 'top',
           horizontalPosition: 'center'
         });
-        this.userManager.id = id.toString();
-        //this.router.navigate(['address']);
-        this.router.navigateByUrl('/address');
+        this.userManager.databaseId = databaseId.toString();
         this.businessManager.getBusiness().subscribe({
           next: (business) => {
-            if (business === null) {
-              //this.router.navigate(['/create-business']);
+            this.businessExists = business != null;
+          },
+          complete: () => {
+            if (this.businessExists) {
+              this.router.navigate(['/create-business']);
             }
-            console.log(business);
+            else {
+              this.clientManager.getClientsExist().subscribe({
+                next: (clientsExist) => {
+                  if (clientsExist) {
+                    this.router.navigate(['/client-selector']);
+                  } else {
+                    this.router.navigate(['/create-client']);
+                  }
+                },
+                error: (error) => {
+                  console.error(error);
+                }
+              });
+            }
           },
           error: (error) => {
             console.error(error);
