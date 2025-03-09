@@ -1,0 +1,44 @@
+﻿<UserControl x:Class="Accounting101.WPF.Controls.FastEntryControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:valueConverters="clr-namespace:Accounting101.WPF.ValueConverters"
+             xmlns:controls="clr-namespace:Accounting101.WPF.Controls"
+             mc:Ignorable="d"
+             d:Background="Teal"
+             d:DataContext="{d:DesignInstance controls:FastEntryControl}"
+             Background="Transparent"
+             MinHeight="40"
+             d:DesignHeight="40" d:DesignWidth="800"
+             IsEnabled="{Binding Enabled, Mode=OneWay}">
+    <UserControl.Resources>
+        <valueConverters:DateOnlyDateTimeConverter x:Key="DateConverter" />
+    </UserControl.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <DatePicker x:Name="DatePicker" Grid.Column="0" VerticalContentAlignment="Center" Background="{Binding DatePickerBackground}" mah:ControlsHelper.CornerRadius="10" IsTabStop="True" SelectedDate="{Binding When, Converter={StaticResource DateConverter}, Mode=TwoWay}" />
+        <StackPanel x:Name="CreditDebitPanel" Focusable="True" Grid.Column="1" VerticalAlignment="Center" Margin="10,0,10,0">
+            <RadioButton x:Name="CreditButton" Content="Credit" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" IsTabStop="True" IsChecked="{Binding Credit}" />
+            <RadioButton x:Name="DebitButton" Content="Debit" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" IsTabStop="True" IsChecked="{Binding Debit}" />
+        </StackPanel>
+        <ComboBox x:Name="AccountSelector" Grid.Column="2" MinWidth="200" mah:ControlsHelper.CornerRadius="10" IsTabStop="True" ItemsSource="{Binding OtherAccounts}" SelectedItem="{Binding OtherAccount, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+        <TextBox x:Name="AmountBox" Grid.Column="3" mah:ControlsHelper.CornerRadius="10" IsTabStop="True" VerticalContentAlignment="Center" Text="{Binding Amount, UpdateSourceTrigger=PropertyChanged}" />
+        <Button
+            x:Name="AcceptButton"
+            Grid.Column="4"
+            Padding="20,0,20,0"
+            Content="_Accept"
+            IsTabStop="True"
+            Background="Transparent"
+            Foreground="{StaticResource MahApps.Brushes.IdealForeground}"
+            mah:ControlsHelper.CornerRadius="10" />
+    </Grid>
+</UserControl>

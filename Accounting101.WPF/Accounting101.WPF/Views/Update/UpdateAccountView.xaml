@@ -1,0 +1,42 @@
+﻿<UserControl x:Class="Accounting101.WPF.Views.Update.UpdateAccountView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:valueConverters="clr-namespace:Accounting101.WPF.ValueConverters"
+             xmlns:controls1="clr-namespace:Accounting101.WPF.Controls"
+             xmlns:update="clr-namespace:Accounting101.WPF.ViewModels.Update"
+             mc:Ignorable="d"
+             d:Background="Teal"
+             d:DataContext="{d:DesignInstance update:UpdateAccountViewModel}"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <UserControl.Resources>
+        <valueConverters:DateOnlyDateTimeConverter x:Key="DateTimeConverter" />
+        <valueConverters:DecimalToAccountingStringConverter x:Key="AccountingStringConverter" />
+    </UserControl.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <controls1:HeaderLabel Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="2" LabelContent="Edit An Account" />
+        <controls1:StyledLabel Grid.Column="0" Grid.Row="1" LabelContent="CoA Id" />
+        <TextBox Grid.Column="1" Grid.Row="1" Text="{Binding Account.Info.CoAId, FallbackValue={x:Null}}" />
+        <controls1:StyledLabel Grid.Column="0" Grid.Row="2" LabelContent="Name" />
+        <TextBox Grid.Column="1" Grid.Row="2" Text="{Binding Account.Info.Name, FallbackValue={x:Null}}" />
+        <controls1:StyledLabel Grid.Column="0" Grid.Row="3" LabelContent="Type" />
+        <ComboBox Grid.Column="1" Grid.Row="3" ItemsSource="{Binding AccountTypes, Mode=OneTime}" SelectedItem="{Binding Account.Type, FallbackValue={x:Null}}" />
+        <controls1:StyledLabel Grid.Column="0" Grid.Row="4" LabelContent="Starting Balance" />
+        <TextBox Grid.Column="1" Grid.Row="4" Text="{Binding Account.StartBalance, FallbackValue={x:Null}, Converter={StaticResource AccountingStringConverter}}" />
+        <controls1:StyledLabel Grid.Column="0" Grid.Row="5" LabelContent="Created" />
+        <DatePicker Grid.Column="1" Grid.Row="5" SelectedDate="{Binding Account.Created, FallbackValue={x:Null}, Converter={StaticResource DateTimeConverter}}" />
+    </Grid>
+</UserControl>

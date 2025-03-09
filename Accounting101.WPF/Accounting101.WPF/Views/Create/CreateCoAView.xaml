@@ -1,0 +1,56 @@
+﻿<UserControl x:Class="Accounting101.WPF.Views.Create.CreateCoAView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:controls="clr-namespace:Accounting101.WPF.Controls"
+             xmlns:create="clr-namespace:Accounting101.WPF.ViewModels.Create"
+             mc:Ignorable="d"
+             d:Background="Teal"
+             d:DataContext="{d:DesignInstance create:CreateCoAViewModel}"
+             d:DesignHeight="450" d:DesignWidth="800"
+             Background="Transparent"
+             Foreground="{DynamicResource MahApps.Brushes.IdealForeground}">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition />
+            <ColumnDefinition />
+            <ColumnDefinition />
+            <ColumnDefinition />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid Grid.Column="0" Grid.Row="0" Grid.ColumnSpan="4">
+            <controls:HeaderLabel LabelContent="Create a Chart of Accounts" />
+        </Grid>
+        <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="4">Choose a pre-made Chart of Accounts from the list below.</TextBlock>
+        <TextBlock Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="4">These selections represent a set of pre-made accounts.</TextBlock>
+        <TextBlock
+            Grid.Column="0"
+            Grid.Row="3"
+            Grid.ColumnSpan="4"
+            Margin="0,0,0,10"
+            TextWrapping="Wrap">You may of course add accounts as you like after the chart is created. You may also use the menu above to create new accounts individually as well.</TextBlock>
+        <ListBox
+            Grid.Column="0"
+            Grid.Row="4"
+            Grid.ColumnSpan="4"
+            ItemsSource="{Binding ChartItems}"
+            SelectedItem="{Binding SelectedItem}"
+            BorderThickness="1"
+            BorderBrush="{DynamicResource MahApps.Brushes.IdealForegroundDisabled}"
+            Foreground="{DynamicResource MahApps.Brushes.IdealForeground}"
+            Background="Transparent">
+            <ListBox.Resources>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="Background" Value="Transparent" />
+                </Style>
+            </ListBox.Resources>
+        </ListBox>
+    </Grid>
+</UserControl>

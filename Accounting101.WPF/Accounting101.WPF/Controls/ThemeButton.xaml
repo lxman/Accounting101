@@ -1,0 +1,18 @@
+﻿<UserControl x:Class="Accounting101.WPF.Controls.ThemeButton"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:Accounting101.WPF.Controls"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance local:ThemeButton}"
+             d:DesignHeight="30" d:DesignWidth="80">
+    <Button
+        x:Name="ThemedButton"
+        Click="ButtonClicked"
+        Content="{Binding Text}"
+        Background="{Binding ButtonBackground}"
+        Foreground="{Binding ButtonForeground}"
+        mah:ControlsHelper.CornerRadius="10" />
+</UserControl>

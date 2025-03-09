@@ -1,0 +1,33 @@
+﻿<UserControl x:Class="Accounting101.WPF.Views.Create.CreateDatabaseView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:Background="White"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Text="First a couple of questions:" Padding="5" />
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="4*" />
+                <ColumnDefinition Width="1*" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Grid.Row="0" Grid.Column="0" Text="Database location:" Padding="5" />
+            <TextBlock x:Name="DbLocation" Grid.Row="0" Grid.Column="1" Padding="5" d:Text="C:\ProgramData\Accounting101\Accounts.db" />
+            <Button Grid.Row="0" Grid.Column="2" Content="Browse" Click="BrowseButtonClick" />
+            <TextBlock Grid.Row="1" Grid.Column="0" Text="Password (can be blank):" Padding="5" />
+            <PasswordBox x:Name="Password" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Padding="5" d:Password="1234" />
+        </Grid>
+    </Grid>
+</UserControl>

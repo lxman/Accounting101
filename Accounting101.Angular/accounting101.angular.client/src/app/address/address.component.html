@@ -1,0 +1,34 @@
+<form [formGroup]="addressForm" (ngSubmit)="onSubmit()">
+  <button mat-raised-button (click)="toggleAddressForm()">
+    @if (addressForm.get('isForeign')!.value) {
+      Domestic Address
+    }
+    @else {
+      Foreign Address
+    }
+  </button><br />
+  <mat-form-field>
+    <mat-label>Line 1</mat-label>
+    <input matInput formControlName="line1" />
+  </mat-form-field>
+  <mat-form-field>
+    <mat-label>Line 2</mat-label>
+    <input matInput formControlName="line2" />
+  </mat-form-field>
+  <mat-form-field>
+    <mat-label *ngIf="addressForm.get('isForeign')!.value">Province</mat-label>
+    <mat-label *ngIf="!addressForm.get('isForeign')!.value">City</mat-label>
+    <input matInput formControlName="cityProvince" />
+  </mat-form-field>
+  <mat-form-field *ngIf="addressForm.get('isForeign')!.value">
+    <mat-label>Postal Code</mat-label>
+    <input matInput formControlName="zipPostCode" />
+  </mat-form-field>
+  <select-component formControlName="country" [items]="countries" [show]="addressForm.get('isForeign')!.value!" [required]="true" />
+  <select-component formControlName="state" [items]="states" [show]="!addressForm.get('isForeign')!.value" [required]="true" />
+  <mat-form-field *ngIf="!addressForm.get('isForeign')!.value">
+    <mat-label>Zip Code</mat-label>
+    <input matInput formControlName="zipPostCode" />
+  </mat-form-field><br />
+  <button mat-raised-button type="submit">Submit</button>
+</form>

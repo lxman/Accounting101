@@ -1,0 +1,25 @@
+﻿<UserControl x:Class="Accounting101.WPF.Controls.StyledCheckBox"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:valueConverters="clr-namespace:Accounting101.WPF.ValueConverters"
+             xmlns:controls="clr-namespace:Accounting101.WPF.Controls"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance controls:StyledCheckBox}"
+             d:Background="Teal"
+             d:DesignHeight="20" d:DesignWidth="100"
+             x:Name="ThisBox">
+    <UserControl.Resources>
+        <valueConverters:BoolNullableBoolConverter x:Key="NullableBoolConverter" />
+    </UserControl.Resources>
+    <CheckBox
+        Background="{Binding BoxBackground, ElementName=ThisBox}"
+        IsChecked="{Binding BoxChecked, ElementName=ThisBox, Converter={StaticResource NullableBoolConverter}, TargetNullValue=false, Mode=TwoWay}"
+        Content="{Binding BoxContent, ElementName=ThisBox}"
+        mah:CheckBoxHelper.ForegroundChecked="{DynamicResource MahApps.Brushes.IdealForeground}"
+        mah:CheckBoxHelper.ForegroundCheckedMouseOver="{DynamicResource MahApps.Brushes.IdealForeground}"
+        mah:CheckBoxHelper.ForegroundUnchecked="{DynamicResource MahApps.Brushes.IdealForeground}"
+        mah:CheckBoxHelper.ForegroundUncheckedMouseOver="{DynamicResource MahApps.Brushes.IdealForeground}" />
+</UserControl>

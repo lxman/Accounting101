@@ -1,0 +1,74 @@
+﻿<UserControl x:Class="Accounting101.WPF.Views.Read.ClientHeaderView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:controls="clr-namespace:Accounting101.WPF.Controls"
+             xmlns:read1="clr-namespace:Accounting101.WPF.Views.Read"
+             mc:Ignorable="d"
+             d:Background="Teal"
+             d:DataContext="{d:DesignInstance read1:ClientHeaderView}"
+             d:DesignHeight="160" d:DesignWidth="800"
+             PreviewMouseDown="ClientHeaderViewPreviewMouseDown"
+             Background="{DynamicResource MahApps.Brushes.Accent}"
+             Foreground="{DynamicResource MahApps.Brushes.IdealForeground}"
+             mah:ControlsHelper.CornerRadius="10">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <controls:StyledLabel
+            Grid.Column="0"
+            Grid.Row="0"
+            LabelContent="Business Name" />
+        <TextBlock
+            Grid.Column="1"
+            Grid.Row="0"
+            VerticalAlignment="Center"
+            Margin="10,0,0,0"
+            Text="{Binding BusinessName}"
+            d:Text="Joe's Pool Hall" />
+        <controls:StyledLabel
+            Grid.Column="0"
+            Grid.Row="1"
+            LabelContent="Contact" />
+        <TextBlock
+            Grid.Column="1"
+            Grid.Row="1"
+            VerticalAlignment="Center"
+            Margin="10,0,0,0"
+            Text="{Binding Contact}"
+            d:Text="Mr. Joseph J. Johnston Sr." />
+        <controls:StyledLabel
+            Grid.Column="0"
+            Grid.Row="2"
+            VerticalAlignment="Top"
+            LabelContent="CheckPoint" />
+        <TextBlock
+            Grid.Column="1"
+            Grid.Row="2"
+            VerticalAlignment="Center"
+            Margin="10,0,0,0"
+            Text="{Binding CheckPoint}"
+            d:Text="None" />
+        <controls:StyledLabel
+            Grid.Column="0"
+            Grid.Row="3"
+            VerticalAlignment="Top"
+            LabelContent="Address" />
+        <TextBlock
+            Grid.Column="1"
+            Grid.Row="3"
+            Margin="10,8,0,0"
+            Text="{Binding Address}" />
+    </Grid>
+</UserControl>

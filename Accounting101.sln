@@ -1,0 +1,97 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35825.156
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "WPF", "WPF", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Angular", "Angular", "{662A71DB-8D18-42F0-BC2E-B88BBE210386}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Accounting101.Angular.Server", "Accounting101.Angular\Accounting101.Angular.Server\Accounting101.Angular.Server.csproj", "{8EAFC878-BE4F-65BD-A493-F72F3DEC054C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Accounting101.Angular.DataAccess", "Accounting101.Angular\Accounting101.Angular.DataAccess\Accounting101.Angular.DataAccess.csproj", "{14EFA1DE-3D10-373F-A46F-20307898CFBA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Accounting101.Angular.Tests", "Accounting101.Angular\Accounting101.Angular.Tests\Accounting101.Angular.Tests.csproj", "{12287051-22E6-0505-F612-338800BCFEA8}"
+EndProject
+Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "accounting101.angular.client", "Accounting101.Angular\accounting101.angular.client\accounting101.angular.client.esproj", "{272AF134-4D75-DD46-0C07-83EDF022251B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Accounting101.WPF", "Accounting101.WPF\Accounting101.WPF\Accounting101.WPF.csproj", "{4E92DE68-1218-F3CF-F848-A8E7726A0E17}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AccountTests.WPF", "Accounting101.WPF\AccountTests.WPF\AccountTests.WPF.csproj", "{A74C5119-0261-7993-E1C0-656793807AA8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAccess.WPF", "Accounting101.WPF\DataAccess.WPF\DataAccess.WPF.csproj", "{FF8D5C9B-9CF5-0CF0-3F0D-F059D782B197}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAccessTests.WPF", "Accounting101.WPF\DataAccessTests.WPF\DataAccessTests.WPF.csproj", "{F67BA883-52D7-FE78-FA93-DA1C595F454B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZipDataParser.WPF", "Accounting101.WPF\ZipDataParser.WPF\ZipDataParser.WPF.csproj", "{B46DCA18-3060-B0D5-7921-FF95E5198A93}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Resources", "Resources", "{2B2F8B6B-B8C5-4EC5-B211-2E6152DAEA0E}"
+	ProjectSection(SolutionItems) = preProject
+		Accounting101.WPF\Resources\Accounting101Icon.ico = Accounting101.WPF\Resources\Accounting101Icon.ico
+		Accounting101.WPF\Resources\Accounting101Icon.png = Accounting101.WPF\Resources\Accounting101Icon.png
+		Accounting101.WPF\Resources\Source.afdesign = Accounting101.WPF\Resources\Source.afdesign
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8EAFC878-BE4F-65BD-A493-F72F3DEC054C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8EAFC878-BE4F-65BD-A493-F72F3DEC054C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8EAFC878-BE4F-65BD-A493-F72F3DEC054C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8EAFC878-BE4F-65BD-A493-F72F3DEC054C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{14EFA1DE-3D10-373F-A46F-20307898CFBA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{14EFA1DE-3D10-373F-A46F-20307898CFBA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{14EFA1DE-3D10-373F-A46F-20307898CFBA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{14EFA1DE-3D10-373F-A46F-20307898CFBA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{12287051-22E6-0505-F612-338800BCFEA8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12287051-22E6-0505-F612-338800BCFEA8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12287051-22E6-0505-F612-338800BCFEA8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12287051-22E6-0505-F612-338800BCFEA8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{272AF134-4D75-DD46-0C07-83EDF022251B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{272AF134-4D75-DD46-0C07-83EDF022251B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{272AF134-4D75-DD46-0C07-83EDF022251B}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{272AF134-4D75-DD46-0C07-83EDF022251B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{272AF134-4D75-DD46-0C07-83EDF022251B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{272AF134-4D75-DD46-0C07-83EDF022251B}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{4E92DE68-1218-F3CF-F848-A8E7726A0E17}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4E92DE68-1218-F3CF-F848-A8E7726A0E17}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4E92DE68-1218-F3CF-F848-A8E7726A0E17}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4E92DE68-1218-F3CF-F848-A8E7726A0E17}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A74C5119-0261-7993-E1C0-656793807AA8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A74C5119-0261-7993-E1C0-656793807AA8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A74C5119-0261-7993-E1C0-656793807AA8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A74C5119-0261-7993-E1C0-656793807AA8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FF8D5C9B-9CF5-0CF0-3F0D-F059D782B197}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FF8D5C9B-9CF5-0CF0-3F0D-F059D782B197}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FF8D5C9B-9CF5-0CF0-3F0D-F059D782B197}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FF8D5C9B-9CF5-0CF0-3F0D-F059D782B197}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F67BA883-52D7-FE78-FA93-DA1C595F454B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F67BA883-52D7-FE78-FA93-DA1C595F454B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F67BA883-52D7-FE78-FA93-DA1C595F454B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F67BA883-52D7-FE78-FA93-DA1C595F454B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B46DCA18-3060-B0D5-7921-FF95E5198A93}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B46DCA18-3060-B0D5-7921-FF95E5198A93}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B46DCA18-3060-B0D5-7921-FF95E5198A93}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B46DCA18-3060-B0D5-7921-FF95E5198A93}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{8EAFC878-BE4F-65BD-A493-F72F3DEC054C} = {662A71DB-8D18-42F0-BC2E-B88BBE210386}
+		{14EFA1DE-3D10-373F-A46F-20307898CFBA} = {662A71DB-8D18-42F0-BC2E-B88BBE210386}
+		{12287051-22E6-0505-F612-338800BCFEA8} = {662A71DB-8D18-42F0-BC2E-B88BBE210386}
+		{272AF134-4D75-DD46-0C07-83EDF022251B} = {662A71DB-8D18-42F0-BC2E-B88BBE210386}
+		{4E92DE68-1218-F3CF-F848-A8E7726A0E17} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{A74C5119-0261-7993-E1C0-656793807AA8} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{FF8D5C9B-9CF5-0CF0-3F0D-F059D782B197} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{F67BA883-52D7-FE78-FA93-DA1C595F454B} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{B46DCA18-3060-B0D5-7921-FF95E5198A93} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{2B2F8B6B-B8C5-4EC5-B211-2E6152DAEA0E} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {BD3BD03B-01FC-4072-971E-BB0D5EF4B624}
+	EndGlobalSection
+EndGlobal

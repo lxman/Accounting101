@@ -1,0 +1,59 @@
+﻿<mah:MetroWindow x:Class="Accounting101.WPF.MainWindow"
+                 xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                 xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+                 xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+                 xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                 xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+                 xmlns:wpf="clr-namespace:Accounting101.WPF"
+                 mc:Ignorable="d"
+                 d:DataContext="{d:DesignInstance wpf:MainWindow}"
+                 Title="Accounting 101" Height="450" Width="800"
+                 x:Name="Self"
+                 Background="{DynamicResource MahApps.Brushes.Accent}"
+                 PreviewKeyDown="MainWindowPreviewKeyDown">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+    </Window.Resources>
+    <Grid Background="Transparent">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Menu Grid.Row="0" DataContext="{Binding ElementName=Self, Path=MenuViewModel}" Background="Transparent">
+            <MenuItem Header="_File" Background="Transparent">
+                <MenuItem Header="_New" Background="Transparent" Visibility="{Binding ShowNewMenu, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <MenuItem Header="_Client" Background="Transparent" Command="{Binding NewClientCommand}" Visibility="{Binding ShowNewClientCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <MenuItem Header="_Account" Background="Transparent" Command="{Binding NewAccountCommand}" Visibility="{Binding ShowNewAccountCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                </MenuItem>
+                <MenuItem Header="_Save" Background="Transparent" Command="{Binding SaveCommand}" Visibility="{Binding ShowSaveCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <MenuItem Header="_Delete" Background="Transparent" Visibility="{Binding ShowDeleteMenu, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <MenuItem Header="_Business" Background="Transparent" Command="{Binding DeleteBusinessCommand}" Visibility="{Binding ShowDeleteBusinessCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <MenuItem Header="_Client" Background="Transparent" Command="{Binding DeleteClientCommand}" Visibility="{Binding ShowDeleteClientCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                </MenuItem>
+                <Separator Background="Transparent" Visibility="{Binding ShowFileSeparator, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <MenuItem Header="_Exit" Background="Transparent" Command="{Binding ExitCommand}" />
+            </MenuItem>
+            <MenuItem Header="_Edit" Background="Transparent" Visibility="{Binding ShowEditMenu, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <MenuItem Header="_Business" Background="Transparent" Command="{Binding EditBusinessCommand}" Visibility="{Binding ShowEditBusinessCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <MenuItem Header="_Client" Background="Transparent" Command="{Binding EditClientCommand}" Visibility="{Binding ShowEditClientCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <MenuItem Header="_Account" Background="Transparent" Command="{Binding EditAccountCommand}" Visibility="{Binding ShowEditAccountCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <MenuItem Header="Check_Point" Background="Transparent" Command="{Binding EditCheckPointCommand}" Visibility="{Binding ShowEditCheckPointCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+            </MenuItem>
+            <MenuItem Header="_Reports" Background="Transparent" Visibility="{Binding ShowReportsMenu, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <MenuItem Header="_Balance Sheet" Background="Transparent" Command="{Binding ReportsBalanceSheetCommand}" Visibility="{Binding ShowReportsBalanceSheetCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                <MenuItem Header="_Profit and Loss" Background="Transparent" Command="{Binding ReportsProfitAndLossCommand}" Visibility="{Binding ShowReportsProfitAndLossCommand, Converter={StaticResource BooleanToVisibilityConverter}}" />
+            </MenuItem>
+            <MenuItem Header="_Client List" Background="Transparent" Visibility="{Binding ShowClientListCommand, Converter={StaticResource BooleanToVisibilityConverter}}" Command="{Binding ClientListCommand}" />
+            <MenuItem Header="_Theme" Background="Transparent" Visibility="{Binding ShowChangeThemeCommand, Converter={StaticResource BooleanToVisibilityConverter}}" Command="{Binding ChangeThemeCommand}" />
+        </Menu>
+        <mah:TransitioningContentControl
+            x:Name="ScreenDisplayControl"
+            Grid.Row="1"
+            Background="Transparent"
+            RestartTransitionOnContentChange="True"
+            Transition="RightReplace"
+            DataContext="{Binding ElementName=Self}"
+            Content="{Binding CurrentScreen}"
+            IsTabStop="False" />
+    </Grid>
+</mah:MetroWindow>

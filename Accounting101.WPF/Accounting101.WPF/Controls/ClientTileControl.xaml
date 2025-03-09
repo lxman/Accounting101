@@ -1,0 +1,20 @@
+﻿<mah:Tile x:Class="Accounting101.WPF.Controls.ClientTileControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
+             xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+             xmlns:controls="clr-namespace:Accounting101.WPF.Controls"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance controls:ClientTileControl}"
+             d:DesignHeight="450" d:DesignWidth="800"
+             d:Title="Joe's Pool Hall"
+             Title="{Binding Client.BusinessName, Mode=OneTime}"
+             HorizontalTitleAlignment="Center"
+             VerticalTitleAlignment="Top"
+             TitleFontSize="20"
+             mah:ControlsHelper.MouseOverBorderBrush="{DynamicResource MahApps.Brushes.SystemControlForegroundAccent}"
+             Click="ClientTileControlClick">
+    <iconPacks:BootstrapIcons Kind="CurrencyDollar" Height="40" Width="40" />
+</mah:Tile>

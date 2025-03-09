@@ -1,0 +1,23 @@
+﻿<UserControl x:Class="Accounting101.WPF.Views.Read.ClientWithAccountListView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:read="clr-namespace:Accounting101.WPF.Views.Read"
+             xmlns:create1="clr-namespace:Accounting101.WPF.Views.Create"
+             xmlns:update1="clr-namespace:Accounting101.WPF.Views.Update"
+             mc:Ignorable="d"
+             d:Background="White"
+             d:DesignHeight="450" d:DesignWidth="800">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <read:ClientHeaderView x:Name="ClientHeader" Grid.Row="0" />
+        <read:AccountsView x:Name="AccountsGrid" Grid.Row="1" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" d:Visibility="Hidden" />
+        <create1:CreateCoAView x:Name="CreateCoAView" Grid.Row="1" d:Visibility="Hidden" />
+        <update1:UpdateAccountView x:Name="EditAccount" Grid.Row="1" d:Visibility="Hidden" />
+        <update1:UpdateAccountEntriesView x:Name="AccountEntriesEditor" Grid.Row="1" Background="Transparent" d:Visibility="Visible" />
+    </Grid>
+</UserControl>

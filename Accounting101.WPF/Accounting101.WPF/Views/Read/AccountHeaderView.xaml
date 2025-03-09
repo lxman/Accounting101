@@ -1,0 +1,49 @@
+﻿<UserControl x:Class="Accounting101.WPF.Views.Read.AccountHeaderView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:valueConverters="clr-namespace:Accounting101.WPF.ValueConverters"
+             xmlns:controls="clr-namespace:Accounting101.WPF.Controls"
+             xmlns:read="clr-namespace:Accounting101.WPF.Views.Read"
+             mc:Ignorable="d"
+             d:Background="Teal"
+             d:DataContext="{d:DesignInstance read:AccountHeaderView}"
+             Background="Transparent"
+             d:DesignHeight="450" d:DesignWidth="800"
+             PreviewMouseDown="AccountHeaderViewPreviewMouseDown">
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="VisibilityConverter" />
+        <valueConverters:DecimalToAccountingStringConverter x:Key="AccountingStringConverter" />
+    </UserControl.Resources>
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <controls:StyledLabel Grid.Column="0" Grid.Row="0" LabelContent="CoA Id" />
+        <TextBlock Grid.Column="1" Grid.Row="0" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding CoAId}" d:Text="101" />
+        <controls:StyledLabel Grid.Column="2" Grid.Row="0" LabelContent="Name" />
+        <TextBlock Grid.Column="3" Grid.Row="0" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding AccountName}" d:Text="Cash" />
+        <controls:StyledLabel Grid.Column="4" Grid.Row="0" LabelContent="Created" />
+        <TextBlock Grid.Column="5" Grid.Row="0" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding Created}" d:Text="1/6/2025" />
+        <controls:StyledLabel Grid.Column="0" Grid.Row="1" LabelContent="Starting Balance" />
+        <TextBlock Grid.Column="1" Grid.Row="1" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding StartBalance, Converter={StaticResource AccountingStringConverter}}" d:Text="10.00" />
+        <controls:StyledLabel Grid.Column="2" Grid.Row="1" LabelContent="Type" />
+        <TextBlock Grid.Column="3" Grid.Row="1" VerticalAlignment="Center" Margin="10,0,10,0" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Text="{Binding Type}" d:Text="Asset" />
+        <Label Grid.Column="4" Grid.Row="1" Background="Transparent" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" Content="{Binding DebitCredit}" d:Content="Debit account" />
+        <Label Grid.Column="6" Grid.Row="1" VerticalAlignment="Center" Content="{Binding CheckPointActive}" Visibility="{Binding ShowCheckPointActive, Converter={StaticResource VisibilityConverter}}" Foreground="Red" />
+        <controls:StyledLabel Grid.Column="6" Grid.Row="0" HorizontalAlignment="Right" LabelContent="Current balance" />
+        <TextBlock Grid.Column="7" Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Center" Text="{Binding CurrentBalance, Converter={StaticResource AccountingStringConverter}}" Foreground="{StaticResource MahApps.Brushes.IdealForeground}" d:Text="42.42" />
+    </Grid>
+</UserControl>

@@ -1,0 +1,6 @@
+@AngularTest.Server_HostAddress = http://localhost:5277
+
+GET {{AngularTest.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

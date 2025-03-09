@@ -1,0 +1,5 @@
+﻿Business defines the accounting business.
+
+A business has clients and clients have accounts.
+
+DataStore communicates with the front end via the StoreChanged event. This is used to notify MainWindow that changes have taken place in order to update the UI as needed.
