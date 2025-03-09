@@ -1,7 +1,8 @@
 <form [formGroup]="createBusinessForm" (ngSubmit)="onSubmit()">
   <mat-form-field>
     <mat-label>Business Name</mat-label>
-    <input matInput formControlName="businessName" />
+    <input matInput formControlName="name" />
   </mat-form-field>
-  <address-component formControlName="addressForm" />
+  <address-component [states]="states" [countries]="countries" />
+  <button mat-raised-button type="submit">Submit</button>
 </form>

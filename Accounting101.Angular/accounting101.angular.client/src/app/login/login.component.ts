@@ -25,7 +25,6 @@ export class LoginComponent {
     twoFactorAuthenticationCodeReset: new FormControl('')
   });
   f = this.loginForm.controls;
-  businessExists = false;
 
   constructor(
     private readonly userManager: UserManagerService,
@@ -49,12 +48,9 @@ export class LoginComponent {
           horizontalPosition: 'center'
         });
         this.userManager.databaseId = databaseId.toString();
-        this.businessManager.getBusiness().subscribe({
-          next: (business) => {
-            this.businessExists = business != null;
-          },
-          complete: () => {
-            if (this.businessExists) {
+        this.businessManager.businessExists().subscribe({
+          next: (exists) => {
+            if (!exists) {
               this.router.navigate(['/create-business']);
             }
             else {

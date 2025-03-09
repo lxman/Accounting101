@@ -13,8 +13,13 @@ export class BusinessManagerService {
 
   constructor(private client: HttpClient, private userManager: UserManagerService) { }
 
-  getBusiness(): Observable<BusinessModel> {
-    return this.client.get<BusinessModel>(`${this.baseUrl}/business/${this.userManager.databaseId}`, { withCredentials: true })
+  businessExists(): Observable<boolean> {
+    return this.client.get<boolean>(`${this.baseUrl}/business/exists/${this.userManager.databaseId}`, { withCredentials: true })
+      .pipe(catchError(this.handleError));
+  }
+
+  getBusiness(): Observable<BusinessModel | null> {
+    return this.client.get<BusinessModel | null>(`${this.baseUrl}/business/${this.userManager.databaseId}`, { withCredentials: true })
       .pipe(catchError(this.handleError));
   }
 
