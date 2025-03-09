@@ -24,11 +24,19 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAccessTests.WPF", "Acco
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZipDataParser.WPF", "Accounting101.WPF\ZipDataParser.WPF\ZipDataParser.WPF.csproj", "{B46DCA18-3060-B0D5-7921-FF95E5198A93}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Resources", "Resources", "{2B2F8B6B-B8C5-4EC5-B211-2E6152DAEA0E}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{2B2F8B6B-B8C5-4EC5-B211-2E6152DAEA0E}"
 	ProjectSection(SolutionItems) = preProject
 		Accounting101.WPF\Resources\Accounting101Icon.ico = Accounting101.WPF\Resources\Accounting101Icon.ico
 		Accounting101.WPF\Resources\Accounting101Icon.png = Accounting101.WPF\Resources\Accounting101Icon.png
+		Accounting101.WPF\README.md = Accounting101.WPF\README.md
 		Accounting101.WPF\Resources\Source.afdesign = Accounting101.WPF\Resources\Source.afdesign
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{C3B0286A-3D7D-4CDA-ADD9-4212AF74C205}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8EC462FD-D22E-90A8-E5CE-7E832BA40C5D}"
+	ProjectSection(SolutionItems) = preProject
+		LICENSE.txt = LICENSE.txt
 	EndProjectSection
 EndProject
 Global
@@ -90,6 +98,7 @@ Global
 		{F67BA883-52D7-FE78-FA93-DA1C595F454B} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{B46DCA18-3060-B0D5-7921-FF95E5198A93} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
 		{2B2F8B6B-B8C5-4EC5-B211-2E6152DAEA0E} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+		{C3B0286A-3D7D-4CDA-ADD9-4212AF74C205} = {662A71DB-8D18-42F0-BC2E-B88BBE210386}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {BD3BD03B-01FC-4072-971E-BB0D5EF4B624}
