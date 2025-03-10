@@ -1,9 +1,9 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject, Input, OnDestroy, Optional, Self } from '@angular/core';
+import { Component, inject, Input, OnDestroy, Optional, Self, OnChanges, SimpleChanges } from '@angular/core';
 import { MatOptionModule } from '@angular/material/core';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldControl } from '@angular/material/form-field';
-import { ControlContainer, NgControl, ReactiveFormsModule, ControlValueAccessor } from '@angular/forms';
+import { ControlContainer, NgControl, ReactiveFormsModule, ControlValueAccessor, StatusChangeEvent } from '@angular/forms';
 import { Subject } from 'rxjs';
 
 @Component({
@@ -20,10 +20,11 @@ import { Subject } from 'rxjs';
   ]
 })
 
-export class SelectComponent implements MatFormFieldControl<string>, ControlValueAccessor, OnDestroy {
+export class SelectComponent implements MatFormFieldControl<string>, ControlValueAccessor, OnChanges, OnDestroy {
   @Input() items: any[] = [];
   @Input() show: boolean = false;
   @Input() required: boolean = false;
+  @Input() selected: any = null;
 
   static nextId = 0;
   stateChanges = new Subject<void>();
@@ -38,6 +39,17 @@ export class SelectComponent implements MatFormFieldControl<string>, ControlValu
   autofilled?: boolean | undefined;
   userAriaDescribedBy?: string | undefined;
   disableAutomaticLabeling?: boolean | undefined;
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['required']) {
+      this.setRequired(this.required);
+      this.stateChanges.next();
+      this.value = null;
+    }
+    if (changes['selected']) {
+      this.value = this.selected;
+    }
+  }
 
   private _value: any;
 
@@ -58,6 +70,10 @@ export class SelectComponent implements MatFormFieldControl<string>, ControlValu
     if (this.ngControl) {
       this.ngControl.valueAccessor = this;
     }
+  }
+
+  public setRequired(state: boolean): void {
+    this.required = state;
   }
 
   registerOnChange(fn: any): void {

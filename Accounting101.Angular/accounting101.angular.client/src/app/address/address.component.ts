@@ -1,10 +1,10 @@
-import { Component, inject, Input, OnInit } from '@angular/core';
+import { Component, EventEmitter, inject, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormControl, FormGroup, Validators, FormsModule, ReactiveFormsModule, ControlContainer, FormGroupDirective } from '@angular/forms';
 import { UsAddressModel } from '../../../Models/us-address.model';
 import { ForeignAddressModel } from '../../../Models/foreign-address.model';
 import { MatOptionModule } from '@angular/material/core';
-import { MatSelectChange, MatSelectModule } from '@angular/material/select';
+import { MatSelect, MatSelectChange, MatSelectModule } from '@angular/material/select';
 import { MatFormField, MatFormFieldControl, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { NgIf } from '@angular/common';
@@ -39,6 +39,11 @@ import { SelectComponent } from '../controls/select/select.component';
 export class AddressComponent implements OnInit {
   @Input() states: any[] = [];
   @Input() countries: any[] = [];
+  @Output() toggledEvent = new EventEmitter<void>();
+
+  stateRequired: boolean = false;
+  countryRequired: boolean = false;
+
   addressForm = new FormGroup({
     isForeign: new FormControl(false),
     line1: new FormControl('', Validators.required),
@@ -51,22 +56,17 @@ export class AddressComponent implements OnInit {
 
   ngOnInit(): void {
     this.addressForm = this.rootFormGroup.control.get('addressGroup') as FormGroup;
+    this.addressForm.valueChanges.subscribe(() => {
+      this.stateRequired = !this.addressForm.value.isForeign!;
+      this.countryRequired = this.addressForm.value.isForeign!;
+    });
   }
 
-  constructor(private rootFormGroup: FormGroupDirective) {
-    //console.log(this.rootFormGroup.control.value)
-  }
-
-  stateSelected(event: MatSelectChange<any>): void {
-    event.value && this.addressForm.patchValue({ state: event.value });
-  }
-
-  countrySelected(country: string): void {
-    this.addressForm.patchValue({ country });
-  }
+  constructor(private rootFormGroup: FormGroupDirective) {}
 
   toggleAddressForm(): void {
     this.addressForm.patchValue({ isForeign: !this.addressForm.value.isForeign });
+    this.toggledEvent.emit();
   }
 
   public getValue(): UsAddressModel | ForeignAddressModel {

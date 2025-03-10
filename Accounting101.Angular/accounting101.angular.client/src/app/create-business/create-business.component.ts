@@ -1,7 +1,7 @@
 import { Component, forwardRef } from '@angular/core';
 import { BusinessModel } from '../../../Models/business.model';
 import { BusinessManagerService } from '../../services/business-manager/business-manager.service';
-import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, RequiredValidator, Validators } from '@angular/forms';
 import { MatFormFieldControl, MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { AddressComponent } from '../address/address.component';
@@ -30,10 +30,11 @@ export class CreateBusinessComponent {
       line1: new FormControl('', Validators.required),
       line2: new FormControl(''),
       cityProvince: new FormControl('', Validators.required),
-      state: new FormControl('', Validators.required),
+      state: new FormControl(''),
       zipPostCode: new FormControl('', Validators.required),
-      country: new FormControl('', Validators.required)
-    })
+      country: new FormControl('')
+    },
+    { validators: [Validators.required] })
   });
 
   states: any[] = [];
@@ -44,6 +45,24 @@ export class CreateBusinessComponent {
     private readonly businessService: BusinessManagerService) {
       addressService.getStates().subscribe(states => this.states = states);
       addressService.getCountries().subscribe(countries => this.countries = countries);
+  }
+
+  setState(state: string) {
+    this.createBusinessForm.get('addressGroup.state')?.setValue(state);
+  }
+
+  setCountry(country: string) {
+    this.createBusinessForm.get('addressGroup.country')?.setValue(country);
+  }
+
+  handleToggled() {
+    const addressGroup = this.createBusinessForm.get('addressGroup');
+    if (addressGroup == null) {
+      console.log('Address group is null');
+      return;
+    }
+    addressGroup.get('state')?.setValue('');
+    addressGroup.get('country')?.setValue('');
   }
 
   onSubmit() {
@@ -75,7 +94,9 @@ export class CreateBusinessComponent {
           zip: addressGroup.zipPostCode ?? ''
         } as UsAddressModel;
       }
-      console.log(business);
+      this.businessService.createBusiness(business).subscribe(() => {
+        console.log('Business created successfully');
+      });
       return;
     }
     console.log('Form is invalid');

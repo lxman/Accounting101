@@ -23,6 +23,11 @@ export class BusinessManagerService {
       .pipe(catchError(this.handleError));
   }
 
+  createBusiness(business: BusinessModel): Observable<BusinessModel> {
+    return this.client.post<BusinessModel>(`${this.baseUrl}/business/${this.userManager.databaseId}`, business, { withCredentials: true })
+      .pipe(catchError(this.handleError));
+  }
+
   private handleError(error: any) {
     console.error(error);
     return throwError(() => error);
