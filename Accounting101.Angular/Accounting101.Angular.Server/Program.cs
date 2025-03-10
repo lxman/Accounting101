@@ -56,6 +56,9 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddScoped<RoleManager<ApplicationRole>>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<IBusinessService, BusinessService>();
+builder.Services.AddScoped<IClientService, ClientService>();
+builder.Services.AddScoped<IAddressService, AddressService>();
 
 WebApplication app = builder.Build();
 

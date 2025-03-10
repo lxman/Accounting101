@@ -1,6 +1,7 @@
 import { Address } from "./address.interface";
 
 export class AddressModel implements Address {
+  public id: string
   public isForeign: boolean;
   public line1: string;
   public line2: string;
@@ -10,6 +11,7 @@ export class AddressModel implements Address {
   public country: string;
 
   constructor() {
+    this.id = '';
     this.isForeign = false;
     this.line1 = '';
     this.line2 = '';

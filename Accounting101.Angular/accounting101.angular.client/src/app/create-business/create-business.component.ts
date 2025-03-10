@@ -76,6 +76,7 @@ export class CreateBusinessComponent {
       }
       if (addressGroup.isForeign) {
         business.address = {
+          id: '',
           isForeign: addressGroup.isForeign,
           line1: addressGroup.line1 ?? '',
           line2: addressGroup.line2 ?? '',

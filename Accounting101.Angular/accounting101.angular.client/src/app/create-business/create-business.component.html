@@ -3,6 +3,10 @@
     <mat-label>Business Name</mat-label>
     <input matInput formControlName="name" />
   </mat-form-field>
-  <address-component [states]="states" [countries]="countries" (toggledEvent)="handleToggled()" />
+  <address-component
+  [groupName]="'addressGroup'"
+    [states]="states"
+    [countries]="countries"
+    (toggledEvent)="handleToggled()" />
   <button mat-raised-button type="submit">Submit</button>
 </form>

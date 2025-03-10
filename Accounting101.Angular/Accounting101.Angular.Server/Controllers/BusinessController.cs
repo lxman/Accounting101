@@ -33,4 +33,11 @@ public class BusinessController(
             ? Ok()
             : BadRequest("Failed to create business");
     }
+
+    [HttpDelete("{dbId:guid}")]
+    public async Task<IActionResult> DeleteBusinessAsync(Guid dbId)
+    {
+        await dataStore.DropDatabaseAsync(dbId.ToString());
+        return Ok();
+    }
 }

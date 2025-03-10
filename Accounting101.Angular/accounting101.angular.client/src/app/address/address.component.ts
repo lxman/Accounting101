@@ -1,10 +1,10 @@
 import { Component, EventEmitter, inject, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormControl, FormGroup, Validators, FormsModule, ReactiveFormsModule, ControlContainer, FormGroupDirective } from '@angular/forms';
+import { FormGroup, FormsModule, ReactiveFormsModule, ControlContainer, FormGroupDirective } from '@angular/forms';
 import { UsAddressModel } from '../../../Models/us-address.model';
 import { ForeignAddressModel } from '../../../Models/foreign-address.model';
 import { MatOptionModule } from '@angular/material/core';
-import { MatSelect, MatSelectChange, MatSelectModule } from '@angular/material/select';
+import { MatSelectModule } from '@angular/material/select';
 import { MatFormField, MatFormFieldControl, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { NgIf } from '@angular/common';
@@ -39,23 +39,16 @@ import { SelectComponent } from '../controls/select/select.component';
 export class AddressComponent implements OnInit {
   @Input() states: any[] = [];
   @Input() countries: any[] = [];
+  @Input() groupName: string = '';
   @Output() toggledEvent = new EventEmitter<void>();
+
+  addressForm: FormGroup = new FormGroup({});
 
   stateRequired: boolean = false;
   countryRequired: boolean = false;
 
-  addressForm = new FormGroup({
-    isForeign: new FormControl(false),
-    line1: new FormControl('', Validators.required),
-    line2: new FormControl(''),
-    cityProvince: new FormControl('', Validators.required),
-    state: new FormControl('', Validators.required),
-    zipPostCode: new FormControl('', Validators.required),
-    country: new FormControl('', Validators.required)
-  });
-
   ngOnInit(): void {
-    this.addressForm = this.rootFormGroup.control.get('addressGroup') as FormGroup;
+    this.addressForm = this.rootFormGroup.control.get(this.groupName) as FormGroup;
     this.addressForm.valueChanges.subscribe(() => {
       this.stateRequired = !this.addressForm.value.isForeign!;
       this.countryRequired = this.addressForm.value.isForeign!;

@@ -1,20 +1,16 @@
 import { PersonNameModel } from "./person-name.model";
 import { Address } from "./address.interface";
+import { UsAddressModel } from "./us-address.model";
+import { ForeignAddressModel } from "./foreign-address.model";
 
-export class ClientModel implements Address {
+export class ClientModel {
   id: string;
   businessName: string;
   contactName: PersonNameModel | null = null;
-  isForeign: boolean = false;
-  line1: string;
-  line2: string | undefined;
+  address: UsAddressModel | ForeignAddressModel | null = null;
 
   constructor(address: Address | null = null) {
     this.id = '';
     this.businessName = '';
-    this.contactName = new PersonNameModel();
-    this.isForeign = address?.isForeign ?? false;
-    this.line1 = address?.line1 ?? '';
-    this.line2 = address?.line2;
   }
 }
