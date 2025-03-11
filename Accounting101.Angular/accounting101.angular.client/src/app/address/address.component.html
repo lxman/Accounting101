@@ -1,12 +1,5 @@
 <form [formGroup]="addressForm">
-  <button mat-raised-button (click)="toggleAddressForm()">
-    @if (addressForm.get('isForeign')!.value) {
-      Domestic Address
-    }
-    @else {
-      Foreign Address
-    }
-  </button><br />
+  <mat-checkbox (click)="toggleAddressForm()">Foreign</mat-checkbox><br />
   <mat-form-field>
     <mat-label>Line 1</mat-label>
     <input matInput formControlName="line1" />

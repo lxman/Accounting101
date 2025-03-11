@@ -1,13 +1,15 @@
 import { Component, forwardRef } from '@angular/core';
 import { BusinessModel } from '../../../Models/business.model';
 import { BusinessManagerService } from '../../services/business-manager/business-manager.service';
-import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, RequiredValidator, Validators } from '@angular/forms';
+import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldControl, MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { AddressComponent } from '../address/address.component';
 import { AddressManagerService } from '../../services/address-manager/address-manager.service';
 import { ForeignAddressModel } from '../../../Models/foreign-address.model';
 import { UsAddressModel } from '../../../Models/us-address.model';
+import { MatButtonModule } from '@angular/material/button';
+import { Router } from '@angular/router';
 
 @Component({
     selector: 'app-create-business',
@@ -19,6 +21,7 @@ import { UsAddressModel } from '../../../Models/us-address.model';
     ReactiveFormsModule,
     MatFormFieldModule,
     MatInputModule,
+    MatButtonModule,
     forwardRef(() => AddressComponent)]
 })
 
@@ -42,7 +45,8 @@ export class CreateBusinessComponent {
 
   constructor(
     private readonly addressService: AddressManagerService,
-    private readonly businessService: BusinessManagerService) {
+    private readonly businessService: BusinessManagerService,
+    private readonly router: Router) {
       addressService.getStates().subscribe(states => this.states = states);
       addressService.getCountries().subscribe(countries => this.countries = countries);
   }
@@ -95,8 +99,13 @@ export class CreateBusinessComponent {
           zip: addressGroup.zipPostCode ?? ''
         } as UsAddressModel;
       }
-      this.businessService.createBusiness(business).subscribe(() => {
-        console.log('Business created successfully');
+      this.businessService.createBusiness(business).subscribe({
+        complete: () => {
+          this.router.navigate(['/create-client']);
+        },
+        error: (error) => {
+          console.error(error);
+        }
       });
       return;
     }

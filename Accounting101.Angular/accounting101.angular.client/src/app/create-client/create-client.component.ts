@@ -1,18 +1,35 @@
-import { Component } from '@angular/core';
+import { Component, forwardRef } from '@angular/core';
+import { ClientManagerService } from '../../services/client-manager/client-manager.service';
+import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
+import { MatFormFieldControl, MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
+import { MatButtonModule } from '@angular/material/button';
 import { ClientModel } from '../../../Models/client.model';
+import { PersonNameComponent } from "../controls/person-name/person-name.component";
 import { PersonNameModel } from '../../../Models/person-name.model';
-import { FormControl, FormGroup, Validators } from '@angular/forms';
+import { AddressComponent } from "../address/address.component";
+import { AddressManagerService } from '../../services/address-manager/address-manager.service';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-create-client',
-  standalone: false,
   templateUrl: './create-client.component.html',
-  styleUrl: './create-client.component.scss'
+  styleUrl: './create-client.component.scss',
+  imports: [
+    ReactiveFormsModule,
+    FormsModule,
+    MatFormFieldModule,
+    MatInputModule,
+    MatButtonModule,
+    forwardRef(() => AddressComponent),
+    forwardRef(() => PersonNameComponent)],
+  providers: [{ provide: MatFormFieldControl, useExisting: CreateClientComponent }]
 })
+
 export class CreateClientComponent {
   createClientForm = new FormGroup({
     businessName: new FormControl('', Validators.required),
-    personNameGroup: new FormGroup({
+    contactGroup: new FormGroup({
       prefix: new FormControl(''),
       first: new FormControl('', Validators.required),
       middle: new FormControl(''),
@@ -30,4 +47,24 @@ export class CreateClientComponent {
     },
     { validators: [Validators.required] })
   });
+
+  states: any[] = [];
+  countries: any[] = [];
+
+  constructor(
+    private readonly addressService: AddressManagerService,
+    private readonly clientService: ClientManagerService) {
+    addressService.getStates().subscribe((states) => this.states = states);
+    addressService.getCountries().subscribe((countries) => this.countries = countries);
+  }
+
+  handleToggled() {
+    const addressGroup = this.createClientForm.get('addressGroup');
+    if (addressGroup == null) {
+      console.log('Address group is null');
+      return;
+    }
+    addressGroup.get('state')?.setValue('');
+    addressGroup.get('country')?.setValue('');
+  }
 }

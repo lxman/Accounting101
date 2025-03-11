@@ -1,15 +1,27 @@
-import { Component, Input, OnDestroy, OnInit } from '@angular/core';
+import { Component, inject, Input, OnDestroy, OnInit } from '@angular/core';
 import { PersonNameModel } from '../../../../Models/person-name.model';
 import { MatFormFieldControl, MatFormField, MatLabel } from '@angular/material/form-field';
 import { Subject } from 'rxjs';
-import { NgControl, AbstractControlDirective, FormGroup, FormControl, Validators, ControlValueAccessor, FormGroupDirective } from '@angular/forms';
+import { NgControl, AbstractControlDirective, FormGroup, ControlValueAccessor, FormGroupDirective, ControlContainer } from '@angular/forms';
 import { ReactiveFormsModule } from '@angular/forms';
+import { MatInputModule } from '@angular/material/input';
 
 @Component({
   selector: 'person-name-component',
   templateUrl: './person-name.component.html',
   styleUrl: './person-name.component.scss',
-  imports: [ReactiveFormsModule, MatFormField, MatLabel]
+  imports: [
+    ReactiveFormsModule,
+    MatFormField,
+    MatLabel,
+    MatInputModule],
+  providers: [{ provide: MatFormFieldControl, useExisting: PersonNameComponent }],
+  viewProviders: [
+    {
+      provide: ControlContainer,
+      useFactory: () => inject(ControlContainer, {skipSelf: true})
+    }
+  ]
 })
 export class PersonNameComponent implements MatFormFieldControl<PersonNameModel>, ControlValueAccessor, OnDestroy, OnInit {
   @Input() show: boolean = false;
@@ -35,9 +47,6 @@ export class PersonNameComponent implements MatFormFieldControl<PersonNameModel>
 
   ngOnInit(): void {
     this.personNameForm = this.rootFormGroup.control.get(this.groupName) as FormGroup;
-    this.personNameForm.valueChanges.subscribe(() => {
-      this.errorState = this.personNameForm.invalid;
-    });
   }
 
   private _value: PersonNameModel = new PersonNameModel();
@@ -89,10 +98,6 @@ export class PersonNameComponent implements MatFormFieldControl<PersonNameModel>
   }
 
   onTouched: () => void = () => {};
-
-  getValue(): PersonNameModel {
-    return this.personNameForm.value;
-  }
 
   ngOnDestroy(): void {
     this.stateChanges.complete();

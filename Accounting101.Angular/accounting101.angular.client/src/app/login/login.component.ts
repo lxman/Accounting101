@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { LoginModel } from '../../../Models/login.model';
 import { UserManagerService } from '../../services/user-manager/user-manager.service';
+import { UserDataService } from '../../services/user-data/user-data.service';
 import { BusinessManagerService } from '../../services/business-manager/business-manager.service';
 import { ClientManagerService } from '../../services/client-manager/client-manager.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -28,6 +29,7 @@ export class LoginComponent {
 
   constructor(
     private readonly userManager: UserManagerService,
+    private readonly userData: UserDataService,
     private readonly businessManager: BusinessManagerService,
     private readonly clientManager: ClientManagerService,
     private readonly toastService: MatSnackBar,
@@ -47,7 +49,7 @@ export class LoginComponent {
           verticalPosition: 'top',
           horizontalPosition: 'center'
         });
-        this.userManager.databaseId = databaseId.toString();
+        this.userData.set('userId', databaseId.toString());
         this.businessManager.businessExists().subscribe({
           next: (exists) => {
             if (!exists) {
