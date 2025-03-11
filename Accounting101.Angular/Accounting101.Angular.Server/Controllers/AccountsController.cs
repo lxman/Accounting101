@@ -17,4 +17,11 @@ public class AccountsController(IDataStore dataStore, ILogger<AccountsController
         bool exist = (await dataStore.AccountsForClientAsync(dbId.ToString(), clientId) ?? Array.Empty<AccountWithInfo>()).Any();
         return Ok(exist);
     }
+
+    [HttpPost("{dbId:guid}/{clientId:guid}")]
+    public async Task<IActionResult> CreateAccountAsync(Guid dbId, Guid clientId, AccountWithInfo account)
+    {
+        account.Id = await dataStore.CreateAccountAsync(dbId.ToString(), account);
+        return Ok(account.Id);
+    }
 }
