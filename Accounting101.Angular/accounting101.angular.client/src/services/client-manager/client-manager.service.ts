@@ -4,6 +4,7 @@ import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { UserDataService } from '../user-data/user-data.service';
 import { ClientModel } from '../../../Models/client.model';
+import { CreateClientModel } from '../../../Models/create-client.model';
 
 @Injectable({
   providedIn: 'root'
@@ -22,6 +23,11 @@ export class ClientManagerService {
 
   getClients(): Observable<ClientModel[]> {
     return this.client.get<ClientModel[]>(`${this.baseUrl}/clients/${this.userData.get('userId')}`, { withCredentials: true })
+      .pipe(catchError(this.handleError));
+  }
+
+  createClient(clientModel: CreateClientModel): Observable<CreateClientModel> {
+    return this.client.post<CreateClientModel>(`${this.baseUrl}/clients/${this.userData.get('userId')}`, clientModel, { withCredentials: true })
       .pipe(catchError(this.handleError));
   }
 

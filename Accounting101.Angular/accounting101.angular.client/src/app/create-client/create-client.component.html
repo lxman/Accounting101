@@ -1,4 +1,4 @@
-<form [formGroup]="createClientForm">
+<form [formGroup]="createClientForm" (ngSubmit)="onSubmit()">
   <mat-form-field>
     <mat-label>Business Name</mat-label>
     <input matInput formControlName="businessName" />
@@ -12,4 +12,7 @@
     [states]="states"
     [countries]="countries"
     (toggledEvent)="handleToggled()" />
+  <button
+    type="submit"
+    mat-raised-button>Create Client</button>
 </form>

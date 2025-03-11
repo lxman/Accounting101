@@ -7,7 +7,7 @@ export class PersonNameModel {
     public suffix: string;
 
     constructor() {
-        this.id = '';
+        this.id = '00000000-0000-0000-0000-000000000000';
         this.prefix = '';
         this.first = '';
         this.middle = '';

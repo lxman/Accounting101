@@ -1,5 +1,4 @@
 import { Component, forwardRef } from '@angular/core';
-import { ClientManagerService } from '../../services/client-manager/client-manager.service';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldControl, MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -9,7 +8,12 @@ import { PersonNameComponent } from "../controls/person-name/person-name.compone
 import { PersonNameModel } from '../../../Models/person-name.model';
 import { AddressComponent } from "../address/address.component";
 import { AddressManagerService } from '../../services/address-manager/address-manager.service';
+import { PersonNameManagerService } from '../../services/person-name/person-name-manager.service';
+import { ClientManagerService } from '../../services/client-manager/client-manager.service';
 import { Router } from '@angular/router';
+import { AddressModel } from '../../../Models/address.model';
+import { CreateClientModel } from '../../../Models/create-client.model';
+import { switchMap, tap } from 'rxjs';
 
 @Component({
   selector: 'app-create-client',
@@ -48,11 +52,14 @@ export class CreateClientComponent {
     { validators: [Validators.required] })
   });
 
+  router: Router = new Router();
+
   states: any[] = [];
   countries: any[] = [];
 
   constructor(
     private readonly addressService: AddressManagerService,
+    private readonly personNameService: PersonNameManagerService,
     private readonly clientService: ClientManagerService) {
     addressService.getStates().subscribe((states) => this.states = states);
     addressService.getCountries().subscribe((countries) => this.countries = countries);
@@ -66,5 +73,43 @@ export class CreateClientComponent {
     }
     addressGroup.get('state')?.setValue('');
     addressGroup.get('country')?.setValue('');
+  }
+
+  onSubmit() {
+    const businessName = this.createClientForm.get('businessName')?.value;
+    const contactGroup = this.createClientForm.get('contactGroup');
+    const addressGroup = this.createClientForm.get('addressGroup');
+    if (contactGroup == null || addressGroup == null) {
+      console.log('Contact or address group is null');
+      return;
+    }
+    const contact = new PersonNameModel();
+    contact.prefix = contactGroup.get('prefix')?.value ?? '';
+    contact.first = contactGroup.get('first')?.value ?? '';
+    contact.middle = contactGroup.get('middle')?.value ?? '';
+    contact.last = contactGroup.get('last')?.value ?? '';
+    contact.suffix = contactGroup.get('suffix')?.value ?? '';
+    const address = new AddressModel();
+    address.isForeign = addressGroup.get('isForeign')?.value ?? false;
+    address.line1 = addressGroup.get('line1')?.value ?? '';
+    address.line2 = addressGroup.get('line2')?.value ?? '';
+    address.city = addressGroup.get('cityProvince')?.value ?? '';
+    address.stateProvince = addressGroup.get('state')?.value ?? '';
+    address.postalCode = addressGroup.get('zipPostCode')?.value ?? '';
+    address.country = addressGroup.get('country')?.value ?? '';
+    const client = new ClientModel(businessName ?? '', contact, address);
+    this.personNameService.createPersonName(contact).pipe(
+      tap((personName) => client.contactName.id = personName.id),
+      switchMap(() => this.addressService.createAddress(address)),
+      tap((addressId) => client.address.id = addressId),
+      switchMap(() => this.clientService.createClient(new CreateClientModel(client.businessName, client.contactName.id, client.address.id)))
+    ).subscribe({
+      next: () => {
+        this.router.navigate(['/client-selector']);
+      },
+      error: (error) => {
+        console.error(error);
+      }
+    });
   }
 }
