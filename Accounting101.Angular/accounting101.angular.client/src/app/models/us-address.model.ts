@@ -21,7 +21,7 @@ export class UsAddressModel implements Address {
     this.country = 'US';
   }
 
-  public getString(): string {
+  public get asString(): string {
     const parts: string[] = [];
     if (this.line1) parts.push(this.line1);
     if (this.line2) parts.push(this.line2);

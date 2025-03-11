@@ -19,7 +19,7 @@ export class ForeignAddressModel implements Address {
     this.country = country;
   }
 
-  public getString(): string {
+  public get asString(): string {
     const parts: string[] = [];
     if (this.line1) parts.push(this.line1);
     if (this.line2) parts.push(this.line2);

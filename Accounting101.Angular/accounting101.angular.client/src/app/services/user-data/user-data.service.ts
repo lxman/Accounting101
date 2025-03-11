@@ -5,13 +5,20 @@ import { Injectable } from '@angular/core';
 })
 
 export class UserDataService {
-  private userData: Map<string, string> = new Map<string, string>();
 
   get(key: string): string {
-    return this.userData.get(key) ?? '';
+    return sessionStorage.getItem(key) ?? '';
   }
 
   set(key: string, value: string): void {
-    this.userData.set(key, value);
+    sessionStorage.setItem(key, value);
+  }
+
+  removeKey(key: string): void {
+    sessionStorage.removeItem(key);
+  }
+
+  clearData(): void {
+    sessionStorage.clear();
   }
 }

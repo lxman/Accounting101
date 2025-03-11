@@ -49,7 +49,7 @@ export class LoginComponent {
           verticalPosition: 'top',
           horizontalPosition: 'center'
         });
-        this.userData.set('userId', databaseId.toString());
+        this.userData.set('key1', databaseId.toString());
         this.businessManager.businessExists().subscribe({
           next: (exists) => {
             if (!exists) {

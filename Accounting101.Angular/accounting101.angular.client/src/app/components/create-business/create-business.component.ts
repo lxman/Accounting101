@@ -87,7 +87,8 @@ export class CreateBusinessComponent {
           cityProvince: addressGroup.cityProvince ?? '',
           province: addressGroup.cityProvince ?? '',
           postCode: addressGroup.zipPostCode ?? '',
-          country: addressGroup.country ?? ''
+          country: addressGroup.country ?? '',
+          asString: ''
         } as ForeignAddressModel;
       } else {
         business.address = {
@@ -96,7 +97,8 @@ export class CreateBusinessComponent {
           line2: addressGroup.line2 ?? '',
           city: addressGroup.cityProvince ?? '',
           state: addressGroup.state ?? '',
-          zip: addressGroup.zipPostCode ?? ''
+          zip: addressGroup.zipPostCode ?? '',
+          asString: ''
         } as UsAddressModel;
       }
       this.businessService.createBusiness(business).subscribe({

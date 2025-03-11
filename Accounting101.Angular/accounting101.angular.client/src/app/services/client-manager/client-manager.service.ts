@@ -17,17 +17,17 @@ export class ClientManagerService {
     private userData: UserDataService) {}
 
   getClientsExist(): Observable<boolean> {
-    return this.client.get<boolean>(`${this.baseUrl}/clients/exist/${this.userData.get('userId')}`, { withCredentials: true })
+    return this.client.get<boolean>(`${this.baseUrl}/clients/exist/${this.userData.get('key1')}`, { withCredentials: true })
       .pipe(catchError(this.handleError));
   }
 
   getClients(): Observable<ClientModel[]> {
-    return this.client.get<ClientModel[]>(`${this.baseUrl}/clients/${this.userData.get('userId')}`, { withCredentials: true })
+    return this.client.get<ClientModel[]>(`${this.baseUrl}/clients/${this.userData.get('key1')}`, { withCredentials: true })
       .pipe(catchError(this.handleError));
   }
 
   createClient(clientModel: CreateClientModel): Observable<CreateClientModel> {
-    return this.client.post<CreateClientModel>(`${this.baseUrl}/clients/${this.userData.get('userId')}`, clientModel, { withCredentials: true })
+    return this.client.post<CreateClientModel>(`${this.baseUrl}/clients/${this.userData.get('key1')}`, clientModel, { withCredentials: true })
       .pipe(catchError(this.handleError));
   }
 

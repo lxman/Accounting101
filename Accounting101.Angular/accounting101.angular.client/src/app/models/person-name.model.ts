@@ -15,7 +15,7 @@ export class PersonNameModel {
         this.suffix = '';
     }
 
-    public get fullName(): string {
+    public get asString(): string {
       const parts: string[] = [];
       if (this.prefix) parts.push(this.prefix);
       if (this.first) parts.push(this.first);

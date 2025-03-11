@@ -1,5 +1,4 @@
 import { PersonNameModel } from "./person-name.model";
-import { Address } from "./address.interface";
 import { UsAddressModel } from "./us-address.model";
 import { ForeignAddressModel } from "./foreign-address.model";
 import { AddressModel } from "./address.model";

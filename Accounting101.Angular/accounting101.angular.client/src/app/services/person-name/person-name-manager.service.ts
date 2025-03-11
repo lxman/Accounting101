@@ -16,7 +16,7 @@ export class PersonNameManagerService {
     private userData: UserDataService) {}
 
   createPersonName(personNameModel: PersonNameModel): Observable<PersonNameModel> {
-    return this.client.post<PersonNameModel>(`${this.baseUrl}/person-name/${this.userData.get('userId')}`, personNameModel, { withCredentials: true })
+    return this.client.post<PersonNameModel>(`${this.baseUrl}/person-name/${this.userData.get('key1')}`, personNameModel, { withCredentials: true })
       .pipe(catchError(this.handleError));
   }
 

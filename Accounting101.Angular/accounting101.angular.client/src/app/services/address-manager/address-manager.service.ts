@@ -25,7 +25,7 @@ export class AddressManagerService {
   }
 
   createAddress(address: any): Observable<string> {
-    return this.http.post<any>(`${this.baseUrl}/address/${this.userData.get('userId')}`, address, { withCredentials: true })
+    return this.http.post<any>(`${this.baseUrl}/address/${this.userData.get('key1')}`, address, { withCredentials: true })
       .pipe(catchError(this.handleError));
   }
 
