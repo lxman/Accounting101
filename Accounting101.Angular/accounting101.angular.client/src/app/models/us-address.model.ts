@@ -20,4 +20,14 @@ export class UsAddressModel implements Address {
     this.zip = zip;
     this.country = 'US';
   }
+
+  public getString(): string {
+    const parts: string[] = [];
+    if (this.line1) parts.push(this.line1);
+    if (this.line2) parts.push(this.line2);
+    if (this.city) parts.push(this.city);
+    if (this.state) parts.push(this.state);
+    if (this.zip) parts.push(this.zip);
+    return parts.join(', ');
+  }
 }

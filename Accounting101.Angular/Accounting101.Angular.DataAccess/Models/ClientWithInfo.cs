@@ -3,6 +3,7 @@ using Accounting101.Angular.DataAccess.Extensions;
 using Accounting101.Angular.DataAccess.Interfaces;
 using Accounting101.Angular.DataAccess.Services.Interfaces;
 using Microsoft.VisualStudio.Threading;
+using MongoDB.Bson.Serialization.Attributes;
 
 #pragma warning disable VSTHRD002
 
@@ -12,7 +13,32 @@ public class ClientWithInfo : Client
 {
     public PersonName? ContactName { get; set; }
 
-    public IAddress? Address { get; set; }
+    public IAddress? Address
+    {
+        get => _address;
+        set
+        {
+            if (_address == value) return;
+            _address = value;
+            switch (value)
+            {
+                case UsAddress usAddress:
+                    UsAddress = usAddress;
+                    break;
+                case ForeignAddress foreignAddress:
+                    ForeignAddress = foreignAddress;
+                    break;
+            }
+        }
+    }
+
+    [BsonIgnore]
+    public UsAddress? UsAddress { get; set; }
+
+    [BsonIgnore]
+    public ForeignAddress? ForeignAddress { get; set; }
+
+    private IAddress? _address;
 
     public ClientWithInfo()
     {

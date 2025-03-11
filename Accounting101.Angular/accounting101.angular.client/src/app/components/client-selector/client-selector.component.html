@@ -1,1 +1,20 @@
-<p>client-selector works!</p>
+@for (client of clients; track $index) {
+  <mat-card>
+      <mat-card-header>
+          <mat-card-title>Client</mat-card-title>
+          <mat-card-subtitle>{{ client.businessName }}</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+          {{ client.contactName.fullName }}
+          @if (client.usAddress !== null) {
+              {{ client.usAddress.getString() }}
+          }
+          @else {
+              {{ client.foreignAddress?.getString() }}
+          }
+      </mat-card-content>
+      <mat-card-actions>
+          <button mat-button (click)="clientSelected(client.id)">Select</button>
+      </mat-card-actions>
+  </mat-card>
+}

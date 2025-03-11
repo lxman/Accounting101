@@ -18,4 +18,14 @@ export class ForeignAddressModel implements Address {
     this.postCode = postCode;
     this.country = country;
   }
+
+  public getString(): string {
+    const parts: string[] = [];
+    if (this.line1) parts.push(this.line1);
+    if (this.line2) parts.push(this.line2);
+    if (this.province) parts.push(this.province);
+    if (this.postCode) parts.push(this.postCode);
+    if (this.country) parts.push(this.country);
+    return parts.join(', ');
+  }
 }
