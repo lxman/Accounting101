@@ -1,5 +1,5 @@
 import { Component } from '@angular/core';
-import { CreateUserModel } from '../../../Models/create-user.model';
+import { CreateUserModel } from '../../models/create-user.model';
 import { UserManagerService } from '../../services/user-manager/user-manager.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { FormGroup, FormControl, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';

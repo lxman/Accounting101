@@ -1,5 +1,5 @@
 import { Component, inject, Input, OnDestroy, OnInit } from '@angular/core';
-import { PersonNameModel } from '../../../../Models/person-name.model';
+import { PersonNameModel } from '../../models/person-name.model';
 import { MatFormFieldControl, MatFormField, MatLabel } from '@angular/material/form-field';
 import { Subject } from 'rxjs';
 import { NgControl, AbstractControlDirective, FormGroup, ControlValueAccessor, FormGroupDirective, ControlContainer } from '@angular/forms';

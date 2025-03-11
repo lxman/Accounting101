@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { BusinessModel } from '../../../Models/business.model';
+import { BusinessModel } from '../../models/business.model';
 import { UserDataService } from '../user-data/user-data.service';
 
 @Injectable({

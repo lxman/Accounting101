@@ -1,13 +1,13 @@
 import { Component, forwardRef } from '@angular/core';
-import { BusinessModel } from '../../../Models/business.model';
+import { BusinessModel } from '../../models/business.model';
 import { BusinessManagerService } from '../../services/business-manager/business-manager.service';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldControl, MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
-import { AddressComponent } from '../address/address.component';
+import { AddressComponent } from '../../controls/address/address.component';
 import { AddressManagerService } from '../../services/address-manager/address-manager.service';
-import { ForeignAddressModel } from '../../../Models/foreign-address.model';
-import { UsAddressModel } from '../../../Models/us-address.model';
+import { ForeignAddressModel } from '../../models/foreign-address.model';
+import { UsAddressModel } from '../../models/us-address.model';
 import { MatButtonModule } from '@angular/material/button';
 import { Router } from '@angular/router';
 

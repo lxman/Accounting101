@@ -3,16 +3,16 @@ import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } 
 import { MatFormFieldControl, MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
-import { ClientModel } from '../../../Models/client.model';
-import { PersonNameComponent } from "../controls/person-name/person-name.component";
-import { PersonNameModel } from '../../../Models/person-name.model';
-import { AddressComponent } from "../address/address.component";
+import { ClientModel } from '../../models/client.model';
+import { PersonNameComponent } from "../../controls/person-name/person-name.component";
+import { PersonNameModel } from '../../models/person-name.model';
+import { AddressComponent } from "../../controls/address/address.component";
 import { AddressManagerService } from '../../services/address-manager/address-manager.service';
 import { PersonNameManagerService } from '../../services/person-name/person-name-manager.service';
 import { ClientManagerService } from '../../services/client-manager/client-manager.service';
 import { Router } from '@angular/router';
-import { AddressModel } from '../../../Models/address.model';
-import { CreateClientModel } from '../../../Models/create-client.model';
+import { AddressModel } from '../../models/address.model';
+import { CreateClientModel } from '../../models/create-client.model';
 import { switchMap, tap } from 'rxjs';
 
 @Component({

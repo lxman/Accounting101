@@ -1,15 +1,15 @@
 import { Component, EventEmitter, inject, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormGroup, FormsModule, ReactiveFormsModule, ControlContainer, FormGroupDirective } from '@angular/forms';
-import { UsAddressModel } from '../../../Models/us-address.model';
-import { ForeignAddressModel } from '../../../Models/foreign-address.model';
+import { UsAddressModel } from '../../models/us-address.model';
+import { ForeignAddressModel } from '../../models/foreign-address.model';
 import { MatOptionModule } from '@angular/material/core';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormField, MatFormFieldControl, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { NgIf } from '@angular/common';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { SelectComponent } from '../controls/select/select.component';
+import { SelectComponent } from '../select/select.component';
 
 @Component({
     selector: 'address-component',
