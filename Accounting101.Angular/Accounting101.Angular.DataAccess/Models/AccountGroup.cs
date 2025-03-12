@@ -1,11 +1,13 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
-namespace Accounting101.Angular.DataAccess.Models
+namespace Accounting101.Angular.DataAccess.Models;
+
+public class AccountGroup
 {
-    class AccountGroup
-    {
-        public List<AccountGroup> Groups { get; set; } = [];
+    public Guid Id { get; set; } = Guid.NewGuid();
 
-        public List<Account> Accounts { get; set; } = [];
-    }
+    public List<AccountGroup> Groups { get; set; } = [];
+
+    public List<Guid> Accounts { get; set; } = [];
 }

@@ -13,11 +13,8 @@ public static class CreateCoA
         switch (type)
         {
             case AvailableCoAs.SmallBusiness:
-                ChartOfAccounts accts = SmallBusiness.CreateCoA(c);
-                foreach (AccountWithInfo a in accts.Accounts)
-                {
-                    await dataStore.CreateAccountAsync(dbName, a);
-                }
+                AccountGroups.RootGroup group = await dataStore.GetRootGroupAsync(dbName, c.Id);
+                await SmallBusiness.CreateCoAAsync(dataStore, dbName, c, group);
                 dataStore.NotifyChange(typeof(Accounts), ChangeType.Created);
                 break;
 

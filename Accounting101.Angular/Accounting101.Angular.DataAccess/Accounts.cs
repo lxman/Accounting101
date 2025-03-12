@@ -22,6 +22,7 @@ public static class Accounts
 
         acct.InfoId = info.Id;
         await store.CreateOneAsync(dbName, acct);
+        await AddToGroupAsync(store, dbName, acct.ClientId, acct);
         store.NotifyChange(typeof(Account), ChangeType.Created);
         return acct.Id;
     }
@@ -37,18 +38,20 @@ public static class Accounts
         acct.Info.Id = acct.Id;
         acct.InfoId = acct.Id;
         await store.CreateOneAsync(dbName, acct);
+        await AddToGroupAsync(store, dbName, acct.ClientId, acct);
         store.NotifyChange(typeof(Account), ChangeType.Created);
         return acct.Id;
     }
 
     public static async Task BulkInsertAccountsAsync(this IDataStore store, string dbName, List<AccountWithInfo> accts)
     {
-        IMongoCollection<AccountInfo>? infos = store.GetCollection<AccountInfo>(dbName, CollectionNames.AccountInfo);
-        accts.ForEach(a =>
+        IMongoCollection<AccountInfo> infos = store.GetCollection<AccountInfo>(dbName, CollectionNames.AccountInfo)!;
+        foreach (AccountWithInfo awi in accts)
         {
-            infos?.InsertOne(a.Info);
-            a.InfoId = a.Info.Id;
-        });
+            await infos.InsertOneAsync(awi.Info);
+            awi.InfoId = awi.Id;
+            await AddToGroupAsync(store, dbName, awi.ClientId, awi);
+        }
         await store.GetCollection<Account>(dbName, CollectionNames.Account)?.InsertManyAsync(accts.Select(a => new Account(a)))!;
         store.NotifyChange(typeof(Accounts), ChangeType.Created);
     }
@@ -179,5 +182,30 @@ public static class Accounts
         }
         store.NotifyChange(typeof(Account), ChangeType.Deleted);
         return result.Value;
+    }
+
+    private static async Task AddToGroupAsync(IDataStore dataStore, string dbName, Guid clientId, Account a)
+    {
+        AccountGroups.RootGroup group = await dataStore.GetRootGroupAsync(dbName, clientId);
+        switch (a.Type.ToString())
+        {
+            case "Asset":
+                group.Assets.Accounts.Add(a.Id);
+                break;
+            case "Liability":
+                group.Liabilities.Accounts.Add(a.Id);
+                break;
+            case "Equity":
+                group.Equity.Accounts.Add(a.Id);
+                break;
+            case "Revenue":
+                group.Revenue.Accounts.Add(a.Id);
+                break;
+            case "Expense":
+                group.Expenses.Accounts.Add(a.Id);
+                break;
+        }
+
+        await dataStore.SaveRootGroupAsync(dbName, clientId, group);
     }
 }
