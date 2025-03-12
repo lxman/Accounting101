@@ -23,7 +23,6 @@ export class ClientSelectorComponent {
   public clients = toSignal(this.clientService.getClients(), { initialValue: [] });
 
   clientSelected(clientId: string) {
-    console.log('Client selected is: ', clientId);
     this.userDataService.set(this.globals.clientIdKey, clientId);
     this.accountsService.accountsExist()
       .subscribe((exists) => {
