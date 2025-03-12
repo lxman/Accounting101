@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CreateUserModel } from '../../models/create-user.model';
 import { UserManagerService } from '../../services/user-manager/user-manager.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -18,6 +18,9 @@ import { MatButton } from '@angular/material/button';
 })
 
 export class RegisterUserComponent {
+  private readonly userManager: UserManagerService = inject(UserManagerService);
+  private readonly toastService: MatSnackBar = inject(MatSnackBar);
+
   registerForm = new FormGroup({
     firstName: new FormControl('', Validators.required),
     lastName: new FormControl('', Validators.required),
@@ -28,9 +31,6 @@ export class RegisterUserComponent {
   });
   f = this.registerForm.controls;
   submitted = false;
-
-  constructor(private readonly userManager: UserManagerService, private readonly toastService: MatSnackBar
-  ) {}
 
   onSubmit() {
     const user = new CreateUserModel();

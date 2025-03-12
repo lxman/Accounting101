@@ -1,8 +1,9 @@
 import { AccountInfoModel } from "./account-info.model";
+import { BaseAccountType } from "../enums/base-account-types.enum";
 
 export class AccountModel {
   id: string = '00000000-0000-0000-0000-000000000000';
-  type: string = '';
+  type: BaseAccountType = BaseAccountType.asset;
   clientId: string = '00000000-0000-0000-0000-000000000000';
   infoId: string = '00000000-0000-0000-0000-000000000000';
   startBalance: number = 0;

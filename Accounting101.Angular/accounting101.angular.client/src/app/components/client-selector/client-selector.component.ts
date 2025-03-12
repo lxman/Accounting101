@@ -5,6 +5,7 @@ import { MatCardModule } from '@angular/material/card';
 import { AccountsManagerService } from '../../services/accounts-manager/accounts-manager.service';
 import { ClientManagerService } from '../../services/client-manager/client-manager.service';
 import { UserDataService } from '../../services/user-data/user-data.service';
+import { GlobalConstantsService } from '../../services/global-constants/global-constants.service';
 
 @Component({
   selector: 'app-client-selector',
@@ -18,12 +19,13 @@ export class ClientSelectorComponent {
   private readonly accountsService = inject(AccountsManagerService);
   private readonly clientService = inject(ClientManagerService);
   private readonly userDataService = inject(UserDataService);
+  private readonly globals = inject(GlobalConstantsService);
   public clients = toSignal(this.clientService.getClients(), { initialValue: [] });
 
   clientSelected(clientId: string) {
     console.log('Client selected is: ', clientId);
-    this.userDataService.set('key2', clientId);
-    this.accountsService.accountsExist(this.userDataService.get('key1'), clientId)
+    this.userDataService.set(this.globals.clientIdKey, clientId);
+    this.accountsService.accountsExist()
       .subscribe((exists) => {
         if (exists) {
           console.log('Accounts exist for client: ', clientId);

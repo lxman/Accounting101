@@ -1,22 +1,23 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { UserDataService } from '../user-data/user-data.service';
 import { PersonNameModel } from '../../models/person-name.model';
+import { GlobalConstantsService } from '../global-constants/global-constants.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class PersonNameManagerService {
-  private baseUrl = 'https://localhost:7165';
+  private readonly client: HttpClient = inject(HttpClient);
+  private readonly userData: UserDataService = inject(UserDataService);
+  private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);
 
-  constructor(
-    private client: HttpClient,
-    private userData: UserDataService) {}
+  private baseUrl = this.globals.baseAppUrl;
 
   createPersonName(personNameModel: PersonNameModel): Observable<PersonNameModel> {
-    return this.client.post<PersonNameModel>(`${this.baseUrl}/person-name/${this.userData.get('key1')}`, personNameModel, { withCredentials: true })
+    return this.client.post<PersonNameModel>(`${this.baseUrl}/person-name/${this.userData.get(this.globals.userIdKey)}`, personNameModel, { withCredentials: true })
       .pipe(catchError(this.handleError));
   }
 

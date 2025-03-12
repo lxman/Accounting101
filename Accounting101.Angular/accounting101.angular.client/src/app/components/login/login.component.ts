@@ -1,9 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { LoginModel } from '../../models/login.model';
 import { UserManagerService } from '../../services/user-manager/user-manager.service';
 import { UserDataService } from '../../services/user-data/user-data.service';
 import { BusinessManagerService } from '../../services/business-manager/business-manager.service';
 import { ClientManagerService } from '../../services/client-manager/client-manager.service';
+import { GlobalConstantsService } from '../../services/global-constants/global-constants.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { FormGroup, FormControl, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -19,6 +20,14 @@ import { MatButton } from '@angular/material/button';
     imports: [MatCard, MatCardHeader, MatCardTitle, MatCardContent, FormsModule, ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatButton]
 })
 export class LoginComponent {
+  private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);
+  private readonly userManager: UserManagerService = inject(UserManagerService);
+  private readonly userData: UserDataService = inject(UserDataService);
+  private readonly businessManager: BusinessManagerService = inject(BusinessManagerService);
+  private readonly clientManager: ClientManagerService = inject(ClientManagerService);
+  private readonly toastService: MatSnackBar = inject(MatSnackBar);
+  private readonly router: Router = inject(Router);
+
   loginForm = new FormGroup({
     email: new FormControl('', [Validators.required, Validators.email]),
     password: new FormControl('', Validators.required),
@@ -26,15 +35,6 @@ export class LoginComponent {
     twoFactorAuthenticationCodeReset: new FormControl('')
   });
   f = this.loginForm.controls;
-
-  constructor(
-    private readonly userManager: UserManagerService,
-    private readonly userData: UserDataService,
-    private readonly businessManager: BusinessManagerService,
-    private readonly clientManager: ClientManagerService,
-    private readonly toastService: MatSnackBar,
-    private readonly router: Router
-  ) {}
 
   onSubmit() {
     const login = new LoginModel();
@@ -49,7 +49,7 @@ export class LoginComponent {
           verticalPosition: 'top',
           horizontalPosition: 'center'
         });
-        this.userData.set('key1', databaseId.toString());
+        this.userData.set(this.globals.clientIdKey, databaseId.toString());
         this.businessManager.businessExists().subscribe({
           next: (exists) => {
             if (!exists) {

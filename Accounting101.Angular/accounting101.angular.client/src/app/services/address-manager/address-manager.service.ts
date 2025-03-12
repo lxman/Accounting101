@@ -1,18 +1,19 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { UserDataService } from '../user-data/user-data.service';
+import { GlobalConstantsService } from '../global-constants/global-constants.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AddressManagerService {
-  private baseUrl = 'https://localhost:7165';
+  private readonly userData: UserDataService = inject(UserDataService);
+  private readonly http: HttpClient = inject(HttpClient);
+  private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);
 
-  constructor(
-    private readonly userData: UserDataService,
-    private http: HttpClient) { }
+  private baseUrl = this.globals.baseAppUrl;
 
   getStates(): Observable<string[]> {
     return this.http.get<string[]>(`${this.baseUrl}/address/states`, { withCredentials: true })
@@ -25,7 +26,7 @@ export class AddressManagerService {
   }
 
   createAddress(address: any): Observable<string> {
-    return this.http.post<any>(`${this.baseUrl}/address/${this.userData.get('key1')}`, address, { withCredentials: true })
+    return this.http.post<any>(`${this.baseUrl}/address/${this.userData.get(this.globals.userIdKey)}`, address, { withCredentials: true })
       .pipe(catchError(this.handleError));
   }
 

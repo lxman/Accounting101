@@ -19,6 +19,8 @@ public class RootGroup(IDataStore dataStore)
 
     public AccountGroup Expenses { get; set; } = new();
 
+    public AccountGroup Earnings { get; set; } = new();
+
     public async Task SaveLayoutAsync(Guid dbName, Guid clientId)
     {
         await dataStore.SaveRootGroupAsync(dbName.ToString(), clientId, this);
