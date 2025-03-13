@@ -71,7 +71,7 @@ public class UserService(
         }
         SignInResult result = await signInManager.PasswordSignInAsync(applicationUser, model.Password, false, false);
         return result.Succeeded
-            ? new OkObjectResult(applicationUser.Id)
+            ? new OkObjectResult(applicationUser)
             : new BadRequestObjectResult("Invalid login attempt");
     }
 

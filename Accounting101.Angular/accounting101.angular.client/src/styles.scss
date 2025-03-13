@@ -13,3 +13,13 @@ html {
     density: 0
   ));
 }
+
+menu {
+  background-color: lightgray;
+}
+
+:root {
+  @include mat.menu-overrides((
+    container-color: lightgray
+  ))
+}

@@ -1,11 +1,11 @@
+<app-menu />
 <ng-container *ngFor="let client of clients(); let i = index">
   <mat-card>
     <mat-card-header>
-      <mat-card-title>Client</mat-card-title>
-      <mat-card-subtitle>{{ client.businessName }}</mat-card-subtitle>
+      <mat-card-title>{{ client.businessName }}</mat-card-title>
     </mat-card-header>
     <mat-card-content>
-      {{ client.contactName.asString }}
+      <p>{{ client.contactName.asString }}</p>
       <ng-container *ngIf="client.usAddress !== null; else foreignAddress">
         {{ client.usAddress.asString }}
       </ng-container>

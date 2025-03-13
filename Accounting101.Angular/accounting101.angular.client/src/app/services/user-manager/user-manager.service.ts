@@ -5,6 +5,7 @@ import { CreateUserModel } from '../../models/create-user.model';
 import { LoginModel } from '../../models/login.model';
 import { catchError } from 'rxjs/operators';
 import { GlobalConstantsService } from '../global-constants/global-constants.service';
+import { ApplicationUser } from '../../models/application-user.model';
 
 @Injectable({
   providedIn: 'root'
@@ -20,8 +21,8 @@ export class UserManagerService {
     .pipe(catchError(this.handleError));
   }
 
-  loginUser(user: LoginModel): Observable<Object> {
-    return this.http.post<LoginModel>(`${this.baseUrl}/authorization/login`, user, { withCredentials: true })
+  loginUser(user: LoginModel): Observable<ApplicationUser> {
+    return this.http.post<ApplicationUser>(`${this.baseUrl}/authorization/login`, user, { withCredentials: true })
     .pipe(catchError(this.handleError));
   }
 

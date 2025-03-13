@@ -12,6 +12,7 @@ import { MatCard, MatCardHeader, MatCardTitle, MatCardContent } from '@angular/m
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatButton } from '@angular/material/button';
+import { ApplicationUser } from '../../models/application-user.model';
 
 @Component({
     selector: 'app-login',
@@ -43,13 +44,14 @@ export class LoginComponent {
     // login.twoFactorAuthenticationCode = this.loginForm.get('twoFactorAuthenticationCode')!.value!;
     // login.twoFactorAuthenticationCodeReset = this.loginForm.get('twoFactorAuthenticationCodeReset')!.value!;
     this.userManager.loginUser(login).subscribe({
-      next: (databaseId) => {
+      next: (ApplicationUser) => {
         this.toastService.open('Login successful', 'Close', {
           duration: 3000,
           verticalPosition: 'top',
           horizontalPosition: 'center'
         });
-        this.userData.set(this.globals.userIdKey, databaseId.toString());
+        this.userData.set(this.globals.userIdKey, ApplicationUser.id);
+        this.userData.set(this.globals.rolesKey, ApplicationUser.roles.join(','));
         this.businessManager.businessExists().subscribe({
           next: (exists) => {
             if (!exists) {

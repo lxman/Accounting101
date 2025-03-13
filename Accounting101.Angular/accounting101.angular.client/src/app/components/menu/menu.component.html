@@ -1,0 +1,15 @@
+<menu>
+  <div fxShow="true" fxHide.lt-md="true" fxLayout="row" fxLayoutAlign="space-between center">
+    <div fxLayout="row" fxLayoutAlign="start center">
+      <a mat-menu-item [matMenuTriggerFor]="file">File</a>
+      <a mat-menu-item [matMenuTriggerFor]="edit">Edit</a>
+    </div>
+  </div>
+  <mat-menu #file="matMenu">
+    <p><a mat-menu-item>New</a></p>
+    <a mat-menu-item>Edit</a>
+  </mat-menu>
+  <mat-menu #edit="matMenu">
+    <a mat-menu-item>This</a>
+  </mat-menu>
+</menu>

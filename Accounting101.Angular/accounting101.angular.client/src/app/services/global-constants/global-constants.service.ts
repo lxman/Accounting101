@@ -6,7 +6,8 @@ import { Injectable } from '@angular/core';
 export class GlobalConstantsService {
   readonly baseAppUrl: string = 'https://localhost:7165';
   readonly userIdKey: string = 'key1';
-  readonly clientIdKey: string = 'key2';
+  readonly rolesKey: string = 'key2';
+  readonly clientIdKey: string = 'key3';
 
   constructor() { }
 }

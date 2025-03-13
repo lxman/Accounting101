@@ -6,12 +6,23 @@ import { AccountsManagerService } from '../../services/accounts-manager/accounts
 import { ClientManagerService } from '../../services/client-manager/client-manager.service';
 import { UserDataService } from '../../services/user-data/user-data.service';
 import { GlobalConstantsService } from '../../services/global-constants/global-constants.service';
+import {MenuComponent} from '../menu/menu.component';
+import {MatButton} from '@angular/material/button';
+import {MatMenuModule} from '@angular/material/menu';
 
 @Component({
   selector: 'app-client-selector',
   templateUrl: './client-selector.component.html',
-  styleUrl: './client-selector.component.scss',
-  imports: [MatCardModule, NgIf, NgFor, CommonModule],
+  styleUrls: ['./client-selector.component.scss'],
+  imports: [
+    MatCardModule,
+    NgIf,
+    NgFor,
+    CommonModule,
+    MenuComponent,
+    MatButton,
+    MatMenuModule
+  ],
   providers: [ClientManagerService]
 })
 
