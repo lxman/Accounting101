@@ -9,6 +9,7 @@ import { GlobalConstantsService } from '../../services/global-constants/global-c
 import {MenuComponent} from '../menu/menu.component';
 import {MatButton} from '@angular/material/button';
 import {MatMenuModule} from '@angular/material/menu';
+import {Router} from '@angular/router';
 
 @Component({
   selector: 'app-client-selector',
@@ -31,6 +32,7 @@ export class ClientSelectorComponent {
   private readonly clientService = inject(ClientManagerService);
   private readonly userDataService = inject(UserDataService);
   private readonly globals = inject(GlobalConstantsService);
+  private readonly router = inject(Router);
   public clients = toSignal(this.clientService.getClients(), { initialValue: [] });
 
   clientSelected(clientId: string) {
@@ -41,6 +43,7 @@ export class ClientSelectorComponent {
           console.log('Accounts exist for client: ', clientId);
         } else {
           console.log('No accounts for client: ', clientId);
+          this.router.navigate(['/create-account']);
         }
       }
     );

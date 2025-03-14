@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "angulartest.client": {
+    "accounting101.client": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:component": {
@@ -24,11 +24,19 @@
         "build": {
           "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/angulartest.client",
+            "stylePreprocessorOptions": {
+              "includePaths": [
+                "node_modules"
+              ]
+            },
+            "outputPath": "dist/accounting101.client",
             "index": "src/index.html",
             "browser": "src/main.ts",
             "polyfills": [
               "zone.js"
+            ],
+            "allowedCommonJsDependencies": [
+              "crypto-js"
             ],
             "tsConfig": "tsconfig.app.json",
             "assets": [
@@ -71,10 +79,10 @@
           "builder": "@angular-devkit/build-angular:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "angulartest.client:build:production"
+              "buildTarget": "accounting101.client:build:production"
             },
             "development": {
-              "buildTarget": "angulartest.client:build:development"
+              "buildTarget": "accounting101.client:build:development"
             }
           },
           "defaultConfiguration": "development",
