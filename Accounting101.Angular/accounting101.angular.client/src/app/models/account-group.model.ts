@@ -1,5 +1,5 @@
 export class AccountGroupModel {
   id: string = '';
-  groups: AccountGroupModel[] = [];
-  accounts: string[] = [];
+  groups?: AccountGroupModel[];
+  accounts?: string[];
 }
