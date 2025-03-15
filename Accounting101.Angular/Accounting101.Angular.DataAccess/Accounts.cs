@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Accounting101.Angular.DataAccess.AccountGroups;
 using Accounting101.Angular.DataAccess.Extensions;
 using Accounting101.Angular.DataAccess.Models;
 using Accounting101.Angular.DataAccess.Services.Interfaces;
@@ -22,7 +23,7 @@ public static class Accounts
 
         acct.InfoId = info.Id;
         await store.CreateOneAsync(dbName, acct);
-        await AddToGroupAsync(store, dbName, acct.ClientId, acct);
+        await AddOneToGroupAsync(store, dbName, acct.ClientId, acct);
         store.NotifyChange(typeof(Account), ChangeType.Created);
         return acct.Id;
     }
@@ -38,7 +39,7 @@ public static class Accounts
         acct.Info.Id = acct.Id;
         acct.InfoId = acct.Id;
         await store.CreateOneAsync(dbName, acct);
-        await AddToGroupAsync(store, dbName, acct.ClientId, acct);
+        await AddOneToGroupAsync(store, dbName, acct.ClientId, acct);
         store.NotifyChange(typeof(Account), ChangeType.Created);
         return acct.Id;
     }
@@ -49,8 +50,7 @@ public static class Accounts
         foreach (AccountWithInfo awi in accts)
         {
             await infos.InsertOneAsync(awi.Info);
-            awi.InfoId = awi.Id;
-            await AddToGroupAsync(store, dbName, awi.ClientId, awi);
+            awi.InfoId = awi.Info.Id;
         }
         await store.GetCollection<Account>(dbName, CollectionNames.Account)?.InsertManyAsync(accts.Select(a => new Account(a)))!;
         store.NotifyChange(typeof(Accounts), ChangeType.Created);
@@ -184,9 +184,9 @@ public static class Accounts
         return result.Value;
     }
 
-    private static async Task AddToGroupAsync(IDataStore dataStore, string dbName, Guid clientId, Account a)
+    private static async Task AddOneToGroupAsync(IDataStore dataStore, string dbName, Guid clientId, Account a)
     {
-        AccountGroups.RootGroup group = await dataStore.GetRootGroupAsync(dbName, clientId);
+        RootGroup group = await dataStore.GetRootGroupAsync(dbName, clientId);
         switch (a.Type.ToString())
         {
             case "Asset":

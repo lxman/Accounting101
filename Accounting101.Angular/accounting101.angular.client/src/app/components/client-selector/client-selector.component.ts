@@ -42,7 +42,6 @@ export class ClientSelectorComponent {
         if (exists) {
           console.log('Accounts exist for client: ', clientId);
         } else {
-          console.log('No accounts for client: ', clientId);
           this.router.navigate(['/create-account']);
         }
       }

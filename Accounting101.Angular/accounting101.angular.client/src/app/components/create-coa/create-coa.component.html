@@ -1,1 +1,10 @@
-<p>create-coa works!</p>
+<h2>Available Charts</h2>
+<mat-card *ngFor="let chart of models">
+  <mat-card-title>{{chart.readableType}}</mat-card-title>
+  <mat-card-content>
+    {{chart.description}}
+  </mat-card-content>
+  <mat-card-actions>
+    <button mat-button (click)="chartSelected(chart.name)">Select</button>
+  </mat-card-actions>
+</mat-card>
