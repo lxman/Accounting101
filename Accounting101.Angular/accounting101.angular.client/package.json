@@ -13,6 +13,7 @@
   },
   "private": true,
   "dependencies": {
+    "@agentepsilon/decko": "^2.0.1",
     "@angular/animations": "^19.1.0",
     "@angular/cdk": "^19.2.3",
     "@angular/common": "^19.1.0",
