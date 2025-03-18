@@ -1,12 +1,11 @@
-import {Component, inject, Inject, ViewEncapsulation} from '@angular/core';
+import {Component, Inject, Input, ViewEncapsulation} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {DOCUMENT, NgForOf, NgTemplateOutlet} from '@angular/common';
 import {DropInfo, TreeNode} from '../../models/account-organizer.interface';
 import {debounce} from '@agentepsilon/decko'
 import {CdkDrag, CdkDropList} from '@angular/cdk/drag-drop';
-import {RootGroups} from '../../models/root-groups.model';
-import {AccountsManagerService} from '../../services/accounts-manager/accounts-manager.service';
 import {AccountModel} from '../../models/account.model';
+import {AccountGroupModel} from '../../models/account-group.model';
 
 @Component({
   selector: 'app-account-organizer',
@@ -23,9 +22,8 @@ import {AccountModel} from '../../models/account.model';
 })
 
 export class AccountOrganizerComponent {
-  accountsManager: AccountsManagerService = inject(AccountsManagerService);
-  rootGroups: RootGroups = new RootGroups();
-  accounts: AccountModel[] = [];
+  @Input() group: AccountGroupModel = new AccountGroupModel('');
+  @Input() accounts: AccountModel[] = [];
 
   nodes: TreeNode[] = [];
 
@@ -35,30 +33,13 @@ export class AccountOrganizerComponent {
   dropActionTodo: DropInfo | null = null;
 
   constructor(@Inject(DOCUMENT) private document: Document) {
-    this.accountsManager.getLayout().subscribe({
-      next: (layout) => {
-        this.rootGroups = layout;
-        this.accountsManager.getAccounts().subscribe({
-          next: (accounts) => {
-            this.accounts = accounts;
-            this.buildTree(this.rootGroups, this.accounts);
-          },
-          error: (e) => console.log(e)
-        })
-      },
-      error: (e) => console.log(e)
-    });
+    this.buildTree();
     this.prepareDragDrop(this.nodes);
   }
 
-  private buildTree(rootGroups: RootGroups, accounts: AccountModel[]) {
-    rootGroups.assets.accounts?.forEach(a => {
+  private buildTree() {
+    // Assemble the nodes from this.group and this.accounts
 
-    });
-    rootGroups.equity.accounts?.forEach(a => {});
-    rootGroups.liabilities.accounts?.forEach(a => {});
-    rootGroups.revenue.accounts?.forEach(a => {});
-    rootGroups.expenses.accounts?.forEach(a => {});
   }
 
   prepareDragDrop(nodes: TreeNode[]) {
