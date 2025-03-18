@@ -22,7 +22,7 @@ import {AccountGroupModel} from '../../models/account-group.model';
 })
 
 export class AccountOrganizerComponent {
-  @Input() group: AccountGroupModel = new AccountGroupModel('');
+  @Input() layoutGroup: AccountGroupModel = new AccountGroupModel('');
   @Input() accounts: AccountModel[] = [];
 
   nodes: TreeNode[] = [];
@@ -38,8 +38,47 @@ export class AccountOrganizerComponent {
   }
 
   private buildTree() {
-    // Assemble the nodes from this.group and this.accounts
+    const rootNode = {
+      id: this.layoutGroup.name,
+      acctId: this.layoutGroup.id,
+      children: new Array<TreeNode>(),
+      isDraggable: false
+    }
+    this.nodes.push(rootNode);
+    if (this.layoutGroup.groups && this.layoutGroup.groups.length > 0) {
+      this.addGroups(rootNode, this.layoutGroup.groups, this.accounts);
+    }
+  }
 
+  private addGroups(parent: TreeNode, groups: AccountGroupModel[], accounts: AccountModel[]) {
+    groups.forEach(group => {
+      const node = {
+        id: group.name,
+        acctId: group.id,
+        children: new Array<TreeNode>(),
+        isDraggable: true
+      };
+      parent.children.push(node);
+      if (group.accounts && group.accounts.length > 0) {
+        this.addAccounts(node, group.accounts, accounts);
+      }
+      if (group.groups && group.groups.length > 0) {
+        this.addGroups(node, group.groups, accounts);
+      }
+    });
+  }
+
+  private addAccounts(parent: TreeNode, acctIds: string[], accounts: AccountModel[]) {
+    acctIds.forEach(acctId => {
+      const accountName = this.accounts.find(a => a.id == acctId)?.accountInfo?.name;
+      const node = {
+        id: accountName ?? '',
+        acctId: acctId,
+        children: new Array<TreeNode>(),
+        isDraggable: true
+      };
+      parent.children.push(node);
+    });
   }
 
   prepareDragDrop(nodes: TreeNode[]) {
@@ -59,7 +98,7 @@ export class AccountOrganizerComponent {
       return;
     }
     let container = e.classList.contains("node-item") ? e : e.closest(".node-item");
-    if (!container) {
+    if (!container || container.getAttribute("draggable") === "false") {
       this.clearDragInfo();
       return;
     }
@@ -88,6 +127,11 @@ export class AccountOrganizerComponent {
     const draggedItemId = event.item.data;
     const parentItemId = event.previousContainer.id;
     const targetListId = this.getParentNodeId(this.dropActionTodo.targetId, this.nodes, 'main');
+
+    if (parentItemId != targetListId) {
+      this.clearDragInfo();
+      return;
+    }
 
     console.log(
       '\nmoving\n[' + draggedItemId + '] from list [' + parentItemId + ']',

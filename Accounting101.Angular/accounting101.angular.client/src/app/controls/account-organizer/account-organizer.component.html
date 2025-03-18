@@ -1,7 +1,7 @@
 <ng-template #tmplNode let-node="node">
   <div class="node-item" [attr.data-id]="node.id" [attr.id]="'node-'+node.id">
 
-    <div class="node-title" (click)="node.isExpanded=!node.isExpanded">
+    <div [ngClass]="{'node-title': true, 'node-draggable': node.isDraggable}" (click)="node.isExpanded=!node.isExpanded">
       {{node.children.length ? (node.isExpanded?'-&nbsp;':'+') : '&nbsp;&nbsp;&nbsp;'}} &nbsp;&nbsp;&nbsp; {{node.id}} <span class="item-notes"> ({{node.children.length}}{{node.children.length?', expanded: ' + !!node.isExpanded:''}})</span>
     </div>
 

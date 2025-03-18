@@ -7,6 +7,7 @@ import { ClientSelectorComponent } from './components/client-selector/client-sel
 import {CreateAccountComponent} from './components/create-account/create-account.component';
 import {CreateCoaComponent} from './components/create-coa/create-coa.component';
 import {CreateSingleAccountComponent} from './components/create-single-account/create-single-account.component';
+import {AccountListComponent} from './components/account-list/account-list.component';
 
 const routes: Routes = [
   { path: '', component: LoginComponent},
@@ -15,7 +16,8 @@ const routes: Routes = [
   { path: 'client-selector', component: ClientSelectorComponent },
   { path: 'create-account', component: CreateAccountComponent},
   { path: 'create-coa', component: CreateCoaComponent},
-  { path: 'create-single', component: CreateSingleAccountComponent}
+  { path: 'create-single', component: CreateSingleAccountComponent},
+  { path: 'account-list', component: AccountListComponent}
 ];
 
 @NgModule({

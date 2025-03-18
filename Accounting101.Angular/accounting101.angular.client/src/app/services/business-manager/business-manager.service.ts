@@ -17,7 +17,7 @@ export class BusinessManagerService {
   private baseUrl = this.globals.baseAppUrl;
 
   businessExists(): Observable<boolean> {
-    return this.client.get<boolean>(`${this.baseUrl}/business/exists/${this.userData.get(this.globals.userIdKey)}`, { withCredentials: true })
+    return this.client.get<boolean>(`${this.baseUrl}/business/${this.userData.get(this.globals.userIdKey)}/exists`, { withCredentials: true })
       .pipe(catchError(this.handleError));
   }
 

@@ -12,50 +12,50 @@ public static class Clients
 {
     public static async Task<Guid> CreateClientAsync(this IDataStore store, string dbName, Client c)
     {
-        Guid result = await store.CreateOneAsync(dbName, c);
+        Guid result = await store.CreateOneGlobalScopeAsync(dbName, c);
         if (result != Guid.Empty) store.NotifyChange(typeof(Client), ChangeType.Created);
         return result;
     }
 
-    public static async Task<ClientWithInfo?> GetClientWithInfoAsync(this IDataStore store, string dbName, Guid id)
+    public static async Task<ClientWithInfo?> GetClientWithInfoAsync(this IDataStore store, string dbName, Guid clientId)
     {
-        Client? c = (await store.ReadOneAsync<Client>(dbName, id))!.FirstOrDefault();
+        Client? c = (await store.GetAllGlobalScopeAsync<Client>(dbName))!.FirstOrDefault(c => c.Id == clientId);
         return c is null ? null : new ClientWithInfo(store, dbName, c);
     }
 
     public static async Task<bool> ClientsExistAsync(this IDataStore store, string dbName)
     {
-        return (await store.ReadAllAsync<Client>(dbName))!.Count > 0;
+        return (await store.ReadAllGlobalScopeAsync<Client>(dbName))!.Count > 0;
     }
 
     public static async Task BulkInsertClientsAsync(this IDataStore store, string dbName, IEnumerable<Client> clients)
     {
-        await store.CreateManyAsync(dbName, clients);
+        await store.CreateManyGlobalScopeAsync(dbName, clients);
         store.NotifyChange(typeof(Clients), ChangeType.Created);
     }
 
     public static async Task UpdateClientAsync(this IDataStore store, string dbName, ClientWithInfo client)
     {
-        await store.UpdateOneAsync<Client>(dbName, client);
-        await store.UpdateOneAsync(dbName, client.ContactName!);
+        await store.UpdateOneGlobalScopeAsync<Client>(dbName, client);
+        await store.UpdateOneGlobalScopeAsync(dbName, client.ContactName!);
         await store.UpdateAddressAsync(dbName, client.Address!);
         store.NotifyChange(typeof(ClientWithInfo), ChangeType.Updated);
     }
 
     public static async Task UpdateClientAsync(this IDataStore store, string dbName, Client client)
     {
-        await store.UpdateOneAsync(dbName, client);
+        await store.UpdateOneGlobalScopeAsync(dbName, client);
         store.NotifyChange(typeof(Client), ChangeType.Updated);
     }
 
-    public static async Task<Client?> FindClientByIdAsync(this IDataStore store, string dbName, Guid id)
+    public static async Task<Client?> FindClientByIdAsync(this IDataStore store, string dbName, Guid clientId)
     {
-        return (await store.ReadOneAsync<Client>(dbName, id))!.FirstOrDefault();
+        return (await store.GetAllGlobalScopeAsync<Client>(dbName))!.FirstOrDefault(c => c.Id == clientId);
     }
 
     public static async Task<IEnumerable<Client>?> AllClientsAsync(this IDataStore store, string dbName)
     {
-        return await store.ReadAllAsync<Client>(dbName);
+        return await store.ReadAllGlobalScopeAsync<Client>(dbName);
     }
 
     public static async Task<IEnumerable<ClientWithInfo>?> AllClientsWithInfosAsync(this IDataStore store, string dbName)
@@ -64,9 +64,9 @@ public static class Clients
         return clients?.Select(c => new ClientWithInfo(store, dbName, c));
     }
 
-    public static async Task<bool?> DeleteClientAsync(this IDataStore store, string dbName, Guid id)
+    public static async Task<bool?> DeleteClientAsync(this IDataStore store, string dbName, Guid clientId)
     {
-        List<AccountWithInfo>? accounts = (await store.AccountsForClientAsync(dbName, id))?.ToList();
+        List<AccountWithInfo>? accounts = (await store.AccountsForClientAsync(dbName, clientId))?.ToList();
         if (accounts is not null)
         {
             foreach (AccountWithInfo account in accounts)
@@ -74,13 +74,13 @@ public static class Clients
                 await store.DeleteAccountAsync(dbName, account.Id);
             }
         }
-        CheckPoint? checkPoint = await store.GetCheckpointAsync(dbName, id);
+        CheckPoint? checkPoint = await store.GetCheckpointAsync(dbName, clientId);
         if (checkPoint is not null)
         {
             await store.ClearCheckpointAsync(dbName, checkPoint.Id);
         }
 
-        bool? result = await store.DeleteOneAsync<Client>(dbName, id);
+        bool? result = await store.DeleteOneGlobalScopeAsync<Client>(dbName, clientId);
         store.NotifyChange(typeof(Client), ChangeType.Deleted);
         return result;
     }

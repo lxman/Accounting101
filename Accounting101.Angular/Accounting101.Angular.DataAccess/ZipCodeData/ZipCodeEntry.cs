@@ -3,9 +3,11 @@ using Accounting101.Angular.DataAccess.Interfaces;
 
 namespace Accounting101.Angular.DataAccess.ZipCodeData;
 
-public class ZipCodeEntry : IModel
+public class ZipCodeEntry : IGlobalItem
 {
     public Guid Id { get; set; }
+
+    public Guid ClientId { get; set; }
 
     public string City { get; set; } = string.Empty;
 

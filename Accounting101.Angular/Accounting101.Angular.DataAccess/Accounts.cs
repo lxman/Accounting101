@@ -15,14 +15,14 @@ public static class Accounts
 {
     public static async Task<Guid> CreateAccountAsync(this IDataStore store, string dbName, Account acct, AccountInfo info)
     {
-        await store.CreateOneAsync(dbName, info);
+        await store.CreateOneGlobalScopeAsync(dbName, info);
         if (info.Id == Guid.Empty)
         {
             return Guid.Empty;
         }
 
         acct.InfoId = info.Id;
-        await store.CreateOneAsync(dbName, acct);
+        await store.CreateOneClientScopeAsync(dbName, acct);
         await AddOneToGroupAsync(store, dbName, acct.ClientId, acct);
         store.NotifyChange(typeof(Account), ChangeType.Created);
         return acct.Id;
@@ -30,7 +30,7 @@ public static class Accounts
 
     public static async Task<Guid> CreateAccountAsync(this IDataStore store, string dbName, AccountWithInfo acct)
     {
-        await store.CreateOneAsync(dbName, acct.Info);
+        await store.CreateOneGlobalScopeAsync(dbName, acct.Info);
         if (acct.Id == Guid.Empty)
         {
             return Guid.Empty;
@@ -38,7 +38,7 @@ public static class Accounts
 
         acct.Info.Id = acct.Id;
         acct.InfoId = acct.Id;
-        await store.CreateOneAsync(dbName, acct);
+        await store.CreateOneClientScopeAsync(dbName, acct);
         await AddOneToGroupAsync(store, dbName, acct.ClientId, acct);
         store.NotifyChange(typeof(Account), ChangeType.Created);
         return acct.Id;
@@ -84,9 +84,9 @@ public static class Accounts
 
     public static async Task<IEnumerable<AccountWithInfo>?> AccountsForClientAsync(this IDataStore store, string dbName, Guid clientId)
     {
-        List<Account>? accts = await store.ReadOneAsync<Account>(dbName, clientId);
+        List<Account>? accts = await store.GetAllClientScopeAsync<Account>(dbName, clientId);
         if (accts is null) return null;
-        List<AccountInfo>? infos = await store.ReadOneAsync<AccountInfo>(dbName, clientId);
+        List<AccountInfo>? infos = await store.GetAllGlobalScopeAsync<AccountInfo>(dbName);
         if (infos is null) return null;
         List<AccountWithInfo> acctsWInfos = [];
         accts.ToList().ForEach(a =>
@@ -148,9 +148,9 @@ public static class Accounts
 
     public static async Task<AccountWithInfo?> GetAccountWithInfoAsync(this IDataStore store, string dbName, Guid accountId)
     {
-        Account? acct = (await store.ReadOneAsync<Account>(dbName, accountId))!.FirstOrDefault();
+        Account? acct = (await store.GetAllClientScopeAsync<Account>(dbName, accountId))!.FirstOrDefault();
         if (acct is null) return null;
-        AccountInfo? info = (await store.ReadOneAsync<AccountInfo>(dbName, acct.InfoId))!.FirstOrDefault();
+        AccountInfo? info = (await store.GetAllGlobalScopeAsync<AccountInfo>(dbName))!.FirstOrDefault(a => a.Id == acct.InfoId);
         return info is null
             ? null
             : new AccountWithInfo(acct, info);
@@ -158,9 +158,9 @@ public static class Accounts
 
     public static async Task<bool> UpdateAccountAsync(this IDataStore store, string dbName, AccountWithInfo acct)
     {
-        bool? result = await store.UpdateOneAsync(dbName, acct.Info);
+        bool? result = await store.UpdateOneGlobalScopeAsync(dbName, acct.Info);
         if (!result.HasValue || !result.Value) return false;
-        result = await store.UpdateOneAsync(dbName, acct);
+        result = await store.UpdateOneClientScopeAsync(dbName, acct);
         if (!result.HasValue || !result.Value) return false;
         store.NotifyChange(typeof(Account), ChangeType.Updated);
         return result.Value;
@@ -168,11 +168,11 @@ public static class Accounts
 
     public static async Task<bool> DeleteAccountAsync(this IDataStore store, string dbName, Guid accountId)
     {
-        Account? acct = (await store.ReadOneAsync<Account>(dbName, accountId))!.FirstOrDefault();
+        Account? acct = (await store.GetAllClientScopeAsync<Account>(dbName, accountId))!.FirstOrDefault();
         if (acct is null) return false;
-        bool? result = await store.DeleteOneAsync<AccountInfo>(dbName, acct.InfoId);
+        bool? result = await store.DeleteOneGlobalScopeAsync<AccountInfo>(dbName, acct.InfoId);
         if (!result.HasValue || !result.Value) return false;
-        result = await store.DeleteOneAsync<Account>(dbName, accountId);
+        result = await store.DeleteOneClientScopeAsync<Account>(dbName, accountId);
         if (!result.HasValue || !result.Value) return false;
         List<Transaction>? transactions = await store.TransactionsForAccountAsync(dbName, accountId);
         if (transactions is null) return false;

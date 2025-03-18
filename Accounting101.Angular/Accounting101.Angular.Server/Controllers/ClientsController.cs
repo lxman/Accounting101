@@ -14,7 +14,7 @@ public class ClientsController(
     ILogger<ClientsController> logger)
     : ControllerBase
 {
-    [HttpGet("exist/{dbId:guid}")]
+    [HttpGet("{dbId:guid}/exist")]
     public async Task<IActionResult> ClientsExistAsync(Guid dbId)
     {
         bool exist = await dataStore.ClientsExistAsync(dbId.ToString());

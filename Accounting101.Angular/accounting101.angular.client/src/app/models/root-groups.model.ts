@@ -7,4 +7,5 @@ export class RootGroups {
   equity: AccountGroupModel = new AccountGroupModel("Equity");
   revenue: AccountGroupModel = new AccountGroupModel("Revenue");
   expenses: AccountGroupModel = new AccountGroupModel("Expenses");
+  earnings: AccountGroupModel = new AccountGroupModel("Earnings");
 }

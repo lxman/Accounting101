@@ -1,4 +1,5 @@
 using Accounting101.Angular.DataAccess;
+using Accounting101.Angular.DataAccess.AccountGroups;
 using Accounting101.Angular.DataAccess.Extensions;
 using Accounting101.Angular.DataAccess.Interfaces;
 using Accounting101.Angular.DataAccess.Models;
@@ -6,7 +7,6 @@ using Accounting101.Angular.DataAccess.Services;
 using Accounting101.Angular.DataAccess.Services.Interfaces;
 using Accounting101.Angular.DataAccess.ZipCodeData;
 using Autofac;
-using MongoDB.Driver;
 
 namespace Accounting101.Angular.Tests;
 
@@ -37,8 +37,8 @@ public class DatabaseTests
         acct.StartBalance = 0;
         Guid id = await scope.Resolve<IDataStore>().CreateAccountAsync(DatabaseName, acct, info);
         Assert.NotEqual(id, Guid.Empty);
-        await scope.Resolve<IDataStore>().DropCollectionAsync<AccountInfo>(DatabaseName, CollectionNames.AccountInfo);
-        await scope.Resolve<IDataStore>().DropCollectionAsync<Account>(DatabaseName, CollectionNames.Account);
+        await scope.Resolve<IDataStore>().DropCollectionGlobalScopeAsync<AccountInfo>(DatabaseName, CollectionNames.AccountInfo);
+        await scope.Resolve<IDataStore>().DropCollectionClientScopeAsync<Account>(DatabaseName, CollectionNames.Account);
         await CleanupAsync(scope);
         scope.Resolve<IDataStore>().Dispose();
     }
@@ -59,9 +59,9 @@ public class DatabaseTests
         Transaction tx = new(idCredit, idDebit, 0, DateOnly.FromDateTime(DateTime.Now));
         Guid txId = await store.CreateTransactionAsync(DatabaseName, tx);
         Assert.NotEqual(txId, Guid.Empty);
-        await store.DropCollectionAsync<Transaction>(DatabaseName, CollectionNames.Transaction);
-        await store.DropCollectionAsync<AccountInfo>(DatabaseName, CollectionNames.AccountInfo);
-        await store.DropCollectionAsync<Account>(DatabaseName, CollectionNames.Account);
+        await store.DropCollectionGlobalScopeAsync<Transaction>(DatabaseName, CollectionNames.Transaction);
+        await store.DropCollectionGlobalScopeAsync<AccountInfo>(DatabaseName, CollectionNames.AccountInfo);
+        await store.DropCollectionClientScopeAsync<Account>(DatabaseName, CollectionNames.Account);
         await CleanupAsync(scope);
         store.Dispose();
     }
@@ -97,19 +97,20 @@ public class DatabaseTests
         c.AddressId = addressId;
         Guid clientId = await store.CreateClientAsync(DatabaseName, c);
         Assert.NotEqual(clientId, Guid.Empty);
-        await store.DeleteOneAsync<Client>(DatabaseName, clientId);
-        await store.DeleteOneAsync<PersonName>(DatabaseName, nameId);
-        await store.DropCollectionAsync<Client>(DatabaseName, CollectionNames.Client);
-        await store.DropCollectionAsync<PersonName>(DatabaseName, CollectionNames.PersonName);
-        await store.Instance(DatabaseName)?.DropCollectionAsync(CollectionNames.Address);
+        await store.DeleteOneGlobalScopeAsync<Client>(DatabaseName, clientId);
+        await store.DeleteOneGlobalScopeAsync<PersonName>(DatabaseName, nameId);
+        await store.DropCollectionGlobalScopeAsync<Client>(DatabaseName, CollectionNames.Client);
+        await store.DropCollectionGlobalScopeAsync<PersonName>(DatabaseName, CollectionNames.PersonName);
+        await store.Instance(DatabaseName)?.DropCollectionAsync(CollectionNames.Address)!;
         await CleanupAsync(scope);
-        FilterDefinition<IAddress> filter = Builders<IAddress>.Filter.Eq(x => x.Id, addressId);
+        //FilterDefinition<IAddress> filter = Builders<IAddress>.Filter.Eq(x => x.Id, addressId);
         await store.DeleteAddressAsync(DatabaseName, addressId);
         store.Dispose();
     }
 
     private static async Task CleanupAsync(ILifetimeScope scope)
     {
-        await scope.Resolve<IDataStore>().DropCollectionAsync<ZipCodeEntry>("ZipInfo", "ZipInfo");
+        await scope.Resolve<IDataStore>().DropCollectionGlobalScopeAsync<ZipCodeEntry>("ZipInfo", "ZipInfo");
+        await scope.Resolve<IDataStore>().DropCollectionClientScopeAsync<RootGroup>(DatabaseName, CollectionNames.RootGroup);
     }
 }

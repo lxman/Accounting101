@@ -12,30 +12,30 @@ public static class PersonNames
 {
     public static async Task<Guid> CreateNameAsync(this IDataStore store, string dbName, PersonName name)
     {
-        Guid result = await store.CreateOneAsync(dbName, name);
+        Guid result = await store.CreateOneGlobalScopeAsync(dbName, name);
         if (result != Guid.Empty) store.NotifyChange(typeof(PersonName), ChangeType.Created);
         return result;
     }
 
     public static async Task BulkInsertNamesAsync(this IDataStore store, string dbName, IEnumerable<PersonName> names)
     {
-        await store.CreateManyAsync(dbName, names);
+        await store.CreateManyGlobalScopeAsync(dbName, names);
         store.NotifyChange(typeof(PersonNames), ChangeType.Created);
     }
 
     public static async Task<IEnumerable<PersonName>?> AllNamesAsync(this IDataStore store, string dbName)
     {
-        return await store.ReadAllAsync<PersonName>(dbName);
+        return await store.ReadAllGlobalScopeAsync<PersonName>(dbName);
     }
 
     public static async Task<PersonName?> FindNameByIdAsync(this IDataStore store, string dbName, Guid id)
     {
-        return (await store.ReadOneAsync<PersonName>(dbName, id))!.FirstOrDefault();
+        return (await store.GetAllGlobalScopeAsync<PersonName>(dbName))!.FirstOrDefault(pn => pn.Id == id);
     }
 
     public static async Task<bool> UpdateNameAsync(this IDataStore store, string dbName, PersonName name)
     {
-        bool? result = await store.UpdateOneAsync(dbName, name);
+        bool? result = await store.UpdateOneGlobalScopeAsync(dbName, name);
         return result.HasValue && result.Value;
     }
 }

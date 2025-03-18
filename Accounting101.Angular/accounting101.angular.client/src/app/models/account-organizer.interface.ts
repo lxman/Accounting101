@@ -1,7 +1,8 @@
 export interface TreeNode {
   id: string;
+  acctId: string;
   children: TreeNode[];
-  isExpanded?:boolean;
+  isExpanded?: boolean;
   isDraggable?: boolean;
 }
 

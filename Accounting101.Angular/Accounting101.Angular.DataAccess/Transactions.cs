@@ -12,14 +12,14 @@ public static class Transactions
 {
     public static async Task<Guid> CreateTransactionAsync(this IDataStore store, string dbName, Transaction tx)
     {
-        Account? credAcct = (await store.ReadOneAsync<Account>(dbName, tx.CreditedAccountId))?.FirstOrDefault();
-        Account? debAcct = (await store.ReadOneAsync<Account>(dbName, tx.DebitedAccountId))?.FirstOrDefault();
+        Account? credAcct = (await store.GetAllClientScopeAsync<Account>(dbName, tx.CreditedAccountId))?.FirstOrDefault();
+        Account? debAcct = (await store.GetAllClientScopeAsync<Account>(dbName, tx.DebitedAccountId))?.FirstOrDefault();
         Guid result = credAcct is null
                       || debAcct is null
                       || tx.When < credAcct.Created
                       || tx.When < debAcct.Created
             ? Guid.Empty
-            : await store.CreateOneAsync(dbName, tx);
+            : await store.CreateOneGlobalScopeAsync(dbName, tx);
         if (result != Guid.Empty) store.NotifyChange(typeof(Transaction), ChangeType.Created);
         return result;
     }
@@ -32,8 +32,8 @@ public static class Transactions
         {
             foreach (Transaction t in txs)
             {
-                Account? credAcct = (await store.ReadOneAsync<Account>(dbName, t.CreditedAccountId))?.FirstOrDefault();
-                Account? debAcct = (await store.ReadOneAsync<Account>(dbName, t.DebitedAccountId))?.FirstOrDefault();
+                Account? credAcct = (await store.GetAllClientScopeAsync<Account>(dbName, t.CreditedAccountId))?.FirstOrDefault();
+                Account? debAcct = (await store.GetAllClientScopeAsync<Account>(dbName, t.DebitedAccountId))?.FirstOrDefault();
                 if (credAcct is null
                     || debAcct is null
                     || t.When < credAcct.Created
@@ -52,32 +52,32 @@ public static class Transactions
         {
             toInsert.AddRange(txs);
         }
-        await store.CreateManyAsync(dbName, toInsert);
+        await store.CreateManyGlobalScopeAsync(dbName, toInsert);
         store.NotifyChange(typeof(Transactions), ChangeType.Created);
         return invalid;
     }
 
     public static async Task<List<Transaction>?> TransactionsForAccountAsync(this IDataStore store, string dbName, Guid acct)
     {
-        return (await store.ReadAllAsync<Transaction>(dbName))?.Where(t => t.CreditedAccountId == acct || t.DebitedAccountId == acct).ToList();
+        return (await store.ReadAllGlobalScopeAsync<Transaction>(dbName))?.Where(t => t.CreditedAccountId == acct || t.DebitedAccountId == acct).ToList();
     }
 
     public static async Task<List<Transaction>?> TransactionsForAccountByDateAsync(this IDataStore store, string dbName, Guid acct, DateRange range)
     {
-        return (await store.ReadAllAsync<Transaction>(dbName))
+        return (await store.ReadAllGlobalScopeAsync<Transaction>(dbName))
             ?.Where(t => (t.CreditedAccountId == acct || t.DebitedAccountId == acct) && t.When >= range.Start && t.When <= range.End).ToList();
     }
 
     public static async Task<bool> UpdateTransactionAsync(this IDataStore store, string dbName, Transaction tx)
     {
-        bool? result = await store.UpdateOneAsync(dbName, tx);
+        bool? result = await store.UpdateOneGlobalScopeAsync(dbName, tx);
         if (result.HasValue && result.Value) store.NotifyChange(typeof(Transaction), ChangeType.Updated);
         return result.HasValue && result.Value;
     }
 
-    public static async Task<bool> DeleteTransactionAsync(this IDataStore store, string dbName, Guid id)
+    public static async Task<bool> DeleteTransactionAsync(this IDataStore store, string dbName, Guid txId)
     {
-        bool? result = await store.DeleteOneAsync<Transaction>(dbName, id);
+        bool? result = await store.DeleteOneGlobalScopeAsync<Transaction>(dbName, txId);
         if (result.HasValue && result.Value) store.NotifyChange(typeof(Transaction), ChangeType.Deleted);
         return result.HasValue && result.Value;
     }

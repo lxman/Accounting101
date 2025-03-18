@@ -28,6 +28,6 @@ public class AccountWithTransactions : AccountWithInfo
         StartBalance = accountWithInfo.StartBalance;
         Created = accountWithInfo.Created;
         ClientId = accountWithInfo.ClientId;
-        Transactions = taskFactory.Run(() => dataStore.ReadAllAsync<Transaction>(dbName))?.Where(tx => tx.DebitedAccountId == Id || tx.CreditedAccountId == Id).ToList()!;
+        Transactions = taskFactory.Run(() => dataStore.ReadAllGlobalScopeAsync<Transaction>(dbName))?.Where(tx => tx.DebitedAccountId == Id || tx.CreditedAccountId == Id).ToList()!;
     }
 }

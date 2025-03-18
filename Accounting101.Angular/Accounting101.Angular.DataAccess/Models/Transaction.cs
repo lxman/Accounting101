@@ -5,7 +5,7 @@ using Accounting101.Angular.DataAccess.Interfaces;
 
 namespace Accounting101.Angular.DataAccess.Models;
 
-public class Transaction : IModel
+public class Transaction : IGlobalItem
 {
     public Guid Id { get; set; }
 

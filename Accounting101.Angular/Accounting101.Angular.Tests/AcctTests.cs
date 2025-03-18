@@ -77,9 +77,9 @@ public class AcctTests
         await store.BulkInsertTransactionsAsync(DbName, txs);
         ts = DateTime.Now - start;
         _output.WriteLine($"Inserting 100,000 transactions took {ts.TotalMilliseconds} ms.");
-        await store.DropCollectionAsync<Transaction>(DbName, CollectionNames.Transaction);
-        await store.DropCollectionAsync<AccountInfo>(DbName, CollectionNames.AccountInfo);
-        await store.DropCollectionAsync<Account>(DbName, CollectionNames.Account);
+        await store.DropCollectionGlobalScopeAsync<Transaction>(DbName, CollectionNames.Transaction);
+        await store.DropCollectionGlobalScopeAsync<AccountInfo>(DbName, CollectionNames.AccountInfo);
+        await store.DropCollectionClientScopeAsync<Account>(DbName, CollectionNames.Account);
         store.Dispose();
     }
 }

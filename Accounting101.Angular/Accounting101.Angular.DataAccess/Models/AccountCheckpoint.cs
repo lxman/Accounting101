@@ -3,7 +3,7 @@ using Accounting101.Angular.DataAccess.Interfaces;
 
 namespace Accounting101.Angular.DataAccess.Models;
 
-public class AccountCheckpoint(Guid clientId, Guid accountId, decimal balance) : IModel
+public class AccountCheckpoint(Guid clientId, Guid accountId, decimal balance) : IGlobalItem
 {
     public Guid Id { get; set; }
 

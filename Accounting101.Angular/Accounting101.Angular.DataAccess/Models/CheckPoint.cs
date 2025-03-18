@@ -5,7 +5,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace Accounting101.Angular.DataAccess.Models;
 
-public class CheckPoint(Guid clientId, DateOnly date) : IModel
+public class CheckPoint(Guid clientId, DateOnly date) : IClientItem
 {
     [BsonId]
     public Guid Id { get; set; }

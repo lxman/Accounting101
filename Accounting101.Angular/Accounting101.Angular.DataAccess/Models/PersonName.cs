@@ -4,9 +4,11 @@ using Accounting101.Angular.DataAccess.Interfaces;
 
 namespace Accounting101.Angular.DataAccess.Models;
 
-public class PersonName : IModel
+public class PersonName : IGlobalItem
 {
     public Guid Id { get; set; }
+
+    public Guid ClientId { get; set; }
 
     public List<Guid> UsedByIds { get; } = [];
 

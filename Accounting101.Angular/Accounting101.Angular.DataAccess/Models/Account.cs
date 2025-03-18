@@ -3,7 +3,7 @@ using Accounting101.Angular.DataAccess.Interfaces;
 
 namespace Accounting101.Angular.DataAccess.Models;
 
-public class Account : IModel
+public class Account : IClientItem
 {
     public Guid Id { get; set; } = Guid.NewGuid();
 

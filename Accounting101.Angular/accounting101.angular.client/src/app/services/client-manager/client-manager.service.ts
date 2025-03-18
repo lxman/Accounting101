@@ -21,7 +21,7 @@ export class ClientManagerService {
   private baseUrl = this.globals.baseAppUrl;
 
   getClientsExist(): Observable<boolean> {
-    return this.client.get<boolean>(`${this.baseUrl}/clients/exist/${this.userData.get(this.globals.userIdKey)}`, { withCredentials: true })
+    return this.client.get<boolean>(`${this.baseUrl}/clients/${this.userData.get(this.globals.userIdKey)}/exist`, { withCredentials: true })
       .pipe(catchError(this.handleError));
   }
 

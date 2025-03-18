@@ -9,6 +9,6 @@ public static class AuditEntries
 {
     public static async Task CreateAuditEntryAsync(this IDataStore store, string dbName, AuditEntry entry)
     {
-        await store.CreateOneAsync(dbName, entry);
+        await store.CreateOneGlobalScopeAsync(dbName, entry);
     }
 }

@@ -40,7 +40,7 @@ export class ClientSelectorComponent {
     this.accountsService.accountsExist()
       .subscribe((exists) => {
         if (exists) {
-          console.log('Accounts exist for client: ', clientId);
+          this.router.navigate(['/account-list']);
         } else {
           this.router.navigate(['/create-account']);
         }

@@ -20,7 +20,7 @@ public class BusinessController(
         return Ok(await dataStore.GetBusinessAsync(dbId.ToString()));
     }
 
-    [HttpGet("exists/{dbId:guid}")]
+    [HttpGet("{dbId:guid}/exists")]
     public async Task<IActionResult> BusinessExistsAsync(Guid dbId)
     {
         return Ok(await dataStore.GetBusinessAsync(dbId.ToString()) is not null);

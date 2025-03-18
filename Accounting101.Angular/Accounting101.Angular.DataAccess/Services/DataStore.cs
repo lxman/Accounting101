@@ -152,7 +152,7 @@ public class DataStore : IDataStore, IDisposable
 
     private async Task<bool> InitZipCodeDataAsync()
     {
-        List<string> data = (await File.ReadAllLinesAsync(@"..\DataAccess\ZipCodeData\ziplist5.txt")).ToList();
+        List<string> data = (await File.ReadAllLinesAsync(@"..\Accounting101.Angular.DataAccess\ZipCodeData\ziplist5.txt")).ToList();
         List<ZipCodeEntry> entries = [];
         data.ForEach(d =>
         {

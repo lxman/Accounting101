@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Accounting101.Angular.DataAccess.Interfaces;
 using Accounting101.Angular.DataAccess.Models;
 using Accounting101.Angular.DataAccess.Services.Interfaces;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace Accounting101.Angular.DataAccess.AccountGroups;
 
-public class RootGroup(IDataStore dataStore)
+public class RootGroup(IDataStore dataStore) : IClientItem
 {
     [BsonId]
     public Guid Id { get; set; }

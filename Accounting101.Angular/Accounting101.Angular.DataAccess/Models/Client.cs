@@ -5,7 +5,7 @@ using MongoDB.Bson.Serialization.Attributes;
 namespace Accounting101.Angular.DataAccess.Models;
 
 [BsonKnownTypes(typeof(ClientWithInfo))]
-public class Client : IModel
+public class Client : IGlobalItem
 {
     public Guid Id { get; set; }
 

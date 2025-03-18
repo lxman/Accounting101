@@ -28,8 +28,8 @@ public static class CheckPoints
             checkPoint.AccountCheckpoints.Add(new AccountCheckpoint(clientId, a.Id, balance));
         }
 
-        List<CheckPoint>? checkPoints = await store.ReadAllAsync<CheckPoint>(dbName);
-        List<AccountCheckpoint>? accountCheckpoints = await store.ReadAllAsync<AccountCheckpoint>(dbName);
+        List<CheckPoint>? checkPoints = await store.ReadAllClientScopeAsync<CheckPoint>(dbName, clientId);
+        List<AccountCheckpoint>? accountCheckpoints = await store.ReadAllGlobalScopeAsync<AccountCheckpoint>(dbName);
         if (checkPoints is null || accountCheckpoints is null)
         {
             return false;
@@ -38,7 +38,7 @@ public static class CheckPoints
         Guid? id = null;
         if (checkPoints.Count == 0)
         {
-            id = await store.CreateOneAsync(dbName, checkPoint);
+            id = await store.CreateOneClientScopeAsync(dbName, checkPoint);
             accountCheckpoints.AddRange(checkPoint.AccountCheckpoints);
         }
         else
@@ -46,11 +46,11 @@ public static class CheckPoints
             CheckPoint? existing = checkPoints.FirstOrDefault(cp => cp.ClientId == clientId);
             if (existing is not null)
             {
-                await store.DeleteOneAsync<CheckPoint>(dbName, existing.Id);
+                await store.DeleteOneClientScopeAsync<CheckPoint>(dbName, existing.Id);
             }
             checkPoints.Add(checkPoint);
-            id = await store.CreateOneAsync(dbName, checkPoint);
-            await store.CreateManyAsync(dbName, checkPoint.AccountCheckpoints);
+            id = await store.CreateOneClientScopeAsync(dbName, checkPoint);
+            await store.CreateManyGlobalScopeAsync(dbName, checkPoint.AccountCheckpoints);
         }
         c.CheckPointId = id;
         await store.UpdateClientAsync(dbName, c);
@@ -59,8 +59,8 @@ public static class CheckPoints
 
     public static async Task<CheckPoint?> GetCheckpointAsync(this IDataStore store, string dbName, Guid clientId)
     {
-        CheckPoint? checkPoint = (await store.ReadOneAsync<CheckPoint>(dbName, clientId))!.FirstOrDefault();
-        List<AccountCheckpoint>? accountCheckpoints = (await store.ReadAllAsync<AccountCheckpoint>(dbName))!;
+        CheckPoint? checkPoint = (await store.GetAllClientScopeAsync<CheckPoint>(dbName, clientId))!.FirstOrDefault();
+        List<AccountCheckpoint>? accountCheckpoints = (await store.ReadAllGlobalScopeAsync<AccountCheckpoint>(dbName))!;
         if (checkPoint is null || accountCheckpoints is null)
         {
             return null;
@@ -72,16 +72,16 @@ public static class CheckPoints
     public static async Task ClearCheckpointAsync(this IDataStore store, string dbName, Guid clientId)
     {
         Client? c = await store.GetClientWithInfoAsync(dbName, clientId);
-        CheckPoint? existing = (await store.ReadOneAsync<CheckPoint>(dbName, clientId))!.FirstOrDefault();
+        CheckPoint? existing = (await store.GetAllClientScopeAsync<CheckPoint>(dbName, clientId))!.FirstOrDefault();
         if (c is null || existing is null)
         {
             return;
         }
-        List<AccountCheckpoint>? accountCheckpoints = (await store.ReadAllAsync<AccountCheckpoint>(dbName))!;
+        List<AccountCheckpoint>? accountCheckpoints = (await store.ReadAllGlobalScopeAsync<AccountCheckpoint>(dbName))!;
         if (accountCheckpoints is not null)
         {
-            await store.DeleteManyAsync<AccountCheckpoint>(dbName, accountCheckpoints.Where(ac => ac.ClientId == clientId).Select(ac => ac.Id));
-            await store.DeleteOneAsync<CheckPoint>(dbName, existing.Id);
+            await store.DeleteManyGlobalScopeAsync<AccountCheckpoint>(dbName, accountCheckpoints.Where(ac => ac.ClientId == clientId).Select(ac => ac.Id));
+            await store.DeleteOneClientScopeAsync<CheckPoint>(dbName, existing.Id);
             c.CheckPointId = null;
             await store.UpdateClientAsync(dbName, c);
         }

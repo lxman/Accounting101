@@ -60,7 +60,7 @@ public class ClientWithInfo : Client
 
     public ClientWithInfo(IDataStore dataStore, string dbName, Client c) : base(c)
     {
-        ContactName = _jtf.Run(() => dataStore.ReadOneAsync<PersonName>(dbName, c.PersonNameId))?.FirstOrDefault();
+        ContactName = _jtf.Run(() => dataStore.GetAllGlobalScopeAsync<PersonName>(dbName))?.FirstOrDefault(pn => pn.ClientId == c.Id);
         Address = dataStore.FindAddressById(dbName, AddressId);
         CheckPointId = c.CheckPointId;
     }
