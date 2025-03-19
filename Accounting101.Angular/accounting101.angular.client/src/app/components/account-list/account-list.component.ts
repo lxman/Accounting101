@@ -5,11 +5,13 @@ import {AccountModel} from '../../models/account.model';
 import {RootGroups} from '../../models/root-groups.model';
 import {AccountGroupModel} from '../../models/account-group.model';
 import {BaseAccountType} from '../../enums/base-account-types.enum';
+import {MenuComponent} from '../menu/menu.component';
 
 @Component({
   selector: 'app-account-list',
   imports: [
-    AccountOrganizerComponent
+    AccountOrganizerComponent,
+    MenuComponent
   ],
   templateUrl: './account-list.component.html',
   styleUrl: './account-list.component.scss'

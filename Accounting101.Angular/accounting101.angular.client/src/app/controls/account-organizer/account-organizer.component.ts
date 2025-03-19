@@ -6,7 +6,6 @@ import {debounce} from '@agentepsilon/decko'
 import {CdkDrag, CdkDropList} from '@angular/cdk/drag-drop';
 import {AccountModel} from '../../models/account.model';
 import {AccountGroupModel} from '../../models/account-group.model';
-import {AccountListComponent} from '../../components/account-list/account-list.component';
 
 @Component({
   selector: 'app-account-organizer',
@@ -37,6 +36,15 @@ export class AccountOrganizerComponent implements OnChanges{
   constructor(@Inject(DOCUMENT) private document: Document) {
   }
 
+  contextMenu(event: MouseEvent) {
+    event.preventDefault();
+    const container = this.getClickedElement(event.clientX, event.clientY);
+    console.log(container);
+    if (!container) {
+      return;
+    }
+  }
+
   ngOnChanges(changes: SimpleChanges) {
     if (!changes['layoutGroup'].firstChange && !changes['accounts'].firstChange) {
       this.buildTree();
@@ -51,7 +59,8 @@ export class AccountOrganizerComponent implements OnChanges{
       id: this.groupName,
       acctId: layoutGroup.id,
       children: new Array<TreeNode>(),
-      isDraggable: false
+      isDraggable: false,
+      isFolder: true
     }
     this.nodes.push(rootNode);
     if ((layoutGroup.groups) || (accounts)) {
@@ -65,8 +74,9 @@ export class AccountOrganizerComponent implements OnChanges{
         id: group.name,
         acctId: group.id,
         children: new Array<TreeNode>(),
-        isDraggable: true
-      };
+        isDraggable: true,
+        isFolder: true
+      }
       parent.children.push(node);
       if (group.accounts && group.accounts.length > 0) {
         this.addAccounts(node, group.accounts, accounts);
@@ -89,8 +99,9 @@ export class AccountOrganizerComponent implements OnChanges{
         id: accountName ?? '',
         acctId: acctId,
         children: new Array<TreeNode>(),
-        isDraggable: true
-      };
+        isDraggable: true,
+        isFolder: false
+      }
       parent.children.push(node);
     });
   }
@@ -105,13 +116,7 @@ export class AccountOrganizerComponent implements OnChanges{
 
   @debounce(50)
   dragMoved(event: { pointerPosition: { x: number; y: number; }; }) {
-    let e = this.document.elementFromPoint(event.pointerPosition.x,event.pointerPosition.y);
-
-    if (!e) {
-      this.clearDragInfo();
-      return;
-    }
-    let container = e.classList.contains("node-item") ? e : e.closest(".node-item");
+    const container = this.getClickedElement(event.pointerPosition.x, event.pointerPosition.y);
     if (!container || container.getAttribute("draggable") === "false") {
       this.clearDragInfo();
       return;
@@ -142,10 +147,19 @@ export class AccountOrganizerComponent implements OnChanges{
     const parentItemId = event.previousContainer.id;
     const targetListId = this.getParentNodeId(this.dropActionTodo.targetId, this.nodes, 'main');
 
-    if (parentItemId != targetListId) {
+    if (!targetListId) {
       this.clearDragInfo();
       return;
     }
+
+    console.log("draggedItemId: " + draggedItemId);
+    console.log("parentItemId: " + parentItemId);
+    console.log("targetListId: " + targetListId);
+
+    // if (parentItemId != targetListId) {
+    //   this.clearDragInfo();
+    //   return;
+    // }
 
     console.log(
       '\nmoving\n[' + draggedItemId + '] from list [' + parentItemId + ']',
@@ -177,6 +191,7 @@ export class AccountOrganizerComponent implements OnChanges{
     }
 
     this.clearDragInfo(true)
+    console.log(this.nodes);
   }
 
   getParentNodeId(id: string, nodesToSearch: TreeNode[], parentId: string): string | null {
@@ -208,5 +223,17 @@ export class AccountOrganizerComponent implements OnChanges{
     this.document
       .querySelectorAll(".drop-inside")
       .forEach(element => element.classList.remove("drop-inside"));
+  }
+
+  private getClickedElement(x: number, y: number) {
+    let e = this.document.elementFromPoint(x,y);
+    if (!e) {
+      return null;
+    }
+    let container = e.classList.contains("node-item") ? e : e.closest(".node-item");
+    if (!container) {
+      return null;
+    }
+    return container;
   }
 }

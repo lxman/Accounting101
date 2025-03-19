@@ -24,12 +24,22 @@
 <div cdkDropList [cdkDropListData]="nodes"
      [id]="'main'" [cdkDropListConnectedTo]="dropTargetIds"
      (cdkDropListDropped)="drop($event)"
+     (contextmenu)="contextMenu($event)"
      [cdkDropListSortingDisabled]="true">
 
-  <div *ngFor="let node of nodes" cdkDrag [cdkDragData]="node.id"
-       (cdkDragMoved)="dragMoved($event)">
-    <ng-container *ngTemplateOutlet="tmplNode,context:{node:node}"></ng-container>
-  </div>
+  <ng-container *ngFor="let node of nodes">
+    <div *ngIf="!node.isDraggable" class="node-item" [attr.data-id]="node.id" [attr.id]="'node-'+node.id">
+
+      <ng-container *ngTemplateOutlet="tmplNode,context:{node:node}" />
+
+    </div>
+    <div *ngIf="node.isDraggable" cdkDrag [cdkDragData]="node.id"
+         (cdkDragMoved)="dragMoved($event)">
+
+      <ng-container *ngTemplateOutlet="tmplNode,context:{node:node}" />
+
+    </div>
+  </ng-container>
 </div>
 
 <!--<hr />-->

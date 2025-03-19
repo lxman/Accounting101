@@ -4,6 +4,7 @@ export interface TreeNode {
   children: TreeNode[];
   isExpanded?: boolean;
   isDraggable?: boolean;
+  isFolder?: boolean;
 }
 
 export interface DropInfo {
