@@ -39,7 +39,6 @@ export class AccountOrganizerComponent implements OnChanges{
   contextMenu(event: MouseEvent) {
     event.preventDefault();
     const container = this.getClickedElement(event.clientX, event.clientY);
-    console.log(container);
     if (!container) {
       return;
     }
@@ -191,7 +190,6 @@ export class AccountOrganizerComponent implements OnChanges{
     }
 
     this.clearDragInfo(true)
-    console.log(this.nodes);
   }
 
   getParentNodeId(id: string, nodesToSearch: TreeNode[], parentId: string): string | null {
