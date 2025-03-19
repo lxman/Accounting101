@@ -1,6 +1,6 @@
-<app-account-organizer [accounts]="assetAccounts" [layoutGroup]="assetLayout" />
-<app-account-organizer [accounts]="liabilityAccounts" [layoutGroup]="liabilityLayout" />
-<app-account-organizer [accounts]="equityAccounts" [layoutGroup]="equityLayout" />
-<app-account-organizer [accounts]="revenueAccounts" [layoutGroup]="revenueLayout" />
-<app-account-organizer [accounts]="expenseAccounts" [layoutGroup]="expenseLayout" />
-<app-account-organizer [accounts]="earningsAccounts" [layoutGroup]="earningsLayout" />
+<app-account-organizer [groupName]="'Assets'" [accounts]="assetAccounts" [layoutGroup]="assetLayout" />
+<app-account-organizer [groupName]="'Liabilities'" [accounts]="liabilityAccounts" [layoutGroup]="liabilityLayout" />
+<app-account-organizer [groupName]="'Equity'" [accounts]="equityAccounts" [layoutGroup]="equityLayout" />
+<app-account-organizer [groupName]="'Revenue'" [accounts]="revenueAccounts" [layoutGroup]="revenueLayout" />
+<app-account-organizer [groupName]="'Expenses'" [accounts]="expenseAccounts" [layoutGroup]="expenseLayout" />
+<app-account-organizer [groupName]="'Earnings'" [accounts]="earningsAccounts" [layoutGroup]="earningsLayout" />

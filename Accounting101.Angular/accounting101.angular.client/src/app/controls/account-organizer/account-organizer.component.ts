@@ -1,4 +1,4 @@
-import {Component, Inject, OnChanges, SimpleChanges, ViewEncapsulation, input} from '@angular/core';
+import {Component, Inject, OnChanges, SimpleChanges, ViewEncapsulation, input, Input} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {DOCUMENT, NgForOf, NgTemplateOutlet} from '@angular/common';
 import {DropInfo, TreeNode} from '../../models/account-organizer.interface';
@@ -23,6 +23,7 @@ import {AccountListComponent} from '../../components/account-list/account-list.c
 })
 
 export class AccountOrganizerComponent implements OnChanges{
+  @Input() groupName: string = '';
   readonly layoutGroup = input.required<AccountGroupModel>();
   readonly accounts = input.required<AccountModel[]>();
 
@@ -44,21 +45,21 @@ export class AccountOrganizerComponent implements OnChanges{
   }
 
   private buildTree() {
+    const layoutGroup = this.layoutGroup();
+    const accounts = this.accounts();
     const rootNode = {
-      id: this.layoutGroup().name,
-      acctId: this.layoutGroup().id,
+      id: this.groupName,
+      acctId: layoutGroup.id,
       children: new Array<TreeNode>(),
       isDraggable: false
     }
     this.nodes.push(rootNode);
-    const layoutGroup = this.layoutGroup();
-    const accounts = this.accounts();
     if ((layoutGroup.groups) || (accounts)) {
-      this.addGroups(rootNode, layoutGroup, accounts);
+      this.buildNodes(rootNode, layoutGroup, accounts);
     }
   }
 
-  private addGroups(parent: TreeNode, group: AccountGroupModel, accounts: AccountModel[]) {
+  private buildNodes(parent: TreeNode, group: AccountGroupModel, accounts: AccountModel[]) {
     group.groups?.forEach(group => {
       const node = {
         id: group.name,
@@ -72,7 +73,7 @@ export class AccountOrganizerComponent implements OnChanges{
       }
       if (group.groups && group.groups.length > 0) {
         group.groups?.forEach(group => {
-          this.addGroups(node, group, accounts);
+          this.buildNodes(node, group, accounts);
         })
       }
     });
@@ -83,7 +84,7 @@ export class AccountOrganizerComponent implements OnChanges{
 
   private addAccounts(parent: TreeNode, acctIds: string[], accounts: AccountModel[]) {
     acctIds.forEach(acctId => {
-      const accountName = this.accounts().find(a => a.id == acctId)?.accountInfo?.name;
+      const accountName = accounts.find(a => a.id == acctId)?.info?.name;
       const node = {
         id: accountName ?? '',
         acctId: acctId,

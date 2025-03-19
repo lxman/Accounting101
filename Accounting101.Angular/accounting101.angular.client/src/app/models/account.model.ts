@@ -9,5 +9,5 @@ export class AccountModel {
   startBalance: number = 0;
   isDebitAccount: boolean = false;
   created: number = new Date().setHours(0, 0, 0, 0);
-  accountInfo: AccountInfoModel = new AccountInfoModel();
+  info: AccountInfoModel = new AccountInfoModel();
 }

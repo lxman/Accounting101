@@ -13,5 +13,5 @@ export class AppComponent implements OnInit {
 
   ngOnInit() {
   }
-  title = 'angulartest.client';
+  title = 'accounting101.angular.client';
 }
