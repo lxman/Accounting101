@@ -1,6 +1,6 @@
-<mat-form-field *ngIf="show">
+<mat-form-field *ngIf="show()">
   <mat-select [required]="required" (valueChange)="onChange($event)">
-      <mat-option *ngFor="let item of items" [value]="item">
+      <mat-option *ngFor="let item of items()" [value]="item">
         {{ item }}
       </mat-option>
   </mat-select>

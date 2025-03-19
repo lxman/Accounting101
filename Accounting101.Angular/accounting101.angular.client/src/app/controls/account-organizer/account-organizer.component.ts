@@ -1,4 +1,4 @@
-import {Component, Inject, Input, ViewEncapsulation} from '@angular/core';
+import {Component, Inject, OnChanges, SimpleChanges, ViewEncapsulation, input} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {DOCUMENT, NgForOf, NgTemplateOutlet} from '@angular/common';
 import {DropInfo, TreeNode} from '../../models/account-organizer.interface';
@@ -6,6 +6,7 @@ import {debounce} from '@agentepsilon/decko'
 import {CdkDrag, CdkDropList} from '@angular/cdk/drag-drop';
 import {AccountModel} from '../../models/account.model';
 import {AccountGroupModel} from '../../models/account-group.model';
+import {AccountListComponent} from '../../components/account-list/account-list.component';
 
 @Component({
   selector: 'app-account-organizer',
@@ -21,9 +22,9 @@ import {AccountGroupModel} from '../../models/account-group.model';
   encapsulation: ViewEncapsulation.None
 })
 
-export class AccountOrganizerComponent {
-  @Input() layoutGroup: AccountGroupModel = new AccountGroupModel('');
-  @Input() accounts: AccountModel[] = [];
+export class AccountOrganizerComponent implements OnChanges{
+  readonly layoutGroup = input.required<AccountGroupModel>();
+  readonly accounts = input.required<AccountModel[]>();
 
   nodes: TreeNode[] = [];
 
@@ -33,20 +34,27 @@ export class AccountOrganizerComponent {
   dropActionTodo: DropInfo | null = null;
 
   constructor(@Inject(DOCUMENT) private document: Document) {
-    this.buildTree();
-    this.prepareDragDrop(this.nodes);
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    if (!changes['layoutGroup'].firstChange && !changes['accounts'].firstChange) {
+      this.buildTree();
+      this.prepareDragDrop(this.nodes);
+    }
   }
 
   private buildTree() {
     const rootNode = {
-      id: this.layoutGroup.name,
-      acctId: this.layoutGroup.id,
+      id: this.layoutGroup().name,
+      acctId: this.layoutGroup().id,
       children: new Array<TreeNode>(),
       isDraggable: false
     }
     this.nodes.push(rootNode);
-    if (this.layoutGroup.groups && this.layoutGroup.groups.length > 0) {
-      this.addGroups(rootNode, this.layoutGroup.groups, this.accounts);
+    const layoutGroup = this.layoutGroup();
+    const accounts = this.accounts();
+    if ((layoutGroup.groups && layoutGroup.groups.length > 0) || (accounts && accounts.length > 0)) {
+      this.addGroups(rootNode, layoutGroup.groups ?? new Array<AccountGroupModel>(), accounts);
     }
   }
 
@@ -70,7 +78,7 @@ export class AccountOrganizerComponent {
 
   private addAccounts(parent: TreeNode, acctIds: string[], accounts: AccountModel[]) {
     acctIds.forEach(acctId => {
-      const accountName = this.accounts.find(a => a.id == acctId)?.accountInfo?.name;
+      const accountName = this.accounts().find(a => a.id == acctId)?.accountInfo?.name;
       const node = {
         id: accountName ?? '',
         acctId: acctId,

@@ -1,4 +1,4 @@
-import { Component, inject, Input, OnDestroy, OnInit } from '@angular/core';
+import {Component, inject, OnDestroy, OnInit, input, Input} from '@angular/core';
 import { PersonNameModel } from '../../models/person-name.model';
 import { MatFormFieldControl, MatFormField, MatLabel } from '@angular/material/form-field';
 import { Subject } from 'rxjs';
@@ -23,10 +23,11 @@ import { MatInputModule } from '@angular/material/input';
     }
   ]
 })
+
 export class PersonNameComponent implements MatFormFieldControl<PersonNameModel>, ControlValueAccessor, OnDestroy, OnInit {
-  @Input() show: boolean = false;
-  @Input() required: boolean = false;
-  @Input() groupName: string = '';
+  readonly show = input<boolean>(false);
+
+  readonly groupName = input<string>('');
 
   personNameForm: FormGroup = new FormGroup({});
 
@@ -46,7 +47,7 @@ export class PersonNameComponent implements MatFormFieldControl<PersonNameModel>
   disableAutomaticLabeling?: boolean | undefined;
 
   ngOnInit(): void {
-    this.personNameForm = this.rootFormGroup.control.get(this.groupName) as FormGroup;
+    this.personNameForm = this.rootFormGroup.control.get(this.groupName()) as FormGroup;
   }
 
   private _value: PersonNameModel = new PersonNameModel();
@@ -73,6 +74,8 @@ export class PersonNameComponent implements MatFormFieldControl<PersonNameModel>
     this.personNameForm.valueChanges.subscribe(fn);
   }
 
+  onTouched: () => void = () => {};
+
   registerOnTouched(fn: any): void {
     this.onTouched = fn;
   }
@@ -97,7 +100,7 @@ export class PersonNameComponent implements MatFormFieldControl<PersonNameModel>
     }
   }
 
-  onTouched: () => void = () => {};
+  @Input() required: boolean = false;
 
   ngOnDestroy(): void {
     this.stateChanges.complete();

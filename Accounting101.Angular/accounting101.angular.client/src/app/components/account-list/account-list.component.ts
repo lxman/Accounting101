@@ -14,7 +14,7 @@ import {BaseAccountType} from '../../enums/base-account-types.enum';
   templateUrl: './account-list.component.html',
   styleUrl: './account-list.component.scss'
 })
-export class AccountListComponent {
+export class AccountListComponent{
   accountService: AccountsManagerService = inject(AccountsManagerService);
   accounts: AccountModel[] = [];
   layouts: RootGroups = new RootGroups();

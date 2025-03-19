@@ -1,4 +1,4 @@
-import { Component, EventEmitter, inject, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, inject, OnInit, Output, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormGroup, FormsModule, ReactiveFormsModule, ControlContainer, FormGroupDirective } from '@angular/forms';
 import { UsAddressModel } from '../../models/us-address.model';
@@ -37,9 +37,9 @@ import { SelectComponent } from '../select/select.component';
 })
 
 export class AddressComponent implements OnInit {
-  @Input() states: any[] = [];
-  @Input() countries: any[] = [];
-  @Input() groupName: string = '';
+  readonly states = input<any[]>([]);
+  readonly countries = input<any[]>([]);
+  readonly groupName = input<string>('');
   @Output() toggledEvent = new EventEmitter<void>();
 
   addressForm: FormGroup = new FormGroup({});
@@ -48,7 +48,7 @@ export class AddressComponent implements OnInit {
   countryRequired: boolean = false;
 
   ngOnInit(): void {
-    this.addressForm = this.rootFormGroup.control.get(this.groupName) as FormGroup;
+    this.addressForm = this.rootFormGroup.control.get(this.groupName()) as FormGroup;
     this.addressForm.valueChanges.subscribe(() => {
       this.stateRequired = !this.addressForm.value.isForeign!;
       this.countryRequired = this.addressForm.value.isForeign!;
