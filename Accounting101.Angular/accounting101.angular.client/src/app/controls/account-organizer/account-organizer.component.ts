@@ -53,13 +53,13 @@ export class AccountOrganizerComponent implements OnChanges{
     this.nodes.push(rootNode);
     const layoutGroup = this.layoutGroup();
     const accounts = this.accounts();
-    if ((layoutGroup.groups && layoutGroup.groups.length > 0) || (accounts && accounts.length > 0)) {
-      this.addGroups(rootNode, layoutGroup.groups ?? new Array<AccountGroupModel>(), accounts);
+    if ((layoutGroup.groups) || (accounts)) {
+      this.addGroups(rootNode, layoutGroup, accounts);
     }
   }
 
-  private addGroups(parent: TreeNode, groups: AccountGroupModel[], accounts: AccountModel[]) {
-    groups.forEach(group => {
+  private addGroups(parent: TreeNode, group: AccountGroupModel, accounts: AccountModel[]) {
+    group.groups?.forEach(group => {
       const node = {
         id: group.name,
         acctId: group.id,
@@ -71,9 +71,14 @@ export class AccountOrganizerComponent implements OnChanges{
         this.addAccounts(node, group.accounts, accounts);
       }
       if (group.groups && group.groups.length > 0) {
-        this.addGroups(node, group.groups, accounts);
+        group.groups?.forEach(group => {
+          this.addGroups(node, group, accounts);
+        })
       }
     });
+    if (group.accounts && group.accounts.length > 0) {
+      this.addAccounts(parent, group.accounts, accounts);
+    }
   }
 
   private addAccounts(parent: TreeNode, acctIds: string[], accounts: AccountModel[]) {
