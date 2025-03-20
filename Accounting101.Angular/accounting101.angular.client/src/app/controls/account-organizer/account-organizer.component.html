@@ -1,24 +1,38 @@
 <ng-template #tmplNode let-node="node">
-  <div class="node-item" [attr.data-id]="node.id" [attr.id]="'node-'+node.id">
+  <div class="node-item" [attr.id]="'node-'+node.id">
 
     <ng-container>
-      <div *ngIf="isFolder(node)" [ngClass]="{'node-title': true, 'folder-node': true, 'node-draggable': isDraggable(node)}" (click)="node.isExpanded=!node.isExpanded">
-        {{(node.folders.length || node.accounts.length) ? (node.isExpanded?'-&nbsp;':'+') : '&nbsp;&nbsp;&nbsp;'}} &nbsp;&nbsp;&nbsp; {{node.id}} <span class="item-notes"> ({{(node.folders.length || node.accounts.length)}}{{(node.folders.length || node.accounts.length)?', expanded: ' + !!node.isExpanded:''}})</span>
+      <div
+        *ngIf="isFolder(node)"
+        [ngClass]="{'node-title': true, 'folder-node': true, 'node-draggable': isDraggable(node)}"
+        [attr.data-id]="node.folderId"
+        (click)="node.isExpanded=!node.isExpanded"
+        (contextmenu)="contextMenu($event)">
+        {{node.children.length
+          ? (node.isExpanded?'-&nbsp;':'+')
+          : '&nbsp;&nbsp;&nbsp;'}} &nbsp;&nbsp;&nbsp; {{node.id}}
       </div>
       <div *ngIf="isAccount(node)" [ngClass]="{'node-title': true, 'node-draggable': true}">
         {{ '&nbsp;&nbsp;&nbsp;' + node.id }}
       </div>
     </ng-container>
 
-    <div *ngIf="isFolder(node) && node.isExpanded" class="node-children"
-         cdkDropList [cdkDropListData]="node.accounts.concat(node.folders)"
-         [id]="node.id" [cdkDropListConnectedTo]="dropTargetIds"
-         (cdkDropListDropped)="drop($event)"
-         [cdkDropListSortingDisabled]="true">
+    <div
+      *ngIf="isFolder(node) && node.isExpanded"
+      class="node-children"
+      cdkDropList
+      [cdkDropListData]="node.children"
+      [id]="node.id"
+      [cdkDropListConnectedTo]="dropTargetIds"
+      (cdkDropListDropped)="drop($event)"
+      [cdkDropListSortingDisabled]="true">
 
-      <div *ngFor="let child of node.accounts.concat(node.folders)" cdkDrag [cdkDragData]="child"
-           (cdkDragMoved)="dragMoved($event)">
-        <ng-container *ngTemplateOutlet="tmplNode,context:{node:child}"></ng-container>
+      <div
+        *ngFor="let child of node.children"
+        cdkDrag
+        [cdkDragData]="child"
+        (cdkDragMoved)="dragMoved($event)">
+        <ng-container *ngTemplateOutlet="tmplNode,context:{node:child}" />
       </div>
 
     </div>
@@ -27,29 +41,31 @@
 </ng-template>
 
 <div cdkDropList [cdkDropListData]="nodes"
-     [id]="'main'" [cdkDropListConnectedTo]="dropTargetIds"
+     [id]="'main'"
+     [cdkDropListConnectedTo]="dropTargetIds"
      (cdkDropListDropped)="drop($event)"
-     (contextmenu)="contextMenu($event)"
      [cdkDropListSortingDisabled]="true">
 
   <ng-container *ngFor="let node of nodes">
-    <div *ngIf="isFolder(node) && !isDraggable(node)" class="node-item" [attr.data-id]="node.id" [attr.id]="'node-'+node.id">
+    <div
+      *ngIf="isFolder(node) && !isDraggable(node)"
+      class="root-folder folder-node"
+      [attr.data-id]="node.folderId"
+      (contextmenu)="contextMenu($event)"
+      [attr.id]="'node-'+node.id">
 
       <ng-container *ngTemplateOutlet="tmplNode,context:{node:node}" />
 
     </div>
-    <div *ngIf="(isFolder(node) && isDraggable(node)) || isAccount(node)" cdkDrag [cdkDragData]="node.id"
-         (cdkDragMoved)="dragMoved($event)">
+    <div
+      *ngIf="(isFolder(node) && isDraggable(node)) || isAccount(node)"
+      cdkDrag
+      [cdkDragData]="node.id"
+      (contextmenu)="contextMenu($event)"
+      (cdkDragMoved)="dragMoved($event)">
 
       <ng-container *ngTemplateOutlet="tmplNode,context:{node:node}" />
 
     </div>
   </ng-container>
 </div>
-
-<!--<hr />-->
-<!--<p><strong>current drag drop action:</strong></p>-->
-<!--<pre>{{dropActionTodo|json}}</pre>-->
-<!--<hr />-->
-<!--<p><strong>tree data</strong></p>-->
-<!--<pre>{{nodes|json}}</pre>-->

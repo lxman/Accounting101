@@ -12,19 +12,32 @@ export function isDraggable(node: NodeType): boolean {
   return isFolder(node) ? node.isDraggable : true;
 }
 
-export function findIndex(nodes: NodeType[], id: string): number {
+export function findNodeById(nodes: NodeType[], id: string): NodeType | null {
   for (let i = 0; i < nodes.length; i++) {
-    if (nodes[i].id === id) return i;
+    if (nodes[i].id === id) return nodes[i];
   }
-  return -1;
+  return null;
+}
+
+export function findFolderByFolderId(nodes: NodeType[], folderId: string): FolderNode | null {
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    if (isFolder(node) && node.folderId === folderId) {
+      return node;
+    }
+    else if (isFolder(node)) {
+      return findFolderByFolderId(node.children, folderId);
+    }
+  }
+  return null; // Return -1 if the folderId is not found
 }
 
 export interface FolderNode {
   type: string;
   id: string;
   acctId: string;
-  folders: FolderNode[];
-  accounts: AccountNode[];
+  folderId: string;
+  children: NodeType[];
   isExpanded: boolean;
   isDraggable: boolean;
 }
