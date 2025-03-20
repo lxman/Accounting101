@@ -24,7 +24,17 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAccessTests.WPF", "Acco
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ZipDataParser.WPF", "Accounting101.WPF\ZipDataParser.WPF\ZipDataParser.WPF.csproj", "{B46DCA18-3060-B0D5-7921-FF95E5198A93}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{2B2F8B6B-B8C5-4EC5-B211-2E6152DAEA0E}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "WPF Solution Items", "WPF Solution Items", "{2B2F8B6B-B8C5-4EC5-B211-2E6152DAEA0E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{E71E53C9-49FB-4FEF-84CE-1DEED07CDBE4}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Angular Solution Items", "Angular Solution Items", "{84D3998B-7657-4E17-A6E4-23429B7BD037}"
+	ProjectSection(SolutionItems) = preProject
+		Accounting101.Angular\.gitignore = Accounting101.Angular\.gitignore
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
