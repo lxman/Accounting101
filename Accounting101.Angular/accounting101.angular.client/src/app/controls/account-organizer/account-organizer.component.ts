@@ -1,7 +1,13 @@
 import {Component, Inject, OnChanges, SimpleChanges, ViewEncapsulation, input, Input} from '@angular/core';
 import {CommonModule} from '@angular/common';
 import {DOCUMENT, NgForOf, NgTemplateOutlet} from '@angular/common';
-import {DropInfo, TreeNode} from '../../models/account-organizer.interface';
+import {
+  FolderNode,
+  DropInfo,
+  AccountNode,
+  isFolder,
+  isAccount, isDraggable, findIndex
+} from '../../models/account-organizer.interface';
 import {debounce} from '@agentepsilon/decko'
 import {CdkDrag, CdkDropList} from '@angular/cdk/drag-drop';
 import {AccountModel} from '../../models/account.model';
@@ -26,11 +32,10 @@ export class AccountOrganizerComponent implements OnChanges{
   readonly layoutGroup = input.required<AccountGroupModel>();
   readonly accounts = input.required<AccountModel[]>();
 
-  nodes: TreeNode[] = [];
+  nodes: (FolderNode | AccountNode)[] = [];
 
-  // ids for connected drop lists
   dropTargetIds: string[] = [];
-  nodeLookup: { [key: string]: TreeNode } = {};
+  nodeLookup: { [key: string]: FolderNode } = {};
   dropActionTodo: DropInfo | null = null;
 
   constructor(@Inject(DOCUMENT) private document: Document) {
@@ -42,24 +47,27 @@ export class AccountOrganizerComponent implements OnChanges{
     if (!container) {
       return;
     }
+
   }
 
   ngOnChanges(changes: SimpleChanges) {
     if (!changes['layoutGroup'].firstChange && !changes['accounts'].firstChange) {
       this.buildTree();
-      this.prepareDragDrop(this.nodes);
+      this.prepareDragDrop(this.nodes.filter(n => n.type == 'folder') as FolderNode[]);
     }
   }
 
   private buildTree() {
     const layoutGroup = this.layoutGroup();
     const accounts = this.accounts();
-    const rootNode = {
+    const rootNode: FolderNode = {
+      type: 'folder',
       id: this.groupName,
       acctId: layoutGroup.id,
-      children: new Array<TreeNode>(),
       isDraggable: false,
-      isFolder: true
+      folders: new Array<FolderNode>(),
+      accounts: new Array<AccountNode>(),
+      isExpanded: false
     }
     this.nodes.push(rootNode);
     if ((layoutGroup.groups) || (accounts)) {
@@ -67,16 +75,18 @@ export class AccountOrganizerComponent implements OnChanges{
     }
   }
 
-  private buildNodes(parent: TreeNode, group: AccountGroupModel, accounts: AccountModel[]) {
+  private buildNodes(parent: FolderNode, group: AccountGroupModel, accounts: AccountModel[]) {
     group.groups?.forEach(group => {
-      const node = {
+      const node: FolderNode = {
+        type: 'folder',
         id: group.name,
         acctId: group.id,
-        children: new Array<TreeNode>(),
         isDraggable: true,
-        isFolder: true
+        folders: new Array<FolderNode>(),
+        accounts: new Array<AccountNode>(),
+        isExpanded: false
       }
-      parent.children.push(node);
+      parent.folders.push(node);
       if (group.accounts && group.accounts.length > 0) {
         this.addAccounts(node, group.accounts, accounts);
       }
@@ -91,25 +101,23 @@ export class AccountOrganizerComponent implements OnChanges{
     }
   }
 
-  private addAccounts(parent: TreeNode, acctIds: string[], accounts: AccountModel[]) {
+  private addAccounts(parent: FolderNode, acctIds: string[], accounts: AccountModel[]) {
     acctIds.forEach(acctId => {
       const accountName = accounts.find(a => a.id == acctId)?.info?.name;
-      const node = {
+      const node: AccountNode = {
+        type: 'account',
         id: accountName ?? '',
-        acctId: acctId,
-        children: new Array<TreeNode>(),
-        isDraggable: true,
-        isFolder: false
+        acctId: acctId
       }
-      parent.children.push(node);
+      parent.accounts.push(node);
     });
   }
 
-  prepareDragDrop(nodes: TreeNode[]) {
+  prepareDragDrop(nodes: FolderNode[]) {
     nodes.forEach(node => {
       this.dropTargetIds.push(node.id);
       this.nodeLookup[node.id] = node;
-      this.prepareDragDrop(node.children);
+      this.prepareDragDrop(node.folders);
     });
   }
 
@@ -134,7 +142,7 @@ export class AccountOrganizerComponent implements OnChanges{
       this.dropActionTodo["action"] = "after";
     } else {
       // inside
-      this.dropActionTodo["action"] = "inside";
+      // this.dropActionTodo["action"] = "inside";
     }
     this.showDragInfo();
   }
@@ -142,61 +150,53 @@ export class AccountOrganizerComponent implements OnChanges{
   drop(event: { item: { data: any; }; previousContainer: { id: any; }; }) {
     if (!this.dropActionTodo) return;
 
-    const draggedItemId = event.item.data;
-    const parentItemId = event.previousContainer.id;
+    const draggedItem = event.item.data;
+    const parentItem = event.previousContainer;
     const targetListId = this.getParentNodeId(this.dropActionTodo.targetId, this.nodes, 'main');
 
-    if (!targetListId) {
+    if (!targetListId || targetListId == 'main' || parentItem.id == 'main') {
       this.clearDragInfo();
       return;
     }
 
-    console.log("draggedItemId: " + draggedItemId);
-    console.log("parentItemId: " + parentItemId);
-    console.log("targetListId: " + targetListId);
+    const oldItemContainer = this.nodeLookup[parentItem.id];
+    const newContainer = this.nodeLookup[targetListId];
+    let i = findIndex(oldItemContainer.accounts, draggedItem.id);
 
-    // if (parentItemId != targetListId) {
-    //   this.clearDragInfo();
-    //   return;
-    // }
-
-    console.log(
-      '\nmoving\n[' + draggedItemId + '] from list [' + parentItemId + ']',
-      '\n[' + this.dropActionTodo.action + ']\n[' + this.dropActionTodo.targetId + '] from list [' + targetListId + ']');
-
-    const draggedItem = this.nodeLookup[draggedItemId];
-
-    const oldItemContainer = parentItemId != 'main' ? this.nodeLookup[parentItemId].children : this.nodes;
-    const newContainer = targetListId && targetListId != 'main' ? this.nodeLookup[targetListId].children : this.nodes;
-
-    let i = oldItemContainer.findIndex(c => c.id === draggedItemId);
-    oldItemContainer.splice(i, 1);
+    switch (draggedItem.type) {
+      case 'folder':
+        oldItemContainer.folders.splice(i, 1);
+        break;
+      case 'account':
+        oldItemContainer.accounts.splice(i, 1);
+        break;
+    }
 
     switch (this.dropActionTodo.action) {
       case 'before':
       case 'after':
-        const targetIndex = newContainer.findIndex(c => c.id === this.dropActionTodo?.targetId);
+        const targetIndex = findIndex(newContainer.accounts, this.dropActionTodo?.targetId);
         if (this.dropActionTodo.action == 'before') {
-          newContainer.splice(targetIndex, 0, draggedItem);
-        } else {
-          newContainer.splice(targetIndex + 1, 0, draggedItem);
+          newContainer.accounts.splice(targetIndex, 0, draggedItem);
         }
-        break;
-
-      case 'inside':
-        this.nodeLookup[this.dropActionTodo.targetId].children.push(draggedItem)
-        this.nodeLookup[this.dropActionTodo.targetId].isExpanded = true;
+        else {
+          newContainer.accounts.splice(targetIndex + 1, 0, draggedItem);
+        }
         break;
     }
 
     this.clearDragInfo(true)
   }
 
-  getParentNodeId(id: string, nodesToSearch: TreeNode[], parentId: string): string | null {
+  getParentNodeId(id: string, nodesToSearch: (FolderNode | AccountNode)[], parentId: string): string | null {
     for (let node of nodesToSearch) {
       if (node.id == id) return parentId;
-      let ret = this.getParentNodeId(id, node.children, node.id);
-      if (ret) return ret;
+      if ("folders" in node) {
+        let ret = this.getParentNodeId(id, node.folders, node.id);
+        if (ret) return ret;
+        ret = this.getParentNodeId(id, node.accounts, node.id);
+        if (ret) return ret;
+      }
     }
     return null;
   }
@@ -218,9 +218,6 @@ export class AccountOrganizerComponent implements OnChanges{
     this.document
       .querySelectorAll(".drop-after")
       .forEach(element => element.classList.remove("drop-after"));
-    this.document
-      .querySelectorAll(".drop-inside")
-      .forEach(element => element.classList.remove("drop-inside"));
   }
 
   private getClickedElement(x: number, y: number) {
@@ -234,4 +231,8 @@ export class AccountOrganizerComponent implements OnChanges{
     }
     return container;
   }
+
+  protected readonly isFolder = isFolder;
+  protected readonly isAccount = isAccount;
+  protected readonly isDraggable = isDraggable;
 }
