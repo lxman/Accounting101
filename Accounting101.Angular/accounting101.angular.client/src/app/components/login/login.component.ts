@@ -45,11 +45,6 @@ export class LoginComponent {
     // login.twoFactorAuthenticationCodeReset = this.loginForm.get('twoFactorAuthenticationCodeReset')!.value!;
     this.userManager.loginUser(login).subscribe({
       next: (ApplicationUser) => {
-        this.toastService.open('Login successful', 'Close', {
-          duration: 3000,
-          verticalPosition: 'top',
-          horizontalPosition: 'center'
-        });
         this.userData.set(this.globals.userIdKey, ApplicationUser.id);
         this.userData.set(this.globals.rolesKey, ApplicationUser.roles.join(','));
         this.businessManager.businessExists().subscribe({

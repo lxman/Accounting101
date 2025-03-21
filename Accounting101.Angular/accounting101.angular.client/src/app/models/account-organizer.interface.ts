@@ -19,14 +19,14 @@ export function findNodeById(nodes: NodeType[], id: string): NodeType | null {
   return null;
 }
 
-export function findFolderByFolderId(nodes: NodeType[], folderId: string): FolderNode | null {
+export function findFolderById(nodes: NodeType[], folderId: string): FolderNode | null {
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
-    if (isFolder(node) && node.folderId === folderId) {
+    if (isFolder(node) && node.id === folderId) {
       return node;
     }
     else if (isFolder(node)) {
-      return findFolderByFolderId(node.children, folderId);
+      return findFolderById(node.children, folderId);
     }
   }
   return null; // Return -1 if the folderId is not found
@@ -35,8 +35,7 @@ export function findFolderByFolderId(nodes: NodeType[], folderId: string): Folde
 export interface FolderNode {
   type: string;
   id: string;
-  acctId: string;
-  folderId: string;
+  name: string;
   children: NodeType[];
   isExpanded: boolean;
   isDraggable: boolean;
@@ -45,7 +44,7 @@ export interface FolderNode {
 export interface AccountNode {
   type: string;
   id: string;
-  acctId: string;
+  name: string;
 }
 
 export interface DropInfo {

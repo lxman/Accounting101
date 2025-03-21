@@ -21,6 +21,10 @@
   border-bottom: 1px solid #00f;
 }
 
+.drop-inside {
+  border: 1px solid #00f;
+}
+
 .node-title {
   padding: 25px;
   margin: 15px;

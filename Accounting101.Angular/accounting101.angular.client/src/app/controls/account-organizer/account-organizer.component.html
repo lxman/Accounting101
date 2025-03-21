@@ -1,19 +1,24 @@
 <ng-template #tmplNode let-node="node">
-  <div class="node-item" [attr.id]="'node-'+node.id">
+  <div class="node-item">
 
     <ng-container>
       <div
         *ngIf="isFolder(node)"
         [ngClass]="{'node-title': true, 'folder-node': true, 'node-draggable': isDraggable(node)}"
-        [attr.data-id]="node.folderId"
         (click)="node.isExpanded=!node.isExpanded"
+        [id]="'node-' + node.id"
+        [attr.data-id]="node.id"
         (contextmenu)="contextMenu($event)">
         {{node.children.length
           ? (node.isExpanded?'-&nbsp;':'+')
-          : '&nbsp;&nbsp;&nbsp;'}} &nbsp;&nbsp;&nbsp; {{node.id}}
+          : '&nbsp;&nbsp;&nbsp;'}} &nbsp;&nbsp;&nbsp; {{node.name}}
       </div>
-      <div *ngIf="isAccount(node)" [ngClass]="{'node-title': true, 'node-draggable': true}">
-        {{ '&nbsp;&nbsp;&nbsp;' + node.id }}
+      <div
+        *ngIf="isAccount(node)"
+        [id]="'node-' + node.id"
+        [attr.data-id]="node.id"
+        [ngClass]="{'node-title': true, 'node-draggable': true}">
+        {{ '&nbsp;&nbsp;&nbsp;' + node.name }}
       </div>
     </ng-container>
 
@@ -21,22 +26,19 @@
       *ngIf="isFolder(node) && node.isExpanded"
       class="node-children"
       cdkDropList
-      [cdkDropListData]="node.children"
-      [id]="node.id"
+      [cdkDropListData]="node"
+      [attr.id]="node.id"
       [cdkDropListConnectedTo]="dropTargetIds"
       (cdkDropListDropped)="drop($event)"
       [cdkDropListSortingDisabled]="true">
-
       <div
         *ngFor="let child of node.children"
         cdkDrag
-        [cdkDragData]="child"
+        [cdkDragData]="child.id"
         (cdkDragMoved)="dragMoved($event)">
         <ng-container *ngTemplateOutlet="tmplNode,context:{node:child}" />
       </div>
-
     </div>
-
   </div>
 </ng-template>
 
@@ -50,9 +52,8 @@
     <div
       *ngIf="isFolder(node) && !isDraggable(node)"
       class="root-folder folder-node"
-      [attr.data-id]="node.folderId"
-      (contextmenu)="contextMenu($event)"
-      [attr.id]="'node-'+node.id">
+      [attr.data-id]="node.id"
+      (contextmenu)="contextMenu($event)">
 
       <ng-container *ngTemplateOutlet="tmplNode,context:{node:node}" />
 
@@ -60,6 +61,7 @@
     <div
       *ngIf="(isFolder(node) && isDraggable(node)) || isAccount(node)"
       cdkDrag
+      [id]="'node-' + node.id"
       [cdkDragData]="node.id"
       (contextmenu)="contextMenu($event)"
       (cdkDragMoved)="dragMoved($event)">
