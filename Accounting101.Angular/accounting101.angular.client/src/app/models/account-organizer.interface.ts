@@ -12,13 +12,6 @@ export function isDraggable(node: NodeType): boolean {
   return isFolder(node) ? node.isDraggable : true;
 }
 
-export function findNodeById(nodes: NodeType[], id: string): NodeType | null {
-  for (let i = 0; i < nodes.length; i++) {
-    if (nodes[i].id === id) return nodes[i];
-  }
-  return null;
-}
-
 export function findFolderById(nodes: NodeType[], folderId: string): FolderNode | null {
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];

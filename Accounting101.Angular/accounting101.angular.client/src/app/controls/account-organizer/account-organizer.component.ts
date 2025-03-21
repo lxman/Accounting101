@@ -8,7 +8,6 @@ import {
   isFolder,
   isAccount,
   isDraggable,
-  findNodeById,
   findFolderById, NodeType
 } from '../../models/account-organizer.interface';
 import {debounce} from '@agentepsilon/decko'
@@ -211,8 +210,6 @@ export class AccountOrganizerComponent implements OnChanges{
     }
 
     this.clearDragInfo(true)
-
-    console.log(this.nodes);
   }
 
   getDropNode(id: string, nodesToSearch: NodeType[]): NodeType | null {
