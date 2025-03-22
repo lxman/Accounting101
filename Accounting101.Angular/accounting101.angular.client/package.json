@@ -28,6 +28,7 @@
     "@mui/material": "^6.4.7",
     "crypto-js": "^4.2.0",
     "jest-editor-support": "*",
+    "material-design-icons-iconfont": "^6.7.0",
     "run-script-os": "*",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",

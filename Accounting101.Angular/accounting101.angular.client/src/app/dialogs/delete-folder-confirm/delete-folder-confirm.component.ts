@@ -1,4 +1,4 @@
-import {Component, inject} from '@angular/core';
+import {Component, inject, ElementRef, ViewChild, AfterViewInit} from '@angular/core';
 import {MatButton} from "@angular/material/button";
 import {MatDialogActions, MatDialogContent, MatDialogRef, MatDialogTitle} from "@angular/material/dialog";
 
@@ -13,8 +13,16 @@ import {MatDialogActions, MatDialogContent, MatDialogRef, MatDialogTitle} from "
   templateUrl: './delete-folder-confirm.component.html',
   styleUrl: './delete-folder-confirm.component.scss'
 })
-export class DeleteFolderConfirm {
+export class DeleteFolderConfirm implements AfterViewInit{
   readonly dialogRef = inject(MatDialogRef<DeleteFolderConfirm>);
+
+  @ViewChild('yesButton', {static: false}) yesButton!: MatButton;
+
+  ngAfterViewInit() {
+    if (this.yesButton?._elementRef) {
+      this.yesButton._elementRef.nativeElement.focus();
+    }
+  }
 
   onNoClicked() {
     this.dialogRef.close();

@@ -4,7 +4,7 @@
     <ng-container>
       <div
         *ngIf="isFolder(node)"
-        [ngClass]="{'node-title': true, 'folder-node': true, 'node-draggable': isDraggable(node)}"
+        [ngClass]="{'node-title': true, 'folder-node': true, 'draggable-node': isDraggable(node)}"
         (click)="node.isExpanded=!node.isExpanded"
         (contextmenu)="onContextMenu($event, node)"
         [id]="'node-' + node.id"
@@ -14,16 +14,22 @@
              [style.top]="contextMenuPosition.y"
              [matMenuTriggerFor]="draggableMenu">
         </div>
-        {{node.children.length
-          ? (node.isExpanded?'-&nbsp;':'+')
-          : '&nbsp;&nbsp;&nbsp;'}} &nbsp;&nbsp;&nbsp; {{node.name}}
+        <span *ngIf="node.isExpanded">
+          <i class="material-icons">folder_open</i>
+          <span class="node-text">{{ node.name }}</span>
+        </span>
+        <span *ngIf="!node.isExpanded">
+          <i class="material-icons">folder</i>
+          <span class="node-text">{{ node.name }}</span>
+        </span>
       </div>
       <div
         *ngIf="isAccount(node)"
         [id]="'node-' + node.id"
         [attr.data-id]="node.id"
-        [ngClass]="{'node-title': true, 'node-draggable': true}">
-        {{ '&nbsp;&nbsp;&nbsp;' + node.name }}
+        [ngClass]="{'node-title': true, 'draggable-node': true}">
+        <i class="material-icons">account_balance</i>
+        <span class="node-text">{{ node.name }}</span>
       </div>
       <mat-menu #draggableMenu="matMenu">
         <ng-template matMenuContent let-item="item">
@@ -72,6 +78,7 @@
     <div
       *ngIf="(isFolder(node) && isDraggable(node)) || isAccount(node)"
       cdkDrag
+      [ngClass]="{'folder-node': isFolder(node), 'draggable-node': isDraggable(node)}"
       [id]="'node-' + node.id"
       [cdkDragData]="node.id"
       [matMenuTriggerFor]="node.type == 'folder' && isDraggable(node) ? draggableMenu : null"

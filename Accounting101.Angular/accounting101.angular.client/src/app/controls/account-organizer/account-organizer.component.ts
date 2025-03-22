@@ -9,7 +9,8 @@ import {
   inject,
   Input,
   ViewChild,
-  model, ChangeDetectorRef
+  model,
+  ChangeDetectorRef
 } from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {MatFormFieldModule} from '@angular/material/form-field';
@@ -53,7 +54,7 @@ import {DeleteFolderConfirm} from '../../dialogs/delete-folder-confirm/delete-fo
     FormsModule,
     MatButtonModule
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  changeDetection: ChangeDetectionStrategy.Default,
   templateUrl: './account-organizer.component.html',
   styleUrl: './account-organizer.component.scss',
   encapsulation: ViewEncapsulation.None
@@ -117,7 +118,6 @@ export class AccountOrganizerComponent implements OnChanges{
         item.children.push(newFolder);
         item.isExpanded = true;
         this.changeDetectorRef.detectChanges();
-        console.log("Folder " + newFolder.name + " created");
       }
     })
   }
@@ -125,11 +125,23 @@ export class AccountOrganizerComponent implements OnChanges{
   onContextMenuDelete(item: FolderNode) {
     const dialogRef = this.deleteFolderConfirmDialog.open(DeleteFolderConfirm, {
       data: {confirm: false},
-      autoFocus: false
+      autoFocus: 'dialog'
     })
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        alert("Delete Folder");
+        const container = this.getContainingFolder(item.id);
+        if (item.children.length == 0) {
+          if (container) {
+            container[0].children.splice(container[1], 1);
+            this.changeDetectorRef.detectChanges();
+          }
+        }
+        else {
+          const children = item.children.splice(0, item.children.length);
+          container?.[0].children.splice(container[1], 1);
+          container?.[0].children.push(...children);
+          this.changeDetectorRef.detectChanges();
+        }
       }
     })
   }
@@ -236,40 +248,43 @@ export class AccountOrganizerComponent implements OnChanges{
   }
 
   drop(event: { item: { data: any; }; previousContainer: { id: any; }; container: { data: any; }; }) {
-    if (!this.dropActionTodo) return;
+    try {
+      if (!this.dropActionTodo) return;
 
-    const srcFolder = event.container.data as FolderNode;
-    const srcIndex = srcFolder.children.findIndex(c => c.id == event.item.data);
-    const parentItem = event.previousContainer;
-    const target = this.getDropNode(this.dropActionTodo.targetId, this.nodes);
+      const srcFolder = event.container.data as FolderNode;
+      const srcIndex = srcFolder.children.findIndex(c => c.id == event.item.data);
+      const parentItem = event.previousContainer;
+      const target = this.getDropNode(this.dropActionTodo.targetId, this.nodes);
 
-    if (!target || target.id == 'main' || parentItem.id == 'main') {
-      this.clearDragInfo();
-      return;
-    }
-
-    // Remove from the old
-    const movedNode = srcFolder.children.splice(srcIndex, 1)[0];
-
-    // Dropping on a folder (inside)
-    if (target.type == 'folder' && this.dropActionTodo.action == 'inside' && "children" in target) {
-      // Insert into the new
-      target.children.splice(srcIndex, 0, movedNode);
-    }
-
-    // Dropping before or after a folder or account
-    if (this.dropActionTodo.action == 'before' || this.dropActionTodo.action == 'after') {
-      const targetFolder = this.getContainingFolder(target.id);
-      if (!targetFolder) {
-        console.log("target folder not found");
+      if (!target || target.id == 'main' || parentItem.id == 'main') {
+        this.clearDragInfo();
         return;
       }
-      const destFolder = targetFolder[0];
-      const index = targetFolder[1] + (this.dropActionTodo.action == "before" ? 0 : 1);
-      destFolder.children.splice(index, 0, movedNode);
-    }
 
-    this.clearDragInfo(true)
+      // Remove from the old
+      const movedNode = srcFolder.children.splice(srcIndex, 1)[0];
+
+      // Dropping on a folder (inside)
+      if (target.type == 'folder' && this.dropActionTodo.action == 'inside' && "children" in target) {
+        // Insert into the new
+        target.children.splice(srcIndex, 0, movedNode);
+      }
+
+      // Dropping before or after a folder or account
+      if (this.dropActionTodo.action == 'before' || this.dropActionTodo.action == 'after') {
+        const targetFolder = this.getContainingFolder(target.id);
+        if (!targetFolder) {
+          console.log("target folder not found");
+          return;
+        }
+        const destFolder = targetFolder[0];
+        const index = targetFolder[1] + (this.dropActionTodo.action == "before" ? 0 : 1);
+        destFolder.children.splice(index, 0, movedNode);
+      }
+    }
+    finally {
+      this.clearDragInfo(true);
+    }
   }
 
   getDropNode(id: string, nodesToSearch: NodeType[]): NodeType | null {

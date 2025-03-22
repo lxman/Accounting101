@@ -4,6 +4,6 @@
   <p>Are you sure?</p>
 </mat-dialog-content>
 <mat-dialog-actions>
-  <button mat-button (click)="onYesClicked()">Yes (Enter)</button>
   <button mat-button (click)="onNoClicked()">No (Esc)</button>
+    <button #yesButton mat-button (click)="onYesClicked()">Yes (Enter)</button>
 </mat-dialog-actions>
