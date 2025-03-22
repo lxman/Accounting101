@@ -6,9 +6,14 @@
         *ngIf="isFolder(node)"
         [ngClass]="{'node-title': true, 'folder-node': true, 'node-draggable': isDraggable(node)}"
         (click)="node.isExpanded=!node.isExpanded"
+        (contextmenu)="onContextMenu($event, node)"
         [id]="'node-' + node.id"
-        [attr.data-id]="node.id"
-        (contextmenu)="contextMenu($event)">
+        [attr.data-id]="node.id">
+        <div style="visibility: hidden; position: fixed;"
+             [style.left]="contextMenuPosition.x"
+             [style.top]="contextMenuPosition.y"
+             [matMenuTriggerFor]="draggableMenu">
+        </div>
         {{node.children.length
           ? (node.isExpanded?'-&nbsp;':'+')
           : '&nbsp;&nbsp;&nbsp;'}} &nbsp;&nbsp;&nbsp; {{node.name}}
@@ -20,6 +25,12 @@
         [ngClass]="{'node-title': true, 'node-draggable': true}">
         {{ '&nbsp;&nbsp;&nbsp;' + node.name }}
       </div>
+      <mat-menu #draggableMenu="matMenu">
+        <ng-template matMenuContent let-item="item">
+          <button mat-menu-item (click)="onContextMenuNew(item)">New</button>
+          <button *ngIf="item.isDraggable" mat-menu-item (click)="onContextMenuDelete(item)">Delete</button>
+        </ng-template>
+      </mat-menu>
     </ng-container>
 
     <div
@@ -52,21 +63,28 @@
     <div
       *ngIf="isFolder(node) && !isDraggable(node)"
       class="root-folder folder-node"
-      [attr.data-id]="node.id"
-      (contextmenu)="contextMenu($event)">
+      [attr.data-id]="node.id">
 
       <ng-container *ngTemplateOutlet="tmplNode,context:{node:node}" />
 
     </div>
+
     <div
       *ngIf="(isFolder(node) && isDraggable(node)) || isAccount(node)"
       cdkDrag
       [id]="'node-' + node.id"
       [cdkDragData]="node.id"
-      (contextmenu)="contextMenu($event)"
+      [matMenuTriggerFor]="node.type == 'folder' && isDraggable(node) ? draggableMenu : null"
       (cdkDragMoved)="dragMoved($event)">
 
       <ng-container *ngTemplateOutlet="tmplNode,context:{node:node}" />
+
+      <mat-menu #draggableMenu="matMenu">
+        <ng-template matMenuContent let-item="item">
+          <button mat-menu-item (click)="onContextMenuNew(item)">New</button>
+          <button mat-menu-item (click)="onContextMenuDelete(item)">Delete</button>
+        </ng-template>
+      </mat-menu>
 
     </div>
   </ng-container>
