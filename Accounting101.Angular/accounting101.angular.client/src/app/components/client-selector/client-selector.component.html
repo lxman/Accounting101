@@ -1,4 +1,4 @@
-<app-menu />
+<app-menu [screen]="Screen.clientSelector" />
 <ng-container *ngFor="let client of clients(); let i = index">
   <mat-card>
     <mat-card-header>

@@ -10,6 +10,7 @@ import {MenuComponent} from '../menu/menu.component';
 import {MatButton} from '@angular/material/button';
 import {MatMenuModule} from '@angular/material/menu';
 import {Router} from '@angular/router';
+import {Screen} from '../../enums/screen.enum';
 
 @Component({
   selector: 'app-client-selector',
@@ -34,6 +35,8 @@ export class ClientSelectorComponent {
   private readonly globals = inject(GlobalConstantsService);
   private readonly router = inject(Router);
   public clients = toSignal(this.clientService.getClients(), { initialValue: [] });
+
+  protected readonly Screen = Screen;
 
   clientSelected(clientId: string) {
     this.userDataService.set(this.globals.clientIdKey, clientId);

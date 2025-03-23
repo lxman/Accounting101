@@ -1,15 +1,16 @@
-<menu style="position: initial; overflow: initial;">
-  <div fxShow="true" fxLayout="row" fxLayoutAlign="space-between center">
-    <div fxLayout="row" fxLayoutAlign="start center">
-      <a mat-menu-item [matMenuTriggerFor]="file">File</a>
-      <a mat-menu-item [matMenuTriggerFor]="edit">Edit</a>
-    </div>
-  </div>
-  <mat-menu #file="matMenu">
-    <p><a mat-menu-item>New</a></p>
-    <a mat-menu-item>Edit</a>
-  </mat-menu>
-  <mat-menu #edit="matMenu">
-    <a mat-menu-item>This</a>
-  </mat-menu>
-</menu>
+<button mat-button [matMenuTriggerFor]="appMenu">Menu</button>
+<mat-menu #appMenu="matMenu">
+  <ng-template let-item ngFor [ngForOf]="menuItems">
+    <button mat-menu-item [routerLink]="item.link" *ngIf="!item.children">
+      {{ item.label }}
+    </button>
+    <button mat-menu-item [matMenuTriggerFor]="subMenu" *ngIf="item.children">
+      {{ item.label }}
+    </button>
+    <mat-menu #subMenu="matMenu">
+      <button mat-menu-item *ngFor="let child of item.children" [routerLink]="child.link">
+        {{ child.label }}
+      </button>
+    </mat-menu>
+  </ng-template>
+</mat-menu>
