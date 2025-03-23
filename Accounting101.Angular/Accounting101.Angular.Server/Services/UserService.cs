@@ -1,4 +1,5 @@
-﻿using Accounting101.Angular.Server.Controllers;
+﻿using System.Security.Claims;
+using Accounting101.Angular.Server.Controllers;
 using Accounting101.Angular.Server.Identity;
 using Accounting101.Angular.Server.Models;
 using Microsoft.AspNetCore.Identity;
@@ -15,7 +16,9 @@ public interface IUserService
 
     Task<IActionResult> LoginAsync(LoginModel model);
 
-    Task<IActionResult> LogoutAsync();
+    IActionResult IsAuthenticated(ClaimsPrincipal user);
+
+    Task<IActionResult> LogoutAsync(ClaimsPrincipal user);
 }
 
 public class UserService(
@@ -75,8 +78,23 @@ public class UserService(
             : new BadRequestObjectResult("Invalid login attempt");
     }
 
-    public async Task<IActionResult> LogoutAsync()
+    public IActionResult IsAuthenticated(ClaimsPrincipal user)
     {
+        return signInManager.IsSignedIn(user)
+            ? new OkResult()
+            : new UnauthorizedResult();
+    }
+
+    public async Task<IActionResult> LogoutAsync(ClaimsPrincipal user)
+    {
+        ApplicationUser? appUser = await userManager.GetUserAsync(user);
+        if (appUser is null)
+        {
+            logger.LogError($"User not found: {user}");
+            return new BadRequestObjectResult("User not found");
+        }
+
+        await userManager.UpdateSecurityStampAsync(appUser);
         await signInManager.SignOutAsync();
         return new OkResult();
     }

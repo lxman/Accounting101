@@ -1,5 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import {Component, inject, OnInit} from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { IdleService } from './services/idle/idle.service';
 
 @Component({
     selector: 'app-root',
@@ -8,10 +9,11 @@ import { RouterOutlet } from '@angular/router';
     imports: [RouterOutlet]
 })
 
-export class AppComponent implements OnInit {
-  constructor() {}
+export class AppComponent implements OnInit{
+  private readonly idleService: IdleService = inject(IdleService);
+  title = 'accounting101.angular.client';
 
   ngOnInit() {
+    this.idleService.initialize();
   }
-  title = 'accounting101.angular.client';
 }

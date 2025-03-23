@@ -32,9 +32,15 @@ public class AuthorizationController(IUserService userService, ILogger<Authoriza
         return await userService.LoginAsync(model);
     }
 
+    [HttpGet("is-authenticated")]
+    public IActionResult IsAuthenticated()
+    {
+        return userService.IsAuthenticated(User);
+    }
+
     [HttpPost("logout")]
     public Task<IActionResult> LogoutAsync()
     {
-        return userService.LogoutAsync();
+        return userService.LogoutAsync(User);
     }
 }

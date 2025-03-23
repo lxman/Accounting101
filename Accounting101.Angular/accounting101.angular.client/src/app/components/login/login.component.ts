@@ -12,7 +12,7 @@ import { MatCard, MatCardHeader, MatCardTitle, MatCardContent } from '@angular/m
 import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatButton } from '@angular/material/button';
-import { ApplicationUser } from '../../models/application-user.model';
+import { Idle  } from '@ng-idle/core';
 
 @Component({
     selector: 'app-login',
@@ -28,6 +28,7 @@ export class LoginComponent {
   private readonly clientManager: ClientManagerService = inject(ClientManagerService);
   private readonly toastService: MatSnackBar = inject(MatSnackBar);
   private readonly router: Router = inject(Router);
+  private readonly idle: Idle = inject(Idle);
 
   loginForm = new FormGroup({
     email: new FormControl('', [Validators.required, Validators.email]),
@@ -45,6 +46,7 @@ export class LoginComponent {
     // login.twoFactorAuthenticationCodeReset = this.loginForm.get('twoFactorAuthenticationCodeReset')!.value!;
     this.userManager.loginUser(login).subscribe({
       next: (ApplicationUser) => {
+        this.idle.watch();
         this.userData.set(this.globals.userIdKey, ApplicationUser.id);
         this.userData.set(this.globals.rolesKey, ApplicationUser.roles.join(','));
         this.businessManager.businessExists().subscribe({

@@ -13,28 +13,35 @@ import { MatOptionModule } from '@angular/material/core';
 import { MatSelectModule } from '@angular/material/select';
 import { AppComponent } from './app/app.component';
 import { importProvidersFrom } from '@angular/core';
+import { NgIdleModule } from '@ng-idle/core';
+import { LocalStorage } from '@ng-idle/core';
+import { provideRouter } from '@angular/router';
+import { routes } from './app/app-routing.module';
 
 bootstrapApplication(AppComponent, {
-    providers: [
-        importProvidersFrom(
-          BrowserModule,
-          AppRoutingModule,
-          FormsModule,
-          ReactiveFormsModule,
-          MatFormFieldModule,
-          MatLabel,
-          MatGridListModule,
-          MatCardModule,
-          MatMenuModule,
-          MatIconModule,
-          MatButtonModule,
-          MatCardTitle,
-          MatError,
-          MatInputModule,
-          MatOptionModule,
-          MatSelectModule),
-        provideHttpClient(),
-        { provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: { appearance: 'outline' } }
-    ]
+  providers: [
+    LocalStorage,
+    ...(NgIdleModule.forRoot().providers || []),
+    importProvidersFrom(
+      BrowserModule,
+      AppRoutingModule,
+      FormsModule,
+      ReactiveFormsModule,
+      MatFormFieldModule,
+      MatLabel,
+      MatGridListModule,
+      MatCardModule,
+      MatMenuModule,
+      MatIconModule,
+      MatButtonModule,
+      MatCardTitle,
+      MatError,
+      MatInputModule,
+      MatOptionModule,
+      MatSelectModule),
+    provideHttpClient(),
+    provideRouter(routes),
+    { provide: MAT_FORM_FIELD_DEFAULT_OPTIONS, useValue: { appearance: 'outline' } }
+  ]
 })
   .catch(err => console.error(err));
