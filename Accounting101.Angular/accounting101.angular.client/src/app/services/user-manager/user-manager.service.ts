@@ -14,7 +14,7 @@ export class UserManagerService {
   private readonly http: HttpClient = inject(HttpClient);
   private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);
 
-  private baseUrl = this.globals.baseAppUrl;
+  private baseUrl = this.globals.baseServerUrl;
 
   registerUser(user: CreateUserModel): Observable<CreateUserModel> {
     return this.http.post<CreateUserModel>(`${this.baseUrl}/authorization/register`, user)

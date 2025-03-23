@@ -14,7 +14,7 @@ export class PersonNameManagerService {
   private readonly userData: UserDataService = inject(UserDataService);
   private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);
 
-  private baseUrl = this.globals.baseAppUrl;
+  private baseUrl = this.globals.baseServerUrl;
 
   createPersonName(personNameModel: PersonNameModel): Observable<PersonNameModel> {
     return this.client.post<PersonNameModel>(`${this.baseUrl}/person-name/${this.userData.get(this.globals.userIdKey)}`, personNameModel, { withCredentials: true })

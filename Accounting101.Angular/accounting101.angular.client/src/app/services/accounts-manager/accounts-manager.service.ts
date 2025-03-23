@@ -17,21 +17,21 @@ export class AccountsManagerService {
 
   accountsExist(): Observable<boolean> {
     return this.client.get<boolean>(
-      `${this.globals.baseAppUrl}/accounts/${this.userDataService.get(this.globals.userIdKey)}/${this.userDataService.get(this.globals.clientIdKey)}/exist`,
+      `${this.globals.baseServerUrl}/accounts/${this.userDataService.get(this.globals.userIdKey)}/${this.userDataService.get(this.globals.clientIdKey)}/exist`,
       { withCredentials: true })
       .pipe(catchError(this.handleError));
   }
 
   getLayout(): Observable<RootGroups> {
     return this.client.get<RootGroups>(
-      `${this.globals.baseAppUrl}/accounts/${this.userDataService.get(this.globals.userIdKey)}/${this.userDataService.get(this.globals.clientIdKey)}/layout`,
+      `${this.globals.baseServerUrl}/accounts/${this.userDataService.get(this.globals.userIdKey)}/${this.userDataService.get(this.globals.clientIdKey)}/layout`,
       { withCredentials: true })
       .pipe(catchError(this.handleError));
   }
 
   getAccounts() : Observable<AccountModel[]> {
     return this.client.get<any>(
-      `${this.globals.baseAppUrl}/accounts/${this.userDataService.get(this.globals.userIdKey)}/${this.userDataService.get(this.globals.clientIdKey)}`,
+      `${this.globals.baseServerUrl}/accounts/${this.userDataService.get(this.globals.userIdKey)}/${this.userDataService.get(this.globals.clientIdKey)}`,
       { withCredentials: true })
       .pipe(catchError(this.handleError));
   }

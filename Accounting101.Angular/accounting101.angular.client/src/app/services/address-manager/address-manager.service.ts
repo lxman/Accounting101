@@ -13,7 +13,7 @@ export class AddressManagerService {
   private readonly http: HttpClient = inject(HttpClient);
   private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);
 
-  private baseUrl = this.globals.baseAppUrl;
+  private baseUrl = this.globals.baseServerUrl;
 
   getStates(): Observable<string[]> {
     return this.http.get<string[]>(`${this.baseUrl}/address/states`, { withCredentials: true })

@@ -14,7 +14,7 @@ export class BusinessManagerService {
   private readonly userData: UserDataService = inject(UserDataService);
   private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);
 
-  private baseUrl = this.globals.baseAppUrl;
+  private baseUrl = this.globals.baseServerUrl;
 
   businessExists(): Observable<boolean> {
     return this.client.get<boolean>(`${this.baseUrl}/business/${this.userData.get(this.globals.userIdKey)}/exists`, { withCredentials: true })

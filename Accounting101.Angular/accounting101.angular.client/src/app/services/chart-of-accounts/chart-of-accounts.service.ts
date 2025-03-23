@@ -15,7 +15,7 @@ export class ChartOfAccountsService {
   private readonly userData: UserDataService = inject(UserDataService);
   private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);
 
-  private baseUrl = this.globals.baseAppUrl;
+  private baseUrl = this.globals.baseServerUrl;
 
   getAvailableChartNames() : Observable<string[]> {
     return this.client.get<string[]>(`${this.baseUrl}/coa/available-names`, { withCredentials: true })
