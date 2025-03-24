@@ -33,6 +33,12 @@ public class AccountsController(IDataStore dataStore, ILogger<AccountsController
         return Ok(accounts);
     }
 
+    [HttpGet("{dbId:guid}/{accountId:guid}/transactions")]
+    public async Task<IActionResult> TransactionsForAccountAsync(Guid dbId, Guid clientId, Guid accountId)
+    {
+        return Ok(await dataStore.TransactionsForAccountAsync(dbId.ToString(), accountId));
+    }
+
     [HttpPost("{dbId:guid}/{clientId:guid}/layout")]
     public async Task<IActionResult> SaveAccountsLayoutAsync(Guid dbId, Guid clientId, [FromBody] RootGroup layout)
     {

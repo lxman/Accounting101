@@ -4,12 +4,14 @@ import {UserDataService} from '../../services/user-data/user-data.service';
 import {AccountHeaderComponent} from '../../controls/account-header/account-header.component';
 import {MenuComponent} from '../menu/menu.component';
 import {Screen} from '../../enums/screen.enum';
+import {TransactionListComponent} from '../../controls/transaction-list/transaction-list.component';
 
 @Component({
   selector: 'app-account',
   imports: [
     AccountHeaderComponent,
-    MenuComponent
+    MenuComponent,
+    TransactionListComponent
   ],
   templateUrl: './account.component.html',
   styleUrl: './account.component.scss'

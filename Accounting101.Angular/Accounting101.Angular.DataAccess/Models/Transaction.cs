@@ -17,6 +17,8 @@ public class Transaction : IGlobalItem
 
     public DateOnly When { get; }
 
+    public Transaction() { }
+
     public Transaction(Guid creditedAccountId, Guid debitedAccountId, decimal amount, DateOnly when)
     {
         CreditedAccountId = creditedAccountId;
