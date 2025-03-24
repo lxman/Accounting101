@@ -16,15 +16,7 @@ export class MenuService {
 
     // Example for static data
     const menuItems: MenuItem[] = [
-      { label: 'Home', link: '/' },
-      {
-        label: 'Products',
-        children: [
-          { label: 'Electronics', link: '/products/electronics' },
-          { label: 'Books', link: '/products/books' },
-        ],
-      },
-      { label: 'Contact', link: '/contact' },
+      { label: 'Client List', link: '/client-selector' }
     ];
     return of(menuItems);
   }
