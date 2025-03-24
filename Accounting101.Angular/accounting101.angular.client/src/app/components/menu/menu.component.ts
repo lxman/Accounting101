@@ -6,6 +6,10 @@ import {MatButton} from '@angular/material/button';
 import {NgForOf, NgIf} from '@angular/common';
 import {RouterLink} from '@angular/router';
 import {Screen} from '../../enums/screen.enum';
+import {FlexLayoutModule} from '@ngbracket/ngx-layout';
+import {UserManagerService} from '../../services/user-manager/user-manager.service';
+import {UserDataService} from '../../services/user-data/user-data.service';
+import {Router} from '@angular/router';
 
 @Component({
   selector: 'app-menu',
@@ -17,20 +21,30 @@ import {Screen} from '../../enums/screen.enum';
     NgForOf,
     MatMenuItem,
     RouterLink,
-    NgIf
+    NgIf,
+    FlexLayoutModule
   ]
 })
 
 export class MenuComponent implements OnChanges {
   private readonly menuService: MenuService = inject(MenuService);
+  private readonly userManager: UserManagerService = inject(UserManagerService);
+  private readonly userData: UserDataService = inject(UserDataService);
+  private readonly router: Router = inject(Router);
   readonly screen = input.required<Screen>();
   menuItems: MenuItem[] = [];
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (!changes['screen'].firstChange) {
+    if (changes['screen'].firstChange) {
       this.menuService.getMenuItemsFor(this.screen()).subscribe((items) => {
         this.menuItems = items;
       });
     }
+  }
+
+  logoutClicked(): void {
+    this.userManager.logoutUser();
+    this.userData.clearData();
+    this.router.navigate(['/']);
   }
 }

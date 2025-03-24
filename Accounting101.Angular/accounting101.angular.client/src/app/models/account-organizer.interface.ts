@@ -12,19 +12,6 @@ export function isDraggable(node: NodeType): boolean {
   return isFolder(node) ? node.isDraggable : true;
 }
 
-export function findFolderById(nodes: NodeType[], folderId: string): FolderNode | null {
-  for (let i = 0; i < nodes.length; i++) {
-    const node = nodes[i];
-    if (isFolder(node) && node.id === folderId) {
-      return node;
-    }
-    else if (isFolder(node)) {
-      return findFolderById(node.children, folderId);
-    }
-  }
-  return null; // Return -1 if the folderId is not found
-}
-
 export interface FolderNode {
   type: string;
   id: string;

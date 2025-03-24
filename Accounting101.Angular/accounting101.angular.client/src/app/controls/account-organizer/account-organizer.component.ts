@@ -1,31 +1,29 @@
 import {
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   Inject,
-  OnChanges,
-  SimpleChanges,
-  ViewEncapsulation,
-  input,
   inject,
+  input,
   Input,
-  ViewChild,
   model,
-  ChangeDetectorRef
+  OnChanges, output,
+  SimpleChanges,
+  ViewChild,
+  ViewEncapsulation
 } from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {MatFormFieldModule} from '@angular/material/form-field';
 import {MatInputModule} from '@angular/material/input';
 import {MatButtonModule} from '@angular/material/button';
 import {MatDialog} from '@angular/material/dialog';
-import {CommonModule} from '@angular/common';
-import {DOCUMENT, NgForOf, NgTemplateOutlet} from '@angular/common';
+import {CommonModule, DOCUMENT, NgForOf, NgTemplateOutlet} from '@angular/common';
 import {
-  FolderNode,
   DropInfo,
-  AccountNode,
-  isFolder,
+  FolderNode,
   isAccount,
   isDraggable,
+  isFolder,
   NodeType
 } from '../../models/account-organizer.interface';
 import {debounce} from '@agentepsilon/decko'
@@ -36,6 +34,11 @@ import {v7 as uuidv7} from 'uuid';
 import {MatMenu, MatMenuContent, MatMenuItem, MatMenuTrigger} from '@angular/material/menu';
 import {GetFolderName} from '../../dialogs/get-folder-name/get-folder-name.component';
 import {DeleteFolderConfirm} from '../../dialogs/delete-folder-confirm/delete-folder-confirm.component';
+import {AccountGroupListItemType} from '../../enums/account-group-list-item-type.enum';
+import {AccountGroupListItem} from '../../models/account-group-list-item';
+import {Router} from '@angular/router';
+import {GlobalConstantsService} from '../../services/global-constants/global-constants.service';
+import {UserDataService} from '../../services/user-data/user-data.service';
 
 @Component({
   selector: 'app-account-organizer',
@@ -65,16 +68,28 @@ export class AccountOrganizerComponent implements OnChanges{
   readonly layoutGroup = input.required<AccountGroupModel>();
   readonly accounts = input.required<AccountModel[]>();
   readonly name = model('');
-  readonly folderNameDialog = inject(MatDialog);
-  readonly deleteFolderConfirmDialog = inject(MatDialog);
+  private readonly folderNameDialog = inject(MatDialog);
+  private readonly deleteFolderConfirmDialog = inject(MatDialog);
+  private readonly globalConstants: GlobalConstantsService = inject(GlobalConstantsService);
+  private readonly userData: UserDataService = inject(UserDataService);
+  private readonly router: Router = inject(Router);
   protected readonly isFolder = isFolder;
   protected readonly isAccount = isAccount;
   protected readonly isDraggable = isDraggable;
 
+  layoutChanged = output<AccountGroupModel>();
+
   nodes: NodeType[] = [];
+  rootNode: FolderNode = {
+    type: 'folder',
+    name: 'Loading...',
+    id: uuidv7(),
+    isDraggable: false,
+    children: new Array<NodeType>(),
+    isExpanded: false
+  }
 
   dropTargetIds: string[] = [];
-  nodeLookup: { [key: string]: NodeType } = {};
   dropActionTodo: DropInfo | null = null;
 
   @ViewChild(MatMenuTrigger)
@@ -118,6 +133,20 @@ export class AccountOrganizerComponent implements OnChanges{
         item.children.push(newFolder);
         item.isExpanded = true;
         this.changeDetectorRef.detectChanges();
+        this.notifyLayoutChanged();
+      }
+    })
+  }
+
+  onContextMenuRename(item: FolderNode) {
+    const dialogRef = this.folderNameDialog.open(GetFolderName, {
+      data: {name: item.name}
+    });
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        item.name = result;
+        this.changeDetectorRef.detectChanges();
+        this.notifyLayoutChanged();
       }
     })
   }
@@ -134,6 +163,7 @@ export class AccountOrganizerComponent implements OnChanges{
           if (container) {
             container[0].children.splice(container[1], 1);
             this.changeDetectorRef.detectChanges();
+            this.notifyLayoutChanged();
           }
         }
         else {
@@ -141,9 +171,15 @@ export class AccountOrganizerComponent implements OnChanges{
           container?.[0].children.splice(container[1], 1);
           container?.[0].children.push(...children);
           this.changeDetectorRef.detectChanges();
+          this.notifyLayoutChanged();
         }
       }
     })
+  }
+
+  accountClicked(id: string) {
+    this.userData.set(this.globalConstants.accountIdKey, id);
+    this.router.navigate(['/account']);
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -155,9 +191,7 @@ export class AccountOrganizerComponent implements OnChanges{
 
   prepareDragDrop(nodes: FolderNode[]) {
     nodes.forEach(node => {
-      node.name = node.name.replace(/ /g, "_")
       this.dropTargetIds.push(node.id);
-      this.nodeLookup[node.id] = node;
       this.prepareDragDrop(node.children.filter(n => n.type == 'folder') as FolderNode[]);
     });
   }
@@ -165,7 +199,7 @@ export class AccountOrganizerComponent implements OnChanges{
   private buildTree() {
     const layoutGroup = this.layoutGroup();
     const accounts = this.accounts();
-    const rootNode: FolderNode = {
+    this.rootNode = {
       type: 'folder',
       name: this.groupName,
       id: layoutGroup.id,
@@ -173,46 +207,15 @@ export class AccountOrganizerComponent implements OnChanges{
       children: new Array<NodeType>(),
       isExpanded: false
     }
-    this.nodes.push(rootNode);
-    if ((layoutGroup.groups) || (accounts)) {
-      this.addFolders(rootNode, layoutGroup, accounts);
+    this.nodes.push(this.rootNode);
+    if ((layoutGroup.items) || (accounts)) {
+      this.addChildren(this.rootNode, layoutGroup, accounts);
     }
   }
 
-  private addFolders(parent: FolderNode, group: AccountGroupModel, accounts: AccountModel[]) {
-    group.groups?.forEach(group => {
-      const node: FolderNode = {
-        type: 'folder',
-        name: group.name,
-        id: group.id,
-        isDraggable: true,
-        children: new Array<NodeType>(),
-        isExpanded: false
-      }
-      parent.children.push(node);
-      if (group.accounts && group.accounts.length > 0) {
-        this.addAccounts(node, group.accounts, accounts);
-      }
-      if (group.groups && group.groups.length > 0) {
-        group.groups?.forEach(group => {
-          this.addFolders(node, group, accounts);
-        })
-      }
-    });
-    if (group.accounts && group.accounts.length > 0) {
-      this.addAccounts(parent, group.accounts, accounts);
-    }
-  }
-
-  private addAccounts(parent: FolderNode, acctIds: string[], accounts: AccountModel[]) {
-    acctIds.forEach(acctId => {
-      const accountName = accounts.find(a => a.id == acctId)?.info?.name;
-      const node: AccountNode = {
-        type: 'account',
-        name: accountName ?? '',
-        id: acctId,
-      }
-      parent.children.push(node);
+  private addChildren(parent: FolderNode, group: AccountGroupModel, accounts: AccountModel[]) {
+    group.items?.forEach(item => {
+      parent.children.push(this.toNodeType(item));
     });
   }
 
@@ -244,7 +247,7 @@ export class AccountOrganizerComponent implements OnChanges{
       }
       this.dropActionTodo["action"] = "inside";
     }
-    this.showDragInfo(event);
+    this.showDragInfo();
   }
 
   drop(event: { item: { data: any; }; previousContainer: { id: any; }; container: { data: any; }; }) {
@@ -281,10 +284,15 @@ export class AccountOrganizerComponent implements OnChanges{
         const index = targetFolder[1] + (this.dropActionTodo.action == "before" ? 0 : 1);
         destFolder.children.splice(index, 0, movedNode);
       }
+      this.notifyLayoutChanged();
     }
     finally {
       this.clearDragInfo(true);
     }
+  }
+
+  notifyLayoutChanged() {
+    this.layoutChanged.emit(this.toAccountGroupModel());
   }
 
   getDropNode(id: string, nodesToSearch: NodeType[]): NodeType | null {
@@ -309,7 +317,7 @@ export class AccountOrganizerComponent implements OnChanges{
     return null;
   }
 
-  showDragInfo(event: { pointerPosition: { x: number; y: number; }; }) {
+  showDragInfo() {
     this.clearDragInfo();
     if (this.dropActionTodo && this.dropActionTodo.targetId.length > 0) {
       this.document.getElementById("node-" + this.dropActionTodo.targetId)?.classList.add("drop-" + this.dropActionTodo.action);
@@ -329,5 +337,52 @@ export class AccountOrganizerComponent implements OnChanges{
     this.document
       .querySelectorAll(".drop-inside")
       .forEach(element => element.classList.remove("drop-inside"));
+  }
+
+  toAccountGroupModel(): AccountGroupModel {
+    const accountGroupListItem = this.fromNodeType(this.rootNode);
+    const accountGroupModel = new AccountGroupModel(this.groupName);
+    accountGroupModel.id = accountGroupListItem.accountGroup!.id;
+    accountGroupModel.items = accountGroupListItem.accountGroup!.items;
+    return accountGroupModel;
+  }
+
+  toNodeType(item: AccountGroupListItem): NodeType {
+    switch (item.type) {
+      case AccountGroupListItemType.group:
+        return {
+          id: item.accountGroup!.id,
+          name: item.accountGroup!.name,
+          type: 'folder',
+          children: item.accountGroup!.items.map((child) => this.toNodeType(child)),
+          isDraggable: true,
+          isExpanded: false
+        };
+      case AccountGroupListItemType.account:
+        const account = this.accounts().find(a => a.id == item.accountId);
+        return {
+          id: item.accountId!,
+          name: account?.info?.name ?? '',
+          type: 'account'
+        };
+    }
+  }
+
+  fromNodeType(node: NodeType): AccountGroupListItem {
+    if (node.type === 'folder') {
+      const group = new AccountGroupListItem();
+      group.type = AccountGroupListItemType.group;
+      group.accountId = null;
+      group.accountGroup = new AccountGroupModel(node.name);
+      group.accountGroup.id = node.id;
+      group.accountGroup.items = (node as FolderNode).children.map((child) => this.fromNodeType(child));
+      return group;
+    } else {
+      const account = new AccountGroupListItem();
+      account.type = AccountGroupListItemType.account;
+      account.accountId = node.id;
+      account.accountGroup = null;
+      return account;
+    }
   }
 }

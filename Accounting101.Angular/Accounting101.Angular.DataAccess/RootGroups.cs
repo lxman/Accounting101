@@ -18,7 +18,7 @@ public static class RootGroups
         {
             throw new DataException("Error accessing the RootGroups collection.");
         }
-        var rootGroup = new RootGroup(dataStore) { ClientId = clientId };
+        var rootGroup = new RootGroup { ClientId = clientId };
         await rootGroups.InsertOneAsync(rootGroup);
         return rootGroup;
     }

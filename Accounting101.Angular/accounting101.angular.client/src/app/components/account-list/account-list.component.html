@@ -1,7 +1,37 @@
 <app-menu [screen]="Screen.accountList" />
-<app-account-organizer class="account-organizer" [groupName]="'Assets'" [accounts]="assetAccounts" [layoutGroup]="assetLayout" />
-<app-account-organizer class="account-organizer" [groupName]="'Liabilities'" [accounts]="liabilityAccounts" [layoutGroup]="liabilityLayout" />
-<app-account-organizer class="account-organizer" [groupName]="'Equity'" [accounts]="equityAccounts" [layoutGroup]="equityLayout" />
-<app-account-organizer class="account-organizer" [groupName]="'Revenue'" [accounts]="revenueAccounts" [layoutGroup]="revenueLayout" />
-<app-account-organizer class="account-organizer" [groupName]="'Expenses'" [accounts]="expenseAccounts" [layoutGroup]="expenseLayout" />
-<app-account-organizer class="account-organizer" [groupName]="'Earnings'" [accounts]="earningsAccounts" [layoutGroup]="earningsLayout" />
+<app-account-organizer
+  class="account-organizer"
+  (layoutChanged)="handleAssetLayoutChanged($event)"
+  [groupName]="'Assets'"
+  [accounts]="assetAccounts"
+  [layoutGroup]="assetLayout" />
+<app-account-organizer
+  class="account-organizer"
+  (layoutChanged)="handleLiabilityLayoutChanged($event)"
+  [groupName]="'Liabilities'"
+  [accounts]="liabilityAccounts"
+  [layoutGroup]="liabilityLayout" />
+<app-account-organizer
+  class="account-organizer"
+  (layoutChanged)="handleEquityLayoutChanged($event)"
+  [groupName]="'Equity'"
+  [accounts]="equityAccounts"
+  [layoutGroup]="equityLayout" />
+<app-account-organizer
+  class="account-organizer"
+  (layoutChanged)="handleRevenueLayoutChanged($event)"
+  [groupName]="'Revenue'"
+  [accounts]="revenueAccounts"
+  [layoutGroup]="revenueLayout" />
+<app-account-organizer
+  class="account-organizer"
+  (layoutChanged)="handleExpenseLayoutChanged($event)"
+  [groupName]="'Expenses'"
+  [accounts]="expenseAccounts"
+  [layoutGroup]="expenseLayout" />
+<app-account-organizer
+  class="account-organizer"
+  (layoutChanged)="handleEarningsLayoutChanged($event)"
+  [groupName]="'Earnings'"
+  [accounts]="earningsAccounts"
+  [layoutGroup]="earningsLayout" />

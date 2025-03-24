@@ -7,5 +7,6 @@ export enum Screen {
   createSingle = 'CreateSingle',
   clientList = 'ClientList',
   accountList = 'AccountList',
+  account = 'Account',
   transactionList = 'TransactionList'
 }

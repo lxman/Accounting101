@@ -1,16 +1,19 @@
-<button mat-button [matMenuTriggerFor]="appMenu">Menu</button>
-<mat-menu #appMenu="matMenu">
-  <ng-template let-item ngFor [ngForOf]="menuItems">
-    <button mat-menu-item [routerLink]="item.link" *ngIf="!item.children">
-      {{ item.label }}
-    </button>
-    <button mat-menu-item [matMenuTriggerFor]="subMenu" *ngIf="item.children">
-      {{ item.label }}
-    </button>
-    <mat-menu #subMenu="matMenu">
-      <button mat-menu-item *ngFor="let child of item.children" [routerLink]="child.link">
-        {{ child.label }}
+<div fxLayout="row" fxLayoutAlign="space-between center" class="menu">
+  <button mat-button [matMenuTriggerFor]="appMenu">Menu</button>
+  <button mat-button (click)="logoutClicked()">Logout</button>
+  <mat-menu #appMenu="matMenu">
+    <ng-template let-item ngFor [ngForOf]="menuItems">
+      <button mat-menu-item [routerLink]="item.link" *ngIf="!item.children">
+        {{ item.label }}
       </button>
-    </mat-menu>
-  </ng-template>
-</mat-menu>
+      <button mat-menu-item [matMenuTriggerFor]="subMenu" *ngIf="item.children">
+        {{ item.label }}
+      </button>
+      <mat-menu #subMenu="matMenu">
+        <button mat-menu-item *ngFor="let child of item.children" [routerLink]="child.link">
+          {{ child.label }}
+        </button>
+      </mat-menu>
+    </ng-template>
+  </mat-menu>
+</div>

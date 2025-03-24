@@ -190,19 +190,19 @@ public static class Accounts
         switch (a.Type.ToString())
         {
             case "Asset":
-                group.Assets.Accounts.Add(a.Id);
+                group.Assets.Items.Add(new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id });
                 break;
             case "Liability":
-                group.Liabilities.Accounts.Add(a.Id);
+                group.Liabilities.Items.Add(new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id });
                 break;
             case "Equity":
-                group.Equity.Accounts.Add(a.Id);
+                group.Equity.Items.Add(new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id });
                 break;
             case "Revenue":
-                group.Revenue.Accounts.Add(a.Id);
+                group.Revenue.Items.Add(new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id });
                 break;
             case "Expense":
-                group.Expenses.Accounts.Add(a.Id);
+                group.Expenses.Items.Add(new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id });
                 break;
         }
 

@@ -36,6 +36,14 @@ export class AccountsManagerService {
       .pipe(catchError(this.handleError));
   }
 
+  saveLayout(layout: RootGroups): Observable<void> {
+    return this.client.post<void>(
+      `${this.globals.baseServerUrl}/accounts/${this.userDataService.get(this.globals.userIdKey)}/${this.userDataService.get(this.globals.clientIdKey)}/layout`,
+      layout,
+      { withCredentials: true })
+      .pipe(catchError(this.handleError));
+  }
+
   handleError(error: any) {
     console.error(error);
     return throwError(() => error);

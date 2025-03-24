@@ -8,6 +8,7 @@ export class GlobalConstantsService {
   readonly userIdKey: string = 'key1';
   readonly rolesKey: string = 'key2';
   readonly clientIdKey: string = 'key3';
+  readonly accountIdKey: string = 'key4';
 
   // Values are in seconds
   readonly totalTimeout: number = 30 * 60;

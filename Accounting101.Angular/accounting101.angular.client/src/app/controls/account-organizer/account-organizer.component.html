@@ -12,15 +12,15 @@
         <div style="visibility: hidden; position: fixed;"
              [style.left]="contextMenuPosition.x"
              [style.top]="contextMenuPosition.y"
-             [matMenuTriggerFor]="draggableMenu">
+             [matMenuTriggerFor]="popupMenu">
         </div>
         <span *ngIf="node.isExpanded">
           <i class="material-icons">folder_open</i>
-          <span class="node-text">{{ node.name }}</span>
+          <span class="folder-text">{{ node.name }}</span>
         </span>
         <span *ngIf="!node.isExpanded">
           <i class="material-icons">folder</i>
-          <span class="node-text">{{ node.name }}</span>
+          <span class="folder-text">{{ node.name }}</span>
         </span>
       </div>
       <div
@@ -28,12 +28,15 @@
         [id]="'node-' + node.id"
         [attr.data-id]="node.id"
         [ngClass]="{'node-title': true, 'draggable-node': true}">
-        <i class="material-icons">account_balance</i>
-        <span class="node-text">{{ node.name }}</span>
+        <button mat-stroked-button (click)="accountClicked(node.id)">
+          <i class="material-icons">account_balance</i>
+          <span class="node-text">{{ node.name }}</span>
+        </button>
       </div>
-      <mat-menu #draggableMenu="matMenu">
+      <mat-menu #popupMenu="matMenu">
         <ng-template matMenuContent let-item="item">
           <button mat-menu-item (click)="onContextMenuNew(item)">New</button>
+          <button *ngIf="item.isDraggable" mat-menu-item (click)="onContextMenuRename(item)">Rename</button>
           <button *ngIf="item.isDraggable" mat-menu-item (click)="onContextMenuDelete(item)">Delete</button>
         </ng-template>
       </mat-menu>
@@ -72,26 +75,6 @@
       [attr.data-id]="node.id">
 
       <ng-container *ngTemplateOutlet="tmplNode,context:{node:node}" />
-
-    </div>
-
-    <div
-      *ngIf="(isFolder(node) && isDraggable(node)) || isAccount(node)"
-      cdkDrag
-      [ngClass]="{'folder-node': isFolder(node), 'draggable-node': isDraggable(node)}"
-      [id]="'node-' + node.id"
-      [cdkDragData]="node.id"
-      [matMenuTriggerFor]="node.type == 'folder' && isDraggable(node) ? draggableMenu : null"
-      (cdkDragMoved)="dragMoved($event)">
-
-      <ng-container *ngTemplateOutlet="tmplNode,context:{node:node}" />
-
-      <mat-menu #draggableMenu="matMenu">
-        <ng-template matMenuContent let-item="item">
-          <button mat-menu-item (click)="onContextMenuNew(item)">New</button>
-          <button mat-menu-item (click)="onContextMenuDelete(item)">Delete</button>
-        </ng-template>
-      </mat-menu>
 
     </div>
   </ng-container>

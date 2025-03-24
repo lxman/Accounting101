@@ -4,7 +4,7 @@ import {AccountsManagerService} from '../../services/accounts-manager/accounts-m
 import {AccountModel} from '../../models/account.model';
 import {RootGroups} from '../../models/root-groups.model';
 import {AccountGroupModel} from '../../models/account-group.model';
-import {BaseAccountType} from '../../enums/base-account-types.enum';
+import {BaseAccountType} from '../../enums/base-account-type.enum';
 import {MenuComponent} from '../menu/menu.component';
 import {Screen} from '../../enums/screen.enum';
 
@@ -62,6 +62,45 @@ export class AccountListComponent{
           }
         })
       },
+      error: (error) => {
+        console.error(error);
+      }
+    });
+  }
+
+  handleAssetLayoutChanged(layout: AccountGroupModel): void {
+    this.layouts.assets = layout;
+    this.saveLayout();
+  }
+
+  handleLiabilityLayoutChanged(layout: AccountGroupModel): void {
+    this.layouts.liabilities = layout;
+    this.saveLayout();
+  }
+
+  handleEquityLayoutChanged(layout: AccountGroupModel): void {
+    this.layouts.equity = layout;
+    this.saveLayout();
+  }
+
+  handleRevenueLayoutChanged(layout: AccountGroupModel): void {
+    this.layouts.revenue = layout;
+    this.saveLayout();
+  }
+
+  handleExpenseLayoutChanged(layout: AccountGroupModel): void {
+    this.layouts.expenses = layout;
+    this.saveLayout();
+  }
+
+  handleEarningsLayoutChanged(layout: AccountGroupModel): void {
+    this.layouts.earnings = layout;
+    this.saveLayout();
+  }
+
+  saveLayout(): void {
+    this.accountService.saveLayout(this.layouts).subscribe({
+      next: () => {},
       error: (error) => {
         console.error(error);
       }

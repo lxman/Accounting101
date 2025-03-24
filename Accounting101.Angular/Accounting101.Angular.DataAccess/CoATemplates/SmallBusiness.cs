@@ -41,11 +41,16 @@ public class SmallBusiness
             new(new Account { ClientId = c.Id, Type = BaseAccountTypes.Expense, StartBalance = 0 }, new AccountInfo { Name = "Depreciation Expense", CoAId = "750" })
         ];
         await dataStore.BulkInsertAccountsAsync(dbName, accounts);
-        rg.Assets.Accounts.AddRange(accounts.Where(a => a.Type == BaseAccountTypes.Asset).Select(a => a.Id));
-        rg.Liabilities.Accounts.AddRange(accounts.Where(a => a.Type == BaseAccountTypes.Liability).Select(a => a.Id));
-        rg.Equity.Accounts.AddRange(accounts.Where(a => a.Type == BaseAccountTypes.Equity).Select(a => a.Id));
-        rg.Revenue.Accounts.AddRange(accounts.Where(a => a.Type == BaseAccountTypes.Revenue).Select(a => a.Id));
-        rg.Expenses.Accounts.AddRange(accounts.Where(a => a.Type == BaseAccountTypes.Expense).Select(a => a.Id));
+        rg.Assets.Items.AddRange(accounts.Where(a => a.Type == BaseAccountTypes.Asset)
+                .Select(a => new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id }));
+        rg.Liabilities.Items.AddRange(accounts.Where(a => a.Type == BaseAccountTypes.Liability)
+                .Select(a => new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id }));
+        rg.Equity.Items.AddRange(accounts.Where(a => a.Type == BaseAccountTypes.Equity)
+                .Select(a => new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id }));
+        rg.Revenue.Items.AddRange(accounts.Where(a => a.Type == BaseAccountTypes.Revenue)
+                .Select(a => new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id }));
+        rg.Expenses.Items.AddRange(accounts.Where(a => a.Type == BaseAccountTypes.Expense)
+                .Select(a => new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id }));
         await dataStore.SaveRootGroupAsync(dbName, c.Id, rg);
     }
 }

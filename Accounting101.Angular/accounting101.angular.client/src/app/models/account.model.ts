@@ -1,5 +1,5 @@
 import { AccountInfoModel } from "./account-info.model";
-import { BaseAccountType } from "../enums/base-account-types.enum";
+import { BaseAccountType } from "../enums/base-account-type.enum";
 
 export class AccountModel {
   id: string = '00000000-0000-0000-0000-000000000000';

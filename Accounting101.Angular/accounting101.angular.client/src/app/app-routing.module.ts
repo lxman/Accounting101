@@ -9,16 +9,18 @@ import {CreateCoaComponent} from './components/create-coa/create-coa.component';
 import {CreateSingleAccountComponent} from './components/create-single-account/create-single-account.component';
 import {AccountListComponent} from './components/account-list/account-list.component';
 import { AuthGuard } from './auth.guard';
+import {AccountComponent} from './components/account/account.component';
 
 export const routes: Routes = [
   { path: '', component: LoginComponent},
   { path: 'create-business', component: CreateBusinessComponent, canActivate: [AuthGuard] },
   { path: 'create-client', component: CreateClientComponent, canActivate: [AuthGuard] },
   { path: 'client-selector', component: ClientSelectorComponent, canActivate: [AuthGuard] },
-  { path: 'create-account', component: CreateAccountComponent, canActivate: [AuthGuard]},
-  { path: 'create-coa', component: CreateCoaComponent, canActivate: [AuthGuard]},
-  { path: 'create-single', component: CreateSingleAccountComponent, canActivate: [AuthGuard]},
-  { path: 'account-list', component: AccountListComponent, canActivate: [AuthGuard]}
+  { path: 'create-account', component: CreateAccountComponent, canActivate: [AuthGuard] },
+  { path: 'create-coa', component: CreateCoaComponent, canActivate: [AuthGuard] },
+  { path: 'create-single', component: CreateSingleAccountComponent, canActivate: [AuthGuard] },
+  { path: 'account-list', component: AccountListComponent, canActivate: [AuthGuard] },
+  { path: 'account', component: AccountComponent, canActivate: [AuthGuard] }
 ];
 
 @NgModule({

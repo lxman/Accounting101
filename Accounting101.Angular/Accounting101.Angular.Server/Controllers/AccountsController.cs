@@ -34,7 +34,7 @@ public class AccountsController(IDataStore dataStore, ILogger<AccountsController
     }
 
     [HttpPost("{dbId:guid}/{clientId:guid}/layout")]
-    public async Task<IActionResult> SaveAccountsLayoutAsync(Guid dbId, Guid clientId, RootGroup layout)
+    public async Task<IActionResult> SaveAccountsLayoutAsync(Guid dbId, Guid clientId, [FromBody] RootGroup layout)
     {
         await dataStore.SaveRootGroupAsync(dbId.ToString(), clientId, layout);
         return Ok();
