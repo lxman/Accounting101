@@ -59,7 +59,7 @@ export class ClientSelectorComponent {
     );
   }
 
-  clientClicked(event: MouseEvent, clientId: string) {
+  clientDeleteClicked(event: MouseEvent, clientId: string) {
     const dialogRef = this.dialog.open(DeleteClientConfirm, {
       data: {confirm: false},
       autoFocus: 'dialog'
@@ -71,7 +71,13 @@ export class ClientSelectorComponent {
           {
             if (success) {
               this.refreshTrigger.next();
-              this.router.navigate(['/client-selector'])
+              this.clients.subscribe(() => {
+                if (this.clientsSignal().length == 0) {
+                  this.router.navigate(['/create-client']);
+                  return;
+                }
+                this.router.navigate(['/client-selector'])
+              });
             } else {
               console.error('Failed to delete client');
             }

@@ -3,14 +3,14 @@ import {MatButton} from '@angular/material/button';
 import {Router} from '@angular/router';
 
 @Component({
-  selector: 'app-create-account',
+  selector: 'app-create-first-account',
   imports: [
     MatButton
   ],
-  templateUrl: './create-account.component.html',
-  styleUrl: './create-account.component.scss'
+  templateUrl: './create-first-account.component.html',
+  styleUrl: './create-first-account.component.scss'
 })
-export class CreateAccountComponent {
+export class CreateFirstAccountComponent {
   private readonly router: Router = inject(Router);
 
   createChart() {

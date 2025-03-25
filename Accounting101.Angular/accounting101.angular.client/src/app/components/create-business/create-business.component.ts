@@ -51,14 +51,6 @@ export class CreateBusinessComponent {
       addressService.getCountries().subscribe(countries => this.countries = countries);
   }
 
-  setState(state: string) {
-    this.createBusinessForm.get('addressGroup.state')?.setValue(state);
-  }
-
-  setCountry(country: string) {
-    this.createBusinessForm.get('addressGroup.country')?.setValue(country);
-  }
-
   handleToggled() {
     const addressGroup = this.createBusinessForm.get('addressGroup');
     if (addressGroup == null) {
