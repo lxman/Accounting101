@@ -365,3 +365,4 @@ FodyWeavers.xsd
 # SASS generated files
 *.css
 *.css.map
+/DbInfo
