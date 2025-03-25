@@ -29,6 +29,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{E71E53C9-49FB-4FEF-84CE-1DEED07CDBE4}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
+		DbInfo = DbInfo
 	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Angular Solution Items", "Angular Solution Items", "{84D3998B-7657-4E17-A6E4-23429B7BD037}"
