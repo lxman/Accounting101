@@ -3,6 +3,7 @@ import {AccountsManagerService} from '../../services/accounts-manager/accounts-m
 import {AccountModel} from '../../models/account.model';
 import {MatCard, MatCardContent, MatCardHeader, MatCardTitle} from '@angular/material/card';
 import {NgIf} from '@angular/common';
+import {Router} from '@angular/router';
 
 @Component({
   selector: 'app-account-header',
@@ -20,7 +21,9 @@ import {NgIf} from '@angular/common';
 export class AccountHeaderComponent implements OnChanges{
   readonly accountId = input.required<string>();
   private readonly accounts: AccountsManagerService = inject(AccountsManagerService);
+  private readonly router: Router = inject(Router);
   account: AccountModel = new AccountModel();
+  protected readonly Date = Date;
 
   ngOnChanges(changes:SimpleChanges) {
     if (changes['accountId']) {
@@ -30,5 +33,7 @@ export class AccountHeaderComponent implements OnChanges{
     }
   }
 
-  protected readonly Date = Date;
+  headerClicked() {
+    this.router.navigate(['/account-list']);
+  }
 }

@@ -6,6 +6,7 @@ import {MatButton} from '@angular/material/button';
 import {NgForOf} from '@angular/common';
 import {UserDataService} from '../../services/user-data/user-data.service';
 import {GlobalConstantsService} from '../../services/global-constants/global-constants.service';
+import {Router} from '@angular/router';
 
 @Component({
   selector: 'app-create-coa',
@@ -21,9 +22,10 @@ import {GlobalConstantsService} from '../../services/global-constants/global-con
   styleUrl: './create-coa.component.scss'
 })
 export class CreateCoaComponent {
-  coaService: ChartOfAccountsService = inject(ChartOfAccountsService);
-  userData: UserDataService = inject(UserDataService);
-  globals: GlobalConstantsService = inject(GlobalConstantsService);
+  private readonly coaService: ChartOfAccountsService = inject(ChartOfAccountsService);
+  private readonly userData: UserDataService = inject(UserDataService);
+  private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);
+  private readonly router: Router = inject(Router);
   names: string[] = [];
   models: ChartItemModel[] = [];
 
@@ -41,7 +43,6 @@ export class CreateCoaComponent {
   chartSelected(name: string) {
     const userId = this.userData.get(this.globals.userIdKey);
     const clientId = this.userData.get(this.globals.clientIdKey);
-    this.coaService.createCoA(name, userId, clientId).subscribe();
-    console.log(name);
+    this.coaService.createCoA(name, userId, clientId).subscribe(() => this.router.navigate(['/account-list']));
   }
 }

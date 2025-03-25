@@ -1,1 +1,1 @@
-{"version":3,"sourceRoot":"","sources":[],"names":[],"mappings":"","file":"client-selector.component.css"}
+{"version":3,"sourceRoot":"","sources":["client-selector.component.scss"],"names":[],"mappings":"AAAA;EACE;EACA;EACA;EACA;EACA;EACA;EACA","file":"client-selector.component.css"}

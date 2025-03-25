@@ -36,4 +36,10 @@ public class ClientsController(
         }
         return BadRequest();
     }
+
+    [HttpDelete("{dbId:guid}/{clientId:guid}")]
+    public async Task<IActionResult> DeleteClientAsync(Guid dbId, Guid clientId)
+    {
+        return Ok(await dataStore.DeleteClientAsync(dbId.ToString(), clientId));
+    }
 }

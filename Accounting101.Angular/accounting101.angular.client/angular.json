@@ -26,7 +26,7 @@
           "options": {
             "stylePreprocessorOptions": {
               "includePaths": [
-                "node_modules"
+                "node_modules/"
               ]
             },
             "outputPath": "dist/accounting101.client",

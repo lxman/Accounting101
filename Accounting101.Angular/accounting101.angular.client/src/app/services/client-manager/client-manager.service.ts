@@ -70,6 +70,11 @@ export class ClientManagerService {
       .pipe(catchError(this.handleError));
   }
 
+  deleteClient(clientId: string): Observable<boolean> {
+    return this.client.delete<boolean>(`${this.baseUrl}/clients/${this.userData.get(this.globals.userIdKey)}/${clientId}`, { withCredentials: true })
+      .pipe(catchError(this.handleError));
+  }
+
   private handleError(error: any) {
     console.error(error);
     return throwError(() => error);

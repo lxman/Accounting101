@@ -48,10 +48,10 @@ namespace Accounting101.Angular.DataAccess.Extensions
             return await store.GetCollection<T>(dbName, CollectionNames.GetCollectionName<T>())?.AsQueryable().ToListAsync()!;
         }
 
-        public static async Task<List<T>?> GetAllClientScopeAsync<T>(this IDataStore store, string dbName, Guid id)
+        public static async Task<List<T>?> GetAllClientScopeAsync<T>(this IDataStore store, string dbName, Guid clientId)
             where T : IClientItem
         {
-            return (await store.GetCollection<T>(dbName, CollectionNames.GetCollectionName<T>()).AsQueryable().ToListAsync()).Where(x => x.ClientId == id).ToList();
+            return (await store.GetCollection<T>(dbName, CollectionNames.GetCollectionName<T>()).AsQueryable().ToListAsync()).Where(x => x.ClientId == clientId).ToList();
         }
 
         public static async Task<List<T>?> ReadAllGlobalScopeAsync<T>(this IDataStore store, string dbName)
@@ -95,10 +95,11 @@ namespace Accounting101.Angular.DataAccess.Extensions
             return result.IsAcknowledged;
         }
 
-        public static async Task<bool?> DeleteOneClientScopeAsync<T>(this IDataStore store, string dbName, Guid id)
+        public static async Task<bool?> DeleteOneClientScopeAsync<T>(this IDataStore store, string dbName, Guid clientId, Guid id)
             where T : IClientItem
         {
-            FilterDefinition<T>? filter = Builders<T>.Filter.Eq(x => x.ClientId, id);
+            FilterDefinition<T>? filter = Builders<T>.Filter.Eq(x => x.ClientId, clientId);
+            filter &= Builders<T>.Filter.Eq(x => x.Id, id);
             DeleteResult result = await store.GetCollection<T>(dbName, CollectionNames.GetCollectionName<T>())?.DeleteOneAsync(filter)!;
             if (result.IsAcknowledged) store.NotifyChange(typeof(T), ChangeType.Deleted);
             return result.IsAcknowledged;

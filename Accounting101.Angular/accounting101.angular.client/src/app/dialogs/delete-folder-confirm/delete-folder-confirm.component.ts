@@ -13,6 +13,7 @@ import {MatDialogActions, MatDialogContent, MatDialogRef, MatDialogTitle} from "
   templateUrl: './delete-folder-confirm.component.html',
   styleUrl: './delete-folder-confirm.component.scss'
 })
+
 export class DeleteFolderConfirm implements AfterViewInit{
   readonly dialogRef = inject(MatDialogRef<DeleteFolderConfirm>);
 

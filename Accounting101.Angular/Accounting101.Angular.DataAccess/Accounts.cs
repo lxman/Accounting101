@@ -166,13 +166,13 @@ public static class Accounts
         return result.Value;
     }
 
-    public static async Task<bool> DeleteAccountAsync(this IDataStore store, string dbName, Guid accountId)
+    public static async Task<bool> DeleteAccountAsync(this IDataStore store, string dbName, Guid clientId, Guid accountId)
     {
-        Account? acct = (await store.GetAllClientScopeAsync<Account>(dbName, accountId))!.FirstOrDefault();
+        Account? acct = (await store.GetAllClientScopeAsync<Account>(dbName, clientId))!.FirstOrDefault(a => a.Id == accountId);
         if (acct is null) return false;
         bool? result = await store.DeleteOneGlobalScopeAsync<AccountInfo>(dbName, acct.InfoId);
         if (!result.HasValue || !result.Value) return false;
-        result = await store.DeleteOneClientScopeAsync<Account>(dbName, accountId);
+        result = await store.DeleteOneClientScopeAsync<Account>(dbName, clientId, accountId);
         if (!result.HasValue || !result.Value) return false;
         List<Transaction>? transactions = await store.TransactionsForAccountAsync(dbName, accountId);
         if (transactions is null) return false;

@@ -155,7 +155,7 @@ export class AccountOrganizerComponent implements OnChanges{
     const dialogRef = this.deleteFolderConfirmDialog.open(DeleteFolderConfirm, {
       data: {confirm: false},
       autoFocus: 'dialog'
-    })
+    });
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
         const container = this.getContainingFolder(item.id);

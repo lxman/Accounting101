@@ -1,8 +1,11 @@
 <app-menu [screen]="Screen.clientSelector" />
-<ng-container *ngFor="let client of clients(); let i = index">
+<ng-container *ngFor="let client of clientsSignal(); let i = index">
   <mat-card>
-    <mat-card-header>
-      <mat-card-title>{{ client.businessName }}</mat-card-title>
+    <mat-card-header fxLayout="row" fxLayoutAlign="space-between center">
+      <mat-card-title>
+        {{ client.businessName }}
+      </mat-card-title>
+      <button mat-stroked-button class="delete-button" (click)="clientClicked($event, client.id)">Delete</button>
     </mat-card-header>
     <mat-card-content>
       <p>{{ client.contactName.asString }}</p>

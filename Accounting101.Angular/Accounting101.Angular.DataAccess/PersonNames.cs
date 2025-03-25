@@ -38,4 +38,10 @@ public static class PersonNames
         bool? result = await store.UpdateOneGlobalScopeAsync(dbName, name);
         return result.HasValue && result.Value;
     }
+
+    public static async Task DeleteNameAsync(this IDataStore store, string dbName, Guid id)
+    {
+        await store.DeleteOneGlobalScopeAsync<PersonName>(dbName, id);
+        store.NotifyChange(typeof(PersonName), ChangeType.Deleted);
+    }
 }

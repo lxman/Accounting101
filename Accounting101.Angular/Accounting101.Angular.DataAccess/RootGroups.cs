@@ -35,4 +35,11 @@ public static class RootGroups
             .ReplaceOneAsync(rg => rg.ClientId == clientId, rootGroup, new ReplaceOptions { IsUpsert = true });
         return result.IsAcknowledged && result.ModifiedCount == 1;
     }
+
+    public static async Task<bool> DeleteRootGroupAsync(this IDataStore dataStore, string dbName, Guid clientId)
+    {
+        DeleteResult result = await dataStore.GetCollection<RootGroup>(dbName, CollectionNames.RootGroup)
+            .DeleteOneAsync(rg => rg.ClientId == clientId);
+        return result.IsAcknowledged && result.DeletedCount == 1;
+    }
 }

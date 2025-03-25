@@ -1,0 +1,9 @@
+<h2 mat-dialog-title>Delete Client</h2>
+<mat-dialog-content>
+  <p>This client will be deleted along with all of its data.</p>
+  <p>Are you sure?</p>
+</mat-dialog-content>
+<mat-dialog-actions>
+  <button mat-button (click)="onNoClicked()">No (Esc)</button>
+  <button #yesButton mat-button (click)="onYesClicked()">Yes (Enter)</button>
+</mat-dialog-actions>

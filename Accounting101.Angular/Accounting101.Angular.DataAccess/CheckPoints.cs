@@ -46,7 +46,7 @@ public static class CheckPoints
             CheckPoint? existing = checkPoints.FirstOrDefault(cp => cp.ClientId == clientId);
             if (existing is not null)
             {
-                await store.DeleteOneClientScopeAsync<CheckPoint>(dbName, existing.Id);
+                await store.DeleteOneClientScopeAsync<CheckPoint>(dbName, clientId, existing.Id);
             }
             checkPoints.Add(checkPoint);
             id = await store.CreateOneClientScopeAsync(dbName, checkPoint);
@@ -81,7 +81,7 @@ public static class CheckPoints
         if (accountCheckpoints is not null)
         {
             await store.DeleteManyGlobalScopeAsync<AccountCheckpoint>(dbName, accountCheckpoints.Where(ac => ac.ClientId == clientId).Select(ac => ac.Id));
-            await store.DeleteOneClientScopeAsync<CheckPoint>(dbName, existing.Id);
+            await store.DeleteOneClientScopeAsync<CheckPoint>(dbName, clientId, existing.Id);
             c.CheckPointId = null;
             await store.UpdateClientAsync(dbName, c);
         }

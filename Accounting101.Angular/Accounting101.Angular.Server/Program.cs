@@ -21,7 +21,7 @@ builder.Services.AddCors(config =>
     config.AddPolicy("AllowAll", policyBuilder =>
     {
         policyBuilder.AllowAnyHeader();
-        policyBuilder.AllowAnyMethod();
+        policyBuilder.WithMethods("GET", "POST", "PUT", "DELETE");
         policyBuilder.AllowCredentials();
         policyBuilder.WithOrigins("https://localhost:51597");
         policyBuilder.SetIsOriginAllowed(origin => true);
@@ -65,11 +65,11 @@ builder.Services.AddScoped<ICoAService, CoAService>();
 
 WebApplication app = builder.Build();
 
-app.UseCors("AllowAll");
-
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseRouting();
+
+app.UseCors("AllowAll");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

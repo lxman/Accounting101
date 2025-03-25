@@ -11,6 +11,10 @@ import {MatButton} from '@angular/material/button';
 import {MatMenuModule} from '@angular/material/menu';
 import {Router} from '@angular/router';
 import {Screen} from '../../enums/screen.enum';
+import {DefaultLayoutAlignDirective, DefaultLayoutDirective} from '@ngbracket/ngx-layout';
+import {DeleteClientConfirm} from '../../dialogs/delete-client-confirm/delete-client-confirm.component';
+import {MatDialog} from '@angular/material/dialog';
+import {BehaviorSubject, switchMap} from 'rxjs';
 
 @Component({
   selector: 'app-client-selector',
@@ -23,19 +27,23 @@ import {Screen} from '../../enums/screen.enum';
     CommonModule,
     MenuComponent,
     MatButton,
-    MatMenuModule
+    MatMenuModule,
+    DefaultLayoutDirective,
+    DefaultLayoutAlignDirective
   ],
   providers: [ClientManagerService]
 })
 
 export class ClientSelectorComponent {
+  private refreshTrigger = new BehaviorSubject<void>(undefined)
   private readonly accountsService = inject(AccountsManagerService);
   private readonly clientService = inject(ClientManagerService);
   private readonly userDataService = inject(UserDataService);
   private readonly globals = inject(GlobalConstantsService);
   private readonly router = inject(Router);
-  public clients = toSignal(this.clientService.getClients(), { initialValue: [] });
-
+  private readonly dialog = inject(MatDialog);
+  public clients = this.refreshTrigger.pipe(switchMap(() => this.clientService.getClients()));
+  clientsSignal = toSignal(this.clients, { initialValue: [] });
   protected readonly Screen = Screen;
 
   clientSelected(clientId: string) {
@@ -49,5 +57,27 @@ export class ClientSelectorComponent {
         }
       }
     );
+  }
+
+  clientClicked(event: MouseEvent, clientId: string) {
+    const dialogRef = this.dialog.open(DeleteClientConfirm, {
+      data: {confirm: false},
+      autoFocus: 'dialog'
+    });
+    dialogRef.afterClosed().subscribe(result => {
+      if (result) {
+        this.clientService.deleteClient(clientId).subscribe(
+          (success) =>
+          {
+            if (success) {
+              this.refreshTrigger.next();
+              this.router.navigate(['/client-selector'])
+            } else {
+              console.error('Failed to delete client');
+            }
+          }
+        );
+      }
+    });
   }
 }

@@ -45,9 +45,9 @@ public static class Addresses
         return result.IsAcknowledged;
     }
 
-    public static async Task<bool?> DeleteAddressAsync(this IDataStore store, string dbName, Guid id)
+    public static async Task<bool?> DeleteAddressAsync(this IDataStore store, string dbName, Guid addressId)
     {
-        FilterDefinition<IAddress> filter = Builders<IAddress>.Filter.Eq(x => x.Id, id);
+        FilterDefinition<IAddress> filter = Builders<IAddress>.Filter.Eq(x => x.Id, addressId);
         DeleteResult? result = await store.GetCollection<IAddress>(dbName, CollectionNames.Address)!.DeleteOneAsync(filter);
         if (result.IsAcknowledged) store.NotifyChange(typeof(IAddress), ChangeType.Deleted);
         return result.IsAcknowledged;

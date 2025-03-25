@@ -66,12 +66,17 @@ public static class Clients
 
     public static async Task<bool?> DeleteClientAsync(this IDataStore store, string dbName, Guid clientId)
     {
+        ClientWithInfo? client = await store.GetClientWithInfoAsync(dbName, clientId);
+        if (client is null)
+        {
+            return false;
+        }
         List<AccountWithInfo>? accounts = (await store.AccountsForClientAsync(dbName, clientId))?.ToList();
         if (accounts is not null)
         {
             foreach (AccountWithInfo account in accounts)
             {
-                await store.DeleteAccountAsync(dbName, account.Id);
+                await store.DeleteAccountAsync(dbName, clientId, account.Id);
             }
         }
         CheckPoint? checkPoint = await store.GetCheckpointAsync(dbName, clientId);
@@ -79,6 +84,12 @@ public static class Clients
         {
             await store.ClearCheckpointAsync(dbName, checkPoint.Id);
         }
+
+        await store.DeleteRootGroupAsync(dbName, clientId);
+
+        await store.DeleteNameAsync(dbName, client.PersonNameId);
+
+        await store.DeleteAddressAsync(dbName, client.AddressId);
 
         bool? result = await store.DeleteOneGlobalScopeAsync<Client>(dbName, clientId);
         store.NotifyChange(typeof(Client), ChangeType.Deleted);
