@@ -27,6 +27,15 @@ public class ClientsController(
         return Ok(await dataStore.AllClientsWithInfosAsync(dbId.ToString()));
     }
 
+    [HttpGet("{dbId:guid}/{clientId:guid}")]
+    public async Task<IActionResult> GetClientAsync(Guid dbId, Guid clientId)
+    {
+        ClientWithInfo? client = await dataStore.GetClientWithInfoAsync(dbId.ToString(), clientId);
+        return client is null
+            ? NotFound()
+            : Ok(client);
+    }
+
     [HttpPost("{dbId:guid}")]
     public async Task<IActionResult> CreateClientAsync(Guid dbId, [FromBody] Client client)
     {

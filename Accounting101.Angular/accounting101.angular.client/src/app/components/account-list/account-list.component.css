@@ -1,3 +1,8 @@
+.scrollable-container {
+  height: 80vh;
+  overflow-y: auto;
+}
+
 .account-organizer {
   text-align: left;
 }

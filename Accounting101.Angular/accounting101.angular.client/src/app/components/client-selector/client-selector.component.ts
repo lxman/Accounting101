@@ -59,7 +59,7 @@ export class ClientSelectorComponent {
     );
   }
 
-  clientDeleteClicked(event: MouseEvent, clientId: string) {
+  clientDeleteClicked(clientId: string) {
     const dialogRef = this.dialog.open(DeleteClientConfirm, {
       data: {confirm: false},
       autoFocus: 'dialog'
