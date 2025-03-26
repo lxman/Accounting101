@@ -1,5 +1,5 @@
 import {Component, input} from '@angular/core';
-import {Transaction} from '../../models/transaction.model';
+import {TransactionModel} from '../../models/transaction.model';
 
 @Component({
   selector: 'app-transaction-line-item',
@@ -8,5 +8,5 @@ import {Transaction} from '../../models/transaction.model';
   styleUrl: './transaction-line-item.component.scss'
 })
 export class TransactionLineItemComponent {
-  private readonly transaction = input.required<Transaction>();
+  private readonly transaction = input.required<TransactionModel>();
 }

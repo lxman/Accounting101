@@ -1,1 +1,13 @@
-<p>The transaction list.</p>
+<table mat-table *ngIf="data.data.length > 0" [dataSource]="data" #table="matTable">
+  <ng-container>
+    <th mat-header-cell *matHeaderCellDef>Date</th>
+    <td mat-cell *matCellDef="let element; table: table">{{element.when}}</td>
+  </ng-container>
+  <ng-container>
+    <th mat-header-cell *matHeaderCellDef>Amount</th>
+    <td mat-cell *matCellDef="let element; table: table">{{element.amount}}</td>
+  </ng-container>
+  <tr mat-header-row *matHeaderRowDef="columnsToDisplay"></tr>
+  <tr mat-row *matRowDef="let row; columns: columnsToDisplay; table: table"></tr>
+</table>
+<p *ngIf="data.data.length == 0">No transactions entered yet.</p>

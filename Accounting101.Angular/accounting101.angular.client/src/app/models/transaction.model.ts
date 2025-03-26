@@ -1,4 +1,4 @@
-export class Transaction {
+export class TransactionModel {
   id: string = '';
   creditAccountId: string = '';
   debitAccountId: string = '';

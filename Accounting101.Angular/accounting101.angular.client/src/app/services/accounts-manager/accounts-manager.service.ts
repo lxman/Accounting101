@@ -6,7 +6,7 @@ import { UserDataService } from '../user-data/user-data.service';
 import { GlobalConstantsService } from '../global-constants/global-constants.service';
 import {RootGroups} from '../../models/root-groups.model';
 import {AccountModel} from '../../models/account.model';
-import {Transaction} from '../../models/transaction.model';
+import {TransactionModel} from '../../models/transaction.model';
 
 @Injectable({
   providedIn: 'root'
@@ -37,8 +37,8 @@ export class AccountsManagerService {
       .pipe(catchError(this.handleError));
   }
 
-  transactionsForAccount(accountId: string): Observable<Transaction[]> {
-    return this.client.get<Transaction[]>(
+  transactionsForAccount(accountId: string): Observable<TransactionModel[]> {
+    return this.client.get<TransactionModel[]>(
       `${this.globals.baseServerUrl}/accounts/${this.userDataService.get(this.globals.userIdKey)}/${accountId}/transactions`,
       { withCredentials: true })
       .pipe(catchError(this.handleError));
