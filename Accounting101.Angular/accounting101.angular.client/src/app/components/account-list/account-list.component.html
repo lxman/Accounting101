@@ -1,40 +1,42 @@
-<app-menu [screen]="Screen.accountList" />
-<app-client-header [client]="client" />
-<div class="scrollable-container" cdkScrollable>
-  <app-account-organizer
-    class="account-organizer"
-    (layoutChanged)="handleAssetLayoutChanged($event)"
-    [groupName]="'Assets'"
-    [accounts]="assetAccounts"
-    [layoutGroup]="assetLayout" />
-  <app-account-organizer
-    class="account-organizer"
-    (layoutChanged)="handleLiabilityLayoutChanged($event)"
-    [groupName]="'Liabilities'"
-    [accounts]="liabilityAccounts"
-    [layoutGroup]="liabilityLayout" />
-  <app-account-organizer
-    class="account-organizer"
-    (layoutChanged)="handleEquityLayoutChanged($event)"
-    [groupName]="'Equity'"
-    [accounts]="equityAccounts"
-    [layoutGroup]="equityLayout" />
-  <app-account-organizer
-    class="account-organizer"
-    (layoutChanged)="handleRevenueLayoutChanged($event)"
-    [groupName]="'Revenue'"
-    [accounts]="revenueAccounts"
-    [layoutGroup]="revenueLayout" />
-  <app-account-organizer
-    class="account-organizer"
-    (layoutChanged)="handleExpenseLayoutChanged($event)"
-    [groupName]="'Expenses'"
-    [accounts]="expenseAccounts"
-    [layoutGroup]="expenseLayout" />
-  <app-account-organizer
-    class="account-organizer"
-    (layoutChanged)="handleEarningsLayoutChanged($event)"
-    [groupName]="'Earnings'"
-    [accounts]="earningsAccounts"
-    [layoutGroup]="earningsLayout" />
+<div class="list-container">
+  <app-menu [screen]="Screen.accountList" />
+  <app-client-header [client]="client" />
+  <div class="scrollable-container" cdkScrollable>
+    <app-account-organizer
+      class="account-organizer"
+      (layoutChanged)="handleAssetLayoutChanged($event)"
+      [groupName]="'Assets'"
+      [accounts]="assetAccounts"
+      [layoutGroup]="assetLayout" />
+    <app-account-organizer
+      class="account-organizer"
+      (layoutChanged)="handleLiabilityLayoutChanged($event)"
+      [groupName]="'Liabilities'"
+      [accounts]="liabilityAccounts"
+      [layoutGroup]="liabilityLayout" />
+    <app-account-organizer
+      class="account-organizer"
+      (layoutChanged)="handleEquityLayoutChanged($event)"
+      [groupName]="'Equity'"
+      [accounts]="equityAccounts"
+      [layoutGroup]="equityLayout" />
+    <app-account-organizer
+      class="account-organizer"
+      (layoutChanged)="handleRevenueLayoutChanged($event)"
+      [groupName]="'Revenue'"
+      [accounts]="revenueAccounts"
+      [layoutGroup]="revenueLayout" />
+    <app-account-organizer
+      class="account-organizer"
+      (layoutChanged)="handleExpenseLayoutChanged($event)"
+      [groupName]="'Expenses'"
+      [accounts]="expenseAccounts"
+      [layoutGroup]="expenseLayout" />
+    <app-account-organizer
+      class="account-organizer"
+      (layoutChanged)="handleEarningsLayoutChanged($event)"
+      [groupName]="'Earnings'"
+      [accounts]="earningsAccounts"
+      [layoutGroup]="earningsLayout" />
+  </div>
 </div>

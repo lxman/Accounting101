@@ -1,5 +1,11 @@
+.list-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 .scrollable-container {
-  height: 80vh;
+  height: 100%;
   overflow-y: auto;
 }
 
