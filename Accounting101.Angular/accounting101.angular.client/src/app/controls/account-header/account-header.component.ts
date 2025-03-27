@@ -34,6 +34,6 @@ export class AccountHeaderComponent implements OnChanges{
   }
 
   headerClicked() {
-    this.router.navigate(['/account-list']);
+    void this.router.navigate(['/account-list']);
   }
 }

@@ -14,10 +14,10 @@ export class CreateFirstAccountComponent {
   private readonly router: Router = inject(Router);
 
   createChart() {
-    this.router.navigate(['/create-coa']);
+    void this.router.navigate(['/create-coa']);
   }
 
   createAccount() {
-    this.router.navigate(['/create-single']);
+    void this.router.navigate(['/create-single']);
   }
 }

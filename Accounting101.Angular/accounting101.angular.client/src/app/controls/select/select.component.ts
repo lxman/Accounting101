@@ -3,7 +3,7 @@ import { Component, inject, OnDestroy, Optional, Self, OnChanges, SimpleChanges,
 import { MatOptionModule } from '@angular/material/core';
 import { MatSelectModule } from '@angular/material/select';
 import { MatFormFieldControl } from '@angular/material/form-field';
-import { ControlContainer, NgControl, ReactiveFormsModule, ControlValueAccessor, StatusChangeEvent } from '@angular/forms';
+import { ControlContainer, NgControl, ReactiveFormsModule, ControlValueAccessor } from '@angular/forms';
 import { Subject } from 'rxjs';
 
 @Component({

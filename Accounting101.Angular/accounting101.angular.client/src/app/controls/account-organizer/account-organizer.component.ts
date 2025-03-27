@@ -179,7 +179,7 @@ export class AccountOrganizerComponent implements OnChanges{
 
   accountClicked(id: string) {
     this.userData.set(this.globalConstants.accountIdKey, id);
-    this.router.navigate(['/account']);
+    void this.router.navigate(['/account']);
   }
 
   ngOnChanges(changes: SimpleChanges) {
@@ -209,11 +209,11 @@ export class AccountOrganizerComponent implements OnChanges{
     }
     this.nodes.push(this.rootNode);
     if ((layoutGroup.items) || (accounts)) {
-      this.addChildren(this.rootNode, layoutGroup, accounts);
+      this.addChildren(this.rootNode, layoutGroup);
     }
   }
 
-  private addChildren(parent: FolderNode, group: AccountGroupModel, accounts: AccountModel[]) {
+  private addChildren(parent: FolderNode, group: AccountGroupModel) {
     group.items?.forEach(item => {
       parent.children.push(this.toNodeType(item));
     });

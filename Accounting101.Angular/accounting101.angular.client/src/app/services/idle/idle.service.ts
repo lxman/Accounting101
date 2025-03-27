@@ -23,7 +23,7 @@ export class IdleService implements OnInit{
     this.idle.onTimeout.subscribe(() => {
       this.userManager.logoutUser();
       this.userData.clearData();
-      this.router.navigate(['/']);
+      void this.router.navigate(['/']);
     });
     this.idle.onIdleEnd.subscribe(() => {});
     this.idle.onIdleStart.subscribe(() => {});

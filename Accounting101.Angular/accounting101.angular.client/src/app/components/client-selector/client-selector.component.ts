@@ -51,9 +51,9 @@ export class ClientSelectorComponent {
     this.accountsService.accountsExist()
       .subscribe((exists) => {
         if (exists) {
-          this.router.navigate(['/account-list']);
+          void this.router.navigate(['/account-list']);
         } else {
-          this.router.navigate(['/create-account']);
+          void this.router.navigate(['/create-account']);
         }
       }
     );
@@ -73,10 +73,10 @@ export class ClientSelectorComponent {
               this.refreshTrigger.next();
               this.clients.subscribe(() => {
                 if (this.clientsSignal().length == 0) {
-                  this.router.navigate(['/create-client']);
+                  void this.router.navigate(['/create-client']);
                   return;
                 }
-                this.router.navigate(['/client-selector'])
+                void this.router.navigate(['/client-selector'])
               });
             } else {
               console.error('Failed to delete client');

@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { DeleteFolderConfirmComponent } from './delete-folder-confirm.component';
+import { DeleteFolderConfirm } from './delete-folder-confirm.component';
 
-describe('DeleteFolderConfirmComponent', () => {
-  let component: DeleteFolderConfirmComponent;
-  let fixture: ComponentFixture<DeleteFolderConfirmComponent>;
+describe('DeleteFolderConfirm', () => {
+  let component: DeleteFolderConfirm;
+  let fixture: ComponentFixture<DeleteFolderConfirm>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [DeleteFolderConfirmComponent]
+      imports: [DeleteFolderConfirm]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(DeleteFolderConfirmComponent);
+    fixture = TestBed.createComponent(DeleteFolderConfirm);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

@@ -9,6 +9,9 @@ import {ClientHeaderComponent} from '../../controls/client-header/client-header.
 import {ClientManagerService} from '../../services/client-manager/client-manager.service';
 import {AsyncPipe} from '@angular/common';
 import {MatDivider} from '@angular/material/divider';
+import {FastEntryComponent} from '../../controls/fast-entry/fast-entry.component';
+import {AccountsManagerService} from '../../services/accounts-manager/accounts-manager.service';
+import {AccountModel} from '../../models/account.model';
 
 @Component({
   selector: 'app-account',
@@ -18,7 +21,8 @@ import {MatDivider} from '@angular/material/divider';
     TransactionListComponent,
     ClientHeaderComponent,
     AsyncPipe,
-    MatDivider
+    MatDivider,
+    FastEntryComponent
   ],
   templateUrl: './account.component.html',
   styleUrl: './account.component.scss'
@@ -29,11 +33,15 @@ export class AccountComponent {
   private readonly globals = inject(GlobalConstantsService);
   private readonly userDataService = inject(UserDataService);
   private readonly clientManager = inject(ClientManagerService);
+  private readonly accountsManager = inject(AccountsManagerService);
   readonly client = this.clientManager.getClient(this.userDataService.get(this.globals.clientIdKey));
+  readonly accounts = this.accountsManager.getAccounts();
+  filteredAccounts: AccountModel[] = [];
 
   protected readonly Screen = Screen;
 
   constructor() {
     this.accountId = this.userDataService.get(this.globals.accountIdKey);
+    this.accounts.subscribe(accts => this.filteredAccounts = accts.filter(a => a.id !== this.accountId));
   }
 }

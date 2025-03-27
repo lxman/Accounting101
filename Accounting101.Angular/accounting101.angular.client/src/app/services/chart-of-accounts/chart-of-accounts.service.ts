@@ -2,7 +2,6 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import {Observable, throwError} from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { UserDataService } from '../user-data/user-data.service';
 import { GlobalConstantsService } from '../global-constants/global-constants.service';
 import {ChartItemModel} from '../../models/chart-item.model';
 import {CreateCoaRequest} from '../../models/create-coa-request.model';
@@ -12,7 +11,6 @@ import {CreateCoaRequest} from '../../models/create-coa-request.model';
 })
 export class ChartOfAccountsService {
   private readonly client: HttpClient = inject(HttpClient);
-  private readonly userData: UserDataService = inject(UserDataService);
   private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);
 
   private baseUrl = this.globals.baseServerUrl;

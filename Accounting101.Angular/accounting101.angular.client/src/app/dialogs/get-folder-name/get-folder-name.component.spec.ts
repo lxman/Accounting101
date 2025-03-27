@@ -1,18 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { GetFolderNameComponent } from './get-folder-name.component';
+import { GetFolderName } from './get-folder-name.component';
 
-describe('GetFolderNameComponent', () => {
-  let component: GetFolderNameComponent;
-  let fixture: ComponentFixture<GetFolderNameComponent>;
+describe('GetFolderName', () => {
+  let component: GetFolderName;
+  let fixture: ComponentFixture<GetFolderName>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [GetFolderNameComponent]
+      imports: [GetFolderName]
     })
     .compileComponents();
 
-    fixture = TestBed.createComponent(GetFolderNameComponent);
+    fixture = TestBed.createComponent(GetFolderName);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });

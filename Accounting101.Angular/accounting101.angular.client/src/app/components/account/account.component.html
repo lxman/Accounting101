@@ -1,7 +1,10 @@
 <div class="account-layout">
-  <app-menu [screen]="Screen.account" />
-  <app-client-header [client]="client | async" />
-  <mat-divider></mat-divider>
-  <app-account-header [accountId]="accountId" />
-  <app-transaction-list />
+  <div>
+    <app-menu [screen]="Screen.account" />
+    <app-client-header [client]="client | async" />
+    <mat-divider></mat-divider>
+    <app-account-header [accountId]="accountId" />
+    <app-transaction-list />
+  </div>
+  <app-fast-entry [accounts]="filteredAccounts" />
 </div>

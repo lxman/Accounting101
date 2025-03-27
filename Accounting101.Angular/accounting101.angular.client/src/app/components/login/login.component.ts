@@ -52,15 +52,15 @@ export class LoginComponent {
         this.businessManager.businessExists().subscribe({
           next: (exists) => {
             if (!exists) {
-              this.router.navigate(['/create-business']);
+              void this.router.navigate(['/create-business']);
             }
             else {
               this.clientManager.getClientsExist().subscribe({
                 next: (clientsExist) => {
                   if (clientsExist) {
-                    this.router.navigate(['/client-selector']);
+                    void this.router.navigate(['/client-selector']);
                   } else {
-                    this.router.navigate(['/create-client']);
+                    void this.router.navigate(['/create-client']);
                   }
                 },
                 error: (error) => {

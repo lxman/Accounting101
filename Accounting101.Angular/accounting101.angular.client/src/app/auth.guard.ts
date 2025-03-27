@@ -1,9 +1,7 @@
 import {inject, Injectable} from '@angular/core';
 import {
   CanActivate,
-  Router,
-  ActivatedRouteSnapshot,
-  RouterStateSnapshot,
+  Router
 } from '@angular/router';
 import { UserManagerService } from './services/user-manager/user-manager.service';
 
@@ -15,13 +13,10 @@ export class AuthGuard implements CanActivate {
   userManager: UserManagerService = inject(UserManagerService);
   constructor(private router: Router) {}
 
-  canActivate(
-    route: ActivatedRouteSnapshot,
-    state: RouterStateSnapshot
-  ): boolean {
+  canActivate(): boolean {
     const isAuthenticated = this.userManager.isAuthenticated();
     if (!isAuthenticated) {
-      this.router.navigate(['/']);
+      void this.router.navigate(['/']);
     }
     return isAuthenticated;
   }

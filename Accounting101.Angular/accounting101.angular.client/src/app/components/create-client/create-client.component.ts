@@ -105,7 +105,7 @@ export class CreateClientComponent {
       switchMap(() => this.clientService.createClient(new CreateClientModel(client.businessName, client.contactName.id, client.address.id)))
     ).subscribe({
       next: () => {
-        this.router.navigate(['/client-selector']);
+        void this.router.navigate(['/client-selector']);
       },
       error: (error) => {
         console.error(error);

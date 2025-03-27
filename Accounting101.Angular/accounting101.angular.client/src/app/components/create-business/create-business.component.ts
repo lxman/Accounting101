@@ -95,7 +95,7 @@ export class CreateBusinessComponent {
       }
       this.businessService.createBusiness(business).subscribe({
         complete: () => {
-          this.router.navigate(['/create-client']);
+          void this.router.navigate(['/create-client']);
         },
         error: (error) => {
           console.error(error);

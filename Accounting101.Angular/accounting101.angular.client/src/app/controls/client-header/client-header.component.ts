@@ -25,6 +25,6 @@ export class ClientHeaderComponent {
   private readonly router: Router = inject(Router);
 
   clientHeaderClicked() {
-    this.router.navigate(['/client-selector']);
+    void this.router.navigate(['/client-selector']);
   }
 }

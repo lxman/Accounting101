@@ -45,6 +45,6 @@ export class MenuComponent implements OnChanges {
   logoutClicked(): void {
     this.userManager.logoutUser();
     this.userData.clearData();
-    this.router.navigate(['/']);
+    void this.router.navigate(['/']);
   }
 }
