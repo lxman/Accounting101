@@ -6,5 +6,5 @@ public interface IClientItem
 {
     public Guid Id { get; set; }
 
-    public Guid ClientId { get; }
+    public string ClientId { get; }
 }

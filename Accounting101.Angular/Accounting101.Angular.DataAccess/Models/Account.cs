@@ -9,9 +9,9 @@ public class Account : IClientItem
 
     public BaseAccountTypes Type { get; set; }
 
-    public Guid ClientId { get; set; }
+    public string ClientId { get; set; } = string.Empty;
 
-    public Guid InfoId { get; set; }
+    public string InfoId { get; set; } = string.Empty;
 
     public decimal StartBalance { get; set; }
 

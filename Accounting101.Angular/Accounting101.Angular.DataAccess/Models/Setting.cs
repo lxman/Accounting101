@@ -7,7 +7,7 @@ public class Setting : IGlobalItem
 {
     public Guid Id { get; set; }
 
-    public Guid ClientId { get; set; }
+    public string ClientId { get; set; } = string.Empty;
 
     public string Key { get; set; } = string.Empty;
 

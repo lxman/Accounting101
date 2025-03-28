@@ -1,5 +1,4 @@
-﻿using System;
-using System.Data;
+﻿using System.Data;
 using System.Threading.Tasks;
 using Accounting101.Angular.DataAccess.AccountGroups;
 using Accounting101.Angular.DataAccess.Models;
@@ -11,7 +10,7 @@ namespace Accounting101.Angular.DataAccess;
 
 public static class RootGroups
 {
-    public static async Task<RootGroup> InitializeRootGroupAsync(this IDataStore dataStore, string dbName, Guid clientId)
+    public static async Task<RootGroup> InitializeRootGroupAsync(this IDataStore dataStore, string dbName, string clientId)
     {
         IMongoCollection<RootGroup>? rootGroups = dataStore.GetCollection<RootGroup>(dbName, CollectionNames.RootGroup);
         if (rootGroups is null)
@@ -23,20 +22,20 @@ public static class RootGroups
         return rootGroup;
     }
 
-    public static async Task<RootGroup> GetRootGroupAsync(this IDataStore dataStore, string dbName, Guid clientId)
+    public static async Task<RootGroup> GetRootGroupAsync(this IDataStore dataStore, string dbName, string clientId)
     {
         return await dataStore.GetCollection<RootGroup>(dbName, CollectionNames.RootGroup)
             .AsQueryable().FirstOrDefaultAsync(rg => rg.ClientId == clientId) ?? await dataStore.InitializeRootGroupAsync(dbName, clientId);
     }
 
-    public static async Task<bool> SaveRootGroupAsync(this IDataStore dataStore, string dbName, Guid clientId, RootGroup rootGroup)
+    public static async Task<bool> SaveRootGroupAsync(this IDataStore dataStore, string dbName, string clientId, RootGroup rootGroup)
     {
         ReplaceOneResult result = await dataStore.GetCollection<RootGroup>(dbName, CollectionNames.RootGroup)
             .ReplaceOneAsync(rg => rg.ClientId == clientId, rootGroup, new ReplaceOptions { IsUpsert = true });
         return result.IsAcknowledged && result.ModifiedCount == 1;
     }
 
-    public static async Task<bool> DeleteRootGroupAsync(this IDataStore dataStore, string dbName, Guid clientId)
+    public static async Task<bool> DeleteRootGroupAsync(this IDataStore dataStore, string dbName, string clientId)
     {
         DeleteResult result = await dataStore.GetCollection<RootGroup>(dbName, CollectionNames.RootGroup)
             .DeleteOneAsync(rg => rg.ClientId == clientId);

@@ -39,19 +39,29 @@ builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddCooki
         options.Cookie.Name = "AngularTest.Server";
     });
 builder.Services.AddAuthorizationBuilder();
+
+string? baseConnectionString = Environment.GetEnvironmentVariable("MongoClientConnectionString");
+if (string.IsNullOrWhiteSpace(baseConnectionString))
+{
+    throw new ApplicationException("MongoDB connection string not found.");
+}
+
 builder.Services.AddIdentityCore<ApplicationUser>()
     .AddMongoDbStores<ApplicationUser, ApplicationRole, Guid>(mongo =>
     {
-        mongo.ConnectionString = builder.Configuration.GetConnectionString("MongoIdentityDb")!;
+        mongo.ConnectionString = $"{baseConnectionString}/Identity";
         mongo.DisableAutoMigrations = true;
     })
     .AddDefaultTokenProviders()
     .AddApiEndpoints();
 
-builder.Services.AddSingleton<IDataStore>(new DataStore(builder.Configuration.GetConnectionString("MongoClientConnectionString")!));
+builder.Services.AddSingleton<IDataStore>(new DataStore(baseConnectionString));
 
 builder.Services.AddControllers()
-    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+    .AddJsonOptions(o =>
+    {
+        o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -61,9 +71,16 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IBusinessService, BusinessService>();
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<IAddressService, AddressService>();
+builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<ICoAService, CoAService>();
 
 WebApplication app = builder.Build();
+
+app.Use(async (context, next) =>
+{
+    context.Request.EnableBuffering();
+    await next();
+});
 
 app.UseDefaultFiles();
 app.UseStaticFiles();

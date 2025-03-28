@@ -18,7 +18,7 @@ public class AccountWithTransactions : AccountWithInfo
     {
         Id = accountId;
         Info = new AccountInfo();
-        AccountWithInfo? accountWithInfo = taskFactory.Run(() => dataStore.GetAccountWithInfoAsync(dbName, accountId));
+        AccountWithInfo? accountWithInfo = taskFactory.Run(() => dataStore.GetAccountWithInfoAsync(dbName, accountId.ToString()));
         if (accountWithInfo is null) return;
         Info.Name = accountWithInfo.Info.Name;
         Info.CoAId = accountWithInfo.Info.CoAId;
@@ -28,6 +28,6 @@ public class AccountWithTransactions : AccountWithInfo
         StartBalance = accountWithInfo.StartBalance;
         Created = accountWithInfo.Created;
         ClientId = accountWithInfo.ClientId;
-        Transactions = taskFactory.Run(() => dataStore.ReadAllGlobalScopeAsync<Transaction>(dbName))?.Where(tx => tx.DebitedAccountId == Id || tx.CreditedAccountId == Id).ToList()!;
+        Transactions = taskFactory.Run(() => dataStore.ReadAllGlobalScopeAsync<Transaction>(dbName))?.Where(tx => tx.DebitedAccountId == Id.ToString() || tx.CreditedAccountId == Id.ToString()).ToList()!;
     }
 }

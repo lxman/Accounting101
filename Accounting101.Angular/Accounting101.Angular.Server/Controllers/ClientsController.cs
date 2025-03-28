@@ -27,8 +27,8 @@ public class ClientsController(
         return Ok(await dataStore.AllClientsWithInfosAsync(dbId.ToString()));
     }
 
-    [HttpGet("{dbId:guid}/{clientId:guid}")]
-    public async Task<IActionResult> GetClientAsync(Guid dbId, Guid clientId)
+    [HttpGet("{dbId:guid}/{clientId}")]
+    public async Task<IActionResult> GetClientAsync(Guid dbId, string clientId)
     {
         ClientWithInfo? client = await dataStore.GetClientWithInfoAsync(dbId.ToString(), clientId);
         return client is null
@@ -46,8 +46,8 @@ public class ClientsController(
         return BadRequest();
     }
 
-    [HttpDelete("{dbId:guid}/{clientId:guid}")]
-    public async Task<IActionResult> DeleteClientAsync(Guid dbId, Guid clientId)
+    [HttpDelete("{dbId:guid}/{clientId}")]
+    public async Task<IActionResult> DeleteClientAsync(Guid dbId, string clientId)
     {
         return Ok(await dataStore.DeleteClientAsync(dbId.ToString(), clientId));
     }

@@ -13,7 +13,7 @@ public static class CreateCoA
         switch (type)
         {
             case AvailableCoAs.SmallBusiness:
-                RootGroup group = await dataStore.GetRootGroupAsync(dbName, c.Id);
+                RootGroup group = await dataStore.GetRootGroupAsync(dbName, c.Id.ToString());
                 await SmallBusiness.CreateCoAAsync(dataStore, dbName, c, group);
                 dataStore.NotifyChange(typeof(Accounts), ChangeType.Created);
                 return true;

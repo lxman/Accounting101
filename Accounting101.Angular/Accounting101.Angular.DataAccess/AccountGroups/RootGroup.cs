@@ -10,7 +10,7 @@ public class RootGroup : IClientItem
     [BsonId]
     public Guid Id { get; set; }
 
-    public Guid ClientId { get; set; }
+    public string ClientId { get; set; } = string.Empty;
 
     public AccountGroup Assets { get; set; } = new();
 

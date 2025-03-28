@@ -37,11 +37,15 @@ export class AccountComponent {
   readonly client = this.clientManager.getClient(this.userDataService.get(this.globals.clientIdKey));
   readonly accounts = this.accountsManager.getAccounts();
   filteredAccounts: AccountModel[] = [];
+  allAccounts: AccountModel[] = [];
 
   protected readonly Screen = Screen;
 
   constructor() {
     this.accountId = this.userDataService.get(this.globals.accountIdKey);
-    this.accounts.subscribe(accts => this.filteredAccounts = accts.filter(a => a.id !== this.accountId));
+    this.accounts.subscribe(accts => {
+      this.allAccounts = accts;
+      this.filteredAccounts = accts.filter(a => a.id !== this.accountId);
+    });
   }
 }

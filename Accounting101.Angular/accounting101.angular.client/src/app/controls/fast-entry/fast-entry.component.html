@@ -1,4 +1,4 @@
-<form [formGroup]="fastEntryGroup" class="fast-entry-form">
+<form [formGroup]="fastEntryGroup" class="fast-entry-form" (ngSubmit)="onSubmit()">
   <mat-form-field class="fast-entry-element">
     <mat-label>Date</mat-label>
     <input matInput [matDatepicker]="picker" placeholder="Date" formControlName="date">

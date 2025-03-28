@@ -10,13 +10,13 @@ public static class BalanceCalculator
         decimal balance = acct.StartBalance;
         foreach (Transaction transaction in transactions)
         {
-            if (transaction.CreditedAccountId == acct.Id && !acct.IsDebitAccount
-                || transaction.DebitedAccountId == acct.Id && acct.IsDebitAccount)
+            if (transaction.CreditedAccountId == acct.Id.ToString() && !acct.IsDebitAccount
+                || transaction.DebitedAccountId == acct.Id.ToString() && acct.IsDebitAccount)
             {
                 balance += transaction.Amount;
             }
-            else if (transaction.CreditedAccountId == acct.Id && acct.IsDebitAccount
-                     || transaction.DebitedAccountId == acct.Id && !acct.IsDebitAccount)
+            else if (transaction.CreditedAccountId == acct.Id.ToString() && acct.IsDebitAccount
+                     || transaction.DebitedAccountId == acct.Id.ToString() && !acct.IsDebitAccount)
             {
                 balance -= transaction.Amount;
             }

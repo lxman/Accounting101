@@ -21,7 +21,7 @@ public static class Accounts
             return Guid.Empty;
         }
 
-        acct.InfoId = info.Id;
+        acct.InfoId = info.Id.ToString();
         await store.CreateOneClientScopeAsync(dbName, acct);
         await AddOneToGroupAsync(store, dbName, acct.ClientId, acct);
         store.NotifyChange(typeof(Account), ChangeType.Created);
@@ -37,7 +37,7 @@ public static class Accounts
         }
 
         acct.Info.Id = acct.Id;
-        acct.InfoId = acct.Id;
+        acct.InfoId = acct.Id.ToString();
         await store.CreateOneClientScopeAsync(dbName, acct);
         await AddOneToGroupAsync(store, dbName, acct.ClientId, acct);
         store.NotifyChange(typeof(Account), ChangeType.Created);
@@ -50,19 +50,19 @@ public static class Accounts
         foreach (AccountWithInfo awi in accts)
         {
             await infos.InsertOneAsync(awi.Info);
-            awi.InfoId = awi.Info.Id;
+            awi.InfoId = awi.Info.Id.ToString();
         }
         await store.GetCollection<Account>(dbName, CollectionNames.Account)?.InsertManyAsync(accts.Select(a => new Account(a)))!;
         store.NotifyChange(typeof(Accounts), ChangeType.Created);
     }
 
     public static async Task<AccountWithEverything?> GetAccountWithEverythingAsync(this IDataStore store, string dbName,
-        Guid accountId)
+        string accountId)
     {
         AccountWithInfo? acct = await store.GetAccountWithInfoAsync(dbName, accountId);
         if (acct is null) return null;
-        List<Transaction> transactions = (await store.TransactionsForAccountAsync(dbName, acct.Id))?.OrderBy(t => t.When).ToList() ?? [];
-        CheckPoint? checkPoint = await store.GetCheckpointAsync(dbName, acct.Id);
+        List<Transaction> transactions = store.TransactionsForAccount(dbName, acct.Id.ToString()).OrderBy(t => t.When).ToList() ?? [];
+        CheckPoint? checkPoint = await store.GetCheckpointAsync(dbName, acct.Id.ToString());
         return new AccountWithEverything(acct, transactions, checkPoint);
     }
 
@@ -76,13 +76,13 @@ public static class Accounts
         }
 
         IMongoCollection<Account>? accts = store.GetCollection<Account>(dbName, CollectionNames.Account);
-        Account? a = await accts?.AsQueryable().FirstAsync(a => a.InfoId == info.Id)!;
+        Account? a = await accts?.AsQueryable().FirstAsync(a => a.InfoId == info.Id.ToString())!;
         return a is null
             ? null
             : new AccountWithInfo(a, info);
     }
 
-    public static async Task<IEnumerable<AccountWithInfo>?> AccountsForClientAsync(this IDataStore store, string dbName, Guid clientId)
+    public static async Task<IEnumerable<AccountWithInfo>?> AccountsForClientAsync(this IDataStore store, string dbName, string clientId)
     {
         List<Account>? accts = await store.GetAllClientScopeAsync<Account>(dbName, clientId);
         if (accts is null) return null;
@@ -91,7 +91,7 @@ public static class Accounts
         List<AccountWithInfo> acctsWInfos = [];
         accts.ToList().ForEach(a =>
         {
-            acctsWInfos.Add(new AccountWithInfo(a, infos.First(i => i.Id == a.InfoId)));
+            acctsWInfos.Add(new AccountWithInfo(a, infos.First(i => i.Id == Guid.Parse((ReadOnlySpan<char>)a.InfoId))));
         });
         return acctsWInfos;
     }
@@ -100,8 +100,7 @@ public static class Accounts
     {
         Account? acct = await store.GetCollection<Account>(dbName, CollectionNames.Account)?.AsQueryable().FirstOrDefaultAsync(a => a.Id == accountId)!;
         if (acct is null) return null;
-        List<Transaction>? transactions = await store.TransactionsForAccountAsync(dbName, acct.Id);
-        if (transactions is null) return null;
+        List<Transaction> transactions = store.TransactionsForAccount(dbName, acct.Id.ToString());
         DateRange dateRange = new(acct.Created, transactions.Max(t => t.When));
         return dateRange;
     }
@@ -110,15 +109,14 @@ public static class Accounts
     {
         Account? acct = await store.GetCollection<Account>(dbName, CollectionNames.Account)?.AsQueryable().FirstOrDefaultAsync(a => a.Id == accountId)!;
         if (acct is null) return 0;
-        List<Transaction>? transactions = await store.TransactionsForAccountAsync(dbName, acct.Id);
-        if (transactions is null) return 0;
+        List<Transaction> transactions = store.TransactionsForAccount(dbName, acct.Id.ToString());
         decimal balance = 0;
         bool isDebit = acct.IsDebitAccount;
         transactions.ForEach(t =>
         {
             if (isDebit)
             {
-                if (t.DebitedAccountId == acct.Id) balance += t.Amount;
+                if (t.DebitedAccountId == acct.Id.ToString()) balance += t.Amount;
                 else
                 {
                     balance -= t.Amount;
@@ -126,7 +124,7 @@ public static class Accounts
             }
             else
             {
-                if (t.DebitedAccountId == acct.Id) balance -= t.Amount;
+                if (t.DebitedAccountId == acct.Id.ToString()) balance -= t.Amount;
                 else
                 {
                     balance += t.Amount;
@@ -136,21 +134,20 @@ public static class Accounts
         return balance;
     }
 
-    public static async Task<decimal> GetAccountBalanceOnDateAsync(this IDataStore store, string dbName, Guid accountId, DateOnly date)
+    public static async Task<decimal> GetAccountBalanceOnDateAsync(this IDataStore store, string dbName, string accountId, DateOnly date)
     {
         AccountWithInfo? acct = await store.GetAccountWithInfoAsync(dbName, accountId);
         if (acct is null || acct.Created > date) return 0;
-        List<Transaction>? transactions = await store.TransactionsForAccountAsync(dbName, acct.Id);
-        if (transactions is null) return acct.StartBalance;
+        List<Transaction> transactions = store.TransactionsForAccount(dbName, acct.Id.ToString());
         List<Transaction> inDate = transactions.Where(t => t.When <= date).ToList();
         return BalanceCalculator.Calculate(acct, inDate);
     }
 
-    public static async Task<AccountWithInfo?> GetAccountWithInfoAsync(this IDataStore store, string dbName, Guid accountId)
+    public static async Task<AccountWithInfo?> GetAccountWithInfoAsync(this IDataStore store, string dbName, string accountId)
     {
         Account? acct = (await store.GetAllClientScopeAsync<Account>(dbName, accountId))!.FirstOrDefault();
         if (acct is null) return null;
-        AccountInfo? info = (await store.GetAllGlobalScopeAsync<AccountInfo>(dbName))!.FirstOrDefault(a => a.Id == acct.InfoId);
+        AccountInfo? info = (await store.GetAllGlobalScopeAsync<AccountInfo>(dbName))!.FirstOrDefault(a => a.Id == Guid.Parse((ReadOnlySpan<char>)acct.InfoId));
         return info is null
             ? null
             : new AccountWithInfo(acct, info);
@@ -166,16 +163,15 @@ public static class Accounts
         return result.Value;
     }
 
-    public static async Task<bool> DeleteAccountAsync(this IDataStore store, string dbName, Guid clientId, Guid accountId)
+    public static async Task<bool> DeleteAccountAsync(this IDataStore store, string dbName, string clientId, string accountId)
     {
-        Account? acct = (await store.GetAllClientScopeAsync<Account>(dbName, clientId))!.FirstOrDefault(a => a.Id == accountId);
+        Account? acct = (await store.GetAllClientScopeAsync<Account>(dbName, clientId))!.FirstOrDefault(a => a.Id == Guid.Parse((ReadOnlySpan<char>)accountId));
         if (acct is null) return false;
-        bool? result = await store.DeleteOneGlobalScopeAsync<AccountInfo>(dbName, acct.InfoId);
+        bool? result = await store.DeleteOneGlobalScopeAsync<AccountInfo>(dbName, Guid.Parse((ReadOnlySpan<char>)acct.InfoId));
         if (!result.HasValue || !result.Value) return false;
-        result = await store.DeleteOneClientScopeAsync<Account>(dbName, clientId, accountId);
+        result = await store.DeleteOneClientScopeAsync<Account>(dbName, clientId, Guid.Parse((ReadOnlySpan<char>)accountId));
         if (!result.HasValue || !result.Value) return false;
-        List<Transaction>? transactions = await store.TransactionsForAccountAsync(dbName, accountId);
-        if (transactions is null) return false;
+        List<Transaction> transactions = store.TransactionsForAccount(dbName, accountId);
         foreach (Transaction t in transactions)
         {
             await store.DeleteTransactionAsync(dbName, t.Id);
@@ -184,25 +180,25 @@ public static class Accounts
         return result.Value;
     }
 
-    private static async Task AddOneToGroupAsync(IDataStore dataStore, string dbName, Guid clientId, Account a)
+    private static async Task AddOneToGroupAsync(IDataStore dataStore, string dbName, string clientId, Account a)
     {
         RootGroup group = await dataStore.GetRootGroupAsync(dbName, clientId);
         switch (a.Type.ToString())
         {
             case "Asset":
-                group.Assets.Items.Add(new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id });
+                group.Assets.Items.Add(new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id.ToString() });
                 break;
             case "Liability":
-                group.Liabilities.Items.Add(new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id });
+                group.Liabilities.Items.Add(new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id.ToString() });
                 break;
             case "Equity":
-                group.Equity.Items.Add(new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id });
+                group.Equity.Items.Add(new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id.ToString() });
                 break;
             case "Revenue":
-                group.Revenue.Items.Add(new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id });
+                group.Revenue.Items.Add(new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id.ToString() });
                 break;
             case "Expense":
-                group.Expenses.Items.Add(new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id });
+                group.Expenses.Items.Add(new AccountGroupListItem { Type = AccountGroupListItemType.Account, AccountId = a.Id.ToString() });
                 break;
         }
 

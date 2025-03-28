@@ -8,7 +8,7 @@ public class PersonName : IGlobalItem
 {
     public Guid Id { get; set; }
 
-    public Guid ClientId { get; set; }
+    public string ClientId { get; set; } = string.Empty;
 
     public List<Guid> UsedByIds { get; } = [];
 

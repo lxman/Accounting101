@@ -9,7 +9,7 @@ public class AuditEntry : IGlobalItem
     [BsonId]
     public Guid Id { get; set; } = Guid.NewGuid();
 
-    public Guid ClientId { get; set; }
+    public string ClientId { get; set; } = string.Empty;
 
     public DateTime Created { get; set; } = DateTime.UtcNow;
 

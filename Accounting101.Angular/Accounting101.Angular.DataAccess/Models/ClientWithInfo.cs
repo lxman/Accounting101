@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using Accounting101.Angular.DataAccess.Extensions;
 using Accounting101.Angular.DataAccess.Interfaces;
 using Accounting101.Angular.DataAccess.Services.Interfaces;
@@ -51,8 +52,8 @@ public class ClientWithInfo : Client
     {
         BusinessName = c.BusinessName;
         Id = c.Id;
-        PersonNameId = n.Id;
-        AddressId = a.Id;
+        PersonNameId = n.Id.ToString();
+        AddressId = a.Id.ToString();
         ContactName = n;
         Address = a;
         CheckPointId = c.CheckPointId;
@@ -60,9 +61,9 @@ public class ClientWithInfo : Client
 
     public ClientWithInfo(IDataStore dataStore, string dbName, Client c) : base(c)
     {
-        ContactName = _jtf.Run(() => dataStore.GetAllGlobalScopeAsync<PersonName>(dbName))?.FirstOrDefault(pn => pn.ClientId == c.Id);
-        Address = dataStore.FindAddressById(dbName, AddressId);
-        ContactName = _jtf.Run(() => dataStore.FindNameByIdAsync(dbName, PersonNameId));
+        ContactName = _jtf.Run(() => dataStore.GetAllGlobalScopeAsync<PersonName>(dbName))?.FirstOrDefault(pn => pn.ClientId == c.Id.ToString());
+        Address = dataStore.FindAddressById(dbName, Guid.Parse((ReadOnlySpan<char>)AddressId));
+        ContactName = _jtf.Run(() => dataStore.FindNameByIdAsync(dbName, Guid.Parse((ReadOnlySpan<char>)PersonNameId)));
         CheckPointId = c.CheckPointId;
     }
 }

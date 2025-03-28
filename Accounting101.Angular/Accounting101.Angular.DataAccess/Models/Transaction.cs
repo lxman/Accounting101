@@ -1,5 +1,8 @@
 ﻿using System;
 using Accounting101.Angular.DataAccess.Interfaces;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization.Attributes;
+using MongoDB.Bson.Serialization.Options;
 
 // ReSharper disable ConvertToPrimaryConstructor
 
@@ -9,17 +12,21 @@ public class Transaction : IGlobalItem
 {
     public Guid Id { get; set; }
 
-    public Guid CreditedAccountId { get; }
+    [BsonRepresentation(BsonType.String)]
+    public string CreditedAccountId { get; } = string.Empty;
 
-    public Guid DebitedAccountId { get; }
+    [BsonRepresentation(BsonType.String)]
+    public string DebitedAccountId { get; } = string.Empty;
 
+    [BsonRepresentation(BsonType.Decimal128, AllowOverflow = true, AllowTruncation = true)]
     public decimal Amount { get; }
 
+    [BsonDateOnlyOptions(BsonType.DateTime, DateOnlyDocumentFormat.YearMonthDay)]
     public DateOnly When { get; }
 
     public Transaction() { }
 
-    public Transaction(Guid creditedAccountId, Guid debitedAccountId, decimal amount, DateOnly when)
+    public Transaction(string creditedAccountId, string debitedAccountId, decimal amount, DateOnly when)
     {
         CreditedAccountId = creditedAccountId;
         DebitedAccountId = debitedAccountId;
@@ -27,7 +34,7 @@ public class Transaction : IGlobalItem
         When = when;
     }
 
-    public Transaction(Guid id, Guid creditedAccountId, Guid debitedAccountId, decimal amount, DateOnly when)
+    public Transaction(Guid id, string creditedAccountId, string debitedAccountId, decimal amount, DateOnly when)
     {
         Id = id;
         CreditedAccountId = creditedAccountId;

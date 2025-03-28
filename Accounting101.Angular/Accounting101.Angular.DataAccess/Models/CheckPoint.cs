@@ -5,12 +5,12 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace Accounting101.Angular.DataAccess.Models;
 
-public class CheckPoint(Guid clientId, DateOnly date) : IClientItem
+public class CheckPoint(string clientId, DateOnly date) : IClientItem
 {
     [BsonId]
     public Guid Id { get; set; }
 
-    public Guid ClientId { get; init; } = clientId;
+    public string ClientId { get; init; } = clientId;
 
     public DateOnly Date { get; init; } = date;
 

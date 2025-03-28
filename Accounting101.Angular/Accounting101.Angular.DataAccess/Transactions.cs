@@ -5,15 +5,17 @@ using System.Threading.Tasks;
 using Accounting101.Angular.DataAccess.Extensions;
 using Accounting101.Angular.DataAccess.Models;
 using Accounting101.Angular.DataAccess.Services.Interfaces;
+using MongoDB.Bson;
+using MongoDB.Driver;
 
 namespace Accounting101.Angular.DataAccess;
 
 public static class Transactions
 {
-    public static async Task<Guid> CreateTransactionAsync(this IDataStore store, string dbName, Transaction tx)
+    public static async Task<Guid> CreateTransactionAsync(this IDataStore store, string dbName, string clientId, Transaction tx)
     {
-        Account? credAcct = (await store.GetAllClientScopeAsync<Account>(dbName, tx.CreditedAccountId))?.FirstOrDefault();
-        Account? debAcct = (await store.GetAllClientScopeAsync<Account>(dbName, tx.DebitedAccountId))?.FirstOrDefault();
+        Account? credAcct = (await store.GetAllClientScopeAsync<Account>(dbName, clientId))?.FirstOrDefault(a => a.Id == Guid.Parse(tx.CreditedAccountId));
+        Account? debAcct = (await store.GetAllClientScopeAsync<Account>(dbName, clientId))?.FirstOrDefault(a => a.Id == Guid.Parse(tx.DebitedAccountId));
         Guid result = credAcct is null
                       || debAcct is null
                       || tx.When < credAcct.Created
@@ -57,15 +59,32 @@ public static class Transactions
         return invalid;
     }
 
-    public static async Task<List<Transaction>?> TransactionsForAccountAsync(this IDataStore store, string dbName, Guid acct)
+    public static List<Transaction> TransactionsForAccount(this IDataStore store, string dbName, string accountId)
     {
-        return (await store.ReadAllGlobalScopeAsync<Transaction>(dbName))?.Where(t => t.CreditedAccountId == acct || t.DebitedAccountId == acct).ToList();
+        IMongoCollection<BsonDocument>? collection = store.GetCollection<BsonDocument>(dbName, CollectionNames.Transaction);
+        List<object> documents = collection.AsQueryable().ToList().ConvertAll(BsonTypeMapper.MapToDotNetValue);
+        List<Transaction> transactions = [];
+        documents.ForEach(d =>
+        {
+            if (d is not Dictionary<string, object> dict || (dict["CreditedAccountId"] as string != accountId &&
+                                                             dict["DebitedAccountId"] as string != accountId))
+            {
+                return;
+            }
+            Guid id = dict["_id"] as Guid? ?? Guid.Empty;
+            string creditedAccountId = dict["CreditedAccountId"] as string ?? string.Empty;
+            string debitedAccountId = dict["DebitedAccountId"] as string ?? string.Empty;
+            Decimal128 amount = dict["Amount"] as Decimal128? ?? 0;
+            DateOnly when = DateOnly.FromDateTime(dict["When"] as DateTime? ?? DateTime.MinValue);
+            transactions.Add(new Transaction(id, creditedAccountId, debitedAccountId, (decimal)amount, when));
+        });
+        return transactions;
     }
 
-    public static async Task<List<Transaction>?> TransactionsForAccountByDateAsync(this IDataStore store, string dbName, Guid acct, DateRange range)
+    public static async Task<List<Transaction>?> TransactionsForAccountByDateAsync(this IDataStore store, string dbName, string accountId, DateRange range)
     {
         return (await store.ReadAllGlobalScopeAsync<Transaction>(dbName))
-            ?.Where(t => (t.CreditedAccountId == acct || t.DebitedAccountId == acct) && t.When >= range.Start && t.When <= range.End).ToList();
+            ?.Where(t => (t.CreditedAccountId == accountId || t.DebitedAccountId == accountId) && t.When >= range.Start && t.When <= range.End).ToList();
     }
 
     public static async Task<bool> UpdateTransactionAsync(this IDataStore store, string dbName, Transaction tx)

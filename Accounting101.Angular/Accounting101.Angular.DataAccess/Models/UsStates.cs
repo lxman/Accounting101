@@ -6,12 +6,7 @@ using Microsoft.VisualStudio.Threading;
 
 namespace Accounting101.Angular.DataAccess.Models;
 
-public class UsStates
+public class UsStates(IDataStore dataStore, JoinableTaskFactory taskFactory)
 {
-    public List<string> States { get; }
-
-    public UsStates(IDataStore dataStore, JoinableTaskFactory taskFactory)
-    {
-        States = taskFactory.Run(dataStore.GetStatesAsync);
-    }
+    public List<string> States { get; } = taskFactory.Run(dataStore.GetStatesAsync);
 }

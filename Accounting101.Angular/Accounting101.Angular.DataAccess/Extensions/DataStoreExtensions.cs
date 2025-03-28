@@ -48,7 +48,7 @@ namespace Accounting101.Angular.DataAccess.Extensions
             return await store.GetCollection<T>(dbName, CollectionNames.GetCollectionName<T>())?.AsQueryable().ToListAsync()!;
         }
 
-        public static async Task<List<T>?> GetAllClientScopeAsync<T>(this IDataStore store, string dbName, Guid clientId)
+        public static async Task<List<T>?> GetAllClientScopeAsync<T>(this IDataStore store, string dbName, string clientId)
             where T : IClientItem
         {
             return (await store.GetCollection<T>(dbName, CollectionNames.GetCollectionName<T>()).AsQueryable().ToListAsync()).Where(x => x.ClientId == clientId).ToList();
@@ -60,7 +60,7 @@ namespace Accounting101.Angular.DataAccess.Extensions
             return await store.GetCollection<T>(dbName, CollectionNames.GetCollectionName<T>())?.AsQueryable().ToListAsync()!;
         }
 
-        public static async Task<List<T>?> ReadAllClientScopeAsync<T>(this IDataStore store, string dbName, Guid clientId)
+        public static async Task<List<T>?> ReadAllClientScopeAsync<T>(this IDataStore store, string dbName, string clientId)
             where T : IClientItem
         {
             return (await store.GetCollection<T>(dbName, CollectionNames.GetCollectionName<T>()).AsQueryable().ToListAsync()).Where(x => x.ClientId == clientId).ToList();
@@ -95,7 +95,7 @@ namespace Accounting101.Angular.DataAccess.Extensions
             return result.IsAcknowledged;
         }
 
-        public static async Task<bool?> DeleteOneClientScopeAsync<T>(this IDataStore store, string dbName, Guid clientId, Guid id)
+        public static async Task<bool?> DeleteOneClientScopeAsync<T>(this IDataStore store, string dbName, string clientId, Guid id)
             where T : IClientItem
         {
             FilterDefinition<T>? filter = Builders<T>.Filter.Eq(x => x.ClientId, clientId);

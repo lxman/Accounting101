@@ -17,9 +17,9 @@ public static class Clients
         return result;
     }
 
-    public static async Task<ClientWithInfo?> GetClientWithInfoAsync(this IDataStore store, string dbName, Guid clientId)
+    public static async Task<ClientWithInfo?> GetClientWithInfoAsync(this IDataStore store, string dbName, string clientId)
     {
-        Client? c = (await store.GetAllGlobalScopeAsync<Client>(dbName))!.FirstOrDefault(c => c.Id == clientId);
+        Client? c = (await store.GetAllGlobalScopeAsync<Client>(dbName))!.FirstOrDefault(c => c.Id.ToString() == clientId);
         return c is null ? null : new ClientWithInfo(store, dbName, c);
     }
 
@@ -64,7 +64,7 @@ public static class Clients
         return clients?.Select(c => new ClientWithInfo(store, dbName, c));
     }
 
-    public static async Task<bool?> DeleteClientAsync(this IDataStore store, string dbName, Guid clientId)
+    public static async Task<bool?> DeleteClientAsync(this IDataStore store, string dbName, string clientId)
     {
         ClientWithInfo? client = await store.GetClientWithInfoAsync(dbName, clientId);
         if (client is null)
@@ -76,22 +76,22 @@ public static class Clients
         {
             foreach (AccountWithInfo account in accounts)
             {
-                await store.DeleteAccountAsync(dbName, clientId, account.Id);
+                await store.DeleteAccountAsync(dbName, clientId, account.Id.ToString());
             }
         }
         CheckPoint? checkPoint = await store.GetCheckpointAsync(dbName, clientId);
         if (checkPoint is not null)
         {
-            await store.ClearCheckpointAsync(dbName, checkPoint.Id);
+            await store.ClearCheckpointAsync(dbName, checkPoint.Id.ToString());
         }
 
         await store.DeleteRootGroupAsync(dbName, clientId);
 
-        await store.DeleteNameAsync(dbName, client.PersonNameId);
+        await store.DeleteNameAsync(dbName, Guid.Parse((ReadOnlySpan<char>)client.PersonNameId));
 
-        await store.DeleteAddressAsync(dbName, client.AddressId);
+        await store.DeleteAddressAsync(dbName, Guid.Parse((ReadOnlySpan<char>)client.AddressId));
 
-        bool? result = await store.DeleteOneGlobalScopeAsync<Client>(dbName, clientId);
+        bool? result = await store.DeleteOneGlobalScopeAsync<Client>(dbName, Guid.Parse((ReadOnlySpan<char>)clientId));
         store.NotifyChange(typeof(Client), ChangeType.Deleted);
         return result;
     }

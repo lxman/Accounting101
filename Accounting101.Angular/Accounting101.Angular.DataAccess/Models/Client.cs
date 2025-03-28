@@ -11,11 +11,11 @@ public class Client : IGlobalItem
 
     public string BusinessName { get; set; } = string.Empty;
 
-    public Guid PersonNameId { get; set; }
+    public string PersonNameId { get; set; } = string.Empty;
 
-    public Guid AddressId { get; set; }
+    public string AddressId { get; set; } = string.Empty;
 
-    public Guid? CheckPointId { get; set; }
+    public string? CheckPointId { get; set; }
 
     public Client()
     {

@@ -4,7 +4,7 @@
     <app-client-header [client]="client | async" />
     <mat-divider></mat-divider>
     <app-account-header [accountId]="accountId" />
-    <app-transaction-list />
+    <app-transaction-list [accountId]="accountId" [accounts]="allAccounts" />
   </div>
-  <app-fast-entry [accounts]="filteredAccounts" />
+  <app-fast-entry [accountId]="accountId" [accounts]="filteredAccounts" />
 </div>

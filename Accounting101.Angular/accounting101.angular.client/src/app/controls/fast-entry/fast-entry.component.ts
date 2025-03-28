@@ -1,15 +1,15 @@
-import {Component, input, OnChanges, SimpleChanges} from '@angular/core';
+import {Component, inject, input, OnChanges, SimpleChanges} from '@angular/core';
 import {MatNativeDateModule} from '@angular/material/core';
-import {MatFormField} from '@angular/material/form-field';
+import {MatFormField, MatHint, MatLabel} from '@angular/material/form-field';
 import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {MatInput} from '@angular/material/input';
-import {MatLabel} from '@angular/material/form-field';
 import {MatButton} from '@angular/material/button';
-import {MatHint} from '@angular/material/form-field';
 import {MatDatepicker, MatDatepickerInput, MatDatepickerToggle} from '@angular/material/datepicker';
 import {MatRadioButton, MatRadioGroup, MatRadioModule} from '@angular/material/radio';
 import {AccountModel} from '../../models/account.model';
 import {SelectComponent} from '../select/select.component';
+import {TransactionModel} from '../../models/transaction.model';
+import {AccountsManagerService} from '../../services/accounts-manager/accounts-manager.service';
 
 @Component({
   selector: 'app-fast-entry',
@@ -34,6 +34,8 @@ import {SelectComponent} from '../select/select.component';
 })
 
 export class FastEntryComponent implements OnChanges{
+  private readonly accountService = inject(AccountsManagerService);
+  accountId = input.required<string>();
   accounts = input.required<AccountModel[]>();
   readonly initialDate: Date = new Date();
   accts: string[] = [];
@@ -49,5 +51,22 @@ export class FastEntryComponent implements OnChanges{
     if (changes['accounts']) {
       this.accts = this.accounts().map(acct => acct.info.name)
     }
+  }
+
+  onSubmit() {
+    console.log(this.fastEntryGroup.value);
+    const tx = new TransactionModel();
+    tx.when = this.fastEntryGroup.value.date?.toISOString().split("T")[0] ?? '';
+    tx.amount = this.fastEntryGroup.value.amount as number;
+    tx.creditAccountId = this.fastEntryGroup.value.creditDebit === 'credit'
+      ? this.accountId()
+      : this.accounts().find(acct => acct.info.name === this.fastEntryGroup.value.otherAccount)?.id ?? '';
+    tx.debitAccountId = this.fastEntryGroup.value.creditDebit === 'debit'
+      ? this.accountId()
+      : this.accounts().find(acct => acct.info.name === this.fastEntryGroup.value.otherAccount)?.id ?? '';
+    console.log(JSON.stringify(tx));
+    this.accountService.createTransaction(tx).subscribe(() => {
+      console.log('Transaction created');
+    });
   }
 }

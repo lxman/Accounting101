@@ -10,7 +10,7 @@ namespace Accounting101.Angular.DataAccess;
 
 public static class CheckPoints
 {
-    public static async Task<bool> SetCheckpointAsync(this IDataStore store, string dbName, Guid clientId, DateOnly date)
+    public static async Task<bool> SetCheckpointAsync(this IDataStore store, string dbName, string clientId, DateOnly date)
     {
         Client? c = await store.GetClientWithInfoAsync(dbName, clientId);
         CheckPoint checkPoint = new(clientId, date);
@@ -21,11 +21,11 @@ public static class CheckPoints
         }
 
         List<AccountWithInfo> accountsList = accounts.ToList();
-        for (int x = 0; x < accountsList.Count; x++)
+        for (var x = 0; x < accountsList.Count; x++)
         {
             AccountWithInfo a = accountsList.ElementAt(x);
-            decimal balance = await store.GetAccountBalanceOnDateAsync(dbName, a.Id, date);
-            checkPoint.AccountCheckpoints.Add(new AccountCheckpoint(clientId, a.Id, balance));
+            decimal balance = await store.GetAccountBalanceOnDateAsync(dbName, a.Id.ToString(), date);
+            checkPoint.AccountCheckpoints.Add(new AccountCheckpoint(clientId, a.Id.ToString(), balance));
         }
 
         List<CheckPoint>? checkPoints = await store.ReadAllClientScopeAsync<CheckPoint>(dbName, clientId);
@@ -35,7 +35,7 @@ public static class CheckPoints
             return false;
         }
 
-        Guid? id = null;
+        Guid? id;
         if (checkPoints.Count == 0)
         {
             id = await store.CreateOneClientScopeAsync(dbName, checkPoint);
@@ -52,12 +52,12 @@ public static class CheckPoints
             id = await store.CreateOneClientScopeAsync(dbName, checkPoint);
             await store.CreateManyGlobalScopeAsync(dbName, checkPoint.AccountCheckpoints);
         }
-        c.CheckPointId = id;
+        c.CheckPointId = id.ToString();
         await store.UpdateClientAsync(dbName, c);
         return true;
     }
 
-    public static async Task<CheckPoint?> GetCheckpointAsync(this IDataStore store, string dbName, Guid clientId)
+    public static async Task<CheckPoint?> GetCheckpointAsync(this IDataStore store, string dbName, string clientId)
     {
         CheckPoint? checkPoint = (await store.GetAllClientScopeAsync<CheckPoint>(dbName, clientId))!.FirstOrDefault();
         List<AccountCheckpoint>? accountCheckpoints = (await store.ReadAllGlobalScopeAsync<AccountCheckpoint>(dbName))!;
@@ -69,7 +69,7 @@ public static class CheckPoints
         return checkPoint;
     }
 
-    public static async Task ClearCheckpointAsync(this IDataStore store, string dbName, Guid clientId)
+    public static async Task ClearCheckpointAsync(this IDataStore store, string dbName, string clientId)
     {
         Client? c = await store.GetClientWithInfoAsync(dbName, clientId);
         CheckPoint? existing = (await store.GetAllClientScopeAsync<CheckPoint>(dbName, clientId))!.FirstOrDefault();
