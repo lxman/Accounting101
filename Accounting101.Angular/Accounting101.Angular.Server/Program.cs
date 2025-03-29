@@ -43,13 +43,13 @@ builder.Services.AddAuthorizationBuilder();
 string? baseConnectionString = Environment.GetEnvironmentVariable("MongoClientConnectionString");
 if (string.IsNullOrWhiteSpace(baseConnectionString))
 {
-    throw new ApplicationException("MongoDB connection string not found.");
+    throw new Exception("MongoClientConnectionString is not set");
 }
 
 builder.Services.AddIdentityCore<ApplicationUser>()
     .AddMongoDbStores<ApplicationUser, ApplicationRole, Guid>(mongo =>
     {
-        mongo.ConnectionString = $"{baseConnectionString}/Identity";
+        mongo.ConnectionString = $"{baseConnectionString}/Identity/";
         mongo.DisableAutoMigrations = true;
     })
     .AddDefaultTokenProviders()

@@ -10,7 +10,7 @@
     <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="8.0.14" />
     <PackageReference Include="Microsoft.VisualStudio.Threading" Version="17.13.61" />
     <PackageReference Include="MongoDB.Analyzer" Version="1.5.0" />
-    <PackageReference Include="MongoDB.Driver" Version="3.2.1" />
+    <PackageReference Include="MongoDB.Driver" Version="3.3.0" />
   </ItemGroup>
 
   <ItemGroup>

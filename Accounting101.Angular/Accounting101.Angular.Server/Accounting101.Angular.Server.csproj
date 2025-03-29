@@ -7,18 +7,19 @@
     <SpaRoot>..\accounting101.angular.client</SpaRoot>
     <SpaProxyLaunchCommand>npm start</SpaProxyLaunchCommand>
     <SpaProxyServerUrl>https://localhost:51597</SpaProxyServerUrl>
+    <UserSecretsId>1a70148a-fd86-410b-9f0b-c9615a770b1c</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AspNetCoreIdentity.MongoDriver" Version="0.9.0.1" />
+    <PackageReference Include="AspNetCoreIdentity.MongoDriver" Version="0.9.0.2" />
     <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.1" />
     <PackageReference Include="Microsoft.AspNetCore.SpaProxy">
       <Version>8.0.14</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="9.0.3" />
     <PackageReference Include="Microsoft.Extensions.Identity.Stores" Version="9.0.3" />
-    <PackageReference Include="MongoDB.Bson" Version="3.2.1" />
-    <PackageReference Include="MongoDB.Driver" Version="3.2.1" />
+    <PackageReference Include="MongoDB.Bson" Version="3.3.0" />
+    <PackageReference Include="MongoDB.Driver" Version="3.3.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="8.0.0" />
   </ItemGroup>
 
