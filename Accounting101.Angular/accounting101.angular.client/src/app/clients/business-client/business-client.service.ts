@@ -3,13 +3,13 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { BusinessModel } from '../../models/business.model';
-import { UserDataService } from '../user-data/user-data.service';
-import { GlobalConstantsService } from '../global-constants/global-constants.service';
+import { UserDataService } from '../../services/user-data/user-data.service';
+import { GlobalConstantsService } from '../../services/global-constants/global-constants.service';
 
 @Injectable({
   providedIn: 'root'
 })
-export class BusinessManagerService {
+export class BusinessClient {
   private readonly client: HttpClient = inject(HttpClient);
   private readonly userData: UserDataService = inject(UserDataService);
   private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);

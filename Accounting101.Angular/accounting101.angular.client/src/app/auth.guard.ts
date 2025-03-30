@@ -3,14 +3,14 @@ import {
   CanActivate,
   Router
 } from '@angular/router';
-import { UserManagerService } from './services/user-manager/user-manager.service';
+import { UserClient } from './clients/user-client/user-client.service';
 
 @Injectable({
   providedIn: 'root',
 })
 
 export class AuthGuard implements CanActivate {
-  userManager: UserManagerService = inject(UserManagerService);
+  userManager: UserClient = inject(UserClient);
   constructor(private router: Router) {}
 
   canActivate(): boolean {

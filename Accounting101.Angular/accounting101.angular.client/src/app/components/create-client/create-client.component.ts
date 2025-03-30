@@ -7,9 +7,9 @@ import { ClientModel } from '../../models/client.model';
 import { PersonNameComponent } from "../../controls/person-name/person-name.component";
 import { PersonNameModel } from '../../models/person-name.model';
 import { AddressComponent } from "../../controls/address/address.component";
-import { AddressManagerService } from '../../services/address-manager/address-manager.service';
-import { PersonNameManagerService } from '../../services/person-name/person-name-manager.service';
-import { ClientManagerService } from '../../services/client-manager/client-manager.service';
+import { AddressClient } from '../../clients/address-client/address-client.service';
+import { PersonNameClient } from '../../clients/person-name-client/person-name-client.service';
+import { ClientClient } from '../../clients/client-client/client-client.service';
 import { Router } from '@angular/router';
 import { AddressModel } from '../../models/address.model';
 import { CreateClientModel } from '../../models/create-client.model';
@@ -58,9 +58,9 @@ export class CreateClientComponent {
   countries: any[] = [];
 
   constructor(
-    private readonly addressService: AddressManagerService,
-    private readonly personNameService: PersonNameManagerService,
-    private readonly clientService: ClientManagerService) {
+    private readonly addressService: AddressClient,
+    private readonly personNameService: PersonNameClient,
+    private readonly clientService: ClientClient) {
     addressService.getStates().subscribe((states) => this.states = states);
     addressService.getCountries().subscribe((countries) => this.countries = countries);
   }

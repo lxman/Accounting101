@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 
-import { UserManagerService } from './user-manager.service';
+import { AddressClient } from './address-client.service';
 
-describe('UserManagerService', () => {
-  let service: UserManagerService;
+describe('AddressManagerService', () => {
+  let service: AddressClient;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    service = TestBed.inject(UserManagerService);
+    service = TestBed.inject(AddressClient);
   });
 
   it('should be created', () => {

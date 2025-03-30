@@ -7,7 +7,7 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 
 @Component({
-  selector: 'person-name-component',
+  selector: 'person-name-client-component',
   templateUrl: './person-name.component.html',
   styleUrl: './person-name.component.scss',
   imports: [
@@ -41,7 +41,7 @@ export class PersonNameComponent implements MatFormFieldControl<PersonNameModel>
   shouldLabelFloat: boolean = false;
   disabled: boolean = false;
   errorState: boolean = false;
-  controlType?: string | undefined = 'person-name-component';
+  controlType?: string | undefined = 'person-name-client-component';
   autofilled?: boolean | undefined;
   userAriaDescribedBy?: string | undefined;
   disableAutomaticLabeling?: boolean | undefined;

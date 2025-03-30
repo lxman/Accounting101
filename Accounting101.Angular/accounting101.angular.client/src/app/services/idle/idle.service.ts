@@ -1,6 +1,6 @@
 import {inject, Injectable, OnInit} from '@angular/core';
 import { Idle, DEFAULT_INTERRUPTSOURCES } from '@ng-idle/core';
-import { UserManagerService } from '../user-manager/user-manager.service';
+import { UserClient } from '../../clients/user-client/user-client.service';
 import { UserDataService } from '../user-data/user-data.service';
 import { GlobalConstantsService } from '../global-constants/global-constants.service';
 import { Router } from '@angular/router';
@@ -12,7 +12,7 @@ import { Router } from '@angular/router';
 export class IdleService implements OnInit{
   private readonly router: Router = inject(Router);
   private readonly idle: Idle = inject(Idle);
-  private readonly userManager: UserManagerService = inject(UserManagerService);
+  private readonly userManager: UserClient = inject(UserClient);
   private readonly userData: UserDataService = inject(UserDataService);
   private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);
 

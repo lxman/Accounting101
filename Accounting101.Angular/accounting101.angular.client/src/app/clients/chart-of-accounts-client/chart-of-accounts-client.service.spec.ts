@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 
-import { ChartOfAccountsService } from './chart-of-accounts.service';
+import { ChartOfAccountsClient } from './chart-of-accounts-client.service';
 
 describe('ChartOfAccountsService', () => {
-  let service: ChartOfAccountsService;
+  let service: ChartOfAccountsClient;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    service = TestBed.inject(ChartOfAccountsService);
+    service = TestBed.inject(ChartOfAccountsClient);
   });
 
   it('should be created', () => {

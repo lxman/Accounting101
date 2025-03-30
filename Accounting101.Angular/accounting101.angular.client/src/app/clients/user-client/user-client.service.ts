@@ -4,14 +4,14 @@ import { Observable, throwError } from 'rxjs';
 import { CreateUserModel } from '../../models/create-user.model';
 import { LoginModel } from '../../models/login.model';
 import { catchError } from 'rxjs/operators';
-import { GlobalConstantsService } from '../global-constants/global-constants.service';
+import { GlobalConstantsService } from '../../services/global-constants/global-constants.service';
 import { ApplicationUser } from '../../models/application-user.model';
-import { UserDataService } from '../user-data/user-data.service';
+import { UserDataService } from '../../services/user-data/user-data.service';
 
 @Injectable({
   providedIn: 'root'
 })
-export class UserManagerService {
+export class UserClient {
   private readonly http: HttpClient = inject(HttpClient);
   private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);
   private readonly userData: UserDataService = inject(UserDataService);

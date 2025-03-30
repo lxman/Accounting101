@@ -1,11 +1,11 @@
 import { Component, forwardRef } from '@angular/core';
 import { BusinessModel } from '../../models/business.model';
-import { BusinessManagerService } from '../../services/business-manager/business-manager.service';
+import { BusinessClient } from '../../clients/business-client/business-client.service';
 import { FormControl, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldControl, MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { AddressComponent } from '../../controls/address/address.component';
-import { AddressManagerService } from '../../services/address-manager/address-manager.service';
+import { AddressClient } from '../../clients/address-client/address-client.service';
 import { ForeignAddressModel } from '../../models/foreign-address.model';
 import { UsAddressModel } from '../../models/us-address.model';
 import { MatButtonModule } from '@angular/material/button';
@@ -44,8 +44,8 @@ export class CreateBusinessComponent {
   countries: any[] = [];
 
   constructor(
-    private readonly addressService: AddressManagerService,
-    private readonly businessService: BusinessManagerService,
+    private readonly addressService: AddressClient,
+    private readonly businessService: BusinessClient,
     private readonly router: Router) {
       addressService.getStates().subscribe(states => this.states = states);
       addressService.getCountries().subscribe(countries => this.countries = countries);

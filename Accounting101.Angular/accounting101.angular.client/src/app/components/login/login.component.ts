@@ -1,9 +1,9 @@
 import { Component, inject } from '@angular/core';
 import { LoginModel } from '../../models/login.model';
-import { UserManagerService } from '../../services/user-manager/user-manager.service';
+import { UserClient } from '../../clients/user-client/user-client.service';
 import { UserDataService } from '../../services/user-data/user-data.service';
-import { BusinessManagerService } from '../../services/business-manager/business-manager.service';
-import { ClientManagerService } from '../../services/client-manager/client-manager.service';
+import { BusinessClient } from '../../clients/business-client/business-client.service';
+import { ClientClient } from '../../clients/client-client/client-client.service';
 import { GlobalConstantsService } from '../../services/global-constants/global-constants.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { FormGroup, FormControl, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
@@ -22,10 +22,10 @@ import { Idle  } from '@ng-idle/core';
 })
 export class LoginComponent {
   private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);
-  private readonly userManager: UserManagerService = inject(UserManagerService);
+  private readonly userManager: UserClient = inject(UserClient);
   private readonly userData: UserDataService = inject(UserDataService);
-  private readonly businessManager: BusinessManagerService = inject(BusinessManagerService);
-  private readonly clientManager: ClientManagerService = inject(ClientManagerService);
+  private readonly businessManager: BusinessClient = inject(BusinessClient);
+  private readonly clientManager: ClientClient = inject(ClientClient);
   private readonly toastService: MatSnackBar = inject(MatSnackBar);
   private readonly router: Router = inject(Router);
   private readonly idle: Idle = inject(Idle);

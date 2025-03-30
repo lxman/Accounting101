@@ -1,6 +1,6 @@
 import {Component, inject} from '@angular/core';
 import {AccountOrganizerComponent} from '../../controls/account-organizer/account-organizer.component';
-import {AccountsManagerService} from '../../services/accounts-manager/accounts-manager.service';
+import {AccountsClient} from '../../clients/accounts-client/accounts-client.service';
 import {AccountModel} from '../../models/account.model';
 import {RootGroups} from '../../models/root-groups.model';
 import {AccountGroupModel} from '../../models/account-group.model';
@@ -10,7 +10,7 @@ import {Screen} from '../../enums/screen.enum';
 import {GlobalConstantsService} from '../../services/global-constants/global-constants.service';
 import {UserDataService} from '../../services/user-data/user-data.service';
 import {ClientModel} from '../../models/client.model';
-import {ClientManagerService} from '../../services/client-manager/client-manager.service';
+import {ClientClient} from '../../clients/client-client/client-client.service';
 import {ClientHeaderComponent} from '../../controls/client-header/client-header.component';
 import {CdkScrollable} from '@angular/cdk/scrolling';
 
@@ -28,8 +28,8 @@ import {CdkScrollable} from '@angular/cdk/scrolling';
 
 export class AccountListComponent{
   client: ClientModel | null = null;
-  private readonly accountService: AccountsManagerService = inject(AccountsManagerService);
-  private readonly clientService = inject(ClientManagerService);
+  private readonly accountService: AccountsClient = inject(AccountsClient);
+  private readonly clientService = inject(ClientClient);
   private readonly globals = inject(GlobalConstantsService);
   private readonly userData = inject(UserDataService);
   private readonly clientIdKey = this.userData.get(this.globals.clientIdKey);

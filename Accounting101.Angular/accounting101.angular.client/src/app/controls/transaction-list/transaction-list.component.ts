@@ -2,7 +2,7 @@ import {Component, inject, input, OnChanges, SimpleChanges} from '@angular/core'
 import {GlobalConstantsService} from '../../services/global-constants/global-constants.service';
 import {UserDataService} from '../../services/user-data/user-data.service';
 import {TransactionModel} from '../../models/transaction.model';
-import {AccountsManagerService} from '../../services/accounts-manager/accounts-manager.service';
+import {AccountsClient} from '../../clients/accounts-client/accounts-client.service';
 import {
   MatCell,
   MatCellDef,
@@ -45,7 +45,7 @@ import {AccountModel} from '../../models/account.model';
 export class TransactionListComponent implements OnChanges{
   readonly accountId = input.required<string>();
   readonly accounts = input.required<AccountModel[]>();
-  private readonly accountsManager = inject(AccountsManagerService);
+  private readonly accountsManager = inject(AccountsClient);
   private readonly globals = inject(GlobalConstantsService);
   private readonly userData = inject(UserDataService);
   private transactions: TransactionModel[] = [];

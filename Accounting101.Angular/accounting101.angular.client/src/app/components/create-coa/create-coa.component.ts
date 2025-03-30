@@ -1,5 +1,5 @@
 import {Component, inject} from '@angular/core';
-import {ChartOfAccountsService} from '../../services/chart-of-accounts/chart-of-accounts.service';
+import {ChartOfAccountsClient} from '../../clients/chart-of-accounts-client/chart-of-accounts-client.service';
 import {ChartItemModel} from '../../models/chart-item.model';
 import {MatCard, MatCardActions, MatCardContent, MatCardTitle} from '@angular/material/card';
 import {MatButton} from '@angular/material/button';
@@ -22,7 +22,7 @@ import {Router} from '@angular/router';
   styleUrl: './create-coa.component.scss'
 })
 export class CreateCoaComponent {
-  private readonly coaService: ChartOfAccountsService = inject(ChartOfAccountsService);
+  private readonly coaService: ChartOfAccountsClient = inject(ChartOfAccountsClient);
   private readonly userData: UserDataService = inject(UserDataService);
   private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);
   private readonly router: Router = inject(Router);

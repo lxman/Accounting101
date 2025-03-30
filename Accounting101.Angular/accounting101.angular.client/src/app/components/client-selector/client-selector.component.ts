@@ -2,8 +2,8 @@ import { Component, inject } from '@angular/core';
 import { CommonModule, NgIf, NgFor } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop'
 import { MatCardModule } from '@angular/material/card';
-import { AccountsManagerService } from '../../services/accounts-manager/accounts-manager.service';
-import { ClientManagerService } from '../../services/client-manager/client-manager.service';
+import { AccountsClient } from '../../clients/accounts-client/accounts-client.service';
+import { ClientClient } from '../../clients/client-client/client-client.service';
 import { UserDataService } from '../../services/user-data/user-data.service';
 import { GlobalConstantsService } from '../../services/global-constants/global-constants.service';
 import {MenuComponent} from '../menu/menu.component';
@@ -31,13 +31,13 @@ import {BehaviorSubject, switchMap} from 'rxjs';
     DefaultLayoutDirective,
     DefaultLayoutAlignDirective
   ],
-  providers: [ClientManagerService]
+  providers: [ClientClient]
 })
 
 export class ClientSelectorComponent {
   private refreshTrigger = new BehaviorSubject<void>(undefined)
-  private readonly accountsService = inject(AccountsManagerService);
-  private readonly clientService = inject(ClientManagerService);
+  private readonly accountsService = inject(AccountsClient);
+  private readonly clientService = inject(ClientClient);
   private readonly userDataService = inject(UserDataService);
   private readonly globals = inject(GlobalConstantsService);
   private readonly router = inject(Router);

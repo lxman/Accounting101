@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { CreateUserModel } from '../../models/create-user.model';
-import { UserManagerService } from '../../services/user-manager/user-manager.service';
+import { UserClient } from '../../clients/user-client/user-client.service';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { FormGroup, FormControl, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatCard, MatCardContent } from '@angular/material/card';
@@ -18,7 +18,7 @@ import { MatButton } from '@angular/material/button';
 })
 
 export class RegisterUserComponent {
-  private readonly userManager: UserManagerService = inject(UserManagerService);
+  private readonly userManager: UserClient = inject(UserClient);
   private readonly toastService: MatSnackBar = inject(MatSnackBar);
 
   registerForm = new FormGroup({

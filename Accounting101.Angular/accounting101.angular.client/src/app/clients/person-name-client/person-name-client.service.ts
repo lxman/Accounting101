@@ -2,14 +2,14 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { UserDataService } from '../user-data/user-data.service';
+import { UserDataService } from '../../services/user-data/user-data.service';
 import { PersonNameModel } from '../../models/person-name.model';
-import { GlobalConstantsService } from '../global-constants/global-constants.service';
+import { GlobalConstantsService } from '../../services/global-constants/global-constants.service';
 
 @Injectable({
   providedIn: 'root'
 })
-export class PersonNameManagerService {
+export class PersonNameClient {
   private readonly client: HttpClient = inject(HttpClient);
   private readonly userData: UserDataService = inject(UserDataService);
   private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);

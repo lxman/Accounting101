@@ -7,7 +7,7 @@ import {NgForOf, NgIf} from '@angular/common';
 import {RouterLink} from '@angular/router';
 import {Screen} from '../../enums/screen.enum';
 import {FlexLayoutModule} from '@ngbracket/ngx-layout';
-import {UserManagerService} from '../../services/user-manager/user-manager.service';
+import {UserClient} from '../../clients/user-client/user-client.service';
 import {UserDataService} from '../../services/user-data/user-data.service';
 import {Router} from '@angular/router';
 
@@ -28,7 +28,7 @@ import {Router} from '@angular/router';
 
 export class MenuComponent implements OnChanges {
   private readonly menuService: MenuService = inject(MenuService);
-  private readonly userManager: UserManagerService = inject(UserManagerService);
+  private readonly userManager: UserClient = inject(UserClient);
   private readonly userData: UserDataService = inject(UserDataService);
   private readonly router: Router = inject(Router);
   readonly screen = input.required<Screen>();

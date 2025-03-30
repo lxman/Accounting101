@@ -1,5 +1,5 @@
 import {Component, inject, input, OnChanges, SimpleChanges} from '@angular/core';
-import {AccountsManagerService} from '../../services/accounts-manager/accounts-manager.service';
+import {AccountsClient} from '../../clients/accounts-client/accounts-client.service';
 import {AccountModel} from '../../models/account.model';
 import {MatCard, MatCardContent, MatCardHeader, MatCardTitle} from '@angular/material/card';
 import {NgIf} from '@angular/common';
@@ -20,7 +20,7 @@ import {Router} from '@angular/router';
 
 export class AccountHeaderComponent implements OnChanges{
   readonly accountId = input.required<string>();
-  private readonly accounts: AccountsManagerService = inject(AccountsManagerService);
+  private readonly accounts: AccountsClient = inject(AccountsClient);
   private readonly router: Router = inject(Router);
   account: AccountModel = new AccountModel();
   protected readonly Date = Date;

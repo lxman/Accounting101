@@ -2,8 +2,8 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { UserDataService } from '../user-data/user-data.service';
-import { GlobalConstantsService } from '../global-constants/global-constants.service';
+import { UserDataService } from '../../services/user-data/user-data.service';
+import { GlobalConstantsService } from '../../services/global-constants/global-constants.service';
 import {RootGroups} from '../../models/root-groups.model';
 import {AccountModel} from '../../models/account.model';
 import {TransactionModel} from '../../models/transaction.model';
@@ -11,7 +11,8 @@ import {TransactionModel} from '../../models/transaction.model';
 @Injectable({
   providedIn: 'root'
 })
-export class AccountsManagerService {
+
+export class AccountsClient {
   private readonly userDataService = inject(UserDataService);
   private readonly globals = inject(GlobalConstantsService);
   private readonly client = inject(HttpClient);

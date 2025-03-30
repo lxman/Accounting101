@@ -6,11 +6,11 @@ import {MenuComponent} from '../menu/menu.component';
 import {Screen} from '../../enums/screen.enum';
 import {TransactionListComponent} from '../../controls/transaction-list/transaction-list.component';
 import {ClientHeaderComponent} from '../../controls/client-header/client-header.component';
-import {ClientManagerService} from '../../services/client-manager/client-manager.service';
+import {ClientClient} from '../../clients/client-client/client-client.service';
 import {AsyncPipe} from '@angular/common';
 import {MatDivider} from '@angular/material/divider';
 import {FastEntryComponent} from '../../controls/fast-entry/fast-entry.component';
-import {AccountsManagerService} from '../../services/accounts-manager/accounts-manager.service';
+import {AccountsClient} from '../../clients/accounts-client/accounts-client.service';
 import {AccountModel} from '../../models/account.model';
 
 @Component({
@@ -32,8 +32,8 @@ export class AccountComponent {
   readonly accountId: string;
   private readonly globals = inject(GlobalConstantsService);
   private readonly userDataService = inject(UserDataService);
-  private readonly clientManager = inject(ClientManagerService);
-  private readonly accountsManager = inject(AccountsManagerService);
+  private readonly clientManager = inject(ClientClient);
+  private readonly accountsManager = inject(AccountsClient);
   readonly client = this.clientManager.getClient(this.userDataService.get(this.globals.clientIdKey));
   readonly accounts = this.accountsManager.getAccounts();
   filteredAccounts: AccountModel[] = [];

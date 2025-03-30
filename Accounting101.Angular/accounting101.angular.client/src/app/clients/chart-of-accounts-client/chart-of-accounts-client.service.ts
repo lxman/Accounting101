@@ -2,14 +2,14 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import {Observable, throwError} from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { GlobalConstantsService } from '../global-constants/global-constants.service';
+import { GlobalConstantsService } from '../../services/global-constants/global-constants.service';
 import {ChartItemModel} from '../../models/chart-item.model';
 import {CreateCoaRequest} from '../../models/create-coa-request.model';
 
 @Injectable({
   providedIn: 'root'
 })
-export class ChartOfAccountsService {
+export class ChartOfAccountsClient {
   private readonly client: HttpClient = inject(HttpClient);
   private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);
 

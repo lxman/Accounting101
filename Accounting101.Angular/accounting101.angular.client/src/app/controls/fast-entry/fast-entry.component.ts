@@ -9,7 +9,7 @@ import {MatRadioButton, MatRadioGroup, MatRadioModule} from '@angular/material/r
 import {AccountModel} from '../../models/account.model';
 import {SelectComponent} from '../select/select.component';
 import {TransactionModel} from '../../models/transaction.model';
-import {AccountsManagerService} from '../../services/accounts-manager/accounts-manager.service';
+import {AccountsClient} from '../../clients/accounts-client/accounts-client.service';
 
 @Component({
   selector: 'app-fast-entry',
@@ -34,7 +34,7 @@ import {AccountsManagerService} from '../../services/accounts-manager/accounts-m
 })
 
 export class FastEntryComponent implements OnChanges{
-  private readonly accountService = inject(AccountsManagerService);
+  private readonly accountService = inject(AccountsClient);
   accountId = input.required<string>();
   accounts = input.required<AccountModel[]>();
   readonly initialDate: Date = new Date();
