@@ -6,6 +6,7 @@ using Accounting101.Angular.Server.IdentityApiRouteBuilder;
 using Accounting101.Angular.Server.Services;
 using AspNetCoreIdentity.MongoDriver;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.FileProviders;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
@@ -43,6 +44,13 @@ builder.Services.AddAuthorizationBuilder();
 string? baseConnectionString = Environment.GetEnvironmentVariable("MongoClientConnectionString");
 if (string.IsNullOrWhiteSpace(baseConnectionString))
 {
+    builder.Logging.AddConsole();
+    builder.Logging.AddDebug();
+    builder.Logging.AddEventSourceLogger();
+    builder.Logging.AddEventLog();
+    var loggerFactory = builder.Logging.Services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
+    ILogger logger = loggerFactory.CreateLogger("Startup");
+    logger.LogError("MongoClientConnectionString is not set");
     throw new Exception("MongoClientConnectionString is not set");
 }
 
@@ -76,14 +84,25 @@ builder.Services.AddScoped<ICoAService, CoAService>();
 
 WebApplication app = builder.Build();
 
+var fileProvider = new PhysicalFileProvider(Path.Combine(app.Environment.WebRootPath, "accounting101.client"));
+
 app.Use(async (context, next) =>
 {
     context.Request.EnableBuffering();
     await next();
 });
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseDefaultFiles(new DefaultFilesOptions
+{
+    FileProvider = fileProvider,
+    RequestPath = "",
+    DefaultFileNames = ["index.html"]
+});
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = fileProvider,
+    RequestPath = ""
+});
 app.UseRouting();
 
 app.UseCors("AllowAll");
@@ -102,7 +121,11 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.MapFallbackToFile("/index.html");
+app.MapFallbackToFile("/index.html", new StaticFileOptions
+{
+    FileProvider = fileProvider,
+    RequestPath = ""
+});
 
 app.MapIdentityApiFilterable<ApplicationUser>(new IdentityApiEndpointRouteBuilderOptions
 {

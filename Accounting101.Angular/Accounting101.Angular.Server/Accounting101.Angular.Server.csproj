@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -9,6 +9,17 @@
     <SpaProxyServerUrl>https://localhost:51597</SpaProxyServerUrl>
     <UserSecretsId>1a70148a-fd86-410b-9f0b-c9615a770b1c</UserSecretsId>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="..\accounting101.angular.client\dist\accounting101.client\3rdpartylicenses.txt" Link="wwwroot\accounting101.client\3rdpartylicenses.txt" />
+    <Content Include="..\accounting101.angular.client\dist\accounting101.client\browser\favicon.ico" Link="wwwroot\accounting101.client\browser\favicon.ico" />
+    <Content Include="..\accounting101.angular.client\dist\accounting101.client\browser\index.html" Link="wwwroot\accounting101.client\browser\index.html" />
+    <Content Include="..\accounting101.angular.client\dist\accounting101.client\browser\media\MaterialIcons-Regular-7JMLZOL7.ttf" Link="wwwroot\accounting101.client\browser\media\MaterialIcons-Regular-7JMLZOL7.ttf" />
+    <Content Include="..\accounting101.angular.client\dist\accounting101.client\browser\media\MaterialIcons-Regular-CSYLW52G.woff" Link="wwwroot\accounting101.client\browser\media\MaterialIcons-Regular-CSYLW52G.woff" />
+    <Content Include="..\accounting101.angular.client\dist\accounting101.client\browser\media\MaterialIcons-Regular-VFZ645RH.eot" Link="wwwroot\accounting101.client\browser\media\MaterialIcons-Regular-VFZ645RH.eot" />
+    <Content Include="..\accounting101.angular.client\dist\accounting101.client\browser\styles-5TSBA6XL.css" Link="wwwroot\accounting101.client\browser\styles-5TSBA6XL.css" />
+    <Content Include="..\accounting101.angular.client\dist\accounting101.client\prerendered-routes.json" Link="wwwroot\accounting101.client\prerendered-routes.json" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="AspNetCoreIdentity.MongoDriver" Version="0.9.0.2" />
@@ -33,7 +44,13 @@
   <ItemGroup>
     <Folder Include="Attributes\" />
     <Folder Include="Authentication\" />
-    <Folder Include="wwwroot\" />
+    <Folder Include="wwwroot\accounting101.client\browser\media\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\accounting101.angular.client\dist\accounting101.client\browser\main-2U7RV776.js" Link="wwwroot\accounting101.client\browser\main-2U7RV776.js" />
+    <None Include="..\accounting101.angular.client\dist\accounting101.client\browser\media\MaterialIcons-Regular-2G4ZMI5K.woff2" Link="wwwroot\accounting101.client\browser\media\MaterialIcons-Regular-2G4ZMI5K.woff2" />
+    <None Include="..\accounting101.angular.client\dist\accounting101.client\browser\polyfills-FFHMD2TL.js" Link="wwwroot\accounting101.client\browser\polyfills-FFHMD2TL.js" />
   </ItemGroup>
 
 </Project>

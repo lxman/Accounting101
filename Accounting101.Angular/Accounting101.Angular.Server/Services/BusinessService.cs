@@ -26,10 +26,6 @@ namespace Accounting101.Angular.Server.Services
             }
 
             var business = new Business { Name = jsonNode?["name"]?.GetValue<string>() ?? string.Empty };
-            if (business?.Name is null)
-            {
-                return false;
-            }
             bool isForeign = address["isForeign"]?.GetValue<bool>() ?? false;
             if (isForeign)
             {
