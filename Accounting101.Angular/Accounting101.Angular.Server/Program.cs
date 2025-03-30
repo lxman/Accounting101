@@ -44,13 +44,6 @@ builder.Services.AddAuthorizationBuilder();
 string? baseConnectionString = Environment.GetEnvironmentVariable("MongoClientConnectionString");
 if (string.IsNullOrWhiteSpace(baseConnectionString))
 {
-    builder.Logging.AddConsole();
-    builder.Logging.AddDebug();
-    builder.Logging.AddEventSourceLogger();
-    builder.Logging.AddEventLog();
-    var loggerFactory = builder.Logging.Services.BuildServiceProvider().GetRequiredService<ILoggerFactory>();
-    ILogger logger = loggerFactory.CreateLogger("Startup");
-    logger.LogError("MongoClientConnectionString is not set");
     throw new Exception("MongoClientConnectionString is not set");
 }
 
