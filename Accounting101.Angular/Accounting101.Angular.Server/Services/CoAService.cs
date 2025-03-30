@@ -9,14 +9,14 @@ namespace Accounting101.Angular.Server.Services;
 
 public interface ICoAService
 {
-    IActionResult GetDescription(string name);
+    ActionResult<ChartItem?> GetDescription(string name);
 
-    Task<IActionResult> CreateCoAAsync(IDataStore dataStore, CreateCoARequest request);
+    Task<ActionResult<bool>> CreateCoAAsync(IDataStore dataStore, CreateCoARequest request);
 }
 
 public class CoAService : ICoAService
 {
-    public IActionResult GetDescription(string name)
+    public ActionResult<ChartItem?> GetDescription(string name)
     {
         Charts charts = new();
         if (Enum.TryParse(name, out AvailableCoAs coa))
@@ -26,14 +26,14 @@ public class CoAService : ICoAService
         return new NotFoundResult();
     }
 
-    public async Task<IActionResult> CreateCoAAsync(IDataStore dataStore, CreateCoARequest request)
+    public async Task<ActionResult<bool>> CreateCoAAsync(IDataStore dataStore, CreateCoARequest request)
     {
         if (!Enum.TryParse(request.Name, out AvailableCoAs coa)) return new NotFoundResult();
         Client? c = await dataStore.FindClientByIdAsync(request.DbName, request.ClientId);
         if (c is null) return new NotFoundResult();
         if (await dataStore.CreateChartAsync(request.DbName, coa, c))
         {
-            return new OkResult();
+            return new OkObjectResult(true);
         }
         return new BadRequestResult();
     }

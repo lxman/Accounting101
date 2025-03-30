@@ -9,12 +9,12 @@ namespace Accounting101.Angular.Server.Services;
 
 public interface IAccountService
 {
-    Task<IActionResult> CreateTransactionAsync(Guid dbId, string clientId, Stream body, IDataStore dataStore);
+    Task<ActionResult<Guid>> CreateTransactionAsync(Guid dbId, string clientId, Stream body, IDataStore dataStore);
 }
 
 public class AccountService : IAccountService
 {
-    public async Task<IActionResult> CreateTransactionAsync(Guid dbId, string clientId, Stream body, IDataStore dataStore)
+    public async Task<ActionResult<Guid>> CreateTransactionAsync(Guid dbId, string clientId, Stream body, IDataStore dataStore)
     {
         body.Seek(0, SeekOrigin.Begin);
         var jsonNode = await JsonSerializer.DeserializeAsync<JsonNode>(body);

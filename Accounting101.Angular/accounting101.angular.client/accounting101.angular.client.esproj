@@ -13,4 +13,7 @@
     <TypeScriptConfiguration Remove=".vscode\**" />
     <TypeScriptConfiguration Remove="dist\**" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="nswag-output\" />
+  </ItemGroup>
 </Project>

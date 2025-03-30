@@ -1,4 +1,5 @@
-﻿using Accounting101.Angular.DataAccess.Services.Interfaces;
+﻿using Accounting101.Angular.DataAccess.Models;
+using Accounting101.Angular.DataAccess.Services.Interfaces;
 using Accounting101.Angular.Server.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,22 +16,22 @@ public class BusinessController(
 : ControllerBase
 {
     [HttpGet("{dbId:guid}")]
-    public async Task<IActionResult> GetBusinessAsync(Guid dbId)
+    public async Task<ActionResult<Business?>> GetBusinessAsync(Guid dbId)
     {
         return Ok(await dataStore.GetBusinessAsync(dbId.ToString()));
     }
 
     [HttpGet("{dbId:guid}/exists")]
-    public async Task<IActionResult> BusinessExistsAsync(Guid dbId)
+    public async Task<ActionResult<Business?>> BusinessExistsAsync(Guid dbId)
     {
         return Ok(await dataStore.GetBusinessAsync(dbId.ToString()) is not null);
     }
 
     [HttpPost("{dbId:guid}")]
-    public async Task<IActionResult> CreateBusinessAsync(Guid dbId)
+    public async Task<ActionResult<bool>> CreateBusinessAsync(Guid dbId)
     {
         return await businessService.CreateBusinessAsync(dbId, Request.Body, dataStore)
-            ? Ok()
+            ? Ok(true)
             : BadRequest("Failed to create business");
     }
 

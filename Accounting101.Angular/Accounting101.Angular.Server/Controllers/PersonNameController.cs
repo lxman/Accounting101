@@ -12,7 +12,7 @@ namespace Accounting101.Angular.Server.Controllers;
 public class PersonNameController(IDataStore dataStore, ILogger<PersonNameController> logger) : ControllerBase
 {
     [HttpPost("{dbId:guid}")]
-    public async Task<IActionResult> CreatePersonNameAsync(Guid dbId, [FromBody] PersonName personName)
+    public async Task<ActionResult<PersonName>> CreatePersonNameAsync(Guid dbId, [FromBody] PersonName personName)
     {
         if (await dataStore.CreateNameAsync(dbId.ToString(), personName) != Guid.Empty)
         {

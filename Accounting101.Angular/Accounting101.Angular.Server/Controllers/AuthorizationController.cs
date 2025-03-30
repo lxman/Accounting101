@@ -1,4 +1,5 @@
-﻿using Accounting101.Angular.Server.Models;
+﻿using Accounting101.Angular.Server.Identity;
+using Accounting101.Angular.Server.Models;
 using Accounting101.Angular.Server.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,7 +16,7 @@ public class AuthorizationController(IUserService userService, ILogger<Authoriza
 {
     [AllowAnonymous]
     [HttpPost("register")]
-    public async Task<IActionResult> RegisterUserAsync([FromBody] RegisterModel model)
+    public async Task<ActionResult<ApplicationUser>> RegisterUserAsync([FromBody] RegisterModel model)
     {
         if (ModelState.IsValid)
         {
@@ -27,7 +28,7 @@ public class AuthorizationController(IUserService userService, ILogger<Authoriza
 
     [AllowAnonymous]
     [HttpPost("login")]
-    public async Task<IActionResult> LoginAsync([FromBody] LoginModel model)
+    public async Task<ActionResult<ApplicationUser?>> LoginAsync([FromBody] LoginModel model)
     {
         return await userService.LoginAsync(model);
     }

@@ -15,20 +15,20 @@ public class ClientsController(
     : ControllerBase
 {
     [HttpGet("{dbId:guid}/exist")]
-    public async Task<IActionResult> ClientsExistAsync(Guid dbId)
+    public async Task<ActionResult<bool>> ClientsExistAsync(Guid dbId)
     {
         bool exist = await dataStore.ClientsExistAsync(dbId.ToString());
         return Ok(exist);
     }
 
     [HttpGet("{dbId:guid}")]
-    public async Task<IActionResult> GetClientsAsync(Guid dbId)
+    public async Task<ActionResult<IEnumerable<ClientWithInfo>?>> GetClientsAsync(Guid dbId)
     {
         return Ok(await dataStore.AllClientsWithInfosAsync(dbId.ToString()));
     }
 
     [HttpGet("{dbId:guid}/{clientId}")]
-    public async Task<IActionResult> GetClientAsync(Guid dbId, string clientId)
+    public async Task<ActionResult<ClientWithInfo?>> GetClientAsync(Guid dbId, string clientId)
     {
         ClientWithInfo? client = await dataStore.GetClientWithInfoAsync(dbId.ToString(), clientId);
         return client is null
@@ -37,7 +37,7 @@ public class ClientsController(
     }
 
     [HttpPost("{dbId:guid}")]
-    public async Task<IActionResult> CreateClientAsync(Guid dbId, [FromBody] Client client)
+    public async Task<ActionResult<Client>> CreateClientAsync(Guid dbId, [FromBody] Client client)
     {
         if (await dataStore.CreateClientAsync(dbId.ToString(), client) != Guid.Empty)
         {
@@ -47,7 +47,7 @@ public class ClientsController(
     }
 
     [HttpDelete("{dbId:guid}/{clientId}")]
-    public async Task<IActionResult> DeleteClientAsync(Guid dbId, string clientId)
+    public async Task<ActionResult<bool?>> DeleteClientAsync(Guid dbId, string clientId)
     {
         return Ok(await dataStore.DeleteClientAsync(dbId.ToString(), clientId));
     }

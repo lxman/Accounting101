@@ -1,0 +1,1 @@
+nswag openapi2tsclient /input:https://localhost:7165/swagger/v1/swagger.json /output:nswag-output/serverApi.ts /Template:Angular /WithCredentials:true /TypeScriptVersion:5.7 /HttpClass:HttpClient /InjectionTokenType:InjectionToken /RxJsVersion:7.8 /DateTimeType:Date /GenerateClientClasses:true /OperationGenerationMode:MultipleClientsFromPathSegments /ServiceSchemes:https

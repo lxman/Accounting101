@@ -12,9 +12,9 @@ namespace Accounting101.Angular.Server.Services;
 
 public interface IUserService
 {
-    Task<IActionResult> RegisterUserAsync(RegisterModel model);
+    Task<ActionResult<ApplicationUser>> RegisterUserAsync(RegisterModel model);
 
-    Task<IActionResult> LoginAsync(LoginModel model);
+    Task<ActionResult<ApplicationUser?>> LoginAsync(LoginModel model);
 
     IActionResult IsAuthenticated(ClaimsPrincipal user);
 
@@ -28,7 +28,7 @@ public class UserService(
     ILogger<AuthorizationController> logger)
     : IUserService
 {
-    public async Task<IActionResult> RegisterUserAsync(RegisterModel model)
+    public async Task<ActionResult<ApplicationUser>> RegisterUserAsync(RegisterModel model)
     {
         IdentityResult result;
         ApplicationRole? existingRole = await roleManager.FindByNameAsync(model.Role);
@@ -64,7 +64,7 @@ public class UserService(
         return new BadRequestObjectResult(result.Errors);
     }
 
-    public async Task<IActionResult> LoginAsync(LoginModel model)
+    public async Task<ActionResult<ApplicationUser?>> LoginAsync(LoginModel model)
     {
         ApplicationUser? applicationUser = await userManager.FindByEmailAsync(model.Email);
         if (applicationUser is null)
