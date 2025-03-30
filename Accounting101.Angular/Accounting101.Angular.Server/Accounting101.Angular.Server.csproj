@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -52,5 +52,4 @@
     <None Include="..\accounting101.angular.client\dist\accounting101.client\browser\media\MaterialIcons-Regular-2G4ZMI5K.woff2" Link="wwwroot\accounting101.client\browser\media\MaterialIcons-Regular-2G4ZMI5K.woff2" />
     <None Include="..\accounting101.angular.client\dist\accounting101.client\browser\polyfills-FFHMD2TL.js" Link="wwwroot\accounting101.client\browser\polyfills-FFHMD2TL.js" />
   </ItemGroup>
-
 </Project>
