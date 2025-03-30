@@ -16,9 +16,9 @@ import { HttpClient, HttpHeaders, HttpResponse, HttpResponseBase } from '@angula
 export const API_BASE_URL = new InjectionToken<string>('API_BASE_URL');
 
 @Injectable()
-export class Client {
+export class AllClient {
     private http: HttpClient;
-    private baseUrl: string;
+    private readonly baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
 
     constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
@@ -53,10 +53,10 @@ export class Client {
                 try {
                     return this.processRefresh(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<AccessTokenResponse>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<AccessTokenResponse>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<AccessTokenResponse>;
+                throw new Error(response_) as any as Observable<AccessTokenResponse>;
         }));
     }
 
@@ -83,7 +83,9 @@ export class Client {
     }
 
     /**
-     * @param changedEmail (optional) 
+     * @param userId
+     * @param code
+     * @param changedEmail (optional)
      * @return OK
      */
     confirmEmail(userId: string, code: string, changedEmail: string | undefined): Observable<void> {
@@ -117,10 +119,10 @@ export class Client {
                 try {
                     return this.processConfirmEmail(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<void>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<void>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<void>;
+                throw new Error(response_) as any as Observable<void>;
         }));
     }
 
@@ -169,10 +171,10 @@ export class Client {
                 try {
                     return this.processResendConfirmationEmail(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<void>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<void>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<void>;
+                throw new Error(response_) as any as Observable<void>;
         }));
     }
 
@@ -221,10 +223,10 @@ export class Client {
                 try {
                     return this.processForgotPassword(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<void>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<void>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<void>;
+                throw new Error(response_) as any as Observable<void>;
         }));
     }
 
@@ -280,10 +282,10 @@ export class Client {
                 try {
                     return this.processResetPassword(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<void>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<void>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<void>;
+                throw new Error(response_) as any as Observable<void>;
         }));
     }
 
@@ -342,10 +344,10 @@ export class Client {
                 try {
                     return this.processAccountsGet(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<AccountWithInfo[]>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<AccountWithInfo[]>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<AccountWithInfo[]>;
+                throw new Error(response_) as any as Observable<AccountWithInfo[]>;
         }));
     }
 
@@ -379,7 +381,9 @@ export class Client {
     }
 
     /**
-     * @param body (optional) 
+     * @param dbId
+     * @param clientId
+     * @param body (optional)
      * @return OK
      */
     accountsPost(dbId: string, clientId: string, body: AccountWithInfo | undefined): Observable<string> {
@@ -412,10 +416,10 @@ export class Client {
                 try {
                     return this.processAccountsPost(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<string>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<string>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<string>;
+                throw new Error(response_) as any as Observable<string>;
         }));
     }
 
@@ -431,7 +435,7 @@ export class Client {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
                 result200 = resultData200 !== undefined ? resultData200 : <any>null;
-    
+
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
@@ -468,10 +472,10 @@ export class Client {
                 try {
                     return this.processAddress(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<string>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<string>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<string>;
+                throw new Error(response_) as any as Observable<string>;
         }));
     }
 
@@ -487,7 +491,7 @@ export class Client {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
                 result200 = resultData200 !== undefined ? resultData200 : <any>null;
-    
+
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
@@ -524,10 +528,10 @@ export class Client {
                 try {
                     return this.processBusinessGet(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<Business>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<Business>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<Business>;
+                throw new Error(response_) as any as Observable<Business>;
         }));
     }
 
@@ -579,10 +583,10 @@ export class Client {
                 try {
                     return this.processBusinessPost(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<boolean>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<boolean>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<boolean>;
+                throw new Error(response_) as any as Observable<boolean>;
         }));
     }
 
@@ -598,7 +602,7 @@ export class Client {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
                 result200 = resultData200 !== undefined ? resultData200 : <any>null;
-    
+
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
@@ -634,10 +638,10 @@ export class Client {
                 try {
                     return this.processBusinessDelete(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<void>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<void>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<void>;
+                throw new Error(response_) as any as Observable<void>;
         }));
     }
 
@@ -686,10 +690,10 @@ export class Client {
                 try {
                     return this.processClientsGet(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<ClientWithInfo[]>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<ClientWithInfo[]>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<ClientWithInfo[]>;
+                throw new Error(response_) as any as Observable<ClientWithInfo[]>;
         }));
     }
 
@@ -723,7 +727,8 @@ export class Client {
     }
 
     /**
-     * @param body (optional) 
+     * @param dbId
+     * @param body (optional)
      * @return OK
      */
     clientsPost(dbId: string, body: Client | undefined): Observable<Client> {
@@ -753,10 +758,10 @@ export class Client {
                 try {
                     return this.processClientsPost(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<Client>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<Client>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<Client>;
+                throw new Error(response_) as any as Observable<Client>;
         }));
     }
 
@@ -772,64 +777,6 @@ export class Client {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
             result200 = Client.fromJS(resultData200);
-            return _observableOf(result200);
-            }));
-        } else if (status !== 200 && status !== 204) {
-            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
-            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
-            }));
-        }
-        return _observableOf(null as any);
-    }
-
-    /**
-     * @return OK
-     */
-    clientsGet(dbId: string, clientId: string): Observable<ClientWithInfo> {
-        let url_ = this.baseUrl + "/Clients/{dbId}/{clientId}";
-        if (dbId === undefined || dbId === null)
-            throw new Error("The parameter 'dbId' must be defined.");
-        url_ = url_.replace("{dbId}", encodeURIComponent("" + dbId));
-        if (clientId === undefined || clientId === null)
-            throw new Error("The parameter 'clientId' must be defined.");
-        url_ = url_.replace("{clientId}", encodeURIComponent("" + clientId));
-        url_ = url_.replace(/[?&]$/, "");
-
-        let options_ : any = {
-            observe: "response",
-            responseType: "blob",
-            withCredentials: true,
-            headers: new HttpHeaders({
-                "Accept": "text/plain"
-            })
-        };
-
-        return this.http.request("get", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.processClientsGet(response_);
-        })).pipe(_observableCatch((response_: any) => {
-            if (response_ instanceof HttpResponseBase) {
-                try {
-                    return this.processClientsGet(response_ as any);
-                } catch (e) {
-                    return _observableThrow(e) as any as Observable<ClientWithInfo>;
-                }
-            } else
-                return _observableThrow(response_) as any as Observable<ClientWithInfo>;
-        }));
-    }
-
-    protected processClientsGet(response: HttpResponseBase): Observable<ClientWithInfo> {
-        const status = response.status;
-        const responseBlob =
-            response instanceof HttpResponse ? response.body :
-            (response as any).error instanceof Blob ? (response as any).error : undefined;
-
-        let _headers: any = {}; if (response.headers) { for (let key of response.headers.keys()) { _headers[key] = response.headers.get(key); }}
-        if (status === 200) {
-            return blobToText(responseBlob).pipe(_observableMergeMap((_responseText: string) => {
-            let result200: any = null;
-            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            result200 = ClientWithInfo.fromJS(resultData200);
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
@@ -869,10 +816,10 @@ export class Client {
                 try {
                     return this.processClientsDelete(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<boolean>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<boolean>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<boolean>;
+                throw new Error(response_) as any as Observable<boolean>;
         }));
     }
 
@@ -888,7 +835,7 @@ export class Client {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
                 result200 = resultData200 !== undefined ? resultData200 : <any>null;
-    
+
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
@@ -900,7 +847,8 @@ export class Client {
     }
 
     /**
-     * @param body (optional) 
+     * @param dbId
+     * @param body (optional)
      * @return OK
      */
     personName(dbId: string, body: PersonName | undefined): Observable<PersonName> {
@@ -930,10 +878,10 @@ export class Client {
                 try {
                     return this.processPersonName(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<PersonName>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<PersonName>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<PersonName>;
+                throw new Error(response_) as any as Observable<PersonName>;
         }));
     }
 
@@ -963,7 +911,7 @@ export class Client {
 @Injectable()
 export class ManageClient {
     private http: HttpClient;
-    private baseUrl: string;
+    private readonly baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
 
     constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
@@ -974,7 +922,7 @@ export class ManageClient {
     /**
      * @return OK
      */
-    2fa(body: TwoFactorRequest): Observable<TwoFactorResponse> {
+    multiFactor(body: TwoFactorRequest): Observable<TwoFactorResponse> {
         let url_ = this.baseUrl + "/manage/2fa";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -992,20 +940,20 @@ export class ManageClient {
         };
 
         return this.http.request("post", url_, options_).pipe(_observableMergeMap((response_ : any) => {
-            return this.process2fa(response_);
+            return this. processMultiFactor(response_);
         })).pipe(_observableCatch((response_: any) => {
             if (response_ instanceof HttpResponseBase) {
                 try {
-                    return this.process2fa(response_ as any);
+                    return this. processMultiFactor(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<TwoFactorResponse>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<TwoFactorResponse>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<TwoFactorResponse>;
+                throw new Error(response_) as any as Observable<TwoFactorResponse>;
         }));
     }
 
-    protected process2fa(response: HttpResponseBase): Observable<TwoFactorResponse> {
+    protected  processMultiFactor(response: HttpResponseBase): Observable<TwoFactorResponse> {
         const status = response.status;
         const responseBlob =
             response instanceof HttpResponse ? response.body :
@@ -1061,10 +1009,10 @@ export class ManageClient {
                 try {
                     return this.processInfoGet(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<InfoResponse>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<InfoResponse>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<InfoResponse>;
+                throw new Error(response_) as any as Observable<InfoResponse>;
         }));
     }
 
@@ -1128,10 +1076,10 @@ export class ManageClient {
                 try {
                     return this.processInfoPost(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<InfoResponse>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<InfoResponse>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<InfoResponse>;
+                throw new Error(response_) as any as Observable<InfoResponse>;
         }));
     }
 
@@ -1172,7 +1120,7 @@ export class ManageClient {
 @Injectable()
 export class AccountsClient {
     private http: HttpClient;
-    private baseUrl: string;
+    private readonly baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
 
     constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
@@ -1209,10 +1157,10 @@ export class AccountsClient {
                 try {
                     return this.processExist(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<boolean>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<boolean>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<boolean>;
+                throw new Error(response_) as any as Observable<boolean>;
         }));
     }
 
@@ -1228,7 +1176,7 @@ export class AccountsClient {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
                 result200 = resultData200 !== undefined ? resultData200 : <any>null;
-    
+
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
@@ -1268,10 +1216,10 @@ export class AccountsClient {
                 try {
                     return this.processLayoutGet(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<RootGroup>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<RootGroup>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<RootGroup>;
+                throw new Error(response_) as any as Observable<RootGroup>;
         }));
     }
 
@@ -1298,7 +1246,9 @@ export class AccountsClient {
     }
 
     /**
-     * @param body (optional) 
+     * @param dbId
+     * @param clientId
+     * @param body (optional)
      * @return OK
      */
     layoutPost(dbId: string, clientId: string, body: RootGroup | undefined): Observable<boolean> {
@@ -1331,10 +1281,10 @@ export class AccountsClient {
                 try {
                     return this.processLayoutPost(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<boolean>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<boolean>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<boolean>;
+                throw new Error(response_) as any as Observable<boolean>;
         }));
     }
 
@@ -1350,7 +1300,7 @@ export class AccountsClient {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
                 result200 = resultData200 !== undefined ? resultData200 : <any>null;
-    
+
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
@@ -1390,10 +1340,10 @@ export class AccountsClient {
                 try {
                     return this.processTransactionsGet(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<Transaction[]>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<Transaction[]>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<Transaction[]>;
+                throw new Error(response_) as any as Observable<Transaction[]>;
         }));
     }
 
@@ -1455,10 +1405,10 @@ export class AccountsClient {
                 try {
                     return this.processTransactionsPost(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<string>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<string>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<string>;
+                throw new Error(response_) as any as Observable<string>;
         }));
     }
 
@@ -1474,7 +1424,7 @@ export class AccountsClient {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
                 result200 = resultData200 !== undefined ? resultData200 : <any>null;
-    
+
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
@@ -1489,7 +1439,7 @@ export class AccountsClient {
 @Injectable()
 export class AddressClient {
     private http: HttpClient;
-    private baseUrl: string;
+    private readonly baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
 
     constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
@@ -1520,10 +1470,10 @@ export class AddressClient {
                 try {
                     return this.processStates(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<string[]>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<string[]>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<string[]>;
+                throw new Error(response_) as any as Observable<string[]>;
         }));
     }
 
@@ -1579,10 +1529,10 @@ export class AddressClient {
                 try {
                     return this.processCountries(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<string[]>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<string[]>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<string[]>;
+                throw new Error(response_) as any as Observable<string[]>;
         }));
     }
 
@@ -1619,7 +1569,7 @@ export class AddressClient {
 @Injectable()
 export class AuthorizationClient {
     private http: HttpClient;
-    private baseUrl: string;
+    private readonly baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
 
     constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
@@ -1628,7 +1578,7 @@ export class AuthorizationClient {
     }
 
     /**
-     * @param body (optional) 
+     * @param body (optional)
      * @return OK
      */
     register(body: RegisterModel | undefined): Observable<ApplicationUser> {
@@ -1655,10 +1605,10 @@ export class AuthorizationClient {
                 try {
                     return this.processRegister(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<ApplicationUser>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<ApplicationUser>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<ApplicationUser>;
+                throw new Error(response_) as any as Observable<ApplicationUser>;
         }));
     }
 
@@ -1685,7 +1635,7 @@ export class AuthorizationClient {
     }
 
     /**
-     * @param body (optional) 
+     * @param body (optional)
      * @return OK
      */
     login(body: LoginModel | undefined): Observable<ApplicationUser> {
@@ -1712,10 +1662,10 @@ export class AuthorizationClient {
                 try {
                     return this.processLogin(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<ApplicationUser>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<ApplicationUser>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<ApplicationUser>;
+                throw new Error(response_) as any as Observable<ApplicationUser>;
         }));
     }
 
@@ -1763,10 +1713,10 @@ export class AuthorizationClient {
                 try {
                     return this.processIsAuthenticated(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<void>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<void>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<void>;
+                throw new Error(response_) as any as Observable<void>;
         }));
     }
 
@@ -1811,10 +1761,10 @@ export class AuthorizationClient {
                 try {
                     return this.processLogout(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<void>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<void>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<void>;
+                throw new Error(response_) as any as Observable<void>;
         }));
     }
 
@@ -1841,7 +1791,7 @@ export class AuthorizationClient {
 @Injectable()
 export class BusinessClient {
     private http: HttpClient;
-    private baseUrl: string;
+    private readonly baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
 
     constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
@@ -1875,10 +1825,10 @@ export class BusinessClient {
                 try {
                     return this.processExists(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<Business>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<Business>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<Business>;
+                throw new Error(response_) as any as Observable<Business>;
         }));
     }
 
@@ -1908,7 +1858,7 @@ export class BusinessClient {
 @Injectable()
 export class ClientsClient {
     private http: HttpClient;
-    private baseUrl: string;
+    private readonly baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
 
     constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
@@ -1942,10 +1892,10 @@ export class ClientsClient {
                 try {
                     return this.processExist(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<boolean>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<boolean>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<boolean>;
+                throw new Error(response_) as any as Observable<boolean>;
         }));
     }
 
@@ -1961,7 +1911,7 @@ export class ClientsClient {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
                 result200 = resultData200 !== undefined ? resultData200 : <any>null;
-    
+
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
@@ -1976,7 +1926,7 @@ export class ClientsClient {
 @Injectable()
 export class CoaClient {
     private http: HttpClient;
-    private baseUrl: string;
+    private readonly baseUrl: string;
     protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
 
     constructor(@Inject(HttpClient) http: HttpClient, @Optional() @Inject(API_BASE_URL) baseUrl?: string) {
@@ -2007,10 +1957,10 @@ export class CoaClient {
                 try {
                     return this.processAvailableNames(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<string[]>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<string[]>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<string[]>;
+                throw new Error(response_) as any as Observable<string[]>;
         }));
     }
 
@@ -2069,10 +2019,10 @@ export class CoaClient {
                 try {
                     return this.processDescription(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<ChartItem>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<ChartItem>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<ChartItem>;
+                throw new Error(response_) as any as Observable<ChartItem>;
         }));
     }
 
@@ -2099,7 +2049,7 @@ export class CoaClient {
     }
 
     /**
-     * @param body (optional) 
+     * @param body (optional)
      * @return OK
      */
     create(body: CreateCoARequest | undefined): Observable<boolean> {
@@ -2126,10 +2076,10 @@ export class CoaClient {
                 try {
                     return this.processCreate(response_ as any);
                 } catch (e) {
-                    return _observableThrow(e) as any as Observable<boolean>;
+                    throw new Error(JSON.stringify(e)) as any as Observable<boolean>;
                 }
             } else
-                return _observableThrow(response_) as any as Observable<boolean>;
+                throw new Error(response_) as any as Observable<boolean>;
         }));
     }
 
@@ -2145,7 +2095,7 @@ export class CoaClient {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
                 result200 = resultData200 !== undefined ? resultData200 : <any>null;
-    
+
             return _observableOf(result200);
             }));
         } else if (status !== 200 && status !== 204) {
@@ -2165,7 +2115,7 @@ export class AccessTokenResponse implements IAccessTokenResponse {
 
     constructor(data?: IAccessTokenResponse) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -2212,7 +2162,7 @@ export class AccountGroup implements IAccountGroup {
 
     constructor(data?: IAccountGroup) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -2264,7 +2214,7 @@ export class AccountGroupListItem implements IAccountGroupListItem {
 
     constructor(data?: IAccountGroupListItem) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -2313,7 +2263,7 @@ export class AccountInfo implements IAccountInfo {
 
     constructor(data?: IAccountInfo) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -2362,7 +2312,7 @@ export class AccountWithInfo implements IAccountWithInfo {
 
     constructor(data?: IAccountWithInfo) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -2439,7 +2389,7 @@ export class ApplicationUser implements IApplicationUser {
 
     constructor(data?: IApplicationUser) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -2582,7 +2532,7 @@ export class Business implements IBusiness {
 
     constructor(data?: IBusiness) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -2627,7 +2577,7 @@ export class ChartItem implements IChartItem {
 
     constructor(data?: IChartItem) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -2676,7 +2626,7 @@ export class Client implements IClient {
 
     constructor(data?: IClient) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -2732,7 +2682,7 @@ export class ClientWithInfo implements IClientWithInfo {
 
     constructor(data?: IClientWithInfo) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -2794,7 +2744,7 @@ export class CreateCoARequest implements ICreateCoARequest {
 
     constructor(data?: ICreateCoARequest) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -2842,7 +2792,7 @@ export class ForeignAddress implements IForeignAddress {
 
     constructor(data?: IForeignAddress) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -2904,7 +2854,7 @@ export class ForgotPasswordRequest implements IForgotPasswordRequest {
 
     constructor(data?: IForgotPasswordRequest) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -2947,7 +2897,7 @@ export class HttpValidationProblemDetails implements IHttpValidationProblemDetai
 
     constructor(data?: IHttpValidationProblemDetails) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -2956,7 +2906,7 @@ export class HttpValidationProblemDetails implements IHttpValidationProblemDetai
 
     init(_data?: any) {
         if (_data) {
-            for (var property in _data) {
+            for (const property in _data) {
                 if (_data.hasOwnProperty(property))
                     this[property] = _data[property];
             }
@@ -2984,7 +2934,7 @@ export class HttpValidationProblemDetails implements IHttpValidationProblemDetai
 
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
-        for (var property in this) {
+        for (const property in this) {
             if (this.hasOwnProperty(property))
                 data[property] = this[property];
         }
@@ -3024,7 +2974,7 @@ export class IAddress implements IIAddress {
 
     constructor(data?: IIAddress) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3082,7 +3032,7 @@ export class InfoRequest implements IInfoRequest {
 
     constructor(data?: IInfoRequest) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3125,7 +3075,7 @@ export class InfoResponse implements IInfoResponse {
 
     constructor(data?: IInfoResponse) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3167,7 +3117,7 @@ export class LoginModel implements ILoginModel {
 
     constructor(data?: ILoginModel) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3213,7 +3163,7 @@ export class ObjectId implements IObjectId {
 
     constructor(data?: IObjectId) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3259,7 +3209,7 @@ export class PersonName implements IPersonName {
 
     constructor(data?: IPersonName) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3324,7 +3274,7 @@ export class RefreshRequest implements IRefreshRequest {
 
     constructor(data?: IRefreshRequest) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3365,7 +3315,7 @@ export class RegisterModel implements IRegisterModel {
 
     constructor(data?: IRegisterModel) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3416,7 +3366,7 @@ export class ResendConfirmationEmailRequest implements IResendConfirmationEmailR
 
     constructor(data?: IResendConfirmationEmailRequest) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3454,7 +3404,7 @@ export class ResetPasswordRequest implements IResetPasswordRequest {
 
     constructor(data?: IResetPasswordRequest) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3503,7 +3453,7 @@ export class RootGroup implements IRootGroup {
 
     constructor(data?: IRootGroup) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3563,7 +3513,7 @@ export class StringIdentityUserClaim implements IStringIdentityUserClaim {
 
     constructor(data?: IStringIdentityUserClaim) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3611,7 +3561,7 @@ export class StringIdentityUserLogin implements IStringIdentityUserLogin {
 
     constructor(data?: IStringIdentityUserLogin) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3659,7 +3609,7 @@ export class StringIdentityUserToken implements IStringIdentityUserToken {
 
     constructor(data?: IStringIdentityUserToken) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3708,7 +3658,7 @@ export class Transaction implements ITransaction {
 
     constructor(data?: ITransaction) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3760,7 +3710,7 @@ export class TwoFactorRequest implements ITwoFactorRequest {
 
     constructor(data?: ITwoFactorRequest) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3812,7 +3762,7 @@ export class TwoFactorResponse implements ITwoFactorResponse {
 
     constructor(data?: ITwoFactorResponse) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3875,7 +3825,7 @@ export class UsAddress implements IUsAddress {
 
     constructor(data?: IUsAddress) {
         if (data) {
-            for (var property in data) {
+            for (const property in data) {
                 if (data.hasOwnProperty(property))
                     (<any>this)[property] = (<any>data)[property];
             }
@@ -3936,7 +3886,7 @@ export interface IUsAddress {
 }
 
 function formatDate(d: Date) {
-    return d.getFullYear() + '-' + 
+    return d.getFullYear() + '-' +
         (d.getMonth() < 9 ? ('0' + (d.getMonth()+1)) : (d.getMonth()+1)) + '-' +
         (d.getDate() < 10 ? ('0' + d.getDate()) : d.getDate());
 }
@@ -3967,9 +3917,9 @@ export class ApiException extends Error {
 
 function throwException(message: string, status: number, response: string, headers: { [key: string]: any; }, result?: any): Observable<any> {
     if (result !== null && result !== undefined)
-        return _observableThrow(result);
+        throw new Error(result);
     else
-        return _observableThrow(new ApiException(message, status, response, headers, null));
+        throw new Error(JSON.stringify(new ApiException(message, status, response, headers, null)));
 }
 
 function blobToText(blob: any): Observable<string> {
