@@ -21,6 +21,7 @@ import {TypeSafeMatRowDef} from '../../directives/type-safe-mat-row-def.directiv
 import {NgIf} from '@angular/common';
 import {AccountModel} from '../../models/account.model';
 import {TransactionDisplayLine} from '../../models/transaction-display-line.model.cs';
+import {RouterLink} from '@angular/router';
 
 @Component({
   selector: 'app-transaction-list',
@@ -37,7 +38,8 @@ import {TransactionDisplayLine} from '../../models/transaction-display-line.mode
     MatRowDef,
     TypeSafeMatCellDef,
     TypeSafeMatRowDef,
-    NgIf
+    NgIf,
+    RouterLink
   ],
   templateUrl: './transaction-list.component.html',
   styleUrl: './transaction-list.component.scss'

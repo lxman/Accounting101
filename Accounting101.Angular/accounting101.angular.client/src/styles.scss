@@ -72,6 +72,11 @@ menu {
   ));
 }
 
+.date-column-header {
+  --biggest-width: 10vw !important;
+  --smallest-width: 10vw !important;
+}
+
 .mat-app-background {
   background-color: var(--mat-sys-background);
   color: var(--mat-sys-on-background);
@@ -79,4 +84,18 @@ menu {
 
 .right-aligned-header {
   text-align: right !important;
+}
+
+.date-column-header {
+  flex-basis: 0;
+  flex-shrink: 0;
+  max-width: var(--biggest-width) !important;
+  min-width: var(--smallest-width) !important;
+}
+
+.date-column {
+  flex-basis: 0;
+  flex-shrink: 0;
+  max-width: 10vw !important;
+  min-width: 10vw !important;
 }

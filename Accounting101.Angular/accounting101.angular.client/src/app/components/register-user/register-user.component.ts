@@ -40,10 +40,8 @@ export class RegisterUserComponent {
     user.email = this.registerForm.get('email')!.value!;
     user.phoneNumber = this.registerForm.get('phone')!.value!;
     user.role = this.registerForm.get('role')!.value!;
-    console.log(user);
     this.submitted = true;
     this.userManager.registerUser(user).subscribe({
-      next: (u) => console.log(u),
       error: (e) => this.toastService.open('Error: ' + e.error[0].description, 'Close', {
         duration: 5000,
         verticalPosition: 'top',

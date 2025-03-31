@@ -55,7 +55,6 @@ export class FastEntryComponent implements OnChanges{
   }
 
   onSubmit() {
-    console.log(this.fastEntryGroup.value);
     const tx = new TransactionModel();
     tx.when = this.fastEntryGroup.value.date?.toISOString().split("T")[0] ?? '';
     tx.amount = this.fastEntryGroup.value.amount as number;
@@ -65,9 +64,7 @@ export class FastEntryComponent implements OnChanges{
     tx.debitedAccountId = this.fastEntryGroup.value.creditDebit === 'debit'
       ? this.accountId()
       : this.accounts().find(acct => acct.info.name === this.fastEntryGroup.value.otherAccount)?.id ?? '';
-    console.log(JSON.stringify(tx));
     this.accountService.createTransaction(tx).subscribe(() => {
-      console.log('Transaction created');
       this.transactionUpdated.emit();
     });
   }
