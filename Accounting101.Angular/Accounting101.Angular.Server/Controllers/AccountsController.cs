@@ -40,10 +40,10 @@ public class AccountsController(IDataStore dataStore, IAccountService accountSer
         return Ok(dataStore.TransactionsForAccount(dbId.ToString(), accountId));
     }
 
-    [HttpGet("{dbId:guid}/{accountId}/balance")]
-    public async Task<ActionResult<decimal>> GetAccountBalanceOnDateAsync(Guid dbId, string accountId, [FromQuery] DateOnly date)
+    [HttpPost("{dbId:guid}/{accountId}/balance")]
+    public async Task<ActionResult<decimal>> GetAccountBalanceOnDateAsync(Guid dbId, string accountId, [FromBody] DateTimeRequest date)
     {
-        return Ok(await dataStore.GetAccountBalanceOnDateAsync(dbId.ToString(), accountId, date));
+        return Ok(await dataStore.GetAccountBalanceOnDateAsync(dbId.ToString(), accountId, DateOnly.FromDateTime(DateTime.Parse(date.Date))));
     }
 
     [HttpPost("{dbId:guid}/{clientId}/transactions")]
@@ -65,4 +65,9 @@ public class AccountsController(IDataStore dataStore, IAccountService accountSer
         account.Id = await dataStore.CreateAccountAsync(dbId.ToString(), account);
         return Ok(account.Id);
     }
+}
+
+public class DateTimeRequest
+{
+    public string Date { get; set; } = string.Empty;
 }

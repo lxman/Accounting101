@@ -44,35 +44,63 @@ import {TransactionDisplayLine} from '../../models/transaction-display-line.mode
 })
 
 export class TransactionListComponent implements OnChanges{
-  readonly accountId = input.required<string>();
+  readonly account = input.required<AccountModel>();
   readonly accounts = input.required<AccountModel[]>();
   readonly transactionsUpdated = input<boolean>();
   private readonly accountsManager = inject(AccountsClient);
-  private readonly displayLines: TransactionDisplayLine[] = [];
   private transactions: TransactionModel[] = [];
-  data = new MatTableDataSource<TransactionModel>();
-  columnsToDisplay = ['when', 'amount'];
+  data = new MatTableDataSource<TransactionDisplayLine>();
+  columnsToDisplay = ['when', 'debit', 'credit', 'balance', 'otherAccount'];
 
   ngOnChanges(changes:SimpleChanges) {
-    if (changes['accountId'] && changes['accounts']) {
-      this.accountsManager.getTransactionsForAccount(this.accountId())
+    if (!changes['account'].firstChange || !changes['accounts'].firstChange) {
+      this.accountsManager.getTransactionsForAccount(this.account().id)
         .subscribe(transactions => {
           this.transactions = transactions;
-          this.data.data = this.transactions;
           this.data.paginator = null;
           const minDate = new Date(Math.min(...this.transactions.map(t => new Date(t.when).getTime())));
-          this.accountsManager.getBalanceOnDate(this.accountId(), minDate).subscribe(startBalance => {
+          this.accountsManager.getBalanceOnDate(this.account().id, minDate).subscribe(startBalance => {
             // sort transactions by date from oldest to newest
             this.transactions.sort((a, b) => new Date(a.when).getTime() - new Date(b.when).getTime());
             this.transactions.forEach(t => {
-              
+              const balanceAfterTransaction = this.calculateBalanceAfterTransaction(startBalance, t);
+              const displayLine = new TransactionDisplayLine();
+              displayLine.when = t.when;
+              displayLine.debit = t.debitedAccountId === this.account().id ? t.amount : null;
+              displayLine.credit = t.creditedAccountId === this.account().id ? t.amount : null;
+              displayLine.balance = balanceAfterTransaction;
+              if (t.debitedAccountId !== this.account().id) {
+                const otherAccount = this.accounts().find(a => a.id === t.debitedAccountId);
+                if (otherAccount) {
+                  displayLine.otherAccount = otherAccount.info.coAId + " " + otherAccount.info.name;
+                }
+              } else {
+                const otherAccount = this.accounts().find(a => a.id === t.creditedAccountId);
+                if (otherAccount) {
+                  displayLine.otherAccount = otherAccount.info.coAId + " " + otherAccount.info.name;
+                }
+              }
+              startBalance = balanceAfterTransaction;
+              this.data.data.push(displayLine);
             });
           });
         });
     }
   }
 
-  buildDisplayLines() {
-
+  calculateBalanceAfterTransaction(balanceBefore: number, t: TransactionModel): number {
+    if (t.debitedAccountId === this.account().id && this.account().isDebitAccount) {
+      return balanceBefore + t.amount;
+    }
+    if (t.creditedAccountId === this.account().id && !this.account().isDebitAccount) {
+      return balanceBefore + t.amount;
+    }
+    if (t.debitedAccountId === this.account().id && !this.account().isDebitAccount) {
+      return balanceBefore - t.amount;
+    }
+    if (t.creditedAccountId === this.account().id && this.account().isDebitAccount) {
+      return balanceBefore - t.amount;
+    }
+    return balanceBefore;
   }
 }

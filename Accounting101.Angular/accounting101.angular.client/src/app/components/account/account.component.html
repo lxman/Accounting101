@@ -3,8 +3,8 @@
     <app-menu [screen]="Screen.account" />
     <app-client-header [client]="client | async" />
     <mat-divider></mat-divider>
-    <app-account-header [accountId]="accountId" />
-    <app-transaction-list [accountId]="accountId" [accounts]="allAccounts" [transactionsUpdated]="updateTransactions" />
+    <app-account-header [accountId]="account.id" />
+    <app-transaction-list [account]="account" [accounts]="allAccounts" [transactionsUpdated]="updateTransactions" />
   </div>
-  <app-fast-entry [accountId]="accountId" [accounts]="filteredAccounts" (transactionUpdated)="transactionsUpdated()" />
+  <app-fast-entry [accountId]="account.id" [accounts]="filteredAccounts" (transactionUpdated)="transactionsUpdated()" />
 </div>

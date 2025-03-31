@@ -30,7 +30,7 @@ import {AccountModel} from '../../models/account.model';
 
 export class AccountComponent {
   updateTransactions = false;
-  readonly accountId: string;
+  account: AccountModel = new AccountModel();
   private readonly globals = inject(GlobalConstantsService);
   private readonly userDataService = inject(UserDataService);
   private readonly clientManager = inject(ClientClient);
@@ -43,10 +43,11 @@ export class AccountComponent {
   protected readonly Screen = Screen;
 
   constructor() {
-    this.accountId = this.userDataService.get(this.globals.accountIdKey);
+    const accountId = this.userDataService.get(this.globals.accountIdKey);
     this.accounts.subscribe(accts => {
       this.allAccounts = accts;
-      this.filteredAccounts = accts.filter(a => a.id !== this.accountId);
+      this.account = accts.find(a => a.id === accountId)!;
+      this.filteredAccounts = accts.filter(a => a.id !== accountId);
     });
   }
 

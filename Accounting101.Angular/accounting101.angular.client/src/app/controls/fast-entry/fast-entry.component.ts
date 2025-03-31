@@ -59,10 +59,10 @@ export class FastEntryComponent implements OnChanges{
     const tx = new TransactionModel();
     tx.when = this.fastEntryGroup.value.date?.toISOString().split("T")[0] ?? '';
     tx.amount = this.fastEntryGroup.value.amount as number;
-    tx.creditAccountId = this.fastEntryGroup.value.creditDebit === 'credit'
+    tx.creditedAccountId = this.fastEntryGroup.value.creditDebit === 'credit'
       ? this.accountId()
       : this.accounts().find(acct => acct.info.name === this.fastEntryGroup.value.otherAccount)?.id ?? '';
-    tx.debitAccountId = this.fastEntryGroup.value.creditDebit === 'debit'
+    tx.debitedAccountId = this.fastEntryGroup.value.creditDebit === 'debit'
       ? this.accountId()
       : this.accounts().find(acct => acct.info.name === this.fastEntryGroup.value.otherAccount)?.id ?? '';
     console.log(JSON.stringify(tx));
