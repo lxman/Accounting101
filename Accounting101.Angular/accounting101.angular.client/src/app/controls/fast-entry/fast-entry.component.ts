@@ -1,4 +1,4 @@
-import {Component, inject, input, OnChanges, SimpleChanges} from '@angular/core';
+import {Component, inject, input, OnChanges, output, SimpleChanges} from '@angular/core';
 import {MatNativeDateModule} from '@angular/material/core';
 import {MatFormField, MatHint, MatLabel} from '@angular/material/form-field';
 import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
@@ -37,6 +37,7 @@ export class FastEntryComponent implements OnChanges{
   private readonly accountService = inject(AccountsClient);
   accountId = input.required<string>();
   accounts = input.required<AccountModel[]>();
+  transactionUpdated = output();
   readonly initialDate: Date = new Date();
   accts: string[] = [];
 
@@ -67,6 +68,7 @@ export class FastEntryComponent implements OnChanges{
     console.log(JSON.stringify(tx));
     this.accountService.createTransaction(tx).subscribe(() => {
       console.log('Transaction created');
+      this.transactionUpdated.emit();
     });
   }
 }

@@ -9,9 +9,15 @@ body.inheritCursors * { cursor: inherit !important; }
 html {
   color-scheme: light dark;
   @include mat.theme((
-    color: mat.$violet-palette,
+    color: mat.$azure-palette,
     typography: Roboto,
-    density: 0
+    density: -5
+  ),
+  $overrides: (
+    "background": rgba(26, 123, 165, 0.59),
+    "on-background": #8630A9,
+    "surface-container-low": rgba(88, 140, 149, 0.87),
+    "surface": rgb(255, 255, 255)
   ));
 }
 
@@ -22,5 +28,51 @@ menu {
 :root {
   @include mat.menu-overrides((
     container-color: lightgray
-  ))
+  ));
+  @include mat.card-overrides((
+    // Color
+    subtitle-text-color: var(--mat-sys-on-surface),
+    elevated-container-color: var(--mat-sys-surface-container-low),
+    elevated-container-elevation: var(--mat-sys-surface),
+    outlined-container-color: var(--mat-sys-surface),
+    outlined-outline-color: var(--mat-sys-outline-variant),
+    outlined-container-elevation: var(--mat-sys-surface),
+
+    // Shape
+    elevated-container-shape: var(--mat-sys-elevation-shape),
+    outlined-container-shape: var(--mat-sys-elevation-shape),
+
+    // Typography
+
+    // Elevation
+  ));
+  @include mat.button-overrides((
+    // Color
+    filled-container-color: lightgray !important,
+    //outlined-outline-color: red !important,
+
+    // Shape
+    filled-container-shape: var(--mat-sys-elevation-shape),
+  ));
+  @include mat.form-field-overrides((
+    // Color
+    outlined-caret-color: var(--mat-sys-primary),
+    outlined-input-text-color: var(--mat-sys-on-surface),
+
+    // Shape
+  ));
+  @include mat.table-overrides((
+    // Color
+    background-color: var(--mat-sys-surface),
+    row-item-label-text-color: var(--mat-sys-on-surface),
+    header-headline-color: var(--mat-sys-on-surface),
+    row-item-outline-color: var(--mat-sys-outline),
+
+    // Shape
+  ));
+}
+
+.mat-app-background {
+  background-color: var(--mat-sys-background);
+  color: var(--mat-sys-on-background);
 }

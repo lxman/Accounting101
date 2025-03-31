@@ -1,6 +1,19 @@
+@use "@angular/cdk";
+
 .main-div{
   height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+
+.login-card {
+  box-shadow: var(--mat-sys-level5);
+}
+
+input.custom-autofill {
+  background-color: var(--mat-sys-surface) !important;
+  border-radius: 2px !important;
+  @include cdk.text-field-autofill-color(transparent);
 }

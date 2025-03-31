@@ -40,6 +40,12 @@ public class AccountsController(IDataStore dataStore, IAccountService accountSer
         return Ok(dataStore.TransactionsForAccount(dbId.ToString(), accountId));
     }
 
+    [HttpGet("{dbId:guid}/{accountId}/balance")]
+    public async Task<ActionResult<decimal>> GetAccountBalanceOnDateAsync(Guid dbId, string accountId, [FromQuery] DateOnly date)
+    {
+        return Ok(await dataStore.GetAccountBalanceOnDateAsync(dbId.ToString(), accountId, date));
+    }
+
     [HttpPost("{dbId:guid}/{clientId}/transactions")]
     public Task<ActionResult<Guid>> CreateTransactionAsync(Guid dbId, string clientId)
     {

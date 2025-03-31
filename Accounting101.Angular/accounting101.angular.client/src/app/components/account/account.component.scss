@@ -1,10 +1,33 @@
 .account-layout {
   display: flex;
+  flex-wrap: nowrap;
   flex-direction: column;
-  flex: 1;
-  height: 100%;
+  justify-content: flex-start;
+  height: 100vh;
+  overflow-y: hidden;
+}
+
+.account-layout:after {
+  margin: 0;
+  display: block;
+  flex: 999 999 auto;
+  min-height: 0;
+}
+
+app-transaction-list {
+  flex: 1 0 auto;
+  margin: 0;
+  overflow-y: auto;
+  min-height: 0;
+  flex-shrink: 0;
 }
 
 app-fast-entry {
-  margin-top: auto;
+  height: 0;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  min-height: 0;
+  flex-shrink: 0;
 }

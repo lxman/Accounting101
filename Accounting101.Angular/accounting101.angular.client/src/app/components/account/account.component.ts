@@ -1,4 +1,4 @@
-import {Component, inject} from '@angular/core';
+import {Component, inject, output} from '@angular/core';
 import {GlobalConstantsService} from '../../services/global-constants/global-constants.service';
 import {UserDataService} from '../../services/user-data/user-data.service';
 import {AccountHeaderComponent} from '../../controls/account-header/account-header.component';
@@ -29,6 +29,7 @@ import {AccountModel} from '../../models/account.model';
 })
 
 export class AccountComponent {
+  updateTransactions = false;
   readonly accountId: string;
   private readonly globals = inject(GlobalConstantsService);
   private readonly userDataService = inject(UserDataService);
@@ -47,5 +48,10 @@ export class AccountComponent {
       this.allAccounts = accts;
       this.filteredAccounts = accts.filter(a => a.id !== this.accountId);
     });
+  }
+
+  transactionsUpdated() {
+    this.updateTransactions = true;
+    this.updateTransactions = false;
   }
 }

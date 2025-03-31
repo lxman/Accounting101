@@ -38,9 +38,17 @@ export class AccountsClient {
       .pipe(catchError(this.handleError));
   }
 
-  transactionsForAccount(accountId: string): Observable<TransactionModel[]> {
+  getTransactionsForAccount(accountId: string): Observable<TransactionModel[]> {
     return this.client.get<TransactionModel[]>(
       `${this.globals.baseServerUrl}/accounts/${this.userDataService.get(this.globals.userIdKey)}/${accountId}/transactions`,
+      { withCredentials: true })
+      .pipe(catchError(this.handleError));
+  }
+
+  getBalanceOnDate(accountId: string, date: Date): Observable<number> {
+    return this.client.post<number>(
+      `${this.globals.baseServerUrl}/accounts/${this.userDataService.get(this.globals.userIdKey)}/${accountId}/balance`,
+      { date: date.toISOString() },
       { withCredentials: true })
       .pipe(catchError(this.handleError));
   }

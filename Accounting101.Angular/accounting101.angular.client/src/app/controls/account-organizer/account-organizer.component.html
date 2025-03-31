@@ -28,7 +28,7 @@
         [id]="'node-' + node.id"
         [attr.data-id]="node.id"
         [ngClass]="{'node-title': true, 'draggable-node': true}">
-        <button mat-stroked-button (click)="accountClicked(node.id)">
+        <button mat-stroked-button class="account-button" (click)="accountClicked(node.id)">
           <i class="material-icons">account_balance</i>
           <span class="node-text">{{ node.name }}</span>
         </button>

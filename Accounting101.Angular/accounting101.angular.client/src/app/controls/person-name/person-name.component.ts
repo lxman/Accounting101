@@ -7,7 +7,7 @@ import { ReactiveFormsModule } from '@angular/forms';
 import { MatInputModule } from '@angular/material/input';
 
 @Component({
-  selector: 'person-name-client-component',
+  selector: 'person-name-component',
   templateUrl: './person-name.component.html',
   styleUrl: './person-name.component.scss',
   imports: [

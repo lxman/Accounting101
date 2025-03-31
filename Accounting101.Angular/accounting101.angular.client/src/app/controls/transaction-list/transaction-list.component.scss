@@ -1,0 +1,11 @@
+.table-container {
+  height: 60vh;
+  overflow-y: auto;
+}
+
+.mat-mdc-header-row {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--mat-sys-surface);
+}

@@ -1,6 +1,6 @@
 <div fxLayout="row" fxLayoutAlign="space-between center" class="menu">
-  <button mat-button [matMenuTriggerFor]="appMenu">Menu</button>
-  <button mat-button (click)="logoutClicked()">Logout</button>
+  <button mat-raised-button [matMenuTriggerFor]="appMenu">Menu</button>
+  <button mat-raised-button (click)="logoutClicked()">Logout</button>
   <mat-menu #appMenu="matMenu">
     <ng-template let-item ngFor [ngForOf]="menuItems">
       <button mat-menu-item [routerLink]="item.link" *ngIf="!item.children">

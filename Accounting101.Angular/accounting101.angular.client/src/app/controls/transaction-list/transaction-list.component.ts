@@ -20,6 +20,7 @@ import {TypeSafeMatCellDef} from '../../directives/type-safe-mat-cell-def.direct
 import {TypeSafeMatRowDef} from '../../directives/type-safe-mat-row-def.directive';
 import {NgIf} from '@angular/common';
 import {AccountModel} from '../../models/account.model';
+import {TransactionDisplayLine} from '../../models/transaction-display-line.model.cs';
 
 @Component({
   selector: 'app-transaction-list',
@@ -45,21 +46,33 @@ import {AccountModel} from '../../models/account.model';
 export class TransactionListComponent implements OnChanges{
   readonly accountId = input.required<string>();
   readonly accounts = input.required<AccountModel[]>();
+  readonly transactionsUpdated = input<boolean>();
   private readonly accountsManager = inject(AccountsClient);
-  private readonly globals = inject(GlobalConstantsService);
-  private readonly userData = inject(UserDataService);
+  private readonly displayLines: TransactionDisplayLine[] = [];
   private transactions: TransactionModel[] = [];
   data = new MatTableDataSource<TransactionModel>();
   columnsToDisplay = ['when', 'amount'];
 
   ngOnChanges(changes:SimpleChanges) {
     if (changes['accountId'] && changes['accounts']) {
-      this.accountsManager.transactionsForAccount(this.accountId())
+      this.accountsManager.getTransactionsForAccount(this.accountId())
         .subscribe(transactions => {
           this.transactions = transactions;
           this.data.data = this.transactions;
           this.data.paginator = null;
+          const minDate = new Date(Math.min(...this.transactions.map(t => new Date(t.when).getTime())));
+          this.accountsManager.getBalanceOnDate(this.accountId(), minDate).subscribe(startBalance => {
+            // sort transactions by date from oldest to newest
+            this.transactions.sort((a, b) => new Date(a.when).getTime() - new Date(b.when).getTime());
+            this.transactions.forEach(t => {
+              
+            });
+          });
         });
     }
+  }
+
+  buildDisplayLines() {
+
   }
 }
