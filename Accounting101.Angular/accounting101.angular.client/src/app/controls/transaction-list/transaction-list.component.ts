@@ -1,6 +1,4 @@
-import {Component, inject, input, OnChanges, SimpleChanges} from '@angular/core';
-import {GlobalConstantsService} from '../../services/global-constants/global-constants.service';
-import {UserDataService} from '../../services/user-data/user-data.service';
+import {Component, inject, input, OnChanges, output, SimpleChanges} from '@angular/core';
 import {TransactionModel} from '../../models/transaction.model';
 import {AccountsClient} from '../../clients/accounts-client/accounts-client.service';
 import {
@@ -49,6 +47,7 @@ export class TransactionListComponent implements OnChanges{
   readonly account = input.required<AccountModel>();
   readonly accounts = input.required<AccountModel[]>();
   readonly transactionsUpdated = input<boolean>();
+  readonly linkWasClicked = output<string>();
   private readonly accountsManager = inject(AccountsClient);
   private transactions: TransactionModel[] = [];
   data = new MatTableDataSource<TransactionDisplayLine>();
@@ -58,6 +57,7 @@ export class TransactionListComponent implements OnChanges{
     if (!changes['account'].firstChange || !changes['accounts'].firstChange) {
       this.accountsManager.getTransactionsForAccount(this.account().id)
         .subscribe(transactions => {
+          this.data.data = [];
           this.transactions = transactions;
           this.data.paginator = null;
           const minDate = new Date(Math.min(...this.transactions.map(t => new Date(t.when).getTime())));
@@ -104,5 +104,10 @@ export class TransactionListComponent implements OnChanges{
       return balanceBefore - t.amount;
     }
     return balanceBefore;
+  }
+
+  linkClicked(element: TransactionDisplayLine) {
+    const otherAccount = element.otherAccount;
+    this.linkWasClicked.emit(otherAccount);
   }
 }

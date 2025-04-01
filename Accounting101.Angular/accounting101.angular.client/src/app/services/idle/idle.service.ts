@@ -21,13 +21,22 @@ export class IdleService implements OnInit{
     this.idle.setTimeout(this.globals.loginTimeout);
     this.idle.setInterrupts(DEFAULT_INTERRUPTSOURCES);
     this.idle.onTimeout.subscribe(() => {
+      console.log('Timed out at ' + new Date());
       this.userManager.logoutUser();
       this.userData.clearData();
       void this.router.navigate(['/']);
     });
-    this.idle.onIdleEnd.subscribe(() => {});
-    this.idle.onIdleStart.subscribe(() => {});
-    this.idle.onTimeoutWarning.subscribe(() => {});
+    this.idle.onIdleEnd.subscribe(() => {
+      console.log('Back to active at ' + new Date());
+    });
+    this.idle.onIdleStart.subscribe(() => {
+      console.log('Going idle at ' + new Date());
+      // this.userManager.logoutUser();
+    });
+    this.idle.onTimeoutWarning.subscribe(() => {
+      console.log('Timeout warning at ' + new Date());
+      // this.userManager.logoutUser();
+    });
   }
 
   reset() {

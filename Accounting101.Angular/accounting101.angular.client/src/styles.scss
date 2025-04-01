@@ -1,4 +1,4 @@
-@use '@angular/material' as mat;
+@use '../node_modules/@angular/material' as mat;
 
 /* You can add global styles to this file, and also import other style files */
 
@@ -67,6 +67,13 @@ menu {
     row-item-label-text-color: var(--mat-sys-on-surface),
     header-headline-color: var(--mat-sys-on-surface),
     row-item-outline-color: var(--mat-sys-outline),
+
+    // Shape
+  ));
+  @include mat.select-overrides((
+    // Color
+    panel-background-color: var(--mat-sys-background),
+    enabled-trigger-text-color: var(--mat-sys-on-background) !important
 
     // Shape
   ));

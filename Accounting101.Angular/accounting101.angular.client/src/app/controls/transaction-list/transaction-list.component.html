@@ -1,5 +1,5 @@
-<div class="table-container">
-  <table mat-table *ngIf="data.data.length > 0" [dataSource]="data" #table="matTable">
+<div class="table-container" *ngIf="data.data.length > 0">
+  <table mat-table [dataSource]="data" #table="matTable">
     <ng-container matColumnDef="when">
       <th mat-header-cell class="date-column-header" *matHeaderCellDef>Date</th>
       <td mat-cell class="date-column" *matCellDef="let element; table: table">{{element.when}}</td>
@@ -18,7 +18,7 @@
     </ng-container>
     <ng-container matColumnDef="otherAccount">
       <th mat-header-cell class="right-aligned-header" *matHeaderCellDef>Other Account</th>
-      <td mat-cell class="mat-column-right" *matCellDef="let element; table: table"><a routerLink="/account">{{element.otherAccount}}</a></td>
+      <td mat-cell class="mat-column-right" *matCellDef="let element; table: table"><a (click)="linkClicked(element)" routerLink="/account">{{element.otherAccount}}</a></td>
     </ng-container>
     <tr mat-header-row *matHeaderRowDef="columnsToDisplay"></tr>
     <tr mat-row *matRowDef="let row; columns: columnsToDisplay; table: table"></tr>

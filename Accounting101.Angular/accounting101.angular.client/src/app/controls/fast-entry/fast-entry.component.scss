@@ -8,6 +8,10 @@
   max-width: 1000px;
 }
 
+.input-element {
+  color: var(--mat-sys-on-background) !important;
+}
+
 .fast-entry-element {
   max-height: 2rem;
   margin: 0 10px;
