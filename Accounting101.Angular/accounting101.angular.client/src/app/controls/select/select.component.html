@@ -1,5 +1,5 @@
 <mat-form-field *ngIf="show()">
-  <mat-select [required]="required" (valueChange)="onChange($event)">
+  <mat-select [required]="required" (valueChange)="onChange($event)" [compareWith]="compareWith" formControlName="value">
       <mat-option *ngFor="let item of items()" [value]="item">
         {{ item }}
       </mat-option>

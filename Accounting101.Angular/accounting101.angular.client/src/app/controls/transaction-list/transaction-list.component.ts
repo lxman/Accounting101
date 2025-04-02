@@ -16,10 +16,12 @@ import {
 } from '@angular/material/table';
 import {TypeSafeMatCellDef} from '../../directives/type-safe-mat-cell-def.directive';
 import {TypeSafeMatRowDef} from '../../directives/type-safe-mat-row-def.directive';
-import {NgIf} from '@angular/common';
+import {NgClass, NgIf} from '@angular/common';
 import {AccountModel} from '../../models/account.model';
 import {TransactionDisplayLine} from '../../models/transaction-display-line.model.cs';
 import {RouterLink} from '@angular/router';
+import {MessageService} from '../../services/message/message.service';
+import {Message} from '../../models/message.model';
 
 @Component({
   selector: 'app-transaction-list',
@@ -37,7 +39,8 @@ import {RouterLink} from '@angular/router';
     TypeSafeMatCellDef,
     TypeSafeMatRowDef,
     NgIf,
-    RouterLink
+    RouterLink,
+    NgClass
   ],
   templateUrl: './transaction-list.component.html',
   styleUrl: './transaction-list.component.scss'
@@ -49,6 +52,7 @@ export class TransactionListComponent implements OnChanges{
   readonly transactionsUpdated = input<boolean>();
   readonly linkWasClicked = output<string>();
   private readonly accountsManager = inject(AccountsClient);
+  private messageService = inject(MessageService<TransactionModel>);
   private transactions: TransactionModel[] = [];
   data = new MatTableDataSource<TransactionDisplayLine>();
   columnsToDisplay = ['when', 'debit', 'credit', 'balance', 'otherAccount'];
@@ -67,6 +71,7 @@ export class TransactionListComponent implements OnChanges{
             this.transactions.forEach(t => {
               const balanceAfterTransaction = this.calculateBalanceAfterTransaction(startBalance, t);
               const displayLine = new TransactionDisplayLine();
+              displayLine.id = t.id;
               displayLine.when = t.when;
               displayLine.debit = t.debitedAccountId === this.account().id ? t.amount : null;
               displayLine.credit = t.creditedAccountId === this.account().id ? t.amount : null;
@@ -109,5 +114,28 @@ export class TransactionListComponent implements OnChanges{
   linkClicked(element: TransactionDisplayLine) {
     const otherAccount = element.otherAccount;
     this.linkWasClicked.emit(otherAccount);
+  }
+
+  rowClicked($event: MouseEvent, element: TransactionDisplayLine) {
+    console.log($event);
+    if ($event.button === 0) {
+      // left click
+      const dataElement = this.data.data.find(e => e.id === element.id);
+      if (dataElement?.selected) {
+        dataElement.selected = false;
+      } else {
+        this.data.data.forEach(e => e.selected = false);
+        dataElement!.selected = true;
+      }
+      const message = new Message<TransactionModel>();
+      message.source = 'app-transaction-list';
+      message.destination = 'app-fast-entry';
+      message.message = this.transactions.find(t => t.id === element.id)!;
+      this.messageService.sendMessage(message);
+    }
+  }
+
+  onRightClick($event: MouseEvent, element: TransactionDisplayLine) {
+    $event.preventDefault();
   }
 }

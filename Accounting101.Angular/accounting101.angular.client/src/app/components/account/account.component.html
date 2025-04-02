@@ -10,5 +10,8 @@
       (linkWasClicked)="linkClicked($event)"
       [transactionsUpdated]="updateTransactions" />
   </div>
-  <app-fast-entry [accountId]="account.id" [accounts]="filteredAccounts" (transactionUpdated)="transactionsUpdated()" />
+  <app-fast-entry
+    [accountId]="account.id"
+    [accounts]="filteredAccounts"
+    (transactionUpdated)="transactionsUpdated()" />
 </div>

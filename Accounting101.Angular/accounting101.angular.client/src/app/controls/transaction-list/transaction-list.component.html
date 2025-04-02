@@ -21,7 +21,11 @@
       <td mat-cell class="mat-column-right" *matCellDef="let element; table: table"><a (click)="linkClicked(element)" routerLink="/account">{{element.otherAccount}}</a></td>
     </ng-container>
     <tr mat-header-row *matHeaderRowDef="columnsToDisplay"></tr>
-    <tr mat-row *matRowDef="let row; columns: columnsToDisplay; table: table"></tr>
+    <tr mat-row *matRowDef="let row; columns: columnsToDisplay; table: table"
+        class="data-row"
+        [ngClass]="{'highlighted-row': row.selected}"
+        (click)="rowClicked($event, row)"
+        (contextmenu)="onRightClick($event, row)"></tr>
   </table>
 </div>
 <p *ngIf="data.data.length == 0">No transactions entered yet.</p>

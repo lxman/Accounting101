@@ -1,5 +1,11 @@
 {
     "cSpell.words": [
         "theultrasecretbestkeyintheworld"
-    ]
+    ],
+    "appService.zipIgnorePattern": [
+        "node_modules{,/**}",
+        ".vscode{,/**}"
+    ],
+    "appService.defaultWebAppToDeploy": "/subscriptions/53b86bfb-9e14-45c9-8d74-47015b462b19/resourceGroups/accounting101/providers/Microsoft.Web/sites/accounting-101",
+    "appService.deploySubpath": "."
 }

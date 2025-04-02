@@ -1,7 +1,9 @@
 export class TransactionDisplayLine {
-  when: string = '';
+  id = '';
+  when = '';
   debit: number | null = null;
   credit: number | null = null;
-  balance: number = 0;
+  balance = 0;
   otherAccount: string = '';
+  selected = false;
 }

@@ -13,3 +13,11 @@
 .mat-column-right {
   text-align: right !important;
 }
+
+.highlighted-row {
+  background-color: var(--mat-sys-primary-container) !important;
+}
+
+.data-row {
+  cursor: default;
+}

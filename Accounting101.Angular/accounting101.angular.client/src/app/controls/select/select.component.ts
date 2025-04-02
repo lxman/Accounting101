@@ -100,8 +100,18 @@ export class SelectComponent implements MatFormFieldControl<string>, ControlValu
     }
   }
 
-  updateValue(event: any): void {
-    this.value = event.target.value;
+  compareWith(o1: any, o2: any): boolean {
+    if (o1 === o2) {
+      return true;
+    }
+    if (o1 && o2) {
+      return o1.id === o2.id;
+    }
+    return false;
+  }
+
+  public updateValue(value: any): void {
+    this.value = value;
     this.onChange(this.value);
     this.onTouched();
   }
