@@ -11,9 +11,13 @@ import { IdleService } from './services/idle/idle.service';
 
 export class AppComponent implements OnInit{
   private readonly idleService: IdleService = inject(IdleService);
-  title = 'accounting101.angular.client';
+  title = 'Accounting 101';
 
   ngOnInit() {
     this.idleService.initialize();
+  }
+
+  getTitle(): string {
+    return this.title;
   }
 }
