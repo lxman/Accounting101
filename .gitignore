@@ -370,3 +370,5 @@ Accounting101.Angular/.vscode/settings.json
 /Accounting101.Angular/Accounting101.Angular.Server/Properties/ServiceDependencies/accounting101 - Web Deploy
 /Accounting101.Angular/Accounting101.Angular.Server/Properties/serviceDependencies.accounting101 - Web Deploy.json
 /Accounting101.Angular/Accounting101.Angular.Server/Properties/serviceDependencies.json
+/Accounting101.Angular/accounting101.angular.client/deploy/accounting101.client.key
+/Accounting101.Angular/accounting101.angular.client/deploy/accounting101.client.pem
