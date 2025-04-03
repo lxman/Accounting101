@@ -10,10 +10,9 @@
   <ItemGroup>
     <None Remove=".vscode\**" />
     <None Remove="dist\**" />
+    <None Remove="nswag-output\**" />
     <TypeScriptConfiguration Remove=".vscode\**" />
     <TypeScriptConfiguration Remove="dist\**" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="nswag-output\" />
+    <TypeScriptConfiguration Remove="nswag-output\**" />
   </ItemGroup>
 </Project>
