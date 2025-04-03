@@ -17,6 +17,15 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 BsonSerializer.RegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
 
+string? allowedOrigins = Environment.GetEnvironmentVariable("AllowedOrigins");
+string? baseConnectionString = Environment.GetEnvironmentVariable("MongoClientConnectionString");
+if (string.IsNullOrWhiteSpace(baseConnectionString) || string.IsNullOrWhiteSpace(allowedOrigins))
+{
+    throw new Exception("Environment variable(s) not available");
+}
+
+string[] allowed = allowedOrigins.Split(',', StringSplitOptions.RemoveEmptyEntries);
+
 builder.Services.AddCors(config =>
 {
     config.AddPolicy("AllowAll", policyBuilder =>
@@ -24,7 +33,7 @@ builder.Services.AddCors(config =>
         policyBuilder.AllowAnyHeader();
         policyBuilder.WithMethods("GET", "POST", "PUT", "DELETE");
         policyBuilder.AllowCredentials();
-        policyBuilder.WithOrigins("https://localhost:51597");
+        policyBuilder.WithOrigins(allowed);
         policyBuilder.SetIsOriginAllowed(origin => true);
         policyBuilder.WithMethods("Options");
     });
@@ -40,12 +49,6 @@ builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme).AddCooki
         options.Cookie.Name = "AngularTest.Server";
     });
 builder.Services.AddAuthorizationBuilder();
-
-string? baseConnectionString = Environment.GetEnvironmentVariable("MongoClientConnectionString");
-if (string.IsNullOrWhiteSpace(baseConnectionString))
-{
-    throw new Exception("MongoClientConnectionString is not set");
-}
 
 builder.Services.AddIdentityCore<ApplicationUser>()
     .AddMongoDbStores<ApplicationUser, ApplicationRole, Guid>(mongo =>

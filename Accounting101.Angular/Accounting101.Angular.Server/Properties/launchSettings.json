@@ -7,7 +7,8 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ASPNETCORE_HOSTINGSTARTUPASSEMBLIES": "Microsoft.AspNetCore.SpaProxy",
-        "MongoClientConnectionString": "mongodb://localhost:27017"
+        "MongoClientConnectionString": "mongodb://localhost:27017",
+        "AllowedOrigins": "https://localhost:51597"
       },
       "dotnetRunMessages": true,
       "applicationUrl": "http://localhost:5277"
@@ -19,7 +20,8 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ASPNETCORE_HOSTINGSTARTUPASSEMBLIES": "Microsoft.AspNetCore.SpaProxy",
-        "MongoClientConnectionString": "mongodb://localhost:27017"
+        "MongoClientConnectionString": "mongodb://localhost:27017",
+        "AllowedOrigins": "https://localhost:51597"
       },
       "dotnetRunMessages": true,
       "applicationUrl": "https://localhost:7165;http://localhost:5277"
@@ -28,7 +30,8 @@
       "commandName": "Project",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "MongoClientConnectionString": "mongodb://localhost:27017"
+        "MongoClientConnectionString": "mongodb://localhost:27017",
+        "AllowedOrigins": "https://localhost:51597"
       },
       "dotnetRunMessages": true,
       "applicationUrl": "https://localhost:7165;http://localhost:5277"
@@ -40,7 +43,8 @@
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
         "ASPNETCORE_HOSTINGSTARTUPASSEMBLIES": "Microsoft.AspNetCore.SpaProxy",
-        "MongoClientConnectionString": "mongodb://localhost:27017"
+        "MongoClientConnectionString": "mongodb://localhost:27017",
+        "AllowedOrigins": "https://localhost:51597"
       }
     },
     "WSL": {

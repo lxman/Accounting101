@@ -31,8 +31,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Attributes\" />
     <Folder Include="Authentication\" />
     <Folder Include="wwwroot\accounting101.client\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="Accounting101.Angular.Server.Attributes.BuildTimeAttribute">
+      <_Parameter1>$([System.DateTime]::UtcNow.ToString("yyyyMMddHHmmss"))</_Parameter1>
+    </AssemblyAttribute>
   </ItemGroup>
 </Project>
