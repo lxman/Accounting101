@@ -12,14 +12,14 @@
       <mat-radio-button class="radio-button" value="debit">Debit</mat-radio-button>
     </div>
   </mat-radio-group>
-  <select-component
-    #accountSelector
-    class="fast-entry-element"
-    formControlName="otherAccount"
-    [items]="accts"
-    [show]="true"
-    [required]="true">
-  </select-component>
+  <mat-form-field class="fast-entry-element">
+    <mat-label>Other Account</mat-label>
+    <mat-select formControlName="otherAccount">
+      <mat-option *ngFor="let account of accts" [value]="account">
+        {{ account }}
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
   <mat-form-field class="fast-entry-element">
     <mat-label>Amount</mat-label>
     <input matInput class="input-element" formControlName="amount" />

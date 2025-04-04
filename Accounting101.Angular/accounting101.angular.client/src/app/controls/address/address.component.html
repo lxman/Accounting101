@@ -17,16 +17,22 @@
     <mat-label>Postal Code</mat-label>
     <input matInput formControlName="zipPostCode" />
   </mat-form-field>
-  <select-component
-    formControlName="country"
-    [items]="countries()"
-    [show]="addressForm.get('isForeign')!.value!"
-    [required]="countryRequired" />
-  <select-component
-    formControlName="state"
-    [items]="states()"
-    [show]="!addressForm.get('isForeign')!.value"
-    [required]="stateRequired" />
+  <mat-form-field *ngIf="addressForm.get('isForeign')!.value">
+    <mat-label>Country</mat-label>
+    <mat-select formControlName="country">
+      <mat-option *ngFor="let country of countries()" [value]="country">
+        {{ country }}
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
+  <mat-form-field *ngIf="!addressForm.get('isForeign')!.value">
+    <mat-label>State</mat-label>
+    <mat-select formControlName="state">
+      <mat-option *ngFor="let state of states()" [value]="state">
+        {{ state }}
+      </mat-option>
+    </mat-select>
+  </mat-form-field>
   <mat-form-field *ngIf="!addressForm.get('isForeign')!.value">
     <mat-label>Zip Code</mat-label>
     <input matInput formControlName="zipPostCode" />

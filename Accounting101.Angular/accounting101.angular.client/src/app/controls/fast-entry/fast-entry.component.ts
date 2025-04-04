@@ -1,5 +1,5 @@
-import {Component, inject, input, OnChanges, OnDestroy, output, SimpleChanges, ViewChild} from '@angular/core';
-import {MatNativeDateModule} from '@angular/material/core';
+import {Component, inject, input, OnChanges, OnDestroy, output, SimpleChanges} from '@angular/core';
+import {MatNativeDateModule, MatOption} from '@angular/material/core';
 import {MatFormField, MatHint, MatLabel} from '@angular/material/form-field';
 import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
 import {MatInput} from '@angular/material/input';
@@ -7,11 +7,12 @@ import {MatButton} from '@angular/material/button';
 import {MatDatepicker, MatDatepickerInput, MatDatepickerToggle} from '@angular/material/datepicker';
 import {MatRadioButton, MatRadioGroup, MatRadioModule} from '@angular/material/radio';
 import {AccountModel} from '../../models/account.model';
-import {SelectComponent} from '../select/select.component';
 import {TransactionModel} from '../../models/transaction.model';
 import {AccountsClient} from '../../clients/accounts-client/accounts-client.service';
 import {MessageService} from '../../services/message/message.service';
 import {Message} from '../../models/message.model';
+import {NgForOf} from '@angular/common';
+import {MatSelect} from '@angular/material/select';
 
 @Component({
   selector: 'app-fast-entry',
@@ -29,7 +30,9 @@ import {Message} from '../../models/message.model';
     MatRadioGroup,
     MatRadioButton,
     MatRadioModule,
-    SelectComponent
+    MatSelect,
+    MatOption,
+    NgForOf,
   ],
   templateUrl: './fast-entry.component.html',
   styleUrl: './fast-entry.component.scss'
@@ -44,7 +47,6 @@ export class FastEntryComponent implements OnChanges, OnDestroy{
   transactionUpdated = output();
   readonly initialDate: Date = new Date();
   accts: string[] = [];
-  @ViewChild("accountSelector") selector!: SelectComponent;
   subscription = this.messageService.message$.subscribe((message: Message<TransactionModel>) => {
     if (message.destination === 'app-fast-entry') {
       const transaction = message.message;

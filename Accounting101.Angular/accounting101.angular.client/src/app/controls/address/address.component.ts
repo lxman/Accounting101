@@ -9,7 +9,6 @@ import { MatFormField, MatFormFieldControl, MatLabel } from '@angular/material/f
 import { MatInput } from '@angular/material/input';
 import { NgIf } from '@angular/common';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { SelectComponent } from '../select/select.component';
 
 @Component({
     selector: 'address-component',
@@ -25,8 +24,8 @@ import { SelectComponent } from '../select/select.component';
       MatCheckboxModule,
       MatOptionModule,
       MatSelectModule,
-      CommonModule,
-      SelectComponent],
+      CommonModule
+    ],
     providers: [{ provide: MatFormFieldControl, useExisting: AddressComponent }],
     viewProviders: [
       {
