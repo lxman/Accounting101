@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Accounting101.Angular.DataAccess.Services;
 using Accounting101.Angular.DataAccess.Services.Interfaces;
@@ -11,6 +12,17 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
 
+using ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
+{
+    builder
+        .SetMinimumLevel(LogLevel.Trace)
+        .AddConsole();
+});
+
+ILogger logger = loggerFactory.CreateLogger<Program>();
+logger.LogInformation("Program.cs logger ready.");
+
+logger.LogInformation("Creating builder.");
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -24,6 +36,9 @@ if (string.IsNullOrWhiteSpace(baseConnectionString) || string.IsNullOrWhiteSpace
     throw new Exception("Environment variable(s) not available");
 }
 
+logger.LogInformation($"MongoClientConnectionString: {baseConnectionString}");
+logger.LogInformation($"AllowedOrigins: {allowedOrigins}");
+
 string[] allowed = allowedOrigins.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
 builder.Services.AddCors(config =>
@@ -31,11 +46,10 @@ builder.Services.AddCors(config =>
     config.AddPolicy("AllowAll", policyBuilder =>
     {
         policyBuilder.AllowAnyHeader();
-        policyBuilder.WithMethods("GET", "POST", "PUT", "DELETE");
+        policyBuilder.WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
         policyBuilder.AllowCredentials();
         policyBuilder.WithOrigins(allowed);
         policyBuilder.SetIsOriginAllowed(origin => true);
-        policyBuilder.WithMethods("Options");
     });
 });
 
@@ -84,6 +98,11 @@ var fileProvider = new PhysicalFileProvider(Path.Combine(app.Environment.WebRoot
 
 app.Use(async (context, next) =>
 {
+
+    app.Logger.LogInformation($"Request path: {context.Request.Path}");
+    app.Logger.LogInformation($"Request method: {context.Request.Method}");
+    app.Logger.LogInformation("Headers:");
+    app.Logger.LogInformation(JsonSerializer.Serialize(context.Request.Headers));
     context.Request.EnableBuffering();
     await next();
 });

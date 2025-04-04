@@ -10,7 +10,7 @@ RUN npm install
 COPY . .
 RUN npm run build:azure
 
-FROM node:22.14.0 AS run
+FROM node:22.14.0 AS azure
 # Install .NET SDK
 RUN apt-get update && \
     apt-get install -y apt-transport-https && \
