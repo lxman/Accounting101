@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import {HttpClient, HttpHeaders} from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { UserDataService } from '../../services/user-data/user-data.service';
@@ -57,6 +57,21 @@ export class AccountsClient {
     return this.client.post<string>(
       `${this.globals.baseServerUrl}/accounts/${this.userDataService.get(this.globals.userIdKey)}/${this.userDataService.get(this.globals.clientIdKey)}/transactions`,
       transaction,
+      { withCredentials: true })
+      .pipe(catchError(this.handleError));
+  }
+
+  updateTransaction(transaction: TransactionModel): Observable<string> {
+    return this.client.put<string>(
+      `${this.globals.baseServerUrl}/accounts/${this.userDataService.get(this.globals.userIdKey)}/${this.userDataService.get(this.globals.clientIdKey)}/transactions`,
+      transaction,
+      { withCredentials: true })
+      .pipe(catchError(this.handleError));
+  }
+
+  deleteTransaction(transactionId: string): Observable<boolean> {
+    return this.client.delete<boolean>(
+      `${this.globals.baseServerUrl}/accounts/${this.userDataService.get(this.globals.userIdKey)}/${this.userDataService.get(this.globals.clientIdKey)}/transactions/${transactionId}`,
       { withCredentials: true })
       .pipe(catchError(this.handleError));
   }

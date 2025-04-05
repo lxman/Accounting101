@@ -22,12 +22,13 @@ html {
 }
 
 menu {
-  background-color: lightgray;
+  background-color: var(--mat-sys-surface-container);
 }
 
 :root {
   @include mat.menu-overrides((
-    container-color: lightgray
+    container-color: var(--mat-sys-surface-container),
+    item-label-text-color: var(--mat-sys-on-surface)
   ));
   @include mat.card-overrides((
     // Color

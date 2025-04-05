@@ -25,8 +25,8 @@ public class AccountService : IAccountService
 
         DateTime whenValue = DateTime.Parse(jsonNode["when"]?.GetValue<string>() ?? string.Empty);
         DateOnly when = DateOnly.FromDateTime(whenValue);
-        string creditedAccountId = jsonNode["creditAccountId"]?.GetValue<string>() ?? string.Empty;
-        string debitedAccountId = jsonNode["debitAccountId"]?.GetValue<string>() ?? string.Empty;
+        string creditedAccountId = jsonNode["creditedAccountId"]?.GetValue<string>() ?? string.Empty;
+        string debitedAccountId = jsonNode["debitedAccountId"]?.GetValue<string>() ?? string.Empty;
         decimal amount = decimal.Parse(jsonNode["amount"]?.GetValue<string>() ?? string.Empty);
         return new OkObjectResult(await dataStore.CreateTransactionAsync(dbId.ToString(), clientId, new Transaction(creditedAccountId, debitedAccountId, amount, when)));
     }

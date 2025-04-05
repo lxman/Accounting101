@@ -1,4 +1,4 @@
-import {Component, inject, input, OnChanges, output, SimpleChanges} from '@angular/core';
+import {ChangeDetectorRef, Component, inject, input, OnChanges, output, SimpleChanges, ViewChild} from '@angular/core';
 import {TransactionModel} from '../../models/transaction.model';
 import {AccountsClient} from '../../clients/accounts-client/accounts-client.service';
 import {
@@ -22,6 +22,7 @@ import {TransactionDisplayLine} from '../../models/transaction-display-line.mode
 import {RouterLink} from '@angular/router';
 import {MessageService} from '../../services/message/message.service';
 import {Message} from '../../models/message.model';
+import {MatMenu, MatMenuContent, MatMenuItem, MatMenuTrigger} from '@angular/material/menu';
 
 @Component({
   selector: 'app-transaction-list',
@@ -40,59 +41,74 @@ import {Message} from '../../models/message.model';
     TypeSafeMatRowDef,
     NgIf,
     RouterLink,
-    NgClass
+    NgClass,
+    MatMenu,
+    MatMenuTrigger,
+    MatMenuContent,
+    MatMenuItem
   ],
   templateUrl: './transaction-list.component.html',
   styleUrl: './transaction-list.component.scss'
 })
 
 export class TransactionListComponent implements OnChanges{
+  @ViewChild(MatMenuTrigger) trigger!: MatMenuTrigger;
+  contextMenuPosition = { x: '0px', y: '0px' };
+
   readonly account = input.required<AccountModel>();
   readonly accounts = input.required<AccountModel[]>();
   readonly transactionsUpdated = input<boolean>();
   readonly linkWasClicked = output<string>();
   private readonly accountsManager = inject(AccountsClient);
   private messageService = inject(MessageService<TransactionModel>);
+  private changeDetector = inject(ChangeDetectorRef);
   private transactions: TransactionModel[] = [];
   data = new MatTableDataSource<TransactionDisplayLine>();
   columnsToDisplay = ['when', 'debit', 'credit', 'balance', 'otherAccount'];
 
   ngOnChanges(changes:SimpleChanges) {
     if (!changes['account'].firstChange || !changes['accounts'].firstChange) {
-      this.accountsManager.getTransactionsForAccount(this.account().id)
-        .subscribe(transactions => {
-          this.data.data = [];
-          this.transactions = transactions;
-          this.data.paginator = null;
-          const minDate = new Date(Math.min(...this.transactions.map(t => new Date(t.when).getTime())));
-          this.accountsManager.getBalanceOnDate(this.account().id, minDate).subscribe(startBalance => {
-            // sort transactions by date from oldest to newest
-            this.transactions.sort((a, b) => new Date(a.when).getTime() - new Date(b.when).getTime());
-            this.transactions.forEach(t => {
-              const balanceAfterTransaction = this.calculateBalanceAfterTransaction(startBalance, t);
-              const displayLine = new TransactionDisplayLine();
-              displayLine.id = t.id;
-              displayLine.when = t.when;
-              displayLine.debit = t.debitedAccountId === this.account().id ? t.amount : null;
-              displayLine.credit = t.creditedAccountId === this.account().id ? t.amount : null;
-              displayLine.balance = balanceAfterTransaction;
-              if (t.debitedAccountId !== this.account().id) {
-                const otherAccount = this.accounts().find(a => a.id === t.debitedAccountId);
-                if (otherAccount) {
-                  displayLine.otherAccount = otherAccount.info.coAId + " " + otherAccount.info.name;
-                }
-              } else {
-                const otherAccount = this.accounts().find(a => a.id === t.creditedAccountId);
-                if (otherAccount) {
-                  displayLine.otherAccount = otherAccount.info.coAId + " " + otherAccount.info.name;
-                }
+      this.initialize();
+    }
+  }
+
+  initialize() {
+    this.data.data = [];
+    this.transactions = [];
+    this.data.paginator = null;
+    this.accountsManager.getTransactionsForAccount(this.account().id)
+      .subscribe(transactions => {
+        this.data.data = [];
+        this.transactions = transactions;
+        this.data.paginator = null;
+        const minDate = new Date(Math.min(...this.transactions.map(t => new Date(t.when).getTime())));
+        this.accountsManager.getBalanceOnDate(this.account().id, minDate).subscribe(startBalance => {
+          // sort transactions by date from oldest to newest
+          this.transactions.sort((a, b) => new Date(a.when).getTime() - new Date(b.when).getTime());
+          this.transactions.forEach(t => {
+            const balanceAfterTransaction = this.calculateBalanceAfterTransaction(startBalance, t);
+            const displayLine = new TransactionDisplayLine();
+            displayLine.id = t.id;
+            displayLine.when = t.when;
+            displayLine.debit = t.debitedAccountId === this.account().id ? t.amount : null;
+            displayLine.credit = t.creditedAccountId === this.account().id ? t.amount : null;
+            displayLine.balance = balanceAfterTransaction;
+            if (t.debitedAccountId !== this.account().id) {
+              const otherAccount = this.accounts().find(a => a.id === t.debitedAccountId);
+              if (otherAccount) {
+                displayLine.otherAccount = otherAccount.info.coAId + " " + otherAccount.info.name;
               }
-              startBalance = balanceAfterTransaction;
-              this.data.data.push(displayLine);
-            });
+            } else {
+              const otherAccount = this.accounts().find(a => a.id === t.creditedAccountId);
+              if (otherAccount) {
+                displayLine.otherAccount = otherAccount.info.coAId + " " + otherAccount.info.name;
+              }
+            }
+            startBalance = balanceAfterTransaction;
+            this.data.data.push(displayLine);
           });
         });
-    }
+      });
   }
 
   calculateBalanceAfterTransaction(balanceBefore: number, t: TransactionModel): number {
@@ -117,7 +133,6 @@ export class TransactionListComponent implements OnChanges{
   }
 
   rowClicked($event: MouseEvent, element: TransactionDisplayLine) {
-    console.log($event);
     if ($event.button === 0) {
       // left click
       const dataElement = this.data.data.find(e => e.id === element.id);
@@ -137,5 +152,23 @@ export class TransactionListComponent implements OnChanges{
 
   onRightClick($event: MouseEvent, element: TransactionDisplayLine) {
     $event.preventDefault();
+    $event.stopPropagation();
+    this.contextMenuPosition.x = $event.clientX + 'px';
+    this.contextMenuPosition.y = $event.clientY + 'px';
+    this.trigger.menuData = {
+      x: $event.clientX,
+      y: $event.clientY,
+      item: element
+    }
+    this.trigger.openMenu();
+  }
+
+  onContextMenuDelete(element: TransactionDisplayLine) {
+    this.accountsManager.deleteTransaction(element.id).subscribe(success => {
+      if (success) {
+        this.initialize();
+        this.changeDetector.detectChanges();
+      }
+    });
   }
 }

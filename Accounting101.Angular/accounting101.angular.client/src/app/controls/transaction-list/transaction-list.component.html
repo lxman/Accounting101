@@ -27,5 +27,15 @@
         (click)="rowClicked($event, row)"
         (contextmenu)="onRightClick($event, row)"></tr>
   </table>
+  <div style="visibility: hidden; position: fixed;"
+       [style.left]="contextMenuPosition.x"
+       [style.top]="contextMenuPosition.y"
+       [matMenuTriggerFor]="popupMenu">
+  </div>
+  <mat-menu #popupMenu="matMenu">
+    <ng-template matMenuContent let-item="item">
+      <button mat-menu-item (click)="onContextMenuDelete(item)">Delete</button>
+    </ng-template>
+  </mat-menu>
 </div>
 <p *ngIf="data.data.length == 0">No transactions entered yet.</p>

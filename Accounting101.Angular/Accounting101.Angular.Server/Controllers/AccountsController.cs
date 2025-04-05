@@ -65,6 +65,19 @@ public class AccountsController(IDataStore dataStore, IAccountService accountSer
         account.Id = await dataStore.CreateAccountAsync(dbId.ToString(), account);
         return Ok(account.Id);
     }
+
+    [HttpPut("{dbId:guid}/{clientId}/transactions")]
+    public async Task<ActionResult<bool>> UpdateTransactionAsync(Guid dbId, string clientId, [FromBody] Transaction transaction)
+    {
+        return await dataStore.UpdateTransactionAsync(dbId.ToString(), transaction);
+    }
+
+    [HttpDelete("{dbId:guid}/{clientId}/transactions/{transactionId:guid}")]
+    public async Task<ActionResult<bool>> DeleteTransactionAsync(Guid dbId, string clientId, Guid transactionId)
+    {
+        bool result = await dataStore.DeleteTransactionAsync(dbId.ToString(), transactionId);
+        return Ok(result);
+    }
 }
 
 public class DateTimeRequest
