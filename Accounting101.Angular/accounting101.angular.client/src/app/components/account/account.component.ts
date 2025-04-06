@@ -34,7 +34,6 @@ import {TransactionModel} from '../../models/transaction.model';
 
 export class AccountComponent implements OnInit, OnDestroy{
   private refreshSubscription!: Subscription;
-  updateTransactions = false;
   account: AccountModel = new AccountModel();
   private readonly refreshService = inject(RefreshService)
   private readonly globals = inject(GlobalConstantsService);
@@ -71,11 +70,6 @@ export class AccountComponent implements OnInit, OnDestroy{
     const destination = this.allAccounts.find(a => a.info.coAId + ' ' + a.info.name === destAccount)!;
     this.userDataService.set(this.globals.accountIdKey, destination.id);
     this.refreshService.refresh();
-  }
-
-  transactionsUpdated() {
-    this.updateTransactions = true;
-    this.updateTransactions = false;
   }
 
   ngOnDestroy() {

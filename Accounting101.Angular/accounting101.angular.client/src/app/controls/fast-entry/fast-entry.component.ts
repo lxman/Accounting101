@@ -1,4 +1,4 @@
-import {Component, inject, input, OnChanges, OnDestroy, output, SimpleChanges} from '@angular/core';
+import {Component, inject, input, OnChanges, OnDestroy, SimpleChanges} from '@angular/core';
 import {MatNativeDateModule, MatOption} from '@angular/material/core';
 import {MatFormField, MatHint, MatLabel} from '@angular/material/form-field';
 import {FormControl, FormGroup, ReactiveFormsModule, Validators} from '@angular/forms';
@@ -40,22 +40,37 @@ import {MatSelect} from '@angular/material/select';
 
 export class FastEntryComponent implements OnChanges, OnDestroy{
   private readonly accountService = inject(AccountsClient);
-  private readonly messageService = inject(MessageService<TransactionModel>);
+  private readonly messageService = inject(MessageService);
   accountId = input.required<string>();
   accounts = input.required<AccountModel[]>();
   editRow = input<TransactionModel>();
-  transactionUpdated = output();
+  private transactionId = '';
   readonly initialDate: Date = new Date();
   accts: string[] = [];
-  subscription = this.messageService.message$.subscribe((message: Message<TransactionModel>) => {
-    if (message.destination === 'app-fast-entry') {
+  txSubscription = this.messageService.message$.subscribe((message: Message<TransactionModel>) => {
+    if (message.type === 'TransactionModel' && message.destination === 'app-fast-entry') {
       const transaction = message.message;
+      this.transactionId = transaction.id;
       this.fastEntryGroup.patchValue({
         date: new Date(transaction.when + 'T00:00:00'),
         creditDebit: transaction.creditedAccountId === this.accountId() ? 'credit' : 'debit',
         amount: transaction.amount,
         otherAccount: this.accounts().find(acct => acct.id === (transaction.creditedAccountId === this.accountId() ? transaction.debitedAccountId : transaction.creditedAccountId))?.info.name
       });
+    }
+  });
+  editingSubscription = this.messageService.message$.subscribe((message: Message<boolean>) => {
+    if (message.type === 'boolean' && message.destination === 'app-fast-entry') {
+      if (message.message) {
+        this.updateTransaction();
+      } else if (!message.message) {
+        this.newTransaction();
+      }
+    }
+  });
+  clearSubscription = this.messageService.message$.subscribe((message: Message<string>) => {
+    if (message.type === 'string' && message.destination === 'app-fast-entry' && message.message === 'clear') {
+      this.fastEntryGroup.reset();
     }
   });
 
@@ -73,7 +88,34 @@ export class FastEntryComponent implements OnChanges, OnDestroy{
   }
 
   onSubmit() {
-    const tx = new TransactionModel();
+    if (!this.fastEntryGroup.valid) {
+      return;
+    }
+    const message = new Message<string>();
+    message.source = 'app-fast-entry';
+    message.destination = 'app-transaction-list';
+    message.message = 'editing?';
+    this.messageService.sendMessage(message);
+  }
+
+  newTransaction() {
+    let tx = new TransactionModel();
+    tx = this.buildTransaction(tx);
+    this.accountService.createTransaction(tx).subscribe(() => {
+      this.updateTransactionList();
+    });
+  }
+
+  updateTransaction() {
+    let tx = new TransactionModel();
+    tx.id = this.transactionId;
+    tx = this.buildTransaction(tx);
+    this.accountService.updateTransaction(tx).subscribe(() => {
+      this.updateTransactionList();
+    })
+  }
+
+  buildTransaction(tx: TransactionModel) {
     tx.when = this.fastEntryGroup.value.date?.toISOString().split("T")[0] ?? '';
     tx.amount = this.fastEntryGroup.value.amount as number;
     tx.creditedAccountId = this.fastEntryGroup.value.creditDebit === 'credit'
@@ -82,12 +124,21 @@ export class FastEntryComponent implements OnChanges, OnDestroy{
     tx.debitedAccountId = this.fastEntryGroup.value.creditDebit === 'debit'
       ? this.accountId()
       : this.accounts().find(acct => acct.info.name === this.fastEntryGroup.value.otherAccount)?.id ?? '';
-    this.accountService.createTransaction(tx).subscribe(() => {
-      this.transactionUpdated.emit();
-    });
+    return tx;
+  }
+
+  updateTransactionList() {
+    const message = new Message<string>();
+    message.source = 'app-fast-entry';
+    message.destination = 'app-transaction-list';
+    message.message = 'update';
+    message.type = 'string';
+    this.messageService.sendMessage(message);
   }
 
   ngOnDestroy() {
-    this.subscription.unsubscribe();
+    this.txSubscription.unsubscribe();
+    this.editingSubscription.unsubscribe();
+    this.clearSubscription.unsubscribe();
   }
 }

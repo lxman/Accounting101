@@ -7,11 +7,9 @@
     <app-transaction-list
       [account]="account"
       [accounts]="allAccounts"
-      (linkWasClicked)="linkClicked($event)"
-      [transactionsUpdated]="updateTransactions" />
+      (linkWasClicked)="linkClicked($event)" />
   </div>
   <app-fast-entry
     [accountId]="account.id"
-    [accounts]="filteredAccounts"
-    (transactionUpdated)="transactionsUpdated()" />
+    [accounts]="filteredAccounts" />
 </div>

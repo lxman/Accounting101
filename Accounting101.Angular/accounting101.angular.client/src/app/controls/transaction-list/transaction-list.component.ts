@@ -1,4 +1,14 @@
-import {ChangeDetectorRef, Component, inject, input, OnChanges, output, SimpleChanges, ViewChild} from '@angular/core';
+import {
+  ChangeDetectorRef,
+  Component,
+  inject,
+  input,
+  OnChanges,
+  OnDestroy,
+  output,
+  SimpleChanges,
+  ViewChild
+} from '@angular/core';
 import {TransactionModel} from '../../models/transaction.model';
 import {AccountsClient} from '../../clients/accounts-client/accounts-client.service';
 import {
@@ -51,16 +61,30 @@ import {MatMenu, MatMenuContent, MatMenuItem, MatMenuTrigger} from '@angular/mat
   styleUrl: './transaction-list.component.scss'
 })
 
-export class TransactionListComponent implements OnChanges{
+export class TransactionListComponent implements OnChanges, OnDestroy{
   @ViewChild(MatMenuTrigger) trigger!: MatMenuTrigger;
   contextMenuPosition = { x: '0px', y: '0px' };
 
   readonly account = input.required<AccountModel>();
   readonly accounts = input.required<AccountModel[]>();
-  readonly transactionsUpdated = input<boolean>();
   readonly linkWasClicked = output<string>();
   private readonly accountsManager = inject(AccountsClient);
-  private messageService = inject(MessageService<TransactionModel>);
+  private messageService = inject(MessageService);
+  subscription = this.messageService.message$.subscribe((message: Message<string>) => {
+    if (message.type === 'string' && message.destination === 'app-transaction-list') {
+      if (message.message === 'update') {
+        this.initialize();
+      }
+      if (message.message === 'editing?') {
+        const message = new Message<boolean>();
+        message.source = 'app-transaction-list';
+        message.destination = 'app-fast-entry';
+        message.type = 'TransactionDisplayLine';
+        message.message = this.data.data.some(e => e.selected);
+        this.messageService.sendMessage(message);
+      }
+    }
+  });
   private changeDetector = inject(ChangeDetectorRef);
   private transactions: TransactionModel[] = [];
   data = new MatTableDataSource<TransactionDisplayLine>();
@@ -138,6 +162,13 @@ export class TransactionListComponent implements OnChanges{
       const dataElement = this.data.data.find(e => e.id === element.id);
       if (dataElement?.selected) {
         dataElement.selected = false;
+        const message = new Message<string>();
+        message.source = 'app-transaction-list';
+        message.destination = 'app-fast-entry';
+        message.message = 'clear';
+        message.type = 'string';
+        this.messageService.sendMessage(message);
+        return;
       } else {
         this.data.data.forEach(e => e.selected = false);
         dataElement!.selected = true;
@@ -146,7 +177,9 @@ export class TransactionListComponent implements OnChanges{
       message.source = 'app-transaction-list';
       message.destination = 'app-fast-entry';
       message.message = this.transactions.find(t => t.id === element.id)!;
+      message.type = 'TransactionModel';
       this.messageService.sendMessage(message);
+      this.changeDetector.detectChanges();
     }
   }
 
@@ -170,5 +203,9 @@ export class TransactionListComponent implements OnChanges{
         this.changeDetector.detectChanges();
       }
     });
+  }
+
+  ngOnDestroy() {
+    this.subscription.unsubscribe();
   }
 }
