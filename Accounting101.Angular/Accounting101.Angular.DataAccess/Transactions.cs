@@ -89,9 +89,11 @@ public static class Transactions
 
     public static async Task<bool> UpdateTransactionAsync(this IDataStore store, string dbName, Transaction tx)
     {
-        bool? result = await store.UpdateOneGlobalScopeAsync(dbName, tx);
-        if (result.HasValue && result.Value) store.NotifyChange(typeof(Transaction), ChangeType.Updated);
-        return result.HasValue && result.Value;
+        bool? result = await store.DeleteOneGlobalScopeAsync<Transaction>(dbName, tx.Id);
+        if (!result.HasValue || !result.Value) return result.HasValue && result.Value;
+        await store.CreateOneGlobalScopeAsync(dbName, tx);
+        store.NotifyChange(typeof(Transaction), ChangeType.Updated);
+        return true;
     }
 
     public static async Task<bool> DeleteTransactionAsync(this IDataStore store, string dbName, Guid txId)

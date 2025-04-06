@@ -56,8 +56,8 @@ public class DatabaseTests
         Assert.NotEqual(idCredit, Guid.Empty);
         Guid idDebit = await store.CreateAccountAsync(DatabaseName, acctDebit, infoDebit);
         Assert.NotEqual(idDebit, Guid.Empty);
-        Transaction tx = new(idCredit, idDebit, 0, DateOnly.FromDateTime(DateTime.Now));
-        Guid txId = await store.CreateTransactionAsync(DatabaseName, tx);
+        Transaction tx = new(idCredit.ToString(), idDebit.ToString(), 0, DateOnly.FromDateTime(DateTime.Now));
+        Guid txId = await store.CreateTransactionAsync(DatabaseName, tx.Id.ToString(), tx);
         Assert.NotEqual(txId, Guid.Empty);
         await store.DropCollectionGlobalScopeAsync<Transaction>(DatabaseName, CollectionNames.Transaction);
         await store.DropCollectionGlobalScopeAsync<AccountInfo>(DatabaseName, CollectionNames.AccountInfo);
@@ -93,8 +93,8 @@ public class DatabaseTests
         Assert.NotEqual(nameId, Guid.Empty);
         Guid addressId = await store.CreateAddressAsync(DatabaseName, address);
         Assert.NotEqual(addressId, Guid.Empty);
-        c.PersonNameId = nameId;
-        c.AddressId = addressId;
+        c.PersonNameId = nameId.ToString();
+        c.AddressId = addressId.ToString();
         Guid clientId = await store.CreateClientAsync(DatabaseName, c);
         Assert.NotEqual(clientId, Guid.Empty);
         await store.DeleteOneGlobalScopeAsync<Client>(DatabaseName, clientId);

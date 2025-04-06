@@ -43,7 +43,8 @@
               {
                 "glob": "**/*",
                 "input": "public"
-              }
+              },
+              "src/web.config"
             ],
             "styles": [
               "node_modules/normalize.css/normalize.css",

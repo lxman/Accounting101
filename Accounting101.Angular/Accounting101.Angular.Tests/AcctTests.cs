@@ -64,7 +64,7 @@ public class AcctTests
             when = when.AddDays(1);
             AccountWithInfo? credAcct = accounts.Find(a => a.Info.Name == $"TestCredit{creditAcct}");
             AccountWithInfo? debAcct = accounts.Find(a => a.Info.Name == $"TestDebit{debitAcct}");
-            Transaction tx = new(credAcct?.Id ?? Guid.Empty, debAcct?.Id ?? Guid.Empty, _random.Next(-100, 100), when);
+            Transaction tx = new((credAcct?.Id ?? Guid.Empty).ToString(), (debAcct?.Id ?? Guid.Empty).ToString(), _random.Next(-100, 100), when);
             txs.Add(tx);
             if (txs.Count % 1000 == 0)
             {

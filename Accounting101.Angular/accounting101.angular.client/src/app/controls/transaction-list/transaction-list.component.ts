@@ -79,7 +79,7 @@ export class TransactionListComponent implements OnChanges, OnDestroy{
         const message = new Message<boolean>();
         message.source = 'app-transaction-list';
         message.destination = 'app-fast-entry';
-        message.type = 'TransactionDisplayLine';
+        message.type = 'boolean';
         message.message = this.data.data.some(e => e.selected);
         this.messageService.sendMessage(message);
       }
@@ -104,6 +104,9 @@ export class TransactionListComponent implements OnChanges, OnDestroy{
       .subscribe(transactions => {
         this.data.data = [];
         this.transactions = transactions;
+        if (this.transactions.length === 0) {
+          return;
+        }
         this.data.paginator = null;
         const minDate = new Date(Math.min(...this.transactions.map(t => new Date(t.when).getTime())));
         this.accountsManager.getBalanceOnDate(this.account().id, minDate).subscribe(startBalance => {

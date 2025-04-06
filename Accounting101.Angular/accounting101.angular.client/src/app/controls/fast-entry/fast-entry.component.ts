@@ -95,6 +95,7 @@ export class FastEntryComponent implements OnChanges, OnDestroy{
     message.source = 'app-fast-entry';
     message.destination = 'app-transaction-list';
     message.message = 'editing?';
+    message.type = 'string';
     this.messageService.sendMessage(message);
   }
 
