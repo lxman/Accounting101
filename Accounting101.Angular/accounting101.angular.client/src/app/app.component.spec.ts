@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
+import 'jasmine';
 import { MockBuilder } from 'ng-mocks';
-import { RouterTestingModule } from '@angular/router/testing';
 import { AppComponent } from './app.component';
 import { IdleService } from './services/idle/idle.service';
 
 describe('AppComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
-      imports: [RouterTestingModule, AppComponent]
+      imports: [AppComponent],
     });
     return MockBuilder(AppComponent).mock(IdleService);
   });

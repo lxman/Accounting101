@@ -1,4 +1,4 @@
-import {Component, inject, OnDestroy, OnInit, output} from '@angular/core';
+import {Component, inject, OnDestroy, OnInit} from '@angular/core';
 import {GlobalConstantsService} from '../../services/global-constants/global-constants.service';
 import {UserDataService} from '../../services/user-data/user-data.service';
 import {AccountHeaderComponent} from '../../controls/account-header/account-header.component';
@@ -14,8 +14,6 @@ import {AccountsClient} from '../../clients/accounts-client/accounts-client.serv
 import {AccountModel} from '../../models/account.model';
 import {RefreshService} from '../../services/refresh/refresh.service';
 import {Subscription} from 'rxjs';
-import {TransactionDisplayLine} from '../../models/transaction-display-line.model.cs';
-import {TransactionModel} from '../../models/transaction.model';
 
 @Component({
   selector: 'app-account',
