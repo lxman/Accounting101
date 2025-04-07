@@ -45,10 +45,12 @@ export class FastEntryComponent implements OnChanges, OnDestroy{
   accounts = input.required<AccountModel[]>();
   editRow = input<TransactionModel>();
   private transactionId = '';
+  buttonTitle = 'Create';
   readonly initialDate: Date = new Date();
   accts: string[] = [];
   txSubscription = this.messageService.message$.subscribe((message: Message<TransactionModel>) => {
     if (message.type === 'TransactionModel' && message.destination === 'app-fast-entry') {
+      this.buttonTitle = 'Update';
       const transaction = message.message;
       this.transactionId = transaction.id;
       this.fastEntryGroup.patchValue({
@@ -70,6 +72,7 @@ export class FastEntryComponent implements OnChanges, OnDestroy{
   });
   clearSubscription = this.messageService.message$.subscribe((message: Message<string>) => {
     if (message.type === 'string' && message.destination === 'app-fast-entry' && message.message === 'clear') {
+      this.buttonTitle = 'Create';
       this.fastEntryGroup.reset();
     }
   });

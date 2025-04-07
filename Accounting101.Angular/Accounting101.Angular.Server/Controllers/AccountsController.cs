@@ -2,7 +2,6 @@
 using Accounting101.Angular.DataAccess.AccountGroups;
 using Accounting101.Angular.DataAccess.Models;
 using Accounting101.Angular.DataAccess.Services.Interfaces;
-using Accounting101.Angular.Server.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,7 +10,7 @@ namespace Accounting101.Angular.Server.Controllers;
 [Authorize]
 [ApiController]
 [Route("[controller]")]
-public class AccountsController(IDataStore dataStore, IAccountService accountService, ILogger<AccountsController> logger) : ControllerBase
+public class AccountsController(IDataStore dataStore, ILogger<AccountsController> logger) : ControllerBase
 {
     [HttpGet("{dbId:guid}/{clientId}/exist")]
     public async Task<ActionResult<bool>> AccountsExistAsync(Guid dbId, string clientId)
@@ -47,9 +46,11 @@ public class AccountsController(IDataStore dataStore, IAccountService accountSer
     }
 
     [HttpPost("{dbId:guid}/{clientId}/transactions")]
-    public Task<ActionResult<Guid>> CreateTransactionAsync(Guid dbId, string clientId)
+    public async Task<ActionResult<Guid>> CreateTransactionAsync(Guid dbId, string clientId, [FromBody] Transaction? transaction)
     {
-        return accountService.CreateTransactionAsync(dbId, clientId, Request.Body, dataStore);
+        return transaction is not null
+            ? Ok(await dataStore.CreateTransactionAsync(dbId.ToString(), clientId, transaction))
+            : BadRequest();
     }
 
     [HttpPost("{dbId:guid}/{clientId}/layout")]
@@ -67,9 +68,11 @@ public class AccountsController(IDataStore dataStore, IAccountService accountSer
     }
 
     [HttpPut("{dbId:guid}/{clientId}/transactions")]
-    public async Task<ActionResult<bool>> UpdateTransactionAsync(Guid dbId, string clientId)
+    public async Task<ActionResult<bool>> UpdateTransactionAsync(Guid dbId, string clientId, [FromBody] Transaction? transaction)
     {
-        return await accountService.UpdateTransactionAsync(dbId, Request.Body, dataStore);
+        return transaction is not null
+            ? Ok(await dataStore.UpdateTransactionAsync(dbId.ToString(), transaction))
+            : BadRequest();
     }
 
     [HttpDelete("{dbId:guid}/{clientId}/transactions/{transactionId:guid}")]

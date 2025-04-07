@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Accounting101.Angular.DataAccess.Services;
 using Accounting101.Angular.DataAccess.Services.Interfaces;
+using Accounting101.Angular.Server.Converters;
 using Accounting101.Angular.Server.Identity;
 using Accounting101.Angular.Server.IdentityApiRouteBuilder;
 using Accounting101.Angular.Server.Services;
@@ -79,6 +80,8 @@ builder.Services.AddControllers()
     .AddJsonOptions(o =>
     {
         o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        o.JsonSerializerOptions.Converters.Add(new DateOnlyConverter());
+        o.JsonSerializerOptions.Converters.Add(new TransactionConverter());
         o.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -90,7 +93,6 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IBusinessService, BusinessService>();
 builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<IAddressService, AddressService>();
-builder.Services.AddScoped<IAccountService, AccountService>();
 builder.Services.AddScoped<ICoAService, CoAService>();
 
 WebApplication app = builder.Build();
