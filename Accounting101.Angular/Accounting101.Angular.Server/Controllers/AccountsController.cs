@@ -67,9 +67,9 @@ public class AccountsController(IDataStore dataStore, IAccountService accountSer
     }
 
     [HttpPut("{dbId:guid}/{clientId}/transactions")]
-    public async Task<ActionResult<bool>> UpdateTransactionAsync(Guid dbId, string clientId, [FromBody] Transaction transaction)
+    public async Task<ActionResult<bool>> UpdateTransactionAsync(Guid dbId, string clientId)
     {
-        return await dataStore.UpdateTransactionAsync(dbId.ToString(), transaction);
+        return await accountService.UpdateTransactionAsync(dbId, Request.Body, dataStore);
     }
 
     [HttpDelete("{dbId:guid}/{clientId}/transactions/{transactionId:guid}")]

@@ -86,6 +86,25 @@ namespace Accounting101.Angular.DataAccess.Extensions
             return result.IsAcknowledged;
         }
 
+        public static async Task<bool?> ReplaceOneGlobalScopeAsync<T>(this IDataStore store, string dbName, T item)
+            where T : IGlobalItem
+        {
+            FilterDefinition<T>? filter = Builders<T>.Filter.Eq(x => x.Id, item.Id);
+            ReplaceOneResult result = await store.GetCollection<T>(dbName, CollectionNames.GetCollectionName<T>())?.ReplaceOneAsync(filter, item)!;
+            if (result.IsAcknowledged) store.NotifyChange(typeof(T), ChangeType.Updated);
+            return result.IsAcknowledged;
+        }
+
+        public static async Task<bool?> ReplaceOneClientScopeAsync<T>(this IDataStore store, string dbName, T item)
+            where T : IClientItem
+        {
+            FilterDefinition<T>? filter = Builders<T>.Filter.Eq(x => x.ClientId, item.ClientId);
+            ReplaceOneResult result = await store.GetCollection<T>(dbName, CollectionNames.GetCollectionName<T>())
+                ?.ReplaceOneAsync(filter, item)!;
+            if (result.IsAcknowledged) store.NotifyChange(typeof(T), ChangeType.Updated);
+            return result.IsAcknowledged;
+        }
+
         public static async Task<bool?> DeleteOneGlobalScopeAsync<T>(this IDataStore store, string dbName, Guid id)
             where T : IGlobalItem
         {
