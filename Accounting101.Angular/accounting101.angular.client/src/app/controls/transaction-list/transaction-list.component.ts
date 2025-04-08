@@ -100,42 +100,39 @@ export class TransactionListComponent implements OnChanges, OnDestroy{
     this.data.data = [];
     this.transactions = [];
     this.data.paginator = null;
-    this.accountsManager.getTransactionsForAccount(this.account().id)
-      .subscribe(transactions => {
-        this.data.data = [];
-        this.transactions = transactions;
-        if (this.transactions.length === 0) {
-          return;
+    this.accountsManager.getTransactionsForAccount(this.account().id).subscribe(transactions => {
+      let startBalance = this.account().startBalance;
+      this.data.data = [];
+      this.transactions = transactions;
+      if (this.transactions.length === 0) {
+        return;
+      }
+      this.data.paginator = null;
+      // sort transactions by date from oldest to newest
+      this.transactions.sort((a, b) => new Date(a.when).getTime() - new Date(b.when).getTime());
+      this.transactions.forEach(t => {
+        const balanceAfterTransaction = this.calculateBalanceAfterTransaction(startBalance, t);
+        const displayLine = new TransactionDisplayLine();
+        displayLine.id = t.id;
+        displayLine.when = t.when;
+        displayLine.debit = t.debitedAccountId === this.account().id ? t.amount : null;
+        displayLine.credit = t.creditedAccountId === this.account().id ? t.amount : null;
+        displayLine.balance = balanceAfterTransaction;
+        if (t.debitedAccountId !== this.account().id) {
+          const otherAccount = this.accounts().find(a => a.id === t.debitedAccountId);
+          if (otherAccount) {
+            displayLine.otherAccount = otherAccount.info.coAId + " " + otherAccount.info.name;
+          }
+        } else {
+          const otherAccount = this.accounts().find(a => a.id === t.creditedAccountId);
+          if (otherAccount) {
+            displayLine.otherAccount = otherAccount.info.coAId + " " + otherAccount.info.name;
+          }
         }
-        this.data.paginator = null;
-        const minDate = new Date(Math.min(...this.transactions.map(t => new Date(t.when).getTime())));
-        this.accountsManager.getBalanceOnDate(this.account().id, minDate).subscribe(startBalance => {
-          // sort transactions by date from oldest to newest
-          this.transactions.sort((a, b) => new Date(a.when).getTime() - new Date(b.when).getTime());
-          this.transactions.forEach(t => {
-            const balanceAfterTransaction = this.calculateBalanceAfterTransaction(startBalance, t);
-            const displayLine = new TransactionDisplayLine();
-            displayLine.id = t.id;
-            displayLine.when = t.when;
-            displayLine.debit = t.debitedAccountId === this.account().id ? t.amount : null;
-            displayLine.credit = t.creditedAccountId === this.account().id ? t.amount : null;
-            displayLine.balance = balanceAfterTransaction;
-            if (t.debitedAccountId !== this.account().id) {
-              const otherAccount = this.accounts().find(a => a.id === t.debitedAccountId);
-              if (otherAccount) {
-                displayLine.otherAccount = otherAccount.info.coAId + " " + otherAccount.info.name;
-              }
-            } else {
-              const otherAccount = this.accounts().find(a => a.id === t.creditedAccountId);
-              if (otherAccount) {
-                displayLine.otherAccount = otherAccount.info.coAId + " " + otherAccount.info.name;
-              }
-            }
-            startBalance = balanceAfterTransaction;
-            this.data.data.push(displayLine);
-          });
-        });
+        startBalance = balanceAfterTransaction;
+        this.data.data.push(displayLine);
       });
+    });
   }
 
   calculateBalanceAfterTransaction(balanceBefore: number, t: TransactionModel): number {
