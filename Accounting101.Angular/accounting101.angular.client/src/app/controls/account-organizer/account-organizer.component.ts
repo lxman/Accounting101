@@ -106,6 +106,7 @@ export class AccountOrganizerComponent implements OnChanges{
     private changeDetectorRef: ChangeDetectorRef) {
   }
 
+  //#region Context Menu
   onContextMenu(event: MouseEvent, item: FolderNode) {
     event.preventDefault();
     event.stopPropagation();
@@ -181,6 +182,7 @@ export class AccountOrganizerComponent implements OnChanges{
       }
     })
   }
+  //#endregion
 
   accountClicked(id: string) {
     this.userData.set(this.globalConstants.accountIdKey, id);
@@ -197,6 +199,7 @@ export class AccountOrganizerComponent implements OnChanges{
     }
   }
 
+  //#region Drag and Drop
   prepareDragDrop(nodes: FolderNode[]) {
     nodes.forEach(node => {
       this.dropTargetIds.push(node.id);
@@ -228,45 +231,16 @@ export class AccountOrganizerComponent implements OnChanges{
     });
   }
 
-  private getBalances(searchNode: FolderNode = this.nodes[0] as FolderNode) {
-    searchNode.children.forEach(node => {
-      if (isAccount(node)) {
-        const account = this.accounts().find(a => a.id == (node as AccountNode).id);
-        if (account) {
-          this.accountsClient.getBalanceOnDate(account.id, new Date()).subscribe(balance => {
-            node.balance = balance;
-            if (node.balance != 0) {
-              this.propagateChange(node);
-            }
-            this.changeDetectorRef.detectChanges();
-          });
-        }
-      }
-      if (isFolder(node)) {
-        this.getBalances(node as FolderNode);
-      }
-    });
-  }
-
-  private propagateChange(node: NodeType) {
-    let container = this.getContainingFolder(node.id);
-    if (container?.at(0)) {
-      const folder = container[0];
-      if (folder) {
-        if ("balance" in node) {
-          folder.folderBalance += node.balance;
-        }
-        if ("folderBalance" in node) {
-          folder.folderBalance += node.folderBalance;
-        }
-        this.propagateChange(folder);
-      }
-    }
-  }
-
   @debounce(50)
   dragMoved(event: { pointerPosition: { x: number; y: number; }; }) {
-    const potentialDestinationContainer = this.document.elementFromPoint(event.pointerPosition.x, event.pointerPosition.y);
+    let potentialDestinationContainer = this.document.elementFromPoint(event.pointerPosition.x, event.pointerPosition.y) as HTMLElement;
+    if (!potentialDestinationContainer) {
+      this.clearDragInfo();
+      return;
+    }
+    if (potentialDestinationContainer.parentElement?.classList.contains("folder-node")) {
+      potentialDestinationContainer = potentialDestinationContainer.parentElement;
+    }
     const isFolder = potentialDestinationContainer?.classList.contains("folder-node");
     if (!potentialDestinationContainer) {
       this.clearDragInfo();
@@ -330,6 +304,7 @@ export class AccountOrganizerComponent implements OnChanges{
         destFolder.children.splice(index, 0, movedNode);
       }
       this.notifyLayoutChanged();
+      this.updateBalances();
     }
     finally {
       this.clearDragInfo(true);
@@ -384,6 +359,83 @@ export class AccountOrganizerComponent implements OnChanges{
       .forEach(element => element.classList.remove("drop-inside"));
   }
 
+  trackByFn(index: number, item: NodeType) {
+    return item.id;
+  }
+  //#endregion
+
+  //#region Initialize Balances
+  private getBalances(searchNode: FolderNode = this.nodes[0] as FolderNode): void {
+    const accountBalancePromises: Promise<void>[] = [];
+
+    searchNode.children.forEach(node => {
+      if (isAccount(node)) {
+        const account = this.accounts().find(a => a.id === (node as AccountNode).id);
+        if (account) {
+          const balancePromise = new Promise<void>((resolve) => {
+            this.accountsClient.getBalanceOnDate(account.id, new Date()).subscribe(balance => {
+              node.balance = balance;
+              this.propagateChange(node); // Update folder balances
+              resolve();
+            });
+          });
+          accountBalancePromises.push(balancePromise);
+        }
+      }
+
+      if (isFolder(node)) {
+        this.getBalances(node as FolderNode); // Recursively process folder children
+      }
+    });
+
+    // Wait for all account balances to be fetched before updating the UI
+    Promise.all(accountBalancePromises).then(() => {
+      this.changeDetectorRef.detectChanges();
+    });
+  }
+
+  private propagateChange(node: NodeType) {
+    let container = this.getContainingFolder(node.id);
+    if (container?.at(0)) {
+      const folder = container[0];
+      if (folder) {
+        if ("balance" in node) {
+          folder.folderBalance += node.balance;
+        }
+        if ("folderBalance" in node) {
+          folder.folderBalance += node.folderBalance;
+        }
+        this.propagateChange(folder);
+      }
+    }
+  }
+  //#endregion
+
+  //#region Update Balances
+  private recalculateBalances(node: FolderNode): number {
+    // Reset the folder balance
+    node.folderBalance = 0;
+
+    // Iterate through children to calculate the total balance
+    node.children.forEach(child => {
+      if (this.isAccount(child)) {
+        node.folderBalance += child.balance || 0; // Add account balance
+      } else if (this.isFolder(child)) {
+        node.folderBalance += this.recalculateBalances(child); // Recursively calculate folder balance
+      }
+    });
+
+    return node.folderBalance; // Return the calculated balance
+  }
+
+  // Call this method after any structural change
+  private updateBalances(): void {
+    this.recalculateBalances(this.rootNode); // Start from the root node
+    this.changeDetectorRef.detectChanges(); // Update the UI
+  }
+  //#endregion
+
+  //#region Helper Methods
   toAccountGroupModel(): AccountGroupModel {
     const accountGroupListItem = this.fromNodeType(this.rootNode);
     const accountGroupModel = new AccountGroupModel(this.groupName);
@@ -432,4 +484,5 @@ export class AccountOrganizerComponent implements OnChanges{
       return account;
     }
   }
+  //#endregion
 }
