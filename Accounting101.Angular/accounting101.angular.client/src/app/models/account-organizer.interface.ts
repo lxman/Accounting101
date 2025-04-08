@@ -19,12 +19,14 @@ export interface FolderNode {
   children: NodeType[];
   isExpanded: boolean;
   isDraggable: boolean;
+  folderBalance: number;
 }
 
 export interface AccountNode {
   type: string;
   id: string;
   name: string;
+  balance: number;
 }
 
 export interface DropInfo {

@@ -24,7 +24,7 @@ public static class CheckPoints
         for (var x = 0; x < accountsList.Count; x++)
         {
             AccountWithInfo a = accountsList.ElementAt(x);
-            decimal balance = await store.GetAccountBalanceOnDateAsync(dbName, a.Id.ToString(), date);
+            decimal balance = await store.GetAccountBalanceOnDateAsync(dbName, clientId, a.Id.ToString(), date);
             checkPoint.AccountCheckpoints.Add(new AccountCheckpoint(clientId, a.Id.ToString(), balance));
         }
 

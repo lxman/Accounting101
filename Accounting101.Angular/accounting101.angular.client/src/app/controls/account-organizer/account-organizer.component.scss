@@ -6,6 +6,21 @@
   cursor: cell;
 }
 
+.node-content {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.node-title-element {
+  align-self: flex-start;
+}
+
+.node-balance-element {
+  align-self: flex-end;
+  margin-bottom: 5px;
+}
+
 .node-text {
   margin-left: 10px;
   margin-top: 3px;

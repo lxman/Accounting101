@@ -14,24 +14,25 @@
              [style.top]="contextMenuPosition.y"
              [matMenuTriggerFor]="popupMenu">
         </div>
-        <span *ngIf="node.isExpanded">
-          <i class="material-icons">folder_open</i>
-          <span class="folder-text">{{ node.name }}</span>
-        </span>
-        <span *ngIf="!node.isExpanded">
-          <i class="material-icons">folder</i>
-          <span class="folder-text">{{ node.name }}</span>
-        </span>
+        <div class="node-content">
+          <span class="node-title-element">
+            <i *ngIf="node.isExpanded" class="material-icons">folder_open</i>
+            <i *ngIf="!node.isExpanded" class="material-icons">folder</i>
+            <span class="folder-text">{{ node.name }}</span>
+          </span>
+          <span class="node-balance-element">{{ node.folderBalance.toLocaleString('en-US', {style: 'currency', currency: 'USD'}) }}</span>
+        </div>
       </div>
       <div
         *ngIf="isAccount(node)"
         [id]="'node-' + node.id"
         [attr.data-id]="node.id"
-        [ngClass]="{'node-title': true, 'draggable-node': true}">
-        <button mat-stroked-button class="account-button" (click)="accountClicked(node.id)">
+        [ngClass]="{'node-content': true, 'node-title': true, 'draggable-node': true}">
+        <button mat-stroked-button class="account-button node-title-element" (click)="accountClicked(node.id)">
           <i class="material-icons">account_balance</i>
           <span class="node-text">{{ node.name }}</span>
         </button>
+        <span class="node-balance-element">{{ node.balance.toLocaleString('en-US', {style: 'currency', currency: 'USD'}) }}</span>
       </div>
       <mat-menu #popupMenu="matMenu">
         <ng-template matMenuContent let-item="item">

@@ -56,10 +56,9 @@ public static class Accounts
         store.NotifyChange(typeof(Accounts), ChangeType.Created);
     }
 
-    public static async Task<AccountWithEverything?> GetAccountWithEverythingAsync(this IDataStore store, string dbName,
-        string accountId)
+    public static async Task<AccountWithEverything?> GetAccountWithEverythingAsync(this IDataStore store, string dbName, string clientId, string accountId)
     {
-        AccountWithInfo? acct = await store.GetAccountWithInfoAsync(dbName, accountId);
+        AccountWithInfo? acct = await store.GetAccountWithInfoByIdAsync(dbName, clientId, accountId);
         if (acct is null) return null;
         List<Transaction> transactions = store.TransactionsForAccount(dbName, acct.Id.ToString()).OrderBy(t => t.When).ToList() ?? [];
         CheckPoint? checkPoint = await store.GetCheckpointAsync(dbName, acct.Id.ToString());
@@ -134,18 +133,18 @@ public static class Accounts
         return balance;
     }
 
-    public static async Task<decimal> GetAccountBalanceOnDateAsync(this IDataStore store, string dbName, string accountId, DateOnly date)
+    public static async Task<decimal> GetAccountBalanceOnDateAsync(this IDataStore store, string dbName, string clientId, string accountId, DateOnly date)
     {
-        AccountWithInfo? acct = await store.GetAccountWithInfoAsync(dbName, accountId);
+        AccountWithInfo? acct = await store.GetAccountWithInfoByIdAsync(dbName, clientId, accountId);
         if (acct is null || acct.Created > date) return 0;
         List<Transaction> transactions = store.TransactionsForAccount(dbName, acct.Id.ToString());
         List<Transaction> inDate = transactions.Where(t => t.When <= date).ToList();
         return BalanceCalculator.Calculate(acct, inDate);
     }
 
-    public static async Task<AccountWithInfo?> GetAccountWithInfoAsync(this IDataStore store, string dbName, string accountId)
+    public static async Task<AccountWithInfo?> GetAccountWithInfoByIdAsync(this IDataStore store, string dbName, string clientId, string accountId)
     {
-        Account? acct = (await store.GetAllClientScopeAsync<Account>(dbName, accountId))!.FirstOrDefault();
+        Account? acct = (await store.GetAllClientScopeAsync<Account>(dbName, clientId))!.FirstOrDefault(acct => acct.Id == Guid.Parse((ReadOnlySpan<char>)accountId));
         if (acct is null) return null;
         AccountInfo? info = (await store.GetAllGlobalScopeAsync<AccountInfo>(dbName))!.FirstOrDefault(a => a.Id == Guid.Parse((ReadOnlySpan<char>)acct.InfoId));
         return info is null

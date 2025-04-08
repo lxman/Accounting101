@@ -19,6 +19,7 @@ import {MatButtonModule} from '@angular/material/button';
 import {MatDialog} from '@angular/material/dialog';
 import {CommonModule, DOCUMENT, NgForOf, NgTemplateOutlet} from '@angular/common';
 import {
+  AccountNode,
   DropInfo,
   FolderNode,
   isAccount,
@@ -39,6 +40,7 @@ import {AccountGroupListItem} from '../../models/account-group-list-item';
 import {Router} from '@angular/router';
 import {GlobalConstantsService} from '../../services/global-constants/global-constants.service';
 import {UserDataService} from '../../services/user-data/user-data.service';
+import {AccountsClient} from '../../clients/accounts-client/accounts-client.service';
 
 @Component({
   selector: 'app-account-organizer',
@@ -72,6 +74,7 @@ export class AccountOrganizerComponent implements OnChanges{
   private readonly deleteFolderConfirmDialog = inject(MatDialog);
   private readonly globalConstants: GlobalConstantsService = inject(GlobalConstantsService);
   private readonly userData: UserDataService = inject(UserDataService);
+  private readonly accountsClient: AccountsClient = inject(AccountsClient);
   private readonly router: Router = inject(Router);
   protected readonly isFolder = isFolder;
   protected readonly isAccount = isAccount;
@@ -86,7 +89,8 @@ export class AccountOrganizerComponent implements OnChanges{
     id: uuidv7(),
     isDraggable: false,
     children: new Array<NodeType>(),
-    isExpanded: false
+    isExpanded: false,
+    folderBalance: 0
   }
 
   dropTargetIds: string[] = [];
@@ -128,7 +132,8 @@ export class AccountOrganizerComponent implements OnChanges{
           id: uuidv7(),
           isDraggable: true,
           children: new Array<NodeType>(),
-          isExpanded: false
+          isExpanded: false,
+          folderBalance: 0
         }
         item.children.push(newFolder);
         item.isExpanded = true;
@@ -187,6 +192,9 @@ export class AccountOrganizerComponent implements OnChanges{
       this.buildTree();
       this.prepareDragDrop(this.nodes.filter(n => n.type == 'folder') as FolderNode[]);
     }
+    if (this.nodes.length > 0) {
+      this.getBalances();
+    }
   }
 
   prepareDragDrop(nodes: FolderNode[]) {
@@ -205,7 +213,8 @@ export class AccountOrganizerComponent implements OnChanges{
       id: layoutGroup.id,
       isDraggable: false,
       children: new Array<NodeType>(),
-      isExpanded: false
+      isExpanded: false,
+      folderBalance: 0
     }
     this.nodes.push(this.rootNode);
     if ((layoutGroup.items) || (accounts)) {
@@ -217,6 +226,42 @@ export class AccountOrganizerComponent implements OnChanges{
     group.items?.forEach(item => {
       parent.children.push(this.toNodeType(item));
     });
+  }
+
+  private getBalances(searchNode: FolderNode = this.nodes[0] as FolderNode) {
+    searchNode.children.forEach(node => {
+      if (isAccount(node)) {
+        const account = this.accounts().find(a => a.id == (node as AccountNode).id);
+        if (account) {
+          this.accountsClient.getBalanceOnDate(account.id, new Date()).subscribe(balance => {
+            node.balance = balance;
+            if (node.balance != 0) {
+              this.propagateChange(node);
+            }
+            this.changeDetectorRef.detectChanges();
+          });
+        }
+      }
+      if (isFolder(node)) {
+        this.getBalances(node as FolderNode);
+      }
+    });
+  }
+
+  private propagateChange(node: NodeType) {
+    let container = this.getContainingFolder(node.id);
+    if (container?.at(0)) {
+      const folder = container[0];
+      if (folder) {
+        if ("balance" in node) {
+          folder.folderBalance += node.balance;
+        }
+        if ("folderBalance" in node) {
+          folder.folderBalance += node.folderBalance;
+        }
+        this.propagateChange(folder);
+      }
+    }
   }
 
   @debounce(50)
@@ -356,14 +401,16 @@ export class AccountOrganizerComponent implements OnChanges{
           type: 'folder',
           children: item.accountGroup!.items.map((child) => this.toNodeType(child)),
           isDraggable: true,
-          isExpanded: false
+          isExpanded: false,
+          folderBalance: 0
         };
       case AccountGroupListItemType.account:
         const account = this.accounts().find(a => a.id == item.accountId);
         return {
           id: item.accountId!,
           name: account?.info?.name ?? '',
-          type: 'account'
+          type: 'account',
+          balance: 0
         };
     }
   }

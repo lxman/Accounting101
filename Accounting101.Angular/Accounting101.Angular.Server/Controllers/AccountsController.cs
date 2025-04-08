@@ -39,10 +39,10 @@ public class AccountsController(IDataStore dataStore, ILogger<AccountsController
         return Ok(dataStore.TransactionsForAccount(dbId.ToString(), accountId));
     }
 
-    [HttpPost("{dbId:guid}/{accountId}/balance")]
-    public async Task<ActionResult<decimal>> GetAccountBalanceOnDateAsync(Guid dbId, string accountId, [FromBody] DateTimeRequest date)
+    [HttpPost("{dbId:guid}/{clientId}/{accountId}/balance")]
+    public async Task<ActionResult<decimal>> GetAccountBalanceOnDateAsync(Guid dbId, string clientId, string accountId, [FromBody] DateTimeRequest date)
     {
-        return Ok(await dataStore.GetAccountBalanceOnDateAsync(dbId.ToString(), accountId, DateOnly.FromDateTime(DateTime.Parse(date.Date))));
+        return Ok(await dataStore.GetAccountBalanceOnDateAsync(dbId.ToString(), clientId, accountId, DateOnly.FromDateTime(DateTime.Parse(date.Date))));
     }
 
     [HttpPost("{dbId:guid}/{clientId}/transactions")]

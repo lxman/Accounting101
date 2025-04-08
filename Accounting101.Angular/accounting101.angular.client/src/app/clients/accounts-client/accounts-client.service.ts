@@ -47,7 +47,7 @@ export class AccountsClient {
 
   getBalanceOnDate(accountId: string, date: Date): Observable<number> {
     return this.client.post<number>(
-      `${this.globals.baseServerUrl}/accounts/${this.userDataService.get(this.globals.userIdKey)}/${accountId}/balance`,
+      `${this.globals.baseServerUrl}/accounts/${this.userDataService.get(this.globals.userIdKey)}/${this.userDataService.get(this.globals.clientIdKey)}/${accountId}/balance`,
       { date: date.toISOString() },
       { withCredentials: true })
       .pipe(catchError(this.handleError));

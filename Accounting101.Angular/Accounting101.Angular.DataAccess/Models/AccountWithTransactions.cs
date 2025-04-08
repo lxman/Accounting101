@@ -14,11 +14,11 @@ public class AccountWithTransactions : AccountWithInfo
 {
     public List<Transaction> Transactions { get; }
 
-    public AccountWithTransactions(IDataStore dataStore, string dbName, JoinableTaskFactory taskFactory, Guid accountId)
+    public AccountWithTransactions(IDataStore dataStore, string dbName, string clientId, JoinableTaskFactory taskFactory, Guid accountId)
     {
         Id = accountId;
         Info = new AccountInfo();
-        AccountWithInfo? accountWithInfo = taskFactory.Run(() => dataStore.GetAccountWithInfoAsync(dbName, accountId.ToString()));
+        AccountWithInfo? accountWithInfo = taskFactory.Run(() => dataStore.GetAccountWithInfoByIdAsync(dbName, clientId, accountId.ToString()));
         if (accountWithInfo is null) return;
         Info.Name = accountWithInfo.Info.Name;
         Info.CoAId = accountWithInfo.Info.CoAId;
