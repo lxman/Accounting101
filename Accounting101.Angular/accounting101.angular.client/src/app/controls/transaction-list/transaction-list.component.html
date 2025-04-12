@@ -6,15 +6,24 @@
     </ng-container>
     <ng-container matColumnDef="debit">
       <th mat-header-cell class="right-aligned-header" *matHeaderCellDef>Debit</th>
-      <td mat-cell class="mat-column-right" *matCellDef="let element; table: table">{{element.debit ? element.debit.toLocaleString('en-US', {style: 'currency', currency: 'USD'}) : ''}}</td>
+      <td mat-cell class="mat-column-right"
+          *matCellDef="let element; table: table">
+        {{element.debit ? element.debit.toLocaleString('en-US', {style: 'currency', currency: 'USD', currencySign: 'accounting'}) : ''}}
+      </td>
     </ng-container>
     <ng-container matColumnDef="credit">
       <th mat-header-cell class="right-aligned-header" *matHeaderCellDef>Credit</th>
-      <td mat-cell class="mat-column-right" *matCellDef="let element; table: table">{{element.credit ? element.credit.toLocaleString('en-US', {style: 'currency', currency: 'USD'}) : ''}}</td>
+      <td mat-cell class="mat-column-right"
+          *matCellDef="let element; table: table">
+        {{element.credit ? element.credit.toLocaleString('en-US', {style: 'currency', currency: 'USD', currencySign: 'accounting'}) : ''}}
+      </td>
     </ng-container>
     <ng-container matColumnDef="balance">
       <th mat-header-cell class="right-aligned-header" *matHeaderCellDef>Balance</th>
-      <td mat-cell class="mat-column-right" *matCellDef="let element; table: table">{{element.balance.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}}</td>
+      <td mat-cell class="mat-column-right"
+          *matCellDef="let element; table: table">
+        {{element.balance.toLocaleString('en-US', {style: 'currency', currency: 'USD', currencySign: 'accounting'})}}
+      </td>
     </ng-container>
     <ng-container matColumnDef="otherAccount">
       <th mat-header-cell class="right-aligned-header" *matHeaderCellDef>Other Account</th>

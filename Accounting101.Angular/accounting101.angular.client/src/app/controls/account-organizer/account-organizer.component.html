@@ -20,7 +20,7 @@
             <i *ngIf="!node.isExpanded" class="material-icons">folder</i>
             <span class="folder-text">{{ node.name }}</span>
           </span>
-          <span class="node-balance-element">{{ node.folderBalance.toLocaleString('en-US', {style: 'currency', currency: 'USD'}) }}</span>
+          <span class="node-balance-element">{{ node.folderBalance.toLocaleString('en-US', {style: 'currency', currency: 'USD', currencySign: 'accounting'}) }}</span>
         </div>
       </div>
       <div
@@ -32,7 +32,7 @@
           <i class="material-icons">account_balance</i>
           <span class="node-text">{{ node.name }}</span>
         </button>
-        <span class="node-balance-element">{{ node.balance.toLocaleString('en-US', {style: 'currency', currency: 'USD'}) }}</span>
+        <span class="node-balance-element">{{ node.balance.toLocaleString('en-US', {style: 'currency', currency: 'USD', currencySign: 'accounting'}) }}</span>
       </div>
       <mat-menu #popupMenu="matMenu">
         <ng-template matMenuContent let-item="item">

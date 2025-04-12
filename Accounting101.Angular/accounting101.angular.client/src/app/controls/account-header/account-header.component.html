@@ -7,6 +7,6 @@
     <p *ngIf="account.isDebitAccount" class="type">Debit Account</p>
     <p *ngIf="!account.isDebitAccount" class="type">Credit Account</p>
     <p class="created-on">Created on: {{ account.created.toLocaleString() }}</p>
-    <p class="open-balance">Opening balance: {{ account.startBalance.toLocaleString("en-US", { style: "currency", currency: "USD" }) }}</p>
+    <p class="open-balance">Opening balance: {{ account.startBalance.toLocaleString("en-US", { style: "currency", currency: "USD", currencySign: 'accounting' }) }}</p>
   </mat-card-content>
 </mat-card>
