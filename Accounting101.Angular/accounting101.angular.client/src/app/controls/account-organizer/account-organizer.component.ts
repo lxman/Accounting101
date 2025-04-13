@@ -164,15 +164,14 @@ export class AccountOrganizerComponent implements OnChanges{
     });
     dialogRef.afterClosed().subscribe(result => {
       if (result) {
-        const container = this.getContainingFolder(item.id);
+        const container = this.getContainingFolder(item.id, this.nodes);
         if (item.children.length == 0) {
           if (container) {
             container[0].children.splice(container[1], 1);
             this.changeDetectorRef.detectChanges();
             this.notifyLayoutChanged();
           }
-        }
-        else {
+        } else {
           const children = item.children.splice(0, item.children.length);
           container?.[0].children.splice(container[1], 1);
           container?.[0].children.push(...children);
@@ -294,7 +293,7 @@ export class AccountOrganizerComponent implements OnChanges{
 
       // Dropping before or after a folder or account
       if (this.dropActionTodo.action == 'before' || this.dropActionTodo.action == 'after') {
-        const targetFolder = this.getContainingFolder(target.id);
+        const targetFolder = this.getContainingFolder(target.id, this.nodes);
         if (!targetFolder) {
           console.log("target folder not found");
           return;
@@ -328,10 +327,14 @@ export class AccountOrganizerComponent implements OnChanges{
     return null;
   }
 
-  getContainingFolder(id: string): [FolderNode, number] | null {
-    for (let node of this.nodes) {
+  getContainingFolder(id: string, nodes: NodeType[]): [FolderNode, number] | null {
+    for (let node of nodes) {
       if (isFolder(node) && node.children.findIndex(c => c.id == id) > -1) {
         return [node as FolderNode, node.children.findIndex(c => c.id == id)];
+      }
+      if (isFolder(node)) {
+        let ret = this.getContainingFolder(id, node.children);
+        if (ret) return ret;
       }
     }
     return null;
@@ -395,7 +398,7 @@ export class AccountOrganizerComponent implements OnChanges{
   }
 
   private propagateChange(node: NodeType) {
-    let container = this.getContainingFolder(node.id);
+    let container = this.getContainingFolder(node.id, this.nodes);
     if (container?.at(0)) {
       const folder = container[0];
       if (folder) {

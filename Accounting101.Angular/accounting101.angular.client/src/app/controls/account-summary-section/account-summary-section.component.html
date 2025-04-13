@@ -1,0 +1,55 @@
+<div class="account-summary-section">
+  <h2 class="section-title">{{title}}</h2>
+
+  <!-- Simple view just shows the total -->
+  <div *ngIf="!showDetails" class="summary-view">
+    <div class="total-row">
+      <span class="total-label">Total:</span>
+      <span class="total-amount">{{totalBalance.toLocaleString('en-US', {style: 'currency', currency: 'USD', currencySign: 'accounting'})}}</span>
+    </div>
+  </div>
+
+  <!-- Detailed view shows the hierarchy -->
+  <div *ngIf="showDetails && accountGroup" class="detailed-view">
+    <mat-expansion-panel [expanded]="expanded">
+      <mat-expansion-panel-header>
+        <mat-panel-title>{{accountGroup.name}}</mat-panel-title>
+        <mat-panel-description class="balance-value">
+          {{totalBalance.toLocaleString('en-US', {style: 'currency', currency: 'USD', currencySign: 'accounting'})}}
+        </mat-panel-description>
+      </mat-expansion-panel-header>
+
+      <!-- List direct accounts -->
+      <div *ngIf="accountGroup.accounts?.length" class="account-list">
+        <div *ngFor="let accountId of accountGroup.accounts" class="account-row">
+          <span class="account-name">{{getAccountName(accountId)}}</span>
+          <span class="account-balance">
+            {{getAccountBalance(accountId).toLocaleString('en-US', {style: 'currency', currency: 'USD', currencySign: 'accounting'})}}
+          </span>
+        </div>
+      </div>
+
+      <!-- List child groups -->
+      <div *ngIf="accountGroup.children?.length" class="subgroup-list">
+        <div *ngFor="let childGroup of accountGroup.children" class="subgroup">
+          <div class="subgroup-header">
+            <span class="subgroup-name">{{childGroup.name}}</span>
+            <span class="subgroup-total">
+              {{calculateGroupTotal(childGroup).toLocaleString('en-US', {style: 'currency', currency: 'USD', currencySign: 'accounting'})}}
+            </span>
+          </div>
+
+          <!-- Child accounts -->
+          <div *ngIf="childGroup.accounts?.length" class="nested-accounts">
+            <div *ngFor="let accountId of childGroup.accounts" class="account-row">
+              <span class="account-name">{{getAccountName(accountId)}}</span>
+              <span class="account-balance">
+                {{getAccountBalance(accountId).toLocaleString('en-US', {style: 'currency', currency: 'USD', currencySign: 'accounting'})}}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </mat-expansion-panel>
+  </div>
+</div>

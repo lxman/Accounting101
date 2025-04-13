@@ -1,0 +1,60 @@
+.account-summary-section {
+  margin-bottom: 24px;
+
+  .section-title {
+    font-size: 1.5rem;
+    font-weight: 500;
+    margin-bottom: 16px;
+  }
+
+  .summary-view .total-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    font-weight: bold;
+
+    .total-amount {
+      font-size: 1.1rem;
+    }
+  }
+
+  .detailed-view {
+    .balance-value {
+      justify-content: flex-end;
+    }
+
+    .account-list, .subgroup-list {
+      margin: 8px 0;
+    }
+
+    .account-row, .subgroup-header {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-bottom: 1px solid #eee;
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+
+    .subgroup {
+      margin: 12px 0;
+
+      .subgroup-header {
+        font-weight: 500;
+        background-color: #f9f9f9;
+      }
+
+      .nested-accounts {
+        margin-left: 16px;
+      }
+    }
+
+    .account-balance, .subgroup-total {
+      text-align: right;
+    }
+  }
+}

@@ -26,6 +26,16 @@ menu {
 }
 
 :root {
+  --dialog-background: #fff;
+  --dialog-title-color: #333;
+  --dialog-content-color: #555;
+  --dialog-button-color: #666;
+  --dialog-form-label-color: #666;
+  --dialog-form-border-color: rgba(0, 0, 0, 0.12);
+  --dialog-placeholder-color: rgba(0, 0, 0, 0.42);
+  --dialog-icon-color: rgba(0, 0, 0, 0.54);
+  --dialog-input-color: #333;
+
   @include mat.menu-overrides((
     container-color: var(--mat-sys-surface-container),
     item-label-text-color: var(--mat-sys-on-surface)
@@ -106,4 +116,67 @@ menu {
   flex-shrink: 0;
   max-width: 10vw !important;
   min-width: 10vw !important;
+}
+
+.mat-mdc-dialog-container {
+  --mdc-dialog-container-color: var(--dialog-background) !important;
+
+  .mat-mdc-form-field-label {
+    color: var(--dialog-form-label-color) !important;
+  }
+
+  .mdc-notched-outline__leading,
+  .mdc-notched-outline__notch,
+  .mdc-notched-outline__trailing {
+    border-color: var(--dialog-form-border-color) !important;
+  }
+
+  ::placeholder {
+    color: var(--dialog-placeholder-color) !important;
+    opacity: 1;
+  }
+
+  .mat-mdc-select-arrow {
+    color: var(--dialog-icon-color) !important;
+  }
+
+  .mat-mdc-input-element {
+    caret-color: var(--dialog-input-color) !important;
+    &::placeholder {
+      color: var(--dialog-placedolder-color) !important;
+    }
+  }
+
+  .mdc-dialog__container,
+  .mdc-dialog__surface {
+    background-color: var(--dialog-background) !important;
+  }
+
+  .mdc-dialog__surface-scrim {
+    background-color: transparent !important;
+  }
+
+  .mat-mdc-dialog-title {
+    color: var(--dialog-title-color) !important;
+  }
+
+  .mat-mdc-dialog-content {
+    color: var(--dialog-content-color) !important;
+  }
+
+  .mat-mdc-dialog-actions {
+    .mat-mdc-button-base {
+      &:not(.mat-primary):not(.mat-accent):not(.mat-warn) {
+        color: var(--dialog-button-color) !important;
+      }
+    }
+  }
+
+  .mat-mdc-form-field {
+    .mat-mdc-input-element,
+    .mat-mdc-select-value-text,
+    .mat-mdc-form-field-label {
+      color: var(--dialog-input-color) !important;
+    }
+  }
 }
