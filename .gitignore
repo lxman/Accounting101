@@ -363,8 +363,8 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # SASS generated files
-*.css
-*.css.map
+.css
+.css.map
 /DbInfo
 Accounting101.Angular/.vscode/settings.json
 /Accounting101.Angular/Accounting101.Angular.Server/Properties/ServiceDependencies/accounting101 - Web Deploy

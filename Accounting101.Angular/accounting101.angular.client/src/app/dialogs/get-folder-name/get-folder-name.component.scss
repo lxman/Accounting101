@@ -1,0 +1,26 @@
+@use '@angular/material' as mat;
+
+:host {
+  display: block;
+}
+
+mat-dialog-content {
+  min-width: 300px;
+
+  p {
+    margin-bottom: var(--md-sys-spacing-medium);
+  }
+
+  mat-form-field {
+    width: 100%;
+  }
+}
+
+mat-dialog-actions {
+  justify-content: flex-end;
+  padding: var(--md-sys-spacing-medium);
+  gap: var(--md-sys-spacing-small);
+
+  button {
+  }
+}

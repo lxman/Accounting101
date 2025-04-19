@@ -1,182 +1,356 @@
 @use '@angular/material' as mat;
+@use 'sass:map';
 
-/* You can add global styles to this file, and also import other style files */
+// Define the theme with only valid properties
+$theme: (
+  color: (
+    primary: mat.$blue-palette,
+    tertiary: mat.$cyan-palette,
+    theme-type: light
+  ),
+  typography: Roboto,
+  density: 0
+);
+
+// Apply the theme to the html element
+html {
+  @include mat.theme($theme);
+}
 
 html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+body {
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  background-color: var(--mat-surface-container);
+  color: var(--mat-on-surface);
+}
 body.inheritCursors * { cursor: inherit !important; }
 
-html {
-  color-scheme: light dark;
-  @include mat.theme((
-    color: mat.$azure-palette,
-    typography: Roboto,
-    density: -5
-  ),
-  $overrides: (
-    "background": rgba(26, 123, 165, 0.59),
-    "on-background": #8630A9,
-    "surface-container-low": rgba(88, 140, 149, 0.87),
-    "surface": rgb(255, 255, 255)
-  ));
+// Define custom color tokens based on Material Design 3
+:root {
+  // Spacing tokens
+  --md-sys-spacing-small: 8px;
+  --md-sys-spacing-medium: 16px;
+  --md-sys-spacing-large: 24px;
+  --md-sys-spacing-extra-large: 32px;
+
+  // Elevation tokens
+  --md-sys-elevation-level1: 0px 1px 3px 0px rgba(0, 0, 0, 0.12);
+  --md-sys-elevation-level2: 0px 3px 6px 0px rgba(0, 0, 0, 0.15);
+  --md-sys-elevation-level3: 0px 6px 12px 0px rgba(0, 0, 0, 0.18);
+
+  // Border radius tokens
+  --md-sys-shape-small: 4px;
+  --md-sys-shape-medium: 8px;
+  --md-sys-shape-large: 12px;
+  --md-sys-shape-extra-large: 16px;
+  --md-sys-shape-full: 9999px;
 }
 
 menu {
-  background-color: var(--mat-sys-surface-container);
+  background-color: var(--md-sys-color-surface);
 }
 
+// Component overrides using Material Design 3 tokens
 :root {
-  --dialog-background: #fff;
-  --dialog-title-color: #333;
-  --dialog-content-color: #555;
-  --dialog-button-color: #666;
-  --dialog-form-label-color: #666;
-  --dialog-form-border-color: rgba(0, 0, 0, 0.12);
-  --dialog-placeholder-color: rgba(0, 0, 0, 0.42);
-  --dialog-icon-color: rgba(0, 0, 0, 0.54);
-  --dialog-input-color: #333;
-
+  // Apply component overrides using Material Design 3 tokens
   @include mat.menu-overrides((
-    container-color: var(--mat-sys-surface-container),
-    item-label-text-color: var(--mat-sys-on-surface)
+    container-color: var(--md-sys-color-surface),
+    item-label-text-color: var(--md-sys-color-on-surface)
   ));
+
   @include mat.card-overrides((
     // Color
-    subtitle-text-color: var(--mat-sys-on-surface),
-    elevated-container-color: var(--mat-sys-surface-container-low),
-    elevated-container-elevation: var(--mat-sys-surface),
-    outlined-container-color: var(--mat-sys-surface),
-    outlined-outline-color: var(--mat-sys-outline-variant),
-    outlined-container-elevation: var(--mat-sys-surface),
+    subtitle-text-color: var(--md-sys-color-on-surface-variant),
+    elevated-container-color: var(--md-sys-color-surface),
+    elevated-container-elevation: var(--md-sys-elevation-level1),
+    outlined-container-color: var(--md-sys-color-surface),
+    outlined-outline-color: var(--md-sys-color-outline),
 
     // Shape
-    elevated-container-shape: var(--mat-sys-elevation-shape),
-    outlined-container-shape: var(--mat-sys-elevation-shape),
-
-    // Typography
-
-    // Elevation
+    elevated-container-shape: 12px,
+    outlined-container-shape: 12px
   ));
+
   @include mat.button-overrides((
     // Color
-    filled-container-color: lightgray !important,
-    //outlined-outline-color: red !important,
+    filled-container-color: var(--md-sys-color-primary),
+    filled-label-text-color: var(--md-sys-color-on-primary),
+    text-label-text-color: var(--md-sys-color-on-surface),
+    outlined-outline-color: var(--md-sys-color-outline),
 
     // Shape
-    filled-container-shape: var(--mat-sys-elevation-shape),
+    filled-container-shape: 20px,
+    outlined-container-shape: 20px,
+    text-container-shape: 20px,
+
+    // Animation
+    hover-state-layer-opacity: 0.08,
+    pressed-state-layer-opacity: 0.12
   ));
+
   @include mat.form-field-overrides((
     // Color
-    outlined-caret-color: var(--mat-sys-primary),
-    outlined-input-text-color: var(--mat-sys-on-surface),
+    outlined-caret-color: var(--md-sys-color-primary),
+    outlined-input-text-color: var(--md-sys-color-on-surface),
+    outlined-label-text-color: var(--md-sys-color-on-surface-variant),
+    outlined-outline-color: var(--md-sys-color-outline),
 
     // Shape
+    outlined-container-shape: 4px
   ));
+
   @include mat.table-overrides((
     // Color
-    background-color: var(--mat-sys-surface),
-    row-item-label-text-color: var(--mat-sys-on-surface),
-    header-headline-color: var(--mat-sys-on-surface),
-    row-item-outline-color: var(--mat-sys-outline),
-
-    // Shape
+    background-color: var(--md-sys-color-surface),
+    row-item-label-text-color: var(--md-sys-color-on-surface),
+    header-headline-color: var(--md-sys-color-on-surface-variant),
+    row-item-outline-color: var(--md-sys-color-outline)
   ));
+
   @include mat.select-overrides((
     // Color
-    panel-background-color: var(--mat-sys-background),
-    enabled-trigger-text-color: var(--mat-sys-on-background) !important
+    panel-background-color: var(--md-sys-color-surface),
+    enabled-trigger-text-color: var(--md-sys-color-on-surface),
 
     // Shape
+    // container-shape: 4px
   ));
+
+  // Dialog-specific variables using Material Design 3 tokens
+  --dialog-background: var(--md-sys-color-surface);
+  --dialog-title-color: var(--md-sys-color-on-surface);
+  --dialog-content-color: var(--md-sys-color-on-surface-variant);
+  --dialog-button-color: var(--md-sys-color-primary);
+  --dialog-form-label-color: var(--md-sys-color-on-surface-variant);
+  --dialog-form-border-color: var(--md-sys-color-outline);
+  --dialog-placeholder-color: rgba(0, 0, 0, 0.42);
+  --dialog-icon-color: var(--md-sys-color-on-surface-variant);
+  --dialog-input-color: var(--md-sys-color-on-surface);
 }
 
+// Table column utilities
 .date-column-header {
-  --biggest-width: 10vw !important;
-  --smallest-width: 10vw !important;
-}
-
-.mat-app-background {
-  background-color: var(--mat-sys-background);
-  color: var(--mat-sys-on-background);
-}
-
-.right-aligned-header {
-  text-align: right !important;
-}
-
-.date-column-header {
+  --column-width: 10vw;
   flex-basis: 0;
   flex-shrink: 0;
-  max-width: var(--biggest-width) !important;
-  min-width: var(--smallest-width) !important;
+  max-width: var(--column-width);
+  min-width: var(--column-width);
 }
 
 .date-column {
   flex-basis: 0;
   flex-shrink: 0;
-  max-width: 10vw !important;
-  min-width: 10vw !important;
+  max-width: var(--column-width);
+  min-width: var(--column-width);
 }
 
-.mat-mdc-dialog-container {
-  --mdc-dialog-container-color: var(--dialog-background) !important;
+// Utility classes
+.mat-app-background {
+  background-color: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+}
 
+// Text alignment utilities
+.right-aligned-header {
+  text-align: right;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+// Spacing utilities
+.m-0 { margin: 0 !important; }
+.mt-0 { margin-top: 0 !important; }
+.mr-0 { margin-right: 0 !important; }
+.mb-0 { margin-bottom: 0 !important; }
+.ml-0 { margin-left: 0 !important; }
+
+.m-1 { margin: var(--md-sys-spacing-small) !important; }
+.mt-1 { margin-top: var(--md-sys-spacing-small) !important; }
+.mr-1 { margin-right: var(--md-sys-spacing-small) !important; }
+.mb-1 { margin-bottom: var(--md-sys-spacing-small) !important; }
+.ml-1 { margin-left: var(--md-sys-spacing-small) !important; }
+
+.m-2 { margin: var(--md-sys-spacing-medium) !important; }
+.mt-2 { margin-top: var(--md-sys-spacing-medium) !important; }
+.mr-2 { margin-right: var(--md-sys-spacing-medium) !important; }
+.mb-2 { margin-bottom: var(--md-sys-spacing-medium) !important; }
+.ml-2 { margin-left: var(--md-sys-spacing-medium) !important; }
+
+.m-3 { margin: var(--md-sys-spacing-large) !important; }
+.mt-3 { margin-top: var(--md-sys-spacing-large) !important; }
+.mr-3 { margin-right: var(--md-sys-spacing-large) !important; }
+.mb-3 { margin-bottom: var(--md-sys-spacing-large) !important; }
+.ml-3 { margin-left: var(--md-sys-spacing-large) !important; }
+
+// Padding utilities
+.p-0 { padding: 0 !important; }
+.pt-0 { padding-top: 0 !important; }
+.pr-0 { padding-right: 0 !important; }
+.pb-0 { padding-bottom: 0 !important; }
+.pl-0 { padding-left: 0 !important; }
+
+.p-1 { padding: var(--md-sys-spacing-small) !important; }
+.pt-1 { padding-top: var(--md-sys-spacing-small) !important; }
+.pr-1 { padding-right: var(--md-sys-spacing-small) !important; }
+.pb-1 { padding-bottom: var(--md-sys-spacing-small) !important; }
+.pl-1 { padding-left: var(--md-sys-spacing-small) !important; }
+
+.p-2 { padding: var(--md-sys-spacing-medium) !important; }
+.pt-2 { padding-top: var(--md-sys-spacing-medium) !important; }
+.pr-2 { padding-right: var(--md-sys-spacing-medium) !important; }
+.pb-2 { padding-bottom: var(--md-sys-spacing-medium) !important; }
+.pl-2 { padding-left: var(--md-sys-spacing-medium) !important; }
+
+.p-3 { padding: var(--md-sys-spacing-large) !important; }
+.pt-3 { padding-top: var(--md-sys-spacing-large) !important; }
+.pr-3 { padding-right: var(--md-sys-spacing-large) !important; }
+.pb-3 { padding-bottom: var(--md-sys-spacing-large) !important; }
+.pl-3 { padding-left: var(--md-sys-spacing-large) !important; }
+
+// Color utilities
+.text-primary { color: var(--md-sys-color-primary) !important; }
+.text-on-primary { color: var(--md-sys-color-on-primary) !important; }
+.text-secondary { color: var(--md-sys-color-secondary) !important; }
+.text-on-secondary { color: var(--md-sys-color-on-secondary) !important; }
+.text-tertiary { color: var(--md-sys-color-tertiary) !important; }
+.text-on-tertiary { color: var(--md-sys-color-on-tertiary) !important; }
+.text-error { color: var(--md-sys-color-error) !important; }
+.text-on-surface { color: var(--md-sys-color-on-surface) !important; }
+.text-on-surface-variant { color: var(--md-sys-color-on-surface-variant) !important; }
+
+.bg-primary { background-color: var(--md-sys-color-primary) !important; }
+.bg-primary-container { background-color: var(--md-sys-color-primary-container) !important; }
+.bg-secondary { background-color: var(--md-sys-color-secondary) !important; }
+.bg-secondary-container { background-color: var(--md-sys-color-secondary-container) !important; }
+.bg-tertiary { background-color: var(--md-sys-color-tertiary) !important; }
+.bg-tertiary-container { background-color: var(--md-sys-color-tertiary-container) !important; }
+.bg-surface { background-color: var(--md-sys-color-surface) !important; }
+.bg-surface-variant { background-color: var(--md-sys-color-surface-variant) !important; }
+.bg-error { background-color: var(--md-sys-color-error) !important; }
+
+// Elevation utilities
+.elevation-1 { box-shadow: var(--md-sys-elevation-level1) !important; }
+.elevation-2 { box-shadow: var(--md-sys-elevation-level2) !important; }
+.elevation-3 { box-shadow: var(--md-sys-elevation-level3) !important; }
+
+// Shape utilities
+.rounded-small { border-radius: var(--md-sys-shape-small) !important; }
+.rounded-medium { border-radius: var(--md-sys-shape-medium) !important; }
+.rounded-large { border-radius: var(--md-sys-shape-large) !important; }
+.rounded-extra-large { border-radius: var(--md-sys-shape-extra-large) !important; }
+.rounded-full { border-radius: var(--md-sys-shape-full) !important; }
+
+// Display utilities
+.d-flex { display: flex !important; }
+.d-inline-flex { display: inline-flex !important; }
+.flex-row { flex-direction: row !important; }
+.flex-column { flex-direction: column !important; }
+.justify-content-start { justify-content: flex-start !important; }
+.justify-content-end { justify-content: flex-end !important; }
+.justify-content-center { justify-content: center !important; }
+.justify-content-between { justify-content: space-between !important; }
+.align-items-start { align-items: flex-start !important; }
+.align-items-end { align-items: flex-end !important; }
+.align-items-center { align-items: center !important; }
+.flex-grow-1 { flex-grow: 1 !important; }
+.flex-shrink-0 { flex-shrink: 0 !important; }
+.flex-wrap { flex-wrap: wrap !important; }
+.gap-1 { gap: var(--md-sys-spacing-small) !important; }
+.gap-2 { gap: var(--md-sys-spacing-medium) !important; }
+.gap-3 { gap: var(--md-sys-spacing-large) !important; }
+
+// Dialog styling using Material Design 3 tokens
+.mat-mdc-dialog-container {
+  --mdc-dialog-container-color: var(--md-sys-color-surface);
+
+  // Form field styling
   .mat-mdc-form-field-label {
-    color: var(--dialog-form-label-color) !important;
+    color: var(--md-sys-color-on-surface-variant);
   }
 
   .mdc-notched-outline__leading,
   .mdc-notched-outline__notch,
   .mdc-notched-outline__trailing {
-    border-color: var(--dialog-form-border-color) !important;
+    border-color: var(--md-sys-color-outline);
   }
 
   ::placeholder {
-    color: var(--dialog-placeholder-color) !important;
-    opacity: 1;
+    color: var(--md-sys-color-on-surface-variant);
+    opacity: 0.7;
   }
 
   .mat-mdc-select-arrow {
-    color: var(--dialog-icon-color) !important;
+    color: var(--md-sys-color-on-surface-variant);
   }
 
   .mat-mdc-input-element {
-    caret-color: var(--dialog-input-color) !important;
+    caret-color: var(--md-sys-color-primary);
     &::placeholder {
-      color: var(--dialog-placedolder-color) !important;
+      color: var(--md-sys-color-on-surface-variant);
+      opacity: 0.7;
     }
   }
 
+  // Dialog container styling
   .mdc-dialog__container,
   .mdc-dialog__surface {
-    background-color: var(--dialog-background) !important;
+    background-color: var(--md-sys-color-surface);
+    border-radius: 28px;
+    padding: var(--md-sys-spacing-small);
   }
 
   .mdc-dialog__surface-scrim {
-    background-color: transparent !important;
+    background-color: transparent;
   }
 
+  // Dialog content styling
   .mat-mdc-dialog-title {
-    color: var(--dialog-title-color) !important;
+    color: var(--md-sys-color-on-surface);
+    font-size: 1.25rem;
+    font-weight: 500;
+    padding: var(--md-sys-spacing-medium) var(--md-sys-spacing-medium) var(--md-sys-spacing-small);
   }
 
   .mat-mdc-dialog-content {
-    color: var(--dialog-content-color) !important;
+    color: var(--md-sys-color-on-surface-variant);
+    padding: 0 var(--md-sys-spacing-medium);
+
+    p {
+      margin-bottom: var(--md-sys-spacing-medium);
+    }
+
+    .mat-mdc-form-field {
+      width: 100%;
+      margin-bottom: var(--md-sys-spacing-small);
+    }
   }
 
+  // Dialog actions styling
   .mat-mdc-dialog-actions {
+    padding: var(--md-sys-spacing-medium);
+    justify-content: flex-end;
+    gap: var(--md-sys-spacing-small);
+
     .mat-mdc-button-base {
       &:not(.mat-primary):not(.mat-accent):not(.mat-warn) {
-        color: var(--dialog-button-color) !important;
+        color: var(--md-sys-color-primary);
       }
     }
   }
 
+  // Form field input styling
   .mat-mdc-form-field {
     .mat-mdc-input-element,
     .mat-mdc-select-value-text,
     .mat-mdc-form-field-label {
-      color: var(--dialog-input-color) !important;
+      color: var(--md-sys-color-on-surface);
     }
   }
 }

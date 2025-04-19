@@ -13,7 +13,6 @@
 }
 
 input.custom-autofill {
-  background-color: var(--mat-sys-surface) !important;
   border-radius: 2px !important;
   @include cdk.text-field-autofill-color(transparent);
 }

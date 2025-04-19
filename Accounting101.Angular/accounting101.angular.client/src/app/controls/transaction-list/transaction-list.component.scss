@@ -7,7 +7,6 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background-color: var(--mat-sys-surface);
 }
 
 .mat-column-right {
@@ -15,7 +14,6 @@
 }
 
 .highlighted-row {
-  background-color: var(--mat-sys-primary-container) !important;
 }
 
 .data-row {

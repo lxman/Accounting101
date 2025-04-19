@@ -1,7 +1,10 @@
+@use '@angular/material' as mat;
+
+// Balance element styling
 .root-folder .node-balance-element,
 .folder-node .node-balance-element {
   position: absolute;
-  right: 16px;
+  right: var(--md-sys-spacing-medium);
   min-width: 120px;
   text-align: right;
   max-width: 140px;
@@ -11,14 +14,15 @@
   width: 100%;
 }
 
+// Drag and drop styling
 .cdk-drag-placeholder {
   display: none;
 }
 
+// Folder node styling
 .folder-node {
   .material-icons {
-    color: #5c6bc0;
-    transition: transform 0.2s ease;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     vertical-align: middle;
   }
 
@@ -27,13 +31,14 @@
   }
 
   .folder-text {
-    margin-left: 10px;
+    margin-left: var(--md-sys-spacing-small);
     position: static;
     vertical-align: middle;
     display: inline-block;
   }
 }
 
+// Node content layout
 .folder-node .node-content {
   padding-right: 140px;
 }
@@ -61,43 +66,43 @@
   white-space: nowrap;
 }
 
+// Balance element styling
 .node-balance-element {
   font-family: 'Roboto Mono', monospace;
   font-weight: 500;
   text-align: right;
   min-width: 120px;
   position: absolute;
-  right: 16px; /* Fixed distance from right edge */
+  right: var(--md-sys-spacing-medium); /* Fixed distance from right edge */
   flex-shrink: 0;
 
   &:not(.zero-balance) {
-    &.positive { color: #2ecc71; }
-    &.negative { color: #e74c3c; }
   }
 }
 
+// Text element styling
 .node-text {
-  margin-left: 10px;
+  margin-left: var(--md-sys-spacing-small);
   margin-top: 3px;
 }
 
 .folder-text {
-  margin-left: 10px;
+  margin-left: var(--md-sys-spacing-small);
   position: relative;
   top: -5px;
 }
 
+// Drag preview styling
 .cdk-drag-preview {
   box-sizing: border-box;
-  border-radius: 4px;
-  box-shadow: 0 5px 15px -3px rgba(0, 0, 0, 0.2),
-  0 8px 10px 1px rgba(0, 0, 0, 0.12);
-  background: #fff;
-  opacity: 0.6;
+  border-radius: 8px;
+  box-shadow: var(--md-sys-elevation-level3);
+  opacity: 0.7;
 }
 
+// Drop indicator styling
 .drop-before {
-  border-top: 2px solid #5c6bc0;
+  border-top: 2px solid;
   position: relative;
 
   &::before {
@@ -108,43 +113,41 @@
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background-color: #5c6bc0;
   }
 }
 
 .drop-after {
-  border-bottom: 2px solid #5c6bc0;
+  border-bottom: 2px solid;
   margin-bottom: 2px;
 }
 
 .drop-inside {
-  background-color: rgba(92, 107, 192, 0.05);
-  border: 2px dashed #5c6bc0;
+  border: 2px dashed;
+  opacity: 0.7;
 }
 
+// Node title styling
 .node-title {
   position: relative; /* Context for absolute positioning */
-  width: calc(100% - 16px); /* Account for margins */
-  border-radius: 6px;
-  padding: 12px;
-  margin: 8px;
-  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  width: calc(100% - var(--md-sys-spacing-medium)); /* Account for margins */
+  border-radius: 12px;
+  padding: var(--md-sys-spacing-small);
+  margin: var(--md-sys-spacing-small);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
-    background-color: rgba(221, 221, 255, 0.7);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   }
 
   &.folder-node {
-    background: #f1f1f1;
-    border-left: 4px solid #6a5acd;
+    border-left: 4px solid;
 
     &:hover {
-      background: #e8e8e8;
+      opacity: 0.9;
     }
   }
 }
 
+// Node layout styling
 .node-title, .node-content {
   position: relative;
   box-sizing: border-box;
@@ -152,7 +155,6 @@
 }
 
 .node-title.folder-node {
-  background: #eee;
 }
 
 .node-title.folder-node .node-content {
@@ -165,46 +167,50 @@
   }
 }
 
+// Draggable node styling
 .draggable-node {
   cursor: move;
 }
 
+// Node children styling
 .node-children {
   position: relative;
-  margin-left: 20px;
-  padding-left: 12px;
-  border-left: 1px solid #e0e0e0;
-  transition: all 0.3s ease;
+  margin-left: var(--md-sys-spacing-large);
+  padding-left: var(--md-sys-spacing-small);
+  border-left: 1px solid;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   &::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
-    width: 12px;
+    width: var(--md-sys-spacing-small);
     height: 1px;
-    background-color: #e0e0e0;
   }
 
   .node-item:last-child {
-    margin-bottom: 8px;
+    margin-bottom: var(--md-sys-spacing-small);
   }
 }
 
 .node-children .node-balance-element {
-  right: 16px;
+  right: var(--md-sys-spacing-medium);
 }
 
+// Notes styling
 .item-notes {
-  margin-left: 20px;
-  color: #aaa;
+  margin-left: var(--md-sys-spacing-large);
+  font-style: italic;
+  font-size: 0.875rem;
 }
 
+// Button styling
 .account-button {
   min-width: auto;
   width: auto;
   text-align: left;
-  padding: 4px 10px;
+  padding: 4px var(--md-sys-spacing-small);
   margin-right: 0;
   flex-shrink: 0; /* Prevent shrinking */
 
@@ -218,7 +224,8 @@
   display: none;
 }
 
-@media (max-width: 768px) {
+// Responsive styling
+@media (max-width: 960px) {
   .folder-node .node-content {
     padding-right: 110px;
   }
@@ -226,17 +233,18 @@
   .root-folder .node-balance-element,
   .folder-node .node-balance-element {
     min-width: 100px;
-    right: 8px;
+    right: var(--md-sys-spacing-small);
   }
 
   .node-title {
-    padding: 10px 8px;
+    padding: var(--md-sys-spacing-small);
     margin: 6px;
+    border-radius: 8px;
   }
 
   .node-children {
-    margin-left: 12px;
-    padding-left: 8px;
+    margin-left: var(--md-sys-spacing-medium);
+    padding-left: var(--md-sys-spacing-small);
   }
 
   .node-content {
@@ -248,7 +256,7 @@
 
     .node-balance-element {
       min-width: 100px;
-      right: 8px;
+      right: var(--md-sys-spacing-small);
     }
   }
 }
