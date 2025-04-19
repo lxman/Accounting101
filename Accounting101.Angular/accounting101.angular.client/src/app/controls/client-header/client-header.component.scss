@@ -1,0 +1,27 @@
+.mat-mdc-card {
+  margin-bottom: var(--md-sys-spacing-medium);
+  border-radius: var(--md-sys-shape-medium);
+  box-shadow: var(--md-sys-elevation-level1);
+  background-color: var(--md-sys-color-surface);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+
+  &:hover {
+    box-shadow: var(--md-sys-elevation-level2);
+    transform: translateY(-2px);
+  }
+}
+
+.mat-mdc-card-title {
+  color: var(--md-sys-color-primary);
+  font-weight: 500;
+  margin-bottom: var(--md-sys-spacing-small);
+}
+
+.mat-mdc-card-content {
+  color: var(--md-sys-color-on-surface-variant);
+
+  p {
+    margin-bottom: var(--md-sys-spacing-small);
+  }
+}

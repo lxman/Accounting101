@@ -1,0 +1,24 @@
+.menu {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--md-sys-spacing-medium);
+  padding: var(--md-sys-spacing-small) 0;
+}
+
+button.mat-mdc-raised-button {
+  background-color: var(--md-sys-color-primary);
+  color: var(--md-sys-color-on-primary);
+  border-radius: var(--md-sys-shape-small);
+  transition: background-color 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    background-color: var(--md-sys-color-primary-container);
+    color: var(--md-sys-color-on-primary-container);
+    transform: translateY(-2px);
+  }
+
+  &:last-child {
+    margin-left: var(--md-sys-spacing-medium);
+  }
+}
