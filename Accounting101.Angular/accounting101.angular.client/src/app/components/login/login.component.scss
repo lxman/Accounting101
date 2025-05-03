@@ -1,19 +1,105 @@
 @use "@angular/cdk";
 
-.main-div{
+.main-div {
   height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
+  background-color: #ebf5fc; /* A lighter blue-gray background for a more calming effect */
 }
 
-
 .login-card {
-  box-shadow: var(--mat-sys-level5);
+  box-shadow: 0 6px 12px rgba(0, 71, 161, 0.15) !important; /* Softer shadow with a hint of the primary color */
+  background-color: white !important;
+  color: #263238 !important; /* Maintain good contrast for text */
+  border-radius: 8px !important;
+  padding: 30px !important;
+  min-width: 320px;
+  border-top: 4px solid #0288d1 !important; /* Add a colored accent at the top */
+}
+
+/* Style the login heading to be more prominent */
+h1 {
+  color: #0277bd !important;
+  margin-bottom: 20px !important;
+  font-weight: 500 !important;
+  text-align: center !important;
+  font-size: 28px !important;
+}
+
+.mat-card-title {
+  text-align: center !important;
+  display: block !important;
+  margin-bottom: 0 !important;
+}
+
+.mat-card-header {
+  display: block !important;
+  justify-content: center !important;
+  text-align: center !important;
+  margin-bottom: 10px !important;
 }
 
 input.custom-autofill {
-  background-color: var(--mat-sys-surface) !important;
-  border-radius: 2px !important;
+  background-color: white !important;
+  border-radius: 4px !important;
   @include cdk.text-field-autofill-color(transparent);
+}
+
+/* Improve the form field appearance */
+.mat-form-field {
+  width: 100% !important;
+  margin-bottom: 16px !important;
+}
+
+.mat-form-field-appearance-outline .mat-form-field-outline {
+  color: #b0bec5 !important;
+}
+
+.mat-form-field-appearance-outline.mat-focused .mat-form-field-outline-thick {
+  color: #0288d1 !important;
+}
+
+/* Better styling for the login button */
+.login-button {
+  background-color: #0288d1 !important; /* Darker blue for better contrast */
+  color: white !important;
+  font-weight: 500 !important;
+  border-radius: 4px !important;
+  padding: 8px 16px !important;
+  transition: background-color 0.3s !important;
+  width: 100% !important;
+  margin-top: 10px !important;
+}
+
+.login-button:hover {
+  background-color: #01579b !important; /* Even darker on hover for feedback */
+}
+
+/* Add styling for error messages */
+.mat-error {
+  color: #d32f2f !important;
+  font-size: 0.875rem !important;
+  margin-top: 4px !important;
+}
+
+::ng-deep .mat-form-field-appearance-outline .mat-form-field-outline {
+  color: #b0bec5 !important;
+}
+
+::ng-deep .mat-form-field-appearance-outline.mat-focused .mat-form-field-outline-thick {
+  color: #0288d1 !important;
+}
+
+::ng-deep .mat-form-field-appearance-outline .mat-form-field-label {
+  color: #455a64 !important;
+  font-weight: 500 !important;
+}
+
+::ng-deep .mat-raised-button.mat-primary {
+  background-color: #0288d1 !important;
+}
+
+::ng-deep .mat-raised-button.mat-primary:hover {
+  background-color: #01579b !important;
 }

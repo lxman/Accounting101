@@ -1,3 +1,6 @@
+@import "../../../styles/variables.css";
+@import "./account-organizer-custom.css";
+
 .cdk-drag-placeholder {
   display: none;
 }
@@ -24,45 +27,70 @@
 .node-text {
   margin-left: 10px;
   margin-top: 3px;
+  font-weight: 500; /* Added for better contrast */
+  color: var(--account-text, #455a64); /* Darker color for better contrast */
 }
 
 .folder-text {
   margin-left: 10px;
   position: relative;
   top: -5px;
+  font-weight: 600; /* Added for better contrast */
+  color: var(--folder-text, #0288d1); /* Darker color for better contrast */
+}
+
+/* Enhanced icons */
+.material-icons, .material-icons-outlined {
+  color: var(--icon-color, #0288d1) !important;
+  font-size: 1.4em !important;
+  opacity: 1 !important;
+}
+
+/* Adding shadow to icons for better visibility */
+.folder-node .material-icons,
+.account-item .material-icons,
+mat-icon {
+  color: var(--icon-color, #0288d1) !important;
+  font-size: 1.6em !important;
+  opacity: 1 !important;
+  text-shadow: 0 0 2px rgba(255,255,255,0.7);
 }
 
 .cdk-drag-preview {
   box-sizing: border-box;
-  box-shadow: 0 3px 3px -2px rgba(0, 0, 0, 0.2),
-  0 8px 10px 1px rgba(0, 0, 0, 0.14),
-  0 3px 14px 2px rgba(0, 0, 0, 0.12);
-
-  background: #fff;
+  box-shadow: var(--shadow-md);
+  background: var(--card-bg, white);
   opacity: 0.3;
 }
 
 .drop-before {
-  border-top: 1px solid #00f;
+  border-top: 1px solid var(--card-border, #0288d1);
 }
 
 .drop-after {
-  border-bottom: 1px solid #00f;
+  border-bottom: 1px solid var(--card-border, #0288d1);
 }
 
 .drop-inside {
-  border: 1px solid #00f;
+  border: 1px solid var(--card-border, #0288d1);
 }
 
 .node-title {
   border-radius: 8px;
   padding: 15px;
   margin: 15px;
-  background: rgba(221, 221, 255, 0.5);
+  background: var(--card-bg, white);
+  box-shadow: 0 2px 6px rgba(0, 71, 161, 0.1);
+  transition: box-shadow 0.3s;
+}
+
+.node-title:hover {
+  box-shadow: 0 4px 8px rgba(0, 71, 161, 0.2);
 }
 
 .node-title.folder-node {
-  background: #eee;
+  background: var(--folder-bg, #f5f8fa);
+  border-left: 4px solid var(--card-border, #0288d1); /* Added for better visibility */
 }
 
 .draggable-node {
@@ -77,9 +105,15 @@
 
 .item-notes {
   margin-left: 20px;
-  color: #aaa;
+  color: var(--account-text, #455a64);
+  font-weight: 500; /* Added for better contrast */
 }
 
 .account-button {
   border-radius: 10px;
+  background: transparent !important;
+  border: none !important;
+  color: var(--account-text, #455a64) !important;
+  text-align: left !important;
+  padding-left: 0 !important;
 }

@@ -1,12 +1,17 @@
+@import "../../../styles/variables.css";
+@import "./account-list-custom.css";
+
 .list-container {
   display: flex;
   flex-direction: column;
   height: 100%;
+  background-color: var(--app-background, #ebf5fc);
 }
 
 .scrollable-container {
   height: 100%;
   overflow-y: auto;
+  padding: 0 20px;
 }
 
 .account-organizer {

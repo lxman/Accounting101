@@ -1,6 +1,59 @@
+<link rel="stylesheet" href="client-card.css">
+<style>
+  /* Client selector specific styles */
+  :host {
+    display: block;
+    background-color: #ebf5fc;
+    min-height: 100vh;
+    padding: 20px;
+  }
+
+  mat-card {
+    background-color: white !important;
+    border-radius: 8px !important;
+    box-shadow: 0 6px 12px rgba(0, 71, 161, 0.15) !important;
+    margin-bottom: 20px !important;
+    border-top: 4px solid #0288d1 !important;
+    overflow: hidden;
+    transition: box-shadow 0.3s;
+  }
+
+  mat-card:hover {
+    box-shadow: 0 8px 16px rgba(0, 71, 161, 0.2) !important;
+  }
+
+  mat-card-title {
+    color: #0288d1 !important;
+    font-weight: 500 !important;
+  }
+
+  mat-card-content {
+    color: #455a64 !important;
+  }
+
+  button[mat-button] {
+    background-color: #0288d1 !important;
+    color: white !important;
+  }
+
+  button[mat-button]:hover {
+    background-color: #01579b !important;
+  }
+
+  .delete-button {
+    background-color: white !important;
+    color: #d32f2f !important;
+    border: 1px solid #d32f2f !important;
+  }
+
+  .delete-button:hover {
+    background-color: #ffebee !important;
+  }
+</style>
+
 <app-menu [screen]="Screen.clientSelector" />
 <ng-container *ngFor="let client of clientsSignal(); let i = index">
-  <mat-card>
+  <mat-card class="client-card">
     <mat-card-header fxLayout="row" fxLayoutAlign="space-between center">
       <mat-card-title>
         {{ client.businessName }}
