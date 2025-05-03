@@ -3,7 +3,7 @@
     <app-menu [screen]="Screen.account" />
     <app-client-header [client]="client | async" />
     <mat-divider></mat-divider>
-    <app-account-header [accountId]="account.id" />
+    <app-account-header [account]="account" />
     <app-transaction-list
       [account]="account"
       [accounts]="allAccounts"

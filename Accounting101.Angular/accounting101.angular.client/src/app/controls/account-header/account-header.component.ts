@@ -19,18 +19,19 @@ import {Router} from '@angular/router';
 })
 
 export class AccountHeaderComponent implements OnChanges{
-  readonly accountId = input.required<string>();
+  // readonly accountId = input.required<string>();
+  readonly account = input.required<AccountModel>();
   private readonly accounts: AccountsClient = inject(AccountsClient);
   private readonly router: Router = inject(Router);
-  account: AccountModel = new AccountModel();
+  // account: AccountModel = new AccountModel();
   protected readonly Date = Date;
 
   ngOnChanges(changes:SimpleChanges) {
-    if (changes['accountId']) {
-      this.accounts.getAccounts().subscribe((accounts) => {
-        this.account = accounts.find(a => a.id === this.accountId())!;
-      });
-    }
+    // if (changes['accountId']) {
+    //   this.accounts.getAccounts().subscribe((accounts) => {
+    //     this.account = accounts.find(a => a.id === this.accountId())!;
+    //   });
+    // }
   }
 
   headerClicked() {
