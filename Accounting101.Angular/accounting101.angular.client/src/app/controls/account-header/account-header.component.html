@@ -6,6 +6,6 @@
     <p class="account-type">{{ account().type }} Account</p>
     <p class="type">{{ account().isDebitAccount ? 'Debit' : 'Credit' }} Account</p>
     <p class="created-on">Created: {{ account().created.toLocaleString().split(',')[0] }}</p>
-    <p class="open-balance">Opening: {{ account().startBalance.toLocaleString("en-US", { style: "currency", currency: "USD" }) }}</p>
+    <p class="open-balance">Opening Balance: {{ account().startBalance.toLocaleString("en-US", { style: "currency", currency: "USD" }) }}</p>
   </mat-card-content>
 </mat-card>
