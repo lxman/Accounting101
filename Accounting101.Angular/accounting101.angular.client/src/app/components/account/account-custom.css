@@ -84,7 +84,7 @@ app-account-header {
   margin: 0 0 1px 0;
   /* padding: 15px; */
   display: block;
-  border-left: 4px solid var(--card-border, #0288d1);
+  border-left: none !important;
 }
 
 app-account-header h1 {
