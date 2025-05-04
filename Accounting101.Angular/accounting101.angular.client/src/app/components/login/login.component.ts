@@ -9,7 +9,6 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { FormGroup, FormControl, Validators, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { MatCard, MatCardHeader, MatCardTitle, MatCardContent } from '@angular/material/card';
-import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { MatButton } from '@angular/material/button';
 import { Idle  } from '@ng-idle/core';
@@ -18,7 +17,16 @@ import { Idle  } from '@ng-idle/core';
     selector: 'app-login',
     templateUrl: './login.component.html',
     styleUrl: './login.component.scss',
-    imports: [MatCard, MatCardHeader, MatCardTitle, MatCardContent, FormsModule, ReactiveFormsModule, MatFormField, MatLabel, MatInput, MatButton]
+    imports: [
+      MatCard,
+      MatCardHeader,
+      MatCardTitle,
+      MatCardContent,
+      FormsModule,
+      ReactiveFormsModule,
+      MatInput,
+      MatButton
+    ]
 })
 export class LoginComponent {
   private readonly globals: GlobalConstantsService = inject(GlobalConstantsService);
