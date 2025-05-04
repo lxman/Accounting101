@@ -1,16 +1,15 @@
 <mat-card (click)="clientHeaderClicked()">
-  <mat-card-header fxLayout="row" fxLayoutAlign="space-between center">
-    <mat-card-title>
-      {{ client()?.businessName }}
-    </mat-card-title>
+  <mat-card-header>
+    <mat-card-title>{{ client()?.businessName }}</mat-card-title>
   </mat-card-header>
   <mat-card-content>
-    <p>{{ client()?.contactName?.asString }}</p>
+    <p>{{ client()?.contactName?.asString }} •
     <ng-container *ngIf="client()?.usAddress !== null; else foreignAddress">
       {{ client()?.usAddress?.asString }}
     </ng-container>
     <ng-template #foreignAddress>
       {{ client()?.foreignAddress?.asString }}
     </ng-template>
+    </p>
   </mat-card-content>
 </mat-card>

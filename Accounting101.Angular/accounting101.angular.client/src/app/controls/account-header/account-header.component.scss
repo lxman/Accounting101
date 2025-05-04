@@ -1,41 +1,49 @@
+/* Compact account header styling */
+mat-card {
+  padding: 8px !important;
+  margin-bottom: 8px !important;
+  cursor: pointer;
+}
+
+mat-card-header {
+  padding: 0 !important;
+  margin: 0 !important;
+  height: auto !important;
+}
+
+mat-card-title {
+  margin: 0 !important;
+  padding: 0 !important;
+  font-size: 1.2rem !important;
+  line-height: 1.2 !important;
+}
+
 mat-card-content {
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: repeat(4, 1fr);
-  grid-column-gap: 0;
-  grid-row-gap: 0;
-  padding: 0;
-  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  padding: 4px 16px !important;
+  margin: 0 !important;
 }
 
-.account-type {
-  grid-row: 1;
-  grid-column: 1;
-  justify-self: start;
-  padding: 0;
-  margin: 0 0 0 20px;
+/* All paragraph elements in a row */
+p {
+  margin: 0 16px 0 0 !important;
+  padding: 0 !important;
+  font-size: 0.9rem !important;
+  line-height: 1.2 !important;
 }
 
-.type {
-  grid-row: 2;
-  grid-column: 1;
-  justify-self: start;
-  padding: 0;
-  margin: 0 0 0 20px;
+.account-type, .type, .created-on, .open-balance {
+  display: inline-block;
 }
 
-.created-on {
-  grid-row: 3;
-  grid-column: 1;
-  justify-self: start;
-  padding: 0;
-  margin: 0 0 0 20px;
-}
+/* Media query for very small screens */
+@media (max-width: 600px) {
+  mat-card-content {
+    flex-direction: column;
+  }
 
-.open-balance {
-  grid-row: 4;
-  grid-column: 1;
-  justify-self: start;
-  padding: 0;
-  margin: 0 0 0 20px;
+  p {
+    margin: 2px 0 !important;
+  }
 }
