@@ -1,33 +1,43 @@
+@import "../../../styles/variables.css";
+@import "./account-custom.css";
+
 .account-layout {
   display: flex;
-  flex-wrap: nowrap;
   flex-direction: column;
-  justify-content: flex-start;
   height: 100vh;
-  overflow-y: hidden;
+  overflow: hidden;
+  position: relative;
+  background-color: var(--app-background, #ebf5fc);
 }
 
-.account-layout:after {
-  margin: 0;
-  display: block;
-  flex: 999 999 auto;
-  min-height: 0;
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 70px; /* Ensure space at bottom for fast-entry component */
 }
 
 app-transaction-list {
-  flex: 1 0 auto;
-  margin: 0;
+  display: block;
+  width: 100%;
   overflow-y: auto;
-  min-height: 0;
-  flex-shrink: 0;
 }
 
 app-fast-entry {
-  height: 0;
-  margin-top: 0;
-  margin-bottom: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  min-height: 0;
-  flex-shrink: 0;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100vw;
+  z-index: 100;
+  background-color: var(--app-background, #ebf5fc);
+  padding: 0;
+}
+
+/* Ensure consistent styling across components */
+app-menu, app-client-header, app-account-header {
+  display: block;
+}
+
+mat-divider {
+  margin: 0;
 }

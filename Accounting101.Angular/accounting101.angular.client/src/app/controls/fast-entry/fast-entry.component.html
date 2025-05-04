@@ -1,28 +1,30 @@
-<form [formGroup]="fastEntryGroup" class="fast-entry-form" (ngSubmit)="onSubmit()">
-  <mat-form-field class="fast-entry-element">
-    <mat-label>Date</mat-label>
-    <input matInput class="input-element" [matDatepicker]="picker" placeholder="Date" formControlName="date">
-    <mat-hint>MM/DD/YYYY</mat-hint>
-    <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
-    <mat-datepicker #picker></mat-datepicker>
-  </mat-form-field>
-  <mat-radio-group formControlName="creditDebit" class="radio-group">
-    <div class="radio-buttons">
-      <mat-radio-button class="radio-button" value="credit">Credit</mat-radio-button>
-      <mat-radio-button class="radio-button" value="debit">Debit</mat-radio-button>
-    </div>
-  </mat-radio-group>
-  <mat-form-field class="fast-entry-element">
-    <mat-label>Other Account</mat-label>
-    <mat-select formControlName="otherAccount">
-      <mat-option *ngFor="let account of accts" [value]="account">
-        {{ account }}
-      </mat-option>
-    </mat-select>
-  </mat-form-field>
-  <mat-form-field class="fast-entry-element">
-    <mat-label>Amount</mat-label>
-    <input matInput class="input-element" formControlName="amount" />
-  </mat-form-field>
-  <button mat-raised-button type="submit" class="btn btn-primary">{{ buttonTitle }}</button>
-</form>
+<div class="fast-entry-container">
+  <form [formGroup]="fastEntryGroup" class="fast-entry-form" (ngSubmit)="onSubmit()">
+    <mat-form-field class="fast-entry-element">
+      <mat-label>Date</mat-label>
+      <input matInput class="input-element" [matDatepicker]="picker" placeholder="Date" formControlName="date">
+      <mat-hint>MM/DD/YYYY</mat-hint>
+      <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+      <mat-datepicker #picker></mat-datepicker>
+    </mat-form-field>
+    <mat-radio-group formControlName="creditDebit" class="radio-group">
+      <div class="radio-buttons">
+        <mat-radio-button class="radio-button" value="credit">Credit</mat-radio-button>
+        <mat-radio-button class="radio-button" value="debit">Debit</mat-radio-button>
+      </div>
+    </mat-radio-group>
+    <mat-form-field class="fast-entry-element">
+      <mat-label>Other Account</mat-label>
+      <mat-select formControlName="otherAccount">
+        <mat-option *ngFor="let account of accts" [value]="account">
+          {{ account }}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
+    <mat-form-field class="fast-entry-element">
+      <mat-label>Amount</mat-label>
+      <input matInput class="input-element" formControlName="amount" />
+    </mat-form-field>
+    <button mat-raised-button type="submit" class="btn btn-primary">{{ buttonTitle }}</button>
+  </form>
+</div>

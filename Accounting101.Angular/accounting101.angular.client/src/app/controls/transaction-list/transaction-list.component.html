@@ -1,24 +1,24 @@
-<div class="table-container" *ngIf="data.data.length > 0">
+<div class="transaction-table-container" *ngIf="data.data.length > 0">
   <table mat-table [dataSource]="data" #table="matTable">
     <ng-container matColumnDef="when">
       <th mat-header-cell class="date-column-header" *matHeaderCellDef>Date</th>
-      <td mat-cell class="date-column" *matCellDef="let element; table: table">{{element.when}}</td>
+      <td mat-cell class="date-cell" *matCellDef="let element; table: table">{{element.when}}</td>
     </ng-container>
     <ng-container matColumnDef="debit">
       <th mat-header-cell class="right-aligned-header" *matHeaderCellDef>Debit</th>
-      <td mat-cell class="mat-column-right" *matCellDef="let element; table: table">{{element.debit ? element.debit.toLocaleString('en-US', {style: 'currency', currency: 'USD'}) : ''}}</td>
+      <td mat-cell class="debit-cell mat-column-right" *matCellDef="let element; table: table">{{element.debit ? element.debit.toLocaleString('en-US', {style: 'currency', currency: 'USD'}) : ''}}</td>
     </ng-container>
     <ng-container matColumnDef="credit">
       <th mat-header-cell class="right-aligned-header" *matHeaderCellDef>Credit</th>
-      <td mat-cell class="mat-column-right" *matCellDef="let element; table: table">{{element.credit ? element.credit.toLocaleString('en-US', {style: 'currency', currency: 'USD'}) : ''}}</td>
+      <td mat-cell class="credit-cell mat-column-right" *matCellDef="let element; table: table">{{element.credit ? element.credit.toLocaleString('en-US', {style: 'currency', currency: 'USD'}) : ''}}</td>
     </ng-container>
     <ng-container matColumnDef="balance">
       <th mat-header-cell class="right-aligned-header" *matHeaderCellDef>Balance</th>
-      <td mat-cell class="mat-column-right" *matCellDef="let element; table: table">{{element.balance.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}}</td>
+      <td mat-cell class="balance-cell mat-column-right" *matCellDef="let element; table: table">{{element.balance.toLocaleString('en-US', {style: 'currency', currency: 'USD'})}}</td>
     </ng-container>
     <ng-container matColumnDef="otherAccount">
       <th mat-header-cell class="right-aligned-header" *matHeaderCellDef>Other Account</th>
-      <td mat-cell class="mat-column-right" *matCellDef="let element; table: table"><a (click)="linkClicked(element)" routerLink="/account">{{element.otherAccount}}</a></td>
+      <td mat-cell class="other-account-cell clickable-cell mat-column-right" *matCellDef="let element; table: table"><a (click)="linkClicked(element)" routerLink="/account">{{element.otherAccount}}</a></td>
     </ng-container>
     <tr mat-header-row *matHeaderRowDef="columnsToDisplay"></tr>
     <tr mat-row *matRowDef="let row; columns: columnsToDisplay; table: table"
@@ -38,4 +38,4 @@
     </ng-template>
   </mat-menu>
 </div>
-<p *ngIf="data.data.length == 0">No transactions entered yet.</p>
+<p *ngIf="data.data.length == 0" class="no-data-message">No transactions entered yet.</p>
