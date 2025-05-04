@@ -1,9 +1,11 @@
 <div class="account-layout">
-  <div class="content-area">
+  <div class="fixed-header">
     <app-menu [screen]="Screen.account" />
     <app-client-header [client]="client | async" />
     <mat-divider></mat-divider>
     <app-account-header [account]="account" />
+  </div>
+  <div class="scrollable-content">
     <app-transaction-list
       [account]="account"
       [accounts]="allAccounts"

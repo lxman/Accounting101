@@ -10,7 +10,14 @@
   background-color: var(--app-background, #ebf5fc);
 }
 
-.content-area {
+.fixed-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--app-background, #ebf5fc);
+}
+
+.scrollable-content {
   flex: 1;
   overflow-y: auto;
   padding-bottom: 70px; /* Ensure space at bottom for fast-entry component */
@@ -19,7 +26,6 @@
 app-transaction-list {
   display: block;
   width: 100%;
-  overflow-y: auto;
 }
 
 app-fast-entry {
