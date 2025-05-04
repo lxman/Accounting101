@@ -5,9 +5,11 @@ import {
   input,
   OnChanges,
   OnDestroy,
+  OnInit,
   output,
   SimpleChanges,
-  ViewChild
+  ViewChild,
+  NgZone
 } from '@angular/core';
 import {TransactionModel} from '../../models/transaction.model';
 import {AccountsClient} from '../../clients/accounts-client/accounts-client.service';
@@ -33,6 +35,8 @@ import {RouterLink} from '@angular/router';
 import {MessageService} from '../../services/message/message.service';
 import {Message} from '../../models/message.model';
 import {MatMenu, MatMenuContent, MatMenuItem, MatMenuTrigger} from '@angular/material/menu';
+import {Subscription} from 'rxjs';
+import {StreamedTransactionModel} from '../../models/streamed-transaction.model';
 
 @Component({
   selector: 'app-transaction-list',
@@ -60,8 +64,7 @@ import {MatMenu, MatMenuContent, MatMenuItem, MatMenuTrigger} from '@angular/mat
   templateUrl: './transaction-list.component.html',
   styleUrl: './transaction-list.component.scss'
 })
-
-export class TransactionListComponent implements OnChanges, OnDestroy{
+export class TransactionListComponent implements OnChanges, OnDestroy, OnInit {
   @ViewChild(MatMenuTrigger) trigger!: MatMenuTrigger;
   contextMenuPosition = { x: '0px', y: '0px' };
 
@@ -70,10 +73,13 @@ export class TransactionListComponent implements OnChanges, OnDestroy{
   readonly linkWasClicked = output<string>();
   private readonly accountsManager = inject(AccountsClient);
   private messageService = inject(MessageService);
+  private zone = inject(NgZone);
+  private transactionStreamSubscription?: Subscription;
+
   subscription = this.messageService.message$.subscribe((message: Message<string>) => {
     if (message.type === 'string' && message.destination === 'app-transaction-list') {
       if (message.message === 'update') {
-        this.initialize();
+        this.initializeWithStreaming();
       }
       if (message.message === 'editing?') {
         const message = new Message<boolean>();
@@ -85,68 +91,183 @@ export class TransactionListComponent implements OnChanges, OnDestroy{
       }
     }
   });
+
   private changeDetector = inject(ChangeDetectorRef);
-  private transactions: TransactionModel[] = [];
+  private transactions: StreamedTransactionModel[] = [];
   data = new MatTableDataSource<TransactionDisplayLine>();
   columnsToDisplay = ['when', 'debit', 'credit', 'balance', 'otherAccount'];
+  isStreaming = false;
 
-  ngOnChanges(changes:SimpleChanges) {
-    if (!changes['account'].firstChange || !changes['accounts'].firstChange) {
-      this.initialize();
+  ngOnInit() {
+    // Only initialize if we have a valid account
+    if (this.account() && this.account().id && this.account().id !== '00000000-0000-0000-0000-000000000000') {
+            this.initializeWithStreaming();
+    } else {
+          }
+  }
+
+  ngOnChanges(changes: SimpleChanges) {
+    if (changes['account'] || changes['accounts']) {
+      // Only initialize if we have a valid account
+      if (this.account() && this.account().id && this.account().id !== '00000000-0000-0000-0000-000000000000') {
+                this.initializeWithStreaming();
+      } else {
+              }
     }
+  }
+
+  initializeWithStreaming() {
+    if (this.transactionStreamSubscription) {
+      this.transactionStreamSubscription.unsubscribe();
+    }
+
+    this.data.data = [];
+    this.transactions = [];
+    this.data.paginator = null;
+
+    // Check if account ID is valid (not blank/default GUID)
+    if (!this.account() || !this.account().id || this.account().id === '00000000-0000-0000-0000-000000000000') {
+            return; // Don't start streaming with invalid account ID
+    }
+
+    this.isStreaming = true;
+
+    this.transactionStreamSubscription = this.accountsManager
+      .streamTransactionsForAccount(this.account().id)
+      .subscribe({
+        next: (transactions) => {
+                    this.zone.run(() => {
+            this.transactions = transactions;
+            this.processTransactions(this.transactions);
+            this.changeDetector.detectChanges();
+          });
+        },
+        error: (err) => {
+          console.error('Error streaming transactions:', err);
+          this.isStreaming = false;
+                    this.initialize();
+          this.changeDetector.detectChanges();
+        },
+        complete: () => {
+                    this.isStreaming = false;
+          this.changeDetector.detectChanges();
+        }
+      });
   }
 
   initialize() {
     this.data.data = [];
     this.transactions = [];
     this.data.paginator = null;
-    this.accountsManager.getTransactionsForAccount(this.account().id).subscribe(transactions => {
-      let startBalance = this.account().startBalance;
-      this.data.data = [];
-      this.transactions = transactions;
-      if (this.transactions.length === 0) {
-        return;
+
+
+    this.accountsManager.getTransactionsForAccount(this.account().id).subscribe({
+      next: (transactions) => {
+                this.zone.run(() => {
+          this.processTransactions(transactions);
+          this.changeDetector.detectChanges();
+        });
+      },
+      error: (err) => {
+        console.error('Error fetching transactions:', err);
       }
-      this.data.paginator = null;
-      // sort transactions by date from oldest to newest
-      this.transactions.sort((a, b) => new Date(a.when).getTime() - new Date(b.when).getTime());
-      this.transactions.forEach(t => {
-        const balanceAfterTransaction = this.calculateBalanceAfterTransaction(startBalance, t);
-        const displayLine = new TransactionDisplayLine();
-        displayLine.id = t.id;
-        displayLine.when = t.when;
-        displayLine.debit = t.debitedAccountId === this.account().id ? t.amount : null;
-        displayLine.credit = t.creditedAccountId === this.account().id ? t.amount : null;
-        displayLine.balance = balanceAfterTransaction;
-        if (t.debitedAccountId !== this.account().id) {
-          const otherAccount = this.accounts().find(a => a.id === t.debitedAccountId);
-          if (otherAccount) {
-            displayLine.otherAccount = otherAccount.info.coAId + " " + otherAccount.info.name;
-          }
-        } else {
-          const otherAccount = this.accounts().find(a => a.id === t.creditedAccountId);
-          if (otherAccount) {
-            displayLine.otherAccount = otherAccount.info.coAId + " " + otherAccount.info.name;
-          }
-        }
-        startBalance = balanceAfterTransaction;
-        this.data.data.push(displayLine);
-      });
     });
   }
 
-  calculateBalanceAfterTransaction(balanceBefore: number, t: TransactionModel): number {
-    if (t.debitedAccountId === this.account().id && this.account().isDebitAccount) {
-      return balanceBefore + t.amount;
+  processTransactions(transactions: StreamedTransactionModel[]) {
+
+    if (transactions.length === 0) {
+            this.data.data = []; // Ensure data is empty
+      return;
     }
-    if (t.creditedAccountId === this.account().id && !this.account().isDebitAccount) {
-      return balanceBefore + t.amount;
+
+    // Debug the first transaction to understand its structure
+
+    // Create an account lookup map for faster lookups
+    const accountLookup = new Map<string, AccountModel>();
+    if (this.accounts() && this.accounts().length > 0) {
+      this.accounts().forEach(a => {
+                accountLookup.set(a.id, a);
+      });
+          } else {
+      console.warn('No accounts available for lookup');
     }
-    if (t.debitedAccountId === this.account().id && !this.account().isDebitAccount) {
-      return balanceBefore - t.amount;
+
+    let startBalance = this.account().startBalance;
+
+    // Clear existing display data
+    this.data.data = [];
+
+    // Sort transactions by date - only necessary on initial load or if new transactions arrive out of order
+    if (!this.isStreaming || transactions.length === this.transactions.length) {
+      transactions.sort((a, b) => new Date(a.When).getTime() - new Date(b.When).getTime());
+          }
+
+    // Process all transactions
+    const displayLines: TransactionDisplayLine[] = [];
+
+    transactions.forEach(t => {
+      const balanceAfterTransaction = this.calculateBalanceAfterTransaction(startBalance, t);
+      const displayLine = new TransactionDisplayLine();
+      displayLine.id = t.Id;
+
+      // Format the date properly
+      try {
+        if (t.When) {
+          // Try to parse and format the date
+          const date = new Date(t.When);
+          displayLine.when = date.toLocaleDateString();
+        } else {
+          displayLine.when = 'Unknown date';
+        }
+      } catch (e) {
+        console.error('Error formatting date:', t.When, e);
+        displayLine.when = String(t.When);
+      }
+
+      displayLine.debit = t.DebitedAccountId === this.account().id ? t.Amount : null;
+      displayLine.credit = t.CreditedAccountId === this.account().id ? t.Amount : null;
+      displayLine.balance = balanceAfterTransaction;
+
+      // Find the other account more efficiently using the map
+      const otherAccountId = t.DebitedAccountId === this.account().id
+        ? t.CreditedAccountId
+        : t.DebitedAccountId;
+
+
+      // Try to find the account in the lookup
+      const otherAccount = accountLookup.get(otherAccountId);
+      if (otherAccount && otherAccount.info) {
+        displayLine.otherAccount = otherAccount.info.coAId + " " + otherAccount.info.name;
+              } else {
+        console.warn('Could not find other account with ID:', otherAccountId);
+        // Provide a fallback display name with the ID we have
+        displayLine.otherAccount = 'Unknown Account (' + otherAccountId?.substring(0, 8) + '...)';
+      }
+
+      startBalance = balanceAfterTransaction;
+      displayLines.push(displayLine);
+    });
+
+    // Update the data source all at once (more efficient than pushing one by one)
+    this.data.data = displayLines;
+
+    // Ensure change detection runs
+    this.changeDetector.detectChanges();
+  }
+
+  calculateBalanceAfterTransaction(balanceBefore: number, t: StreamedTransactionModel): number {
+    if (t.DebitedAccountId === this.account().id && this.account().isDebitAccount) {
+      return balanceBefore + t.Amount;
     }
-    if (t.creditedAccountId === this.account().id && this.account().isDebitAccount) {
-      return balanceBefore - t.amount;
+    if (t.CreditedAccountId === this.account().id && !this.account().isDebitAccount) {
+      return balanceBefore + t.Amount;
+    }
+    if (t.DebitedAccountId === this.account().id && !this.account().isDebitAccount) {
+      return balanceBefore - t.Amount;
+    }
+    if (t.CreditedAccountId === this.account().id && this.account().isDebitAccount) {
+      return balanceBefore - t.Amount;
     }
     return balanceBefore;
   }
@@ -158,7 +279,6 @@ export class TransactionListComponent implements OnChanges, OnDestroy{
 
   rowClicked($event: MouseEvent, element: TransactionDisplayLine) {
     if ($event.button === 0) {
-      // left click
       const dataElement = this.data.data.find(e => e.id === element.id);
       if (dataElement?.selected) {
         dataElement.selected = false;
@@ -173,10 +293,12 @@ export class TransactionListComponent implements OnChanges, OnDestroy{
         this.data.data.forEach(e => e.selected = false);
         dataElement!.selected = true;
       }
-      const message = new Message<TransactionModel>();
+      const transactions = this.transactions.filter(t => t.Id === element.id);
+
+      const message = new Message<TransactionModel[]>();
       message.source = 'app-transaction-list';
       message.destination = 'app-fast-entry';
-      message.message = this.transactions.find(t => t.id === element.id)!;
+      message.message = this.toTransactionModelArray(transactions)
       message.type = 'TransactionModel';
       this.messageService.sendMessage(message);
       this.changeDetector.detectChanges();
@@ -199,7 +321,7 @@ export class TransactionListComponent implements OnChanges, OnDestroy{
   onContextMenuDelete(element: TransactionDisplayLine) {
     this.accountsManager.deleteTransaction(element.id).subscribe(success => {
       if (success) {
-        this.initialize();
+        this.initializeWithStreaming();
         this.changeDetector.detectChanges();
       }
     });
@@ -207,5 +329,27 @@ export class TransactionListComponent implements OnChanges, OnDestroy{
 
   ngOnDestroy() {
     this.subscription.unsubscribe();
+    if (this.transactionStreamSubscription) {
+      this.transactionStreamSubscription.unsubscribe();
+    }
+  }
+
+  private toTransactionModelArray(transaction: StreamedTransactionModel[]): TransactionModel[] {
+    const transactionModelArray: TransactionModel[] = [];
+    transaction.forEach(t => {
+      const transactionModel = this.toTransactionModel(t);
+      transactionModelArray.push(transactionModel);
+    });
+    return transactionModelArray;
+  }
+
+  private toTransactionModel(transaction: StreamedTransactionModel): TransactionModel {
+    const transactionModel = new TransactionModel();
+    transactionModel.id = transaction.Id;
+    transactionModel.debitedAccountId = transaction.DebitedAccountId;
+    transactionModel.creditedAccountId = transaction.CreditedAccountId;
+    transactionModel.amount = transaction.Amount;
+    transactionModel.when = new Date(transaction.When).toLocaleDateString();
+    return transactionModel;
   }
 }

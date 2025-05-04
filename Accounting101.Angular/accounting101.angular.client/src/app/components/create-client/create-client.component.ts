@@ -68,8 +68,7 @@ export class CreateClientComponent {
   handleToggled() {
     const addressGroup = this.createClientForm.get('addressGroup');
     if (addressGroup == null) {
-      console.log('Address group is null');
-      return;
+            return;
     }
     addressGroup.get('state')?.setValue('');
     addressGroup.get('country')?.setValue('');
@@ -80,8 +79,7 @@ export class CreateClientComponent {
     const contactGroup = this.createClientForm.get('contactGroup');
     const addressGroup = this.createClientForm.get('addressGroup');
     if (contactGroup == null || addressGroup == null) {
-      console.log('Contact or address group is null');
-      return;
+            return;
     }
     const contact = new PersonNameModel();
     contact.prefix = contactGroup.get('prefix')?.value ?? '';

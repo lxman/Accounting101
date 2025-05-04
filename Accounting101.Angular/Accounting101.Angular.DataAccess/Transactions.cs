@@ -59,26 +59,45 @@ public static class Transactions
         return invalid;
     }
 
-    public static List<Transaction> TransactionsForAccount(this IDataStore store, string dbName, string accountId)
+    public static async IAsyncEnumerable<List<Transaction>> TransactionsForAccountAsync(this IDataStore store, string dbName, string accountId, int batchSize = 100)
     {
         IMongoCollection<BsonDocument>? collection = store.GetCollection<BsonDocument>(dbName, CollectionNames.Transaction);
-        List<object> documents = collection.AsQueryable().ToList().ConvertAll(BsonTypeMapper.MapToDotNetValue);
-        List<Transaction> transactions = [];
-        documents.ForEach(d =>
+
+        if (collection is null)
+            yield break;
+
+        // Create a filter for transactions related to the specified account
+        FilterDefinition<BsonDocument>? filter = Builders<BsonDocument>.Filter.Or(
+            Builders<BsonDocument>.Filter.Eq("CreditedAccountId", accountId),
+            Builders<BsonDocument>.Filter.Eq("DebitedAccountId", accountId)
+        );
+
+        // Use Find with a cursor and process in batches
+        using IAsyncCursor<BsonDocument>? cursor = await collection.FindAsync(filter, new FindOptions<BsonDocument> { BatchSize = batchSize });
+
+        while (await cursor.MoveNextAsync())
         {
-            if (d is not Dictionary<string, object> dict || (dict["CreditedAccountId"] as string != accountId &&
-                                                             dict["DebitedAccountId"] as string != accountId))
+            List<Transaction> currentBatch = [];
+            foreach (BsonDocument? document in cursor.Current)
             {
-                return;
+                // Convert BsonDocument to .NET types
+                object? dotNetValue = BsonTypeMapper.MapToDotNetValue(document);
+
+                if (dotNetValue is not Dictionary<string, object> dict)
+                    continue;
+
+                Guid id = dict["_id"] as Guid? ?? Guid.Empty;
+                string creditedAccountId = dict["CreditedAccountId"] as string ?? string.Empty;
+                string debitedAccountId = dict["DebitedAccountId"] as string ?? string.Empty;
+                Decimal128 amount = dict["Amount"] as Decimal128? ?? 0;
+                DateOnly when = DateOnly.FromDateTime(dict["When"] as DateTime? ?? DateTime.MinValue);
+
+                currentBatch.Add(new Transaction(id, creditedAccountId, debitedAccountId, (decimal)amount, when));
             }
-            Guid id = dict["_id"] as Guid? ?? Guid.Empty;
-            string creditedAccountId = dict["CreditedAccountId"] as string ?? string.Empty;
-            string debitedAccountId = dict["DebitedAccountId"] as string ?? string.Empty;
-            Decimal128 amount = dict["Amount"] as Decimal128? ?? 0;
-            DateOnly when = DateOnly.FromDateTime(dict["When"] as DateTime? ?? DateTime.MinValue);
-            transactions.Add(new Transaction(id, creditedAccountId, debitedAccountId, (decimal)amount, when));
-        });
-        return transactions;
+
+            if (currentBatch.Count > 0)
+                yield return currentBatch;
+        }
     }
 
     public static async Task<List<Transaction>?> TransactionsForAccountByDateAsync(this IDataStore store, string dbName, string accountId, DateRange range)

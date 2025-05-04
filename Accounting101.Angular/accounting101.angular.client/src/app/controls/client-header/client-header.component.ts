@@ -8,8 +8,6 @@ import {Router} from '@angular/router';
 @Component({
   selector: 'app-client-header',
   imports: [
-    DefaultLayoutAlignDirective,
-    DefaultLayoutDirective,
     MatCard,
     MatCardContent,
     MatCardHeader,

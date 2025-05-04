@@ -296,8 +296,7 @@ export class AccountOrganizerComponent implements OnChanges{
       if (this.dropActionTodo.action == 'before' || this.dropActionTodo.action == 'after') {
         const targetFolder = this.getContainingFolder(target.id);
         if (!targetFolder) {
-          console.log("target folder not found");
-          return;
+                    return;
         }
         const destFolder = targetFolder[0];
         const index = targetFolder[1] + (this.dropActionTodo.action == "before" ? 0 : 1);

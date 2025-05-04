@@ -2,7 +2,6 @@ import {Component, inject, input, OnChanges, SimpleChanges} from '@angular/core'
 import {AccountsClient} from '../../clients/accounts-client/accounts-client.service';
 import {AccountModel} from '../../models/account.model';
 import {MatCard, MatCardContent, MatCardHeader, MatCardTitle} from '@angular/material/card';
-import {NgIf} from '@angular/common';
 import {Router} from '@angular/router';
 
 @Component({
@@ -11,8 +10,7 @@ import {Router} from '@angular/router';
     MatCardHeader,
     MatCard,
     MatCardTitle,
-    MatCardContent,
-    NgIf
+    MatCardContent
   ],
   templateUrl: './account-header.component.html',
   styleUrl: './account-header.component.scss'

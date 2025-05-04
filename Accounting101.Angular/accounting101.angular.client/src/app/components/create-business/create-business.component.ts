@@ -54,8 +54,7 @@ export class CreateBusinessComponent {
   handleToggled() {
     const addressGroup = this.createBusinessForm.get('addressGroup');
     if (addressGroup == null) {
-      console.log('Address group is null');
-      return;
+            return;
     }
     addressGroup.get('state')?.setValue('');
     addressGroup.get('country')?.setValue('');
@@ -67,8 +66,7 @@ export class CreateBusinessComponent {
       business.name = this.createBusinessForm.value.name ?? '';
       const addressGroup = this.createBusinessForm.value.addressGroup;
       if (addressGroup == null) {
-        console.log('Address group is null');
-        return;
+                return;
       }
       if (addressGroup.isForeign) {
         business.address = {
@@ -103,6 +101,5 @@ export class CreateBusinessComponent {
       });
       return;
     }
-    console.log('Form is invalid');
-  }
+      }
 }

@@ -1,4 +1,5 @@
-﻿using Accounting101.Angular.DataAccess;
+﻿using System.Text.Json;
+using Accounting101.Angular.DataAccess;
 using Accounting101.Angular.DataAccess.AccountGroups;
 using Accounting101.Angular.DataAccess.Models;
 using Accounting101.Angular.DataAccess.Services.Interfaces;
@@ -34,9 +35,23 @@ public class AccountsController(IDataStore dataStore, ILogger<AccountsController
     }
 
     [HttpGet("{dbId:guid}/{accountId}/transactions")]
-    public ActionResult<List<Transaction>> TransactionsForAccount(Guid dbId, string accountId)
+    public async Task TransactionsForAccountAsync(Guid dbId, string accountId)
     {
-        return Ok(dataStore.TransactionsForAccount(dbId.ToString(), accountId));
+        // Set appropriate headers for streaming
+        Response.Headers.Append("Content-Type", "application/json");
+        Response.Headers.Append("Cache-Control", "no-cache");
+        Response.Headers.Append("Transfer-Encoding", "chunked");
+
+        // Stream transactions in batches
+        await foreach (List<Transaction> batch in dataStore.TransactionsForAccountAsync(dbId.ToString(), accountId))
+        {
+            // Serialize each batch as a proper JSON array
+            string json = JsonSerializer.Serialize(batch);
+
+            // Add a record separator for clear batch boundaries
+            await Response.WriteAsync(json + "\n");
+            await Response.Body.FlushAsync();
+        }
     }
 
     [HttpPost("{dbId:guid}/{clientId}/{accountId}/balance")]

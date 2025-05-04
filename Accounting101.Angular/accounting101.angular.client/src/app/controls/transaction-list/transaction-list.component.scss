@@ -51,3 +51,54 @@
 .clickable-cell:hover {
   text-decoration: underline;
 }
+
+/* Streaming indicator styles */
+.stream-indicator {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  background-color: rgba(2, 136, 209, 0.1);
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.stream-text {
+  color: var(--card-title, #0288d1);
+  font-size: 0.9rem;
+  margin-left: 8px;
+}
+
+.stream-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background-color: #0288d1;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.streaming-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--card-title, #0288d1);
+  font-size: 1rem;
+  padding: 20px;
+  background-color: rgba(2, 136, 209, 0.05);
+  border-radius: 8px;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+}

@@ -86,14 +86,25 @@ export class FastEntryComponent implements OnChanges, OnDestroy{
 
   ngOnChanges(changes: SimpleChanges) {
     if (changes['accounts']) {
-      this.accts = this.accounts().map(acct => acct.info.name)
+            this.accts = this.accounts().map(acct => acct.info.name);
+
+      // Force the component to update
+      setTimeout(() => {
+        // This will trigger Angular's change detection
+      }, 0);
     }
   }
 
   onSubmit() {
     if (!this.fastEntryGroup.valid) {
+      console.log('Form validation failed:', this.fastEntryGroup.errors);
+      console.log('Form values:', this.fastEntryGroup.value);
+      console.log('Available accounts:', this.accts);
       return;
     }
+
+    console.log('Form submitted successfully with values:', this.fastEntryGroup.value);
+
     const message = new Message<string>();
     message.source = 'app-fast-entry';
     message.destination = 'app-transaction-list';
@@ -105,8 +116,23 @@ export class FastEntryComponent implements OnChanges, OnDestroy{
   newTransaction() {
     let tx = new TransactionModel();
     tx = this.buildTransaction(tx);
-    this.accountService.createTransaction(tx).subscribe(() => {
-      this.updateTransactionList();
+
+    console.log('Creating new transaction:', tx);
+
+    // Check if transaction is valid before sending
+    if (!tx.creditedAccountId || !tx.debitedAccountId) {
+      console.error('Invalid transaction: missing account IDs', tx);
+      return;
+    }
+
+    this.accountService.createTransaction(tx).subscribe({
+      next: (result) => {
+        console.log('Transaction created successfully, result:', result);
+        this.updateTransactionList();
+      },
+      error: (error) => {
+        console.error('Error creating transaction:', error);
+      }
     });
   }
 
@@ -120,14 +146,36 @@ export class FastEntryComponent implements OnChanges, OnDestroy{
   }
 
   buildTransaction(tx: TransactionModel) {
-    tx.when = this.fastEntryGroup.value.date?.toISOString().split("T")[0] ?? '';
-    tx.amount = this.fastEntryGroup.value.amount as number;
-    tx.creditedAccountId = this.fastEntryGroup.value.creditDebit === 'credit'
-      ? this.accountId()
-      : this.accounts().find(acct => acct.info.name === this.fastEntryGroup.value.otherAccount)?.id ?? '';
-    tx.debitedAccountId = this.fastEntryGroup.value.creditDebit === 'debit'
-      ? this.accountId()
-      : this.accounts().find(acct => acct.info.name === this.fastEntryGroup.value.otherAccount)?.id ?? '';
+    const formValues = this.fastEntryGroup.value;
+
+    tx.when = formValues.date?.toISOString().split("T")[0] ?? '';
+    tx.amount = formValues.amount as number;
+
+    // Get the selected other account name
+    const otherAccountName = formValues.otherAccount as string;
+    console.log('Building transaction with other account name:', otherAccountName);
+
+    // Find the account object by name
+    const otherAccount = this.accounts().find(acct => acct.info.name === otherAccountName);
+    console.log('Found other account:', otherAccount);
+
+    if (!otherAccount) {
+      console.error('Could not find other account with name:', otherAccountName);
+      console.log('Available accounts:', this.accounts());
+      return tx;
+    }
+
+    const otherAccountId = otherAccount.id;
+
+    if (formValues.creditDebit === 'credit') {
+      tx.creditedAccountId = this.accountId();
+      tx.debitedAccountId = otherAccountId;
+    } else {
+      tx.creditedAccountId = otherAccountId;
+      tx.debitedAccountId = this.accountId();
+    }
+
+    console.log('Built transaction:', tx);
     return tx;
   }
 

@@ -60,7 +60,15 @@ public static class Accounts
     {
         AccountWithInfo? acct = await store.GetAccountWithInfoByIdAsync(dbName, clientId, accountId);
         if (acct is null) return null;
-        List<Transaction> transactions = store.TransactionsForAccount(dbName, acct.Id.ToString()).OrderBy(t => t.When).ToList() ?? [];
+
+        // Changed: Collect the transactions from the async enumerable
+        List<Transaction> transactions = [];
+        await foreach (List<Transaction> batch in store.TransactionsForAccountAsync(dbName, acct.Id.ToString()))
+        {
+            transactions.AddRange(batch);
+        }
+        transactions = transactions.OrderBy(t => t.When).ToList();
+
         CheckPoint? checkPoint = await store.GetCheckpointAsync(dbName, acct.Id.ToString());
         return new AccountWithEverything(acct, transactions, checkPoint);
     }
@@ -99,7 +107,17 @@ public static class Accounts
     {
         Account? acct = await store.GetCollection<Account>(dbName, CollectionNames.Account)?.AsQueryable().FirstOrDefaultAsync(a => a.Id == accountId)!;
         if (acct is null) return null;
-        List<Transaction> transactions = store.TransactionsForAccount(dbName, acct.Id.ToString());
+
+        // Changed: Collect the transactions from the async enumerable
+        List<Transaction> transactions = [];
+        await foreach (List<Transaction> batch in store.TransactionsForAccountAsync(dbName, acct.Id.ToString()))
+        {
+            transactions.AddRange(batch);
+        }
+
+        if (transactions.Count == 0)
+            return new DateRange(acct.Created, acct.Created);
+
         DateRange dateRange = new(acct.Created, transactions.Max(t => t.When));
         return dateRange;
     }
@@ -108,7 +126,14 @@ public static class Accounts
     {
         Account? acct = await store.GetCollection<Account>(dbName, CollectionNames.Account)?.AsQueryable().FirstOrDefaultAsync(a => a.Id == accountId)!;
         if (acct is null) return 0;
-        List<Transaction> transactions = store.TransactionsForAccount(dbName, acct.Id.ToString());
+
+        // Changed: Collect the transactions from the async enumerable
+        List<Transaction> transactions = [];
+        await foreach (List<Transaction> batch in store.TransactionsForAccountAsync(dbName, acct.Id.ToString()))
+        {
+            transactions.AddRange(batch);
+        }
+
         decimal balance = 0;
         bool isDebit = acct.IsDebitAccount;
         transactions.ForEach(t =>
@@ -137,7 +162,14 @@ public static class Accounts
     {
         AccountWithInfo? acct = await store.GetAccountWithInfoByIdAsync(dbName, clientId, accountId);
         if (acct is null || acct.Created > date) return 0;
-        List<Transaction> transactions = store.TransactionsForAccount(dbName, acct.Id.ToString());
+
+        // Changed: Collect the transactions from the async enumerable
+        List<Transaction> transactions = [];
+        await foreach (List<Transaction> batch in store.TransactionsForAccountAsync(dbName, acct.Id.ToString()))
+        {
+            transactions.AddRange(batch);
+        }
+
         List<Transaction> inDate = transactions.Where(t => t.When <= date).ToList();
         return BalanceCalculator.Calculate(acct, inDate);
     }
@@ -170,7 +202,14 @@ public static class Accounts
         if (!result.HasValue || !result.Value) return false;
         result = await store.DeleteOneClientScopeAsync<Account>(dbName, clientId, Guid.Parse((ReadOnlySpan<char>)accountId));
         if (!result.HasValue || !result.Value) return false;
-        List<Transaction> transactions = store.TransactionsForAccount(dbName, accountId);
+
+        // Changed: Collect the transactions from the async enumerable
+        List<Transaction> transactions = [];
+        await foreach (List<Transaction> batch in store.TransactionsForAccountAsync(dbName, accountId))
+        {
+            transactions.AddRange(batch);
+        }
+
         foreach (Transaction t in transactions)
         {
             await store.DeleteTransactionAsync(dbName, t.Id);
