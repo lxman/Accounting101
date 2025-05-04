@@ -1,0 +1,123 @@
+/* Logo and branding styles */
+/* App title */
+.app-title {
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--on-primary);
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+}
+.app-title .material-icons {
+  margin-right: var(--space-sm);
+}
+
+/* Custom header styling */
+.app-header {
+  background-color: var(--primary-600);
+  color: var(--on-primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md) var(--space-lg);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  z-index: 10;
+}
+
+/* Navigation menu */
+.app-nav {
+  display: flex;
+  gap: var(--space-md);
+}
+.app-nav a {
+  color: var(--on-primary);
+  text-decoration: none;
+  font-weight: 500;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--border-radius-sm);
+  transition: all 0.2s ease;
+}
+.app-nav a:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  text-decoration: none;
+}
+.app-nav a.active {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* User menu */
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+.user-menu .user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+}
+.user-menu .user-name {
+  font-weight: 500;
+}
+
+/* Logo */
+.app-logo {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: var(--on-primary);
+  display: flex;
+  align-items: center;
+}
+.app-logo img {
+  height: 32px;
+  margin-right: var(--space-sm);
+}
+.app-logo span {
+  letter-spacing: 0.5px;
+}
+.app-logo small {
+  font-size: 0.875rem;
+  opacity: 0.8;
+  font-weight: normal;
+  margin-left: var(--space-xs);
+}
+
+/* Dashboard header with breadcrumbs */
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-md) 0;
+  margin-bottom: var(--space-md);
+  border-bottom: 1px solid var(--outline-variant);
+}
+.dashboard-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--primary-700);
+}
+.dashboard-header .breadcrumbs {
+  display: flex;
+  gap: var(--space-xs);
+  font-size: 0.875rem;
+  color: var(--on-surface-variant);
+}
+.dashboard-header .breadcrumbs a {
+  color: var(--primary-600);
+  text-decoration: none;
+}
+.dashboard-header .breadcrumbs a:hover {
+  text-decoration: underline;
+}
+.dashboard-header .breadcrumbs .separator {
+  color: var(--on-surface-variant);
+}
+
+/*# sourceMappingURL=branding.css.map */

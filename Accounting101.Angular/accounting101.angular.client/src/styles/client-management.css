@@ -1,0 +1,153 @@
+/* Client management related styles */
+/* Client selector grid */
+.client-selector-view {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--background-color);
+}
+
+.client-grid-container {
+  padding: var(--space-lg);
+  flex: 1;
+  overflow-y: auto;
+}
+
+.client-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-lg);
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Client details page */
+.client-details-container {
+  padding: var(--space-lg);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.client-info-card {
+  background-color: white;
+  border-radius: var(--border-radius-md);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--space-lg);
+}
+.client-info-card .client-info-header {
+  padding: var(--space-md);
+  background-color: var(--primary-light);
+  border-bottom: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md) var(--border-radius-md) 0 0;
+}
+.client-info-card .client-info-header h2 {
+  color: var(--primary-color);
+  margin: 0;
+}
+.client-info-card .client-info-content {
+  padding: var(--space-lg);
+}
+.client-info-card .client-info-content .info-section {
+  margin-bottom: var(--space-md);
+}
+.client-info-card .client-info-content .info-section h3 {
+  color: var(--primary-color);
+  font-size: 1.125rem;
+  margin-bottom: var(--space-sm);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid var(--border-color);
+}
+.client-info-card .client-info-content .info-section .info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-md);
+}
+@media (max-width: 768px) {
+  .client-info-card .client-info-content .info-section .info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.client-info-card .client-info-content .info-section .info-grid .info-item {
+  display: flex;
+  flex-direction: column;
+}
+.client-info-card .client-info-content .info-section .info-grid .info-item .label {
+  font-size: 0.875rem;
+  color: var(--light-text);
+  margin-bottom: var(--space-xs);
+}
+.client-info-card .client-info-content .info-section .info-grid .info-item .value {
+  font-weight: 500;
+}
+.client-info-card .client-info-actions {
+  padding: var(--space-md);
+  background-color: rgba(0, 0, 0, 0.02);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+/* Page header for client pages */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-lg);
+}
+.page-header h1 {
+  color: var(--primary-color);
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 500;
+}
+.page-header .actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+/* Client card hover effects */
+.client-card {
+  transition: all 0.2s ease;
+}
+.client-card:hover {
+  transform: translateY(-3px);
+}
+.client-card:hover .select-button {
+  opacity: 1;
+}
+.client-card .select-button {
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+/* Improved delete button styling */
+.delete-button-wrapper {
+  position: absolute;
+  top: var(--space-sm);
+  right: var(--space-sm);
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.client-card:hover .delete-button-wrapper {
+  opacity: 1;
+}
+
+/* Animation for client deletion */
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+}
+.deleting {
+  animation: fadeOut 0.3s ease-out forwards;
+  pointer-events: none;
+}
+
+/*# sourceMappingURL=client-management.css.map */

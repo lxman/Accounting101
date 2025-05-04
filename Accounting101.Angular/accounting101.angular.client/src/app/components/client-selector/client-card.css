@@ -1,0 +1,72 @@
+/* Custom styles for client card */
+.mat-mdc-card.client-card {
+  border-radius: 8px !important;
+  box-shadow: 0 6px 12px rgba(0, 71, 161, 0.15) !important;
+  border-top: 4px solid #0288d1 !important;
+  background-color: white !important;
+  margin-bottom: 20px !important;
+  overflow: hidden !important;
+}
+
+.client-card .mat-mdc-card-title {
+  color: #0288d1 !important;
+  font-weight: 500 !important;
+  font-size: 20px !important;
+}
+
+.client-card .mat-mdc-card-content {
+  color: #455a64 !important;
+  padding: 16px !important;
+}
+
+.client-card .mat-mdc-card-actions {
+  padding: 8px 16px 16px !important;
+  background-color: white !important;
+}
+
+.client-card button.mat-button,
+.client-card button.mat-mdc-button {
+  background-color: #0288d1 !important;
+  color: white !important;
+  border-radius: 4px !important;
+  padding: 0 16px !important;
+  font-weight: 500 !important;
+  transition: background-color 0.3s !important;
+}
+
+.client-card button.mat-button:hover,
+.client-card button.mat-mdc-button:hover {
+  background-color: #01579b !important;
+}
+
+.client-card button.delete-button {
+  background-color: white !important;
+  color: #d32f2f !important;
+  border: 1px solid #d32f2f !important;
+  transition: all 0.3s !important;
+}
+
+.client-card button.delete-button:hover {
+  background-color: #ffebee !important;
+}
+
+/* Style for menu bar */
+.menu {
+  background-color: white !important;
+  box-shadow: 0 2px 6px rgba(0, 71, 161, 0.1) !important;
+  border-top: 4px solid #0288d1 !important;
+  margin-bottom: 20px !important;
+  border-radius: 0 0 8px 8px !important;
+}
+
+.menu button {
+  background-color: #0288d1 !important;
+  color: white !important;
+  border-radius: 4px !important;
+  font-weight: 500 !important;
+  transition: background-color 0.3s !important;
+}
+
+.menu button:hover {
+  background-color: #01579b !important;
+}

@@ -1,0 +1,45 @@
+/* Custom styles for client-header to match login screen */
+:host {
+  display: block;
+}
+
+/* Use CSS variables for consistent color theming */
+:root {
+  --header-bg: white;
+  --header-title: #0288d1;
+  --header-text: #455a64;
+  --header-border: #0288d1;
+  --header-shadow: rgba(0, 71, 161, 0.15);
+  --header-hover-shadow: rgba(0, 71, 161, 0.2);
+}
+
+mat-card {
+  background-color: var(--header-bg) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 6px 12px var(--header-shadow) !important;
+  border-top: 4px solid var(--header-border) !important;
+  margin-bottom: 2px !important;
+  overflow: hidden;
+  transition: box-shadow 0.3s;
+}
+
+mat-card:hover {
+  box-shadow: 0 8px 16px var(--header-hover-shadow) !important;
+  cursor: pointer;
+}
+
+mat-card-title {
+  color: var(--header-title) !important;
+  font-weight: 500 !important;
+  font-size: 20px !important;
+}
+
+mat-card-content {
+  color: var(--header-text) !important;
+  padding: 16px !important;
+}
+
+p {
+  margin-bottom: 8px !important;
+  font-weight: 500 !important;
+}

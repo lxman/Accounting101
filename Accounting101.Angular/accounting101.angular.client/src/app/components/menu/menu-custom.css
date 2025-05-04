@@ -1,0 +1,34 @@
+/* Custom styles for menu to match login screen */
+.menu {
+  padding: 10px 20px;
+  background-color: white;
+  box-shadow: 0 2px 6px rgba(0, 71, 161, 0.1);
+  margin-bottom: 2px;
+  border-top: 4px solid #0288d1;
+}
+
+button[mat-raised-button] {
+  background-color: #0288d1 !important;
+  color: white !important;
+  font-weight: 500 !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  transition: background-color 0.3s !important;
+}
+
+button[mat-raised-button]:hover {
+  background-color: #01579b !important;
+}
+
+/* Style for menu items */
+::ng-deep .mat-menu-content {
+  background-color: white !important;
+}
+
+::ng-deep .mat-menu-item {
+  color: #455a64 !important;
+}
+
+::ng-deep .mat-menu-item:hover {
+  background-color: #e1f5fe !important;
+}

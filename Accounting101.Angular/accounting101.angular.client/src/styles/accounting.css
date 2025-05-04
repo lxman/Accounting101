@@ -1,0 +1,117 @@
+/* Account balance styling utilities */
+/* Apply to node-balance-element in account-organizer */
+.currency-value {
+  font-family: var(--font-family-mono);
+  font-weight: 500;
+  text-align: right;
+  white-space: nowrap;
+  min-width: 100px;
+}
+
+.currency-positive {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.currency-negative {
+  color: var(--error);
+  font-weight: 600;
+}
+
+/* Account type icons styling */
+.account-type-icon {
+  color: var(--primary-900) !important; /* Darkest blue for maximum contrast */
+  margin-right: var(--space-xs);
+  font-size: 1.4em !important; /* Even bigger icons */
+  opacity: 0.9 !important; /* Ensure full opacity */
+}
+
+.account-type-asset .account-type-icon {
+  color: var(--primary-900) !important;
+}
+
+.account-type-liability .account-type-icon {
+  color: var(--error) !important;
+}
+
+.account-type-equity .account-type-icon {
+  color: var(--primary-900) !important;
+}
+
+.account-type-revenue .account-type-icon {
+  color: var(--success) !important;
+}
+
+.account-type-expense .account-type-icon {
+  color: var(--warning) !important;
+}
+
+/* Enhanced folder icon visibility */
+.folder-icon {
+  color: var(--primary-900) !important;
+  font-size: 1.4em !important;
+  opacity: 0.9 !important;
+}
+
+/* Header styling for each account category */
+.account-category-header {
+  font-size: 1.2rem;
+  font-weight: 700; /* Increased from 500 to 700 */
+  color: var(--primary-900);
+  padding: var(--space-sm) var(--space-md);
+  margin: var(--space-md) 0 var(--space-sm);
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+/* Visual indicator for zero-balance accounts */
+.zero-balance {
+  opacity: 0.85; /* Increased from 0.7 to 0.85 for better visibility */
+}
+
+/* Hover effect for account buttons */
+.account-button:hover {
+  background-color: var(--surface-variant);
+  border-radius: var(--border-radius-sm);
+}
+
+/* Improved account item layout */
+.account-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  transition: all 0.2s ease;
+}
+
+.account-item:hover {
+  background-color: var(--surface-variant);
+}
+
+/* Account names need more contrast */
+.account-name, .node-text {
+  color: var(--neutral-900); /* Darker than on-surface */
+  font-weight: 500; /* Medium weight for better visibility */
+}
+
+/* Fix the CSS selector issue in the account-organizer component */
+.positive-balance {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.negative-balance {
+  color: var(--error);
+  font-weight: 600;
+}
+
+/* Ensure all material icons have good contrast */
+.material-icons,
+.material-icons-outlined,
+mat-icon {
+  color: var(--primary-900) !important;
+  font-size: 1.4em !important;
+  opacity: 1 !important;
+}
+
+/*# sourceMappingURL=accounting.css.map */

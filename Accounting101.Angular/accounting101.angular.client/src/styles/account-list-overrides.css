@@ -1,0 +1,80 @@
+/* Final color adjustments for account-list page */
+body {
+  background-color: #ebf5fc !important;
+}
+
+/* Menu buttons */
+.menu button {
+  background-color: #0288d1 !important;
+  color: white !important;
+}
+
+/* Client header */
+app-client-header mat-card {
+  background-color: white !important;
+  border-radius: 8px !important;
+  box-shadow: 0 6px 12px rgba(0, 71, 161, 0.15) !important;
+  border-top: 4px solid #0288d1 !important;
+}
+
+app-client-header mat-card-title {
+  color: #0288d1 !important;
+}
+
+app-client-header mat-card-content {
+  color: #455a64 !important;
+}
+
+/* Account folders */
+app-account-organizer .node-title {
+  background-color: white !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 6px rgba(0, 71, 161, 0.1) !important;
+  margin: 10px 0 !important;
+}
+
+app-account-organizer .node-title.folder-node {
+  background-color: white !important;
+  border-left: 4px solid #0288d1 !important;
+}
+
+app-account-organizer .folder-text {
+  color: #0288d1 !important;
+  font-weight: 500 !important;
+}
+
+app-account-organizer .material-icons {
+  color: #0288d1 !important;
+}
+
+app-account-organizer .node-balance-element {
+  color: #455a64 !important;
+  font-weight: 500 !important;
+}
+
+/* Account list container */
+app-account-list .list-container {
+  background-color: #ebf5fc !important;
+}
+
+app-account-list .scrollable-container {
+  padding: 0 20px !important;
+}
+
+/* Force direct element styling */
+.mat-toolbar {
+  background-color: white !important;
+  border-top: 4px solid #0288d1 !important;
+}
+
+button.mat-button,
+button.mat-stroked-button,
+button.mat-raised-button {
+  background-color: #0288d1 !important;
+  color: white !important;
+}
+
+.mat-card {
+  background-color: white !important;
+  border-top: 4px solid #0288d1 !important;
+}

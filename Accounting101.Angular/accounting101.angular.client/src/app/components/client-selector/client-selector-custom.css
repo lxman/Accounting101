@@ -1,0 +1,83 @@
+/* Custom styles for client-selector to match login screen */
+:host {
+  background-color: #ebf5fc !important;
+  min-height: 100vh;
+  display: block;
+  padding: 20px;
+}
+
+mat-card {
+  background-color: white !important;
+  border-radius: 8px !important;
+  box-shadow: 0 6px 12px rgba(0, 71, 161, 0.15) !important;
+  margin-bottom: 20px !important;
+  border-top: 4px solid #0288d1 !important;
+  overflow: hidden;
+}
+
+mat-card-header {
+  background-color: white !important;
+  padding: 16px !important;
+}
+
+mat-card-title {
+  color: #0288d1 !important;
+  font-weight: 500 !important;
+  font-size: 20px !important;
+}
+
+mat-card-content {
+  padding: 16px !important;
+  color: #455a64 !important;
+}
+
+mat-card-content p {
+  margin-bottom: 8px !important;
+  font-weight: 500 !important;
+}
+
+mat-card-actions {
+  padding: 8px 16px 16px !important;
+  background-color: white !important;
+}
+
+button[mat-button] {
+  background-color: #0288d1 !important;
+  color: white !important;
+  border-radius: 4px !important;
+  padding: 4px 16px !important;
+  font-weight: 500 !important;
+  transition: background-color 0.3s !important;
+}
+
+button[mat-button]:hover {
+  background-color: #01579b !important;
+}
+
+.delete-button {
+  background-color: white !important;
+  color: #d32f2f !important;
+  border: 1px solid #d32f2f !important;
+  font-size: 12px !important;
+  line-height: 20px !important;
+  transition: background-color 0.3s, color 0.3s !important;
+}
+
+.delete-button:hover {
+  background-color: #ffebee !important;
+}
+
+/* Style for menu and logout buttons */
+:host ::ng-deep button[mat-button].mat-mdc-button.mat-unthemed {
+  background-color: #0288d1 !important;
+  color: white !important;
+}
+
+:host ::ng-deep button[mat-button].mat-mdc-button.mat-unthemed:hover {
+  background-color: #01579b !important;
+}
+
+/* Style for address text */
+:host ::ng-deep mat-card-content > :not(p) {
+  color: #607d8b !important;
+}

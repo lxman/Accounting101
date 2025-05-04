@@ -1,0 +1,287 @@
+/* Global style overrides to match login screen */
+body {
+  background-color: #ebf5fc !important;
+  font-family: 'Roboto', sans-serif !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Style for all cards in the app */
+.mat-mdc-card,
+.mat-card {
+  background-color: white !important;
+  border-radius: 8px !important;
+  box-shadow: 0 6px 12px rgba(0, 71, 161, 0.15) !important;
+  border-top: 4px solid #0288d1 !important;
+  /* margin-bottom: 20px !important; */
+  overflow: hidden !important;
+}
+
+/* Card title styling */
+.mat-mdc-card-title,
+.mat-card-title {
+  color: #0288d1 !important;
+  font-weight: 500 !important;
+  font-size: 20px !important;
+}
+
+/* Card content styling */
+.mat-mdc-card-content,
+.mat-card-content {
+  color: #455a64 !important;
+  padding: 16px !important;
+}
+
+/* Button styling */
+.mat-raised-button.mat-primary,
+.mat-button.mat-primary,
+.mat-stroked-button.mat-primary,
+.mat-raised-button,
+.mat-button,
+button[mat-button],
+button[mat-raised-button] {
+  background-color: #0288d1 !important;
+  color: white !important;
+  border-radius: 4px !important;
+  font-weight: 500 !important;
+  transition: background-color 0.3s !important;
+}
+
+.mat-raised-button.mat-primary:hover,
+.mat-button.mat-primary:hover,
+.mat-stroked-button.mat-primary:hover,
+.mat-raised-button:hover,
+.mat-button:hover,
+button[mat-button]:hover,
+button[mat-raised-button]:hover {
+  background-color: #01579b !important;
+}
+
+/* Delete button styles */
+.delete-button,
+button.delete-button,
+button[mat-stroked-button].delete-button {
+  background-color: white !important;
+  color: #d32f2f !important;
+  border: 1px solid #d32f2f !important;
+  transition: all 0.3s !important;
+}
+
+.delete-button:hover,
+button.delete-button:hover,
+button[mat-stroked-button].delete-button:hover {
+  background-color: #ffebee !important;
+}
+
+/* Headings and titles */
+h1, h2, h3, h4 {
+  color: #0288d1 !important;
+  font-weight: 500 !important;
+}
+
+/* Menu styling */
+.menu {
+  padding: 10px 20px !important;
+  background-color: white !important;
+  box-shadow: 0 2px 6px rgba(0, 71, 161, 0.1) !important;
+  margin-bottom: 5px !important;
+  border-top: 4px solid #0288d1 !important;
+}
+
+/* Improved container styling */
+.content-container {
+  padding: 20px !important;
+  background-color: white !important;
+  border-radius: 8px !important;
+  box-shadow: 0 6px 12px rgba(0, 71, 161, 0.15) !important;
+  margin-bottom: 20px !important;
+}
+
+/* Client selector specific styling */
+app-client-selector {
+  display: block !important;
+  background-color: #ebf5fc !important;
+  min-height: 100vh !important;
+  padding: 20px !important;
+}
+
+/* Account list specific styling */
+app-account-list {
+  display: block !important;
+  background-color: #ebf5fc !important;
+  min-height: 100vh !important;
+}
+
+app-account-list .list-container {
+  background-color: #ebf5fc !important;
+}
+
+app-account-list .scrollable-container {
+  padding: 0 20px !important;
+}
+
+/* Account organizer styling */
+app-account-organizer .node-title {
+  background-color: white !important;
+  border-radius: 8px !important;
+  box-shadow: 0 2px 6px rgba(0, 71, 161, 0.1) !important;
+  border-left: 4px solid #0288d1 !important;
+  margin-bottom: 10px !important;
+  transition: box-shadow 0.3s !important;
+}
+
+app-account-organizer .node-title:hover {
+  box-shadow: 0 4px 8px rgba(0, 71, 161, 0.2) !important;
+}
+
+app-account-organizer .node-title.folder-node {
+  background-color: #f5f8fa !important;
+  border-left: 4px solid #0288d1 !important;
+}
+
+app-account-organizer .folder-text {
+  color: #0288d1 !important;
+  font-weight: 500 !important;
+}
+
+app-account-organizer .node-text {
+  color: #455a64 !important;
+  font-weight: 500 !important;
+}
+
+app-account-organizer .material-icons {
+  color: #0288d1 !important;
+}
+
+app-account-organizer .account-button {
+  background: transparent !important;
+  border: none !important;
+  color: #455a64 !important;
+  text-align: left !important;
+  padding-left: 0 !important;
+}
+
+app-account-organizer .node-balance-element {
+  color: #455a64 !important;
+  font-weight: 500 !important;
+}
+
+/* Client header styling */
+app-client-header mat-card {
+  background-color: white !important;
+  border-radius: 8px !important;
+  box-shadow: 0 6px 12px rgba(0, 71, 161, 0.15) !important;
+  border-top: 4px solid #0288d1 !important;
+  margin-bottom: 5px !important;
+  transition: box-shadow 0.3s !important;
+}
+
+app-client-header mat-card:hover {
+  box-shadow: 0 8px 16px rgba(0, 71, 161, 0.2) !important;
+}
+
+app-client-header mat-card-title {
+  color: #0288d1 !important;
+  font-weight: 500 !important;
+}
+
+app-client-header mat-card-content {
+  color: #455a64 !important;
+}
+
+/* Force all buttons to have consistent styling */
+.mdc-button,
+.mat-mdc-button,
+.mat-mdc-raised-button,
+.mat-mdc-outlined-button {
+  background-color: #0288d1 !important;
+  color: white !important;
+}
+
+/* Text colors */
+.primary-text {
+  color: #0288d1 !important;
+}
+
+.secondary-text {
+  color: #455a64 !important;
+}
+
+/* Account page specific styling */
+app-account .account-layout {
+  background-color: #ebf5fc !important;
+}
+
+app-account app-fast-entry {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 100 !important;
+  padding: 0 20px !important;
+  background-color: #ebf5fc !important;
+}
+
+app-account app-fast-entry .fast-entry-form {
+  border-top: 4px solid #0288d1 !important;
+  background-color: white !important;
+  box-shadow: 0 -2px 10px rgba(0, 71, 161, 0.15) !important;
+  border-radius: 8px 8px 0 0 !important;
+  padding: 15px !important;
+}
+
+app-account app-transaction-list table {
+  width: 100% !important;
+  background-color: white !important;
+  border-radius: 8px !important;
+  overflow: hidden !important;
+  box-shadow: 0 2px 10px rgba(0, 71, 161, 0.1) !important;
+  margin-bottom: 20px !important;
+}
+
+/* Add border radius to all elements */
+.mat-mdc-card,
+.mat-card,
+.menu,
+.content-container,
+.mat-raised-button,
+.mat-button,
+button[mat-button],
+button[mat-raised-button],
+.mat-mdc-button,
+.mat-mdc-raised-button {
+  border-radius: 8px !important;
+}
+
+/* Specific selector for the client card */
+app-client-selector mat-card {
+  border-radius: 8px !important;
+  box-shadow: 0 6px 12px rgba(0, 71, 161, 0.15) !important;
+  border-top: 4px solid #0288d1 !important;
+  background-color: white !important;
+}
+
+/* Override variables with CSS variables for consistency */
+:root {
+  --account-button-bg: #0288d1;
+  --account-button-text: white;
+  --account-card-bg: white;
+  --account-card-border: #0288d1;
+  --account-folder-bg: #f5f8fa;
+  --account-text-color: #455a64;
+  --account-title-color: #0288d1;
+  --app-background: #ebf5fc;
+}
+
+/* Material design overrides */
+.mat-mdc-menu-panel {
+  background-color: white !important;
+}
+
+.mat-mdc-menu-item {
+  color: #455a64 !important;
+}
+
+.mat-mdc-menu-item:hover {
+  background-color: #e1f5fe !important;
+}

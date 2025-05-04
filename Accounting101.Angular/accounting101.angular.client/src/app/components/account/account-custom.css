@@ -1,0 +1,99 @@
+/* Custom styles for the account view page */
+.account-layout {
+  background-color: var(--app-background, #ebf5fc);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.fixed-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--app-background, #ebf5fc);
+}
+
+.scrollable-content {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 70px; /* Space for fixed fast-entry component */
+}
+
+/* Transaction list styling */
+app-transaction-list table {
+  width: 100%;
+  background-color: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 71, 161, 0.1);
+  margin-bottom: 20px;
+}
+
+app-transaction-list .mat-header-row {
+  background-color: var(--folder-bg, #f5f8fa);
+  border-bottom: 2px solid var(--card-border, #0288d1);
+}
+
+app-transaction-list .mat-header-cell {
+  color: var(--card-title, #0288d1);
+  font-weight: 500;
+}
+
+app-transaction-list .mat-row:nth-child(even) {
+  background-color: var(--surface-variant, #eef4f8);
+}
+
+app-transaction-list .mat-cell {
+  color: var(--account-text, #455a64);
+}
+
+/* Fast entry component styling for fixed position */
+app-fast-entry {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100vw;
+  z-index: 100;
+  padding: 0;
+  background-color: var(--app-background, #ebf5fc);
+}
+
+app-fast-entry .fast-entry-form {
+  border-top: 4px solid var(--card-border, #0288d1);
+  background-color: white;
+  box-shadow: 0 -2px 10px rgba(0, 71, 161, 0.15);
+  border-radius: 8px 8px 0 0;
+  padding: 15px;
+}
+
+app-fast-entry button {
+  background-color: var(--button-bg, #0288d1) !important;
+  color: white !important;
+}
+
+app-fast-entry button:hover {
+  background-color: var(--button-hover, #01579b) !important;
+}
+
+/* Account header styling */
+app-account-header {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 71, 161, 0.1);
+  margin: 0 0 1px 0;
+  /* padding: 15px; */
+  display: block;
+  border-left: 4px solid var(--card-border, #0288d1);
+}
+
+app-account-header h1 {
+  color: var(--card-title, #0288d1);
+  font-weight: 500;
+  margin-top: 0;
+}
+
+app-account-header p {
+  color: var(--account-text, #455a64);
+  margin-bottom: 5px;
+}
