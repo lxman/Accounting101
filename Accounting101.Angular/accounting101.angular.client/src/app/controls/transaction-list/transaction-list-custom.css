@@ -1,16 +1,15 @@
 /* Custom styling for transaction-list component */
 :host {
   display: block;
-  padding-bottom: 80px; /* Ensure there's space at the bottom for the fixed fast-entry component */
 }
 
 .transaction-table-container {
   width: 100%;
-  margin-bottom: 80px; /* Additional space at the bottom */
   background-color: white;
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 2px 10px rgba(0, 71, 161, 0.1);
+  margin-bottom: 50px;
 }
 
 table {
@@ -66,13 +65,7 @@ table {
   width: 150px;
 }
 
-/* Ensure proper scrolling with fixed fast-entry component */
+/* Media query for smaller screens */
 @media (max-height: 700px) {
-  :host {
-    padding-bottom: 100px;
-  }
-  
-  .transaction-table-container {
-    margin-bottom: 100px;
-  }
+  /* No additional padding needed as it's handled by the parent component */
 }
