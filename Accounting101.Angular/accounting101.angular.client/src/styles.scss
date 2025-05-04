@@ -9,6 +9,7 @@
 @use '../src/styles/client-management.css';
 @use '../src/styles/custom-overrides.css';
 @use '../src/styles/account-list-overrides.css';
+@use '../src/styles/color-corrections.css';
 
 /* Color palette variables */
 :root {
@@ -134,9 +135,10 @@ menu {
   @include mat.select-overrides((
     // Color
     panel-background-color: var(--background),
-    enabled-trigger-text-color: var(--on-background) !important
-
-    // Shape
+    enabled-trigger-text-color: var(--primary-800) !important,
+    enabled-arrow-color: var(--primary-600) !important,
+    focused-arrow-color: var(--primary-600) !important,
+    placeholder-text-color: var(--primary-600) !important
   ));
 }
 

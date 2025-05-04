@@ -36,7 +36,7 @@
 }
 
 .input-element {
-  color: var(--account-text, #455a64) !important;
+  color: var(--primary-800) !important;
 }
 
 .fast-entry-element {
@@ -61,17 +61,17 @@
 .radio-button {
   margin: 0;
   padding: 0;
-  color: var(--account-text, #455a64) !important;
+  color: var(--primary-800) !important;
 }
 
 button {
   margin: 10px;
-  background-color: var(--button-bg, #0288d1) !important;
+  background-color: var(--primary-600) !important;
   color: white !important;
 }
 
 button:hover {
-  background-color: var(--button-hover, #01579b) !important;
+  background-color: var(--primary-700) !important;
 }
 
 /* Ensure form elements are properly sized */
