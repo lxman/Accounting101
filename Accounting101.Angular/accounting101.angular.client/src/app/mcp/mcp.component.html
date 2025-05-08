@@ -1,0 +1,92 @@
+<div class="container">
+  <h2>Model Context Protocol (MCP) Tools</h2>
+  
+  <div *ngIf="error" class="alert alert-danger">
+    {{ error }}
+  </div>
+
+  <div class="mb-4">
+    <button class="btn btn-sm btn-outline-primary" (click)="loadTools()" [disabled]="loading">
+      <span *ngIf="loading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+      Refresh Tools
+    </button>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header">
+      <h3 class="card-title">Available Tools</h3>
+    </div>
+    <div class="card-body">
+      <div *ngIf="loading" class="text-center">
+        <div class="spinner-border" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+      
+      <div *ngIf="!loading && availableTools.length === 0" class="alert alert-info">
+        No tools available
+      </div>
+
+      <form [formGroup]="toolsForm" (ngSubmit)="executeTool()" *ngIf="!loading && availableTools.length > 0">
+        <div class="mb-3">
+          <label for="toolSelect" class="form-label">Select Tool</label>
+          <select 
+            id="toolSelect" 
+            class="form-select" 
+            formControlName="selectedToolName"
+            (change)="onToolSelect($event.target.value)">
+            <option value="">-- Select a tool --</option>
+            <option *ngFor="let tool of availableTools" [value]="tool.name">
+              {{ tool.name }} - {{ tool.description }}
+            </option>
+          </select>
+        </div>
+
+        <div *ngIf="selectedTool" class="card mb-3">
+          <div class="card-header">
+            <h4 class="card-title">{{ selectedTool.name }}</h4>
+            <p class="card-subtitle">{{ selectedTool.description }}</p>
+          </div>
+          <div class="card-body">
+            <div formGroupName="arguments">
+              <ng-container *ngIf="selectedTool.input_schema && selectedTool.input_schema.properties">
+                <div *ngFor="let prop of objectKeys(selectedTool.input_schema.properties)" class="mb-3">
+                  <label [for]="'arg-' + prop" class="form-label">
+                    {{ prop }}
+                    <span *ngIf="isRequired(prop)" class="text-danger">*</span>
+                  </label>
+                  <input 
+                    [id]="'arg-' + prop"
+                    class="form-control"
+                    [type]="getInputType(prop)"
+                    [formControlName]="prop"
+                  >
+                  <small class="form-text text-muted">
+                    {{ selectedTool.input_schema.properties[prop].description || '' }}
+                  </small>
+                </div>
+              </ng-container>
+            </div>
+          </div>
+        </div>
+
+        <button 
+          type="submit" 
+          class="btn btn-primary" 
+          [disabled]="toolsForm.invalid || loading">
+          <span *ngIf="loading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+          Execute Tool
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div *ngIf="toolResponse" class="card">
+    <div class="card-header">
+      <h3 class="card-title">Response</h3>
+    </div>
+    <div class="card-body">
+      <pre>{{ toolResponse }}</pre>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,108 @@
+### List available tools
+POST https://localhost:5001/mcp
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": "list_tools_request",
+  "method": "list_tools"
+}
+
+### Get businesses
+POST https://localhost:5001/mcp
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": "get_businesses_request",
+  "method": "call_tool",
+  "params": {
+    "name": "GetBusinesses"
+  }
+}
+
+### Get clients for a business
+POST https://localhost:5001/mcp
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": "get_clients_request",
+  "method": "call_tool",
+  "params": {
+    "name": "GetClientsForBusiness",
+    "arguments": {
+      "businessId": "12345"
+    }
+  }
+}
+
+### Get account information
+POST https://localhost:5001/mcp
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": "get_account_info_request",
+  "method": "call_tool",
+  "params": {
+    "name": "GetAccountInfo",
+    "arguments": {
+      "accountId": "ACCT123"
+    }
+  }
+}
+
+### Create a sample transaction
+POST https://localhost:5001/mcp
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": "create_transaction_request",
+  "method": "call_tool",
+  "params": {
+    "name": "CreateSampleTransaction",
+    "arguments": {
+      "businessId": "12345",
+      "sourceAccountId": "ACCT123",
+      "destinationAccountId": "ACCT456",
+      "amount": 100.50,
+      "description": "Test transaction"
+    }
+  }
+}
+
+### Get analyze transactions prompt
+POST https://localhost:5001/mcp
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": "analyze_transactions_prompt_request",
+  "method": "get_prompt",
+  "params": {
+    "name": "AnalyzeTransactions",
+    "arguments": {
+      "transactionData": "2023-05-01,ACCT123,ACCT456,100.00,Payment\n2023-05-02,ACCT456,ACCT789,200.00,Transfer\n2023-05-03,ACCT789,ACCT123,50.00,Refund"
+    }
+  }
+}
+
+### Get generate financial report prompt
+POST https://localhost:5001/mcp
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": "generate_report_prompt_request",
+  "method": "get_prompt",
+  "params": {
+    "name": "GenerateFinancialReport",
+    "arguments": {
+      "businessName": "Acme Corp",
+      "timePeriod": "Q2 2023",
+      "financialData": "Revenue: $500,000\nExpenses: $300,000\nProfit: $200,000\nAssets: $1,200,000\nLiabilities: $800,000"
+    }
+  }
+}

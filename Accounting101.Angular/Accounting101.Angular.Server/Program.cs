@@ -5,6 +5,7 @@ using Accounting101.Angular.DataAccess.Services.Interfaces;
 using Accounting101.Angular.Server.Converters;
 using Accounting101.Angular.Server.Identity;
 using Accounting101.Angular.Server.IdentityApiRouteBuilder;
+using Accounting101.Angular.Server.MCP;
 using Accounting101.Angular.Server.Services;
 using AspNetCoreIdentity.MongoDriver;
 using Microsoft.AspNetCore.Identity;
@@ -95,6 +96,9 @@ builder.Services.AddScoped<IClientService, ClientService>();
 builder.Services.AddScoped<IAddressService, AddressService>();
 builder.Services.AddScoped<ICoAService, CoAService>();
 
+// Add MCP server configuration
+builder.Services.AddMcpServer();
+
 WebApplication app = builder.Build();
 
 var fileProvider = new PhysicalFileProvider(Path.Combine(app.Environment.WebRootPath, "accounting101.client"));
@@ -159,5 +163,8 @@ app.MapIdentityApiFilterable<ApplicationUser>(new IdentityApiEndpointRouteBuilde
     ExcludeInfoGet = false,
     ExcludeInfoPost = false
 });
+
+// Configure the MCP server
+app.UseMcpServer();
 
 app.Run();

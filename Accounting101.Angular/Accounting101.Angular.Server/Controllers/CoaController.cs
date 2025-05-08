@@ -22,7 +22,7 @@ public class CoaController(
     }
 
     [HttpGet("description/{name}")]
-    public ActionResult<ChartItem> GetDescription(string name)
+    public ActionResult<ChartItem?> GetDescription(string name)
     {
         return coaService.GetDescription(name);
     }
