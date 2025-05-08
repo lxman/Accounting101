@@ -1,6 +1,7 @@
 ### List available tools
-POST https://localhost:5001/mcp
+POST https://localhost:7165/mcp
 Content-Type: application/json
+Accept: text/event-stream
 
 {
   "jsonrpc": "2.0",
@@ -8,73 +9,68 @@ Content-Type: application/json
   "method": "list_tools"
 }
 
-### Get businesses
-POST https://localhost:5001/mcp
+### Get business information
+POST https://localhost:7165/mcp
 Content-Type: application/json
 
 {
   "jsonrpc": "2.0",
-  "id": "get_businesses_request",
+  "id": "get_business_info_request",
   "method": "call_tool",
   "params": {
-    "name": "GetBusinesses"
-  }
-}
-
-### Get clients for a business
-POST https://localhost:5001/mcp
-Content-Type: application/json
-
-{
-  "jsonrpc": "2.0",
-  "id": "get_clients_request",
-  "method": "call_tool",
-  "params": {
-    "name": "GetClientsForBusiness",
+    "name": "GetBusinessInfo",
     "arguments": {
       "businessId": "12345"
     }
   }
 }
 
-### Get account information
-POST https://localhost:5001/mcp
+### Get states list
+POST https://localhost:7165/mcp
 Content-Type: application/json
 
 {
   "jsonrpc": "2.0",
-  "id": "get_account_info_request",
+  "id": "get_states_request",
   "method": "call_tool",
   "params": {
-    "name": "GetAccountInfo",
-    "arguments": {
-      "accountId": "ACCT123"
-    }
+    "name": "GetStates"
   }
 }
 
-### Create a sample transaction
-POST https://localhost:5001/mcp
+### Get countries list
+POST https://localhost:7165/mcp
 Content-Type: application/json
 
 {
   "jsonrpc": "2.0",
-  "id": "create_transaction_request",
+  "id": "get_countries_request",
   "method": "call_tool",
   "params": {
-    "name": "CreateSampleTransaction",
+    "name": "GetCountries"
+  }
+}
+
+### Create a business
+POST https://localhost:7165/mcp
+Content-Type: application/json
+
+{
+  "jsonrpc": "2.0",
+  "id": "create_business_request",
+  "method": "call_tool",
+  "params": {
+    "name": "CreateBusiness",
     "arguments": {
       "businessId": "12345",
-      "sourceAccountId": "ACCT123",
-      "destinationAccountId": "ACCT456",
-      "amount": 100.50,
-      "description": "Test transaction"
+      "name": "Acme Corporation",
+      "isForeign": false
     }
   }
 }
 
-### Get analyze transactions prompt
-POST https://localhost:5001/mcp
+### Get analyze transactions prompt (from AccountingPrompts)
+POST https://localhost:7165/mcp
 Content-Type: application/json
 
 {
@@ -89,8 +85,8 @@ Content-Type: application/json
   }
 }
 
-### Get generate financial report prompt
-POST https://localhost:5001/mcp
+### Get generate financial report prompt (from AccountingPrompts)
+POST https://localhost:7165/mcp
 Content-Type: application/json
 
 {

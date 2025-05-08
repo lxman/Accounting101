@@ -52,6 +52,8 @@ builder.Services.AddCors(config =>
         policyBuilder.AllowCredentials();
         policyBuilder.WithOrigins(allowed);
         policyBuilder.SetIsOriginAllowed(origin => true);
+        // Add exposed headers needed for streamable-http
+        policyBuilder.WithExposedHeaders("Content-Type", "X-MCP-Stream-Id");
     });
 });
 
@@ -97,7 +99,7 @@ builder.Services.AddScoped<IAddressService, AddressService>();
 builder.Services.AddScoped<ICoAService, CoAService>();
 
 // Add MCP server configuration
-builder.Services.AddMcpServer();
+builder.Services.AddAccounting101McpServer();
 
 WebApplication app = builder.Build();
 
