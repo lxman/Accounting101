@@ -51,13 +51,13 @@ public class DatabaseTests
         Account acctDebit = new();
         AccountInfo infoCredit = new() { Name = "Credit Account" };
         AccountInfo infoDebit = new() { Name = "Debit Account" };
-        IDataStore store = scope.Resolve<IDataStore>();
+        var store = scope.Resolve<IDataStore>();
         Guid idCredit = await store.CreateAccountAsync(DatabaseName, acctCredit, infoCredit);
         Assert.NotEqual(idCredit, Guid.Empty);
         Guid idDebit = await store.CreateAccountAsync(DatabaseName, acctDebit, infoDebit);
         Assert.NotEqual(idDebit, Guid.Empty);
         Transaction tx = new(idCredit.ToString(), idDebit.ToString(), 0, DateOnly.FromDateTime(DateTime.Now));
-        Guid txId = await store.CreateTransactionAsync(DatabaseName, tx.Id.ToString(), tx);
+        Guid txId = await store.CreateTransactionAsync(DatabaseName, "", tx);
         Assert.NotEqual(txId, Guid.Empty);
         await store.DropCollectionGlobalScopeAsync<Transaction>(DatabaseName, CollectionNames.Transaction);
         await store.DropCollectionGlobalScopeAsync<AccountInfo>(DatabaseName, CollectionNames.AccountInfo);
@@ -88,7 +88,7 @@ public class DatabaseTests
         {
             BusinessName = "JordanSoft"
         };
-        IDataStore store = scope.Resolve<IDataStore>();
+        var store = scope.Resolve<IDataStore>();
         Guid nameId = await store.CreateNameAsync(DatabaseName, name);
         Assert.NotEqual(nameId, Guid.Empty);
         Guid addressId = await store.CreateAddressAsync(DatabaseName, address);

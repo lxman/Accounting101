@@ -14,8 +14,9 @@ public static class Transactions
 {
     public static async Task<Guid> CreateTransactionAsync(this IDataStore store, string dbName, string clientId, Transaction tx)
     {
-        Account? credAcct = (await store.GetAllClientScopeAsync<Account>(dbName, clientId))?.FirstOrDefault(a => a.Id == Guid.Parse(tx.CreditedAccountId));
-        Account? debAcct = (await store.GetAllClientScopeAsync<Account>(dbName, clientId))?.FirstOrDefault(a => a.Id == Guid.Parse(tx.DebitedAccountId));
+        List<Account>? accts = await store.GetAllClientScopeAsync<Account>(dbName, clientId);
+        Account? credAcct = accts?.FirstOrDefault(a => a.Id == Guid.Parse(tx.CreditedAccountId));
+        Account? debAcct = accts?.FirstOrDefault(a => a.Id == Guid.Parse(tx.DebitedAccountId));
         Guid result = credAcct is null
                       || debAcct is null
                       || tx.When < credAcct.Created
