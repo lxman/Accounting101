@@ -4,8 +4,10 @@ using MongoDB.Driver;
 namespace Accounting101.Ledger.Mongo;
 
 /// <summary>
-/// Stores period-close checkpoints and answers "what's the latest close?" — the freeze
-/// pointer the ledger uses to reject changes to closed periods.
+/// Stores the single period-close checkpoint per client — the freeze pointer ("nothing on or
+/// before this date may change") and the opening balances for the open period. At most one per
+/// client; each close replaces it. The history of who closed when lives in the audit log, and
+/// any past period-end balance is recomputable from the journal via an as-of aggregation.
 /// </summary>
 public sealed class MongoCheckpointStore
 {
@@ -31,7 +33,6 @@ public sealed class MongoCheckpointStore
     {
         CheckpointDocument doc = new()
         {
-            Id = Guid.NewGuid(),
             ClientId = clientId,
             AsOf = asOf.ToString(DateFormat, CultureInfo.InvariantCulture),
             Balances = balances.ToDictionary(kv => kv.Key.ToString("N"), kv => kv.Value),
@@ -39,30 +40,33 @@ public sealed class MongoCheckpointStore
             ClosedAt = closedAt.UtcDateTime,
         };
 
-        return _checkpoints.InsertOneAsync(doc, cancellationToken: cancellationToken);
+        // One checkpoint per client — each close replaces the previous.
+        return _checkpoints.ReplaceOneAsync(
+            c => c.ClientId == clientId,
+            doc,
+            new ReplaceOptions { IsUpsert = true },
+            cancellationToken);
     }
 
-    /// <summary>The latest close date for a client (the freeze pointer), or null if never closed.</summary>
+    /// <summary>The client's close date (the freeze pointer), or null if never closed.</summary>
     public async Task<DateOnly?> GetClosedThroughAsync(Guid clientId, CancellationToken cancellationToken = default)
     {
-        CheckpointDocument? latest = await _checkpoints
+        CheckpointDocument? checkpoint = await _checkpoints
             .Find(c => c.ClientId == clientId)
-            .SortByDescending(c => c.AsOf)
             .FirstOrDefaultAsync(cancellationToken);
 
-        return latest is null ? null : DateOnly.ParseExact(latest.AsOf, DateFormat, CultureInfo.InvariantCulture);
+        return checkpoint is null ? null : DateOnly.ParseExact(checkpoint.AsOf, DateFormat, CultureInfo.InvariantCulture);
     }
 
-    /// <summary>The latest checkpoint's balances — the opening balance for the next period.</summary>
-    public async Task<IReadOnlyDictionary<Guid, decimal>> GetLatestBalancesAsync(Guid clientId, CancellationToken cancellationToken = default)
+    /// <summary>The checkpoint's balances — the opening balance for the open period.</summary>
+    public async Task<IReadOnlyDictionary<Guid, decimal>> GetOpeningBalancesAsync(Guid clientId, CancellationToken cancellationToken = default)
     {
-        CheckpointDocument? latest = await _checkpoints
+        CheckpointDocument? checkpoint = await _checkpoints
             .Find(c => c.ClientId == clientId)
-            .SortByDescending(c => c.AsOf)
             .FirstOrDefaultAsync(cancellationToken);
 
-        return latest is null
+        return checkpoint is null
             ? new Dictionary<Guid, decimal>()
-            : latest.Balances.ToDictionary(kv => Guid.ParseExact(kv.Key, "N"), kv => kv.Value);
+            : checkpoint.Balances.ToDictionary(kv => Guid.ParseExact(kv.Key, "N"), kv => kv.Value);
     }
 }

@@ -66,7 +66,7 @@ public sealed class PeriodCloseTests(MongoFixture fixture) : IClassFixture<Mongo
         Assert.Equal(-150m, snapshot[revenue]);
 
         Assert.Equal(new DateOnly(2026, 3, 31), await checkpoints.GetClosedThroughAsync(client));
-        IReadOnlyDictionary<Guid, decimal> opening = await checkpoints.GetLatestBalancesAsync(client);
+        IReadOnlyDictionary<Guid, decimal> opening = await checkpoints.GetOpeningBalancesAsync(client);
         Assert.Equal(150m, opening[cash]);       // the checkpoint is next period's opening balance
     }
 

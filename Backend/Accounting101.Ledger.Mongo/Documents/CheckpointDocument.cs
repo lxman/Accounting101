@@ -3,16 +3,15 @@ using MongoDB.Bson.Serialization.Attributes;
 namespace Accounting101.Ledger.Mongo;
 
 /// <summary>
-/// A period-close snapshot for one client: per-account balances as of the close date.
-/// It is the opening balance for the next period and bounds rebuilds (replay only since
-/// the latest checkpoint). Like the projection it's recomputable — re-aggregating the
-/// frozen period must reproduce it (tamper-evidence).
+/// The single period-close checkpoint for a client: per-account balances as of the close
+/// date. It is the freeze pointer and the opening balance for the open period. There is at
+/// most one per client — each close replaces it. Close history lives in the audit log, and
+/// any past period-end balance is recomputable from the journal (as-of aggregation), so
+/// prior checkpoints would be redundant.
 /// </summary>
 public sealed class CheckpointDocument
 {
     [BsonId]
-    public Guid Id { get; set; }
-
     public Guid ClientId { get; set; }
 
     /// <summary>Close date / period end (ISO yyyy-MM-dd). Includes entries effective on or before this date.</summary>
