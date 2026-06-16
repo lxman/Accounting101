@@ -25,8 +25,8 @@ try
 
     Console.WriteLine();
     Console.WriteLine("trial-balance read paths (avg of 5 runs):");
-    Console.WriteLine($"  {"entries",8} | {"load+fold",13} | {"server-agg",13} | ratio");
-    Console.WriteLine($"  {new string('-', 8)}-+-{new string('-', 13)}-+-{new string('-', 13)}-+-------");
+    Console.WriteLine($"  {"entries",8} | {"load+fold",13} | {"server-agg",13} | {"projection",13}");
+    Console.WriteLine($"  {new string('-', 8)}-+-{new string('-', 13)}-+-{new string('-', 13)}-+-{new string('-', 13)}");
     foreach (int n in new[] { 1_000, 10_000, 50_000 })
         await CompareReadPaths(database, entryCount: n, accountCount: 25, runs: 5);
 }
@@ -122,7 +122,15 @@ static async Task CompareReadPaths(IMongoDatabase database, int entryCount, int 
         _ = await store.AggregateBalancesAsync(clientId);
     });
 
-    Console.WriteLine($"  {entryCount,8:N0} | {foldMs,10:F1} ms | {aggregateMs,10:F1} ms | {foldMs / aggregateMs,4:F1}x");
+    // Maintained projection: populate once (one aggregation), then O(1) point reads.
+    MongoBalanceProjection projection = new(database, store, "proj_" + Guid.NewGuid().ToString("N"));
+    await projection.RebuildAsync(clientId);
+    double projectionMs = await TimeAverage(runs, async () =>
+    {
+        _ = await projection.GetTrialBalanceAsync(clientId);
+    });
+
+    Console.WriteLine($"  {entryCount,8:N0} | {foldMs,10:F1} ms | {aggregateMs,10:F1} ms | {projectionMs,10:F2} ms");
 }
 
 static async Task<double> TimeAverage(int runs, Func<Task> action)

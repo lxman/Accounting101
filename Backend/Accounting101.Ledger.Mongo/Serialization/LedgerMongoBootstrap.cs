@@ -20,5 +20,9 @@ public static class LedgerMongoBootstrap
             return;
 
         BsonSerializer.TryRegisterSerializer(new GuidSerializer(GuidRepresentation.Standard));
+
+        // Money is Decimal128 everywhere — including projection map values and $inc
+        // operands, so balance increments are numeric (not string) operations.
+        BsonSerializer.TryRegisterSerializer(new DecimalSerializer(BsonType.Decimal128));
     }
 }
