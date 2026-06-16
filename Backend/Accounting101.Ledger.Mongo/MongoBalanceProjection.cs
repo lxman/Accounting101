@@ -29,7 +29,17 @@ public sealed class MongoBalanceProjection
     /// document (upsert). No-op for entries that are not <see cref="LedgerReplay.IsOnBooks"/>
     /// (e.g. pending approval). Lines to the same account are netted into one increment.
     /// </summary>
-    public Task ApplyAsync(JournalEntry entry, CancellationToken cancellationToken = default)
+    public Task ApplyAsync(JournalEntry entry, CancellationToken cancellationToken = default) =>
+        UpdateAsync(entry, +1, cancellationToken);
+
+    /// <summary>
+    /// Reverse an entry's deltas — used when an on-the-books entry is voided or superseded.
+    /// No-op if the entry was not on the books.
+    /// </summary>
+    public Task ReverseAsync(JournalEntry entry, CancellationToken cancellationToken = default) =>
+        UpdateAsync(entry, -1, cancellationToken);
+
+    private Task UpdateAsync(JournalEntry entry, int sign, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(entry);
         if (!LedgerReplay.IsOnBooks(entry))
@@ -38,7 +48,7 @@ public sealed class MongoBalanceProjection
         UpdateDefinitionBuilder<ClientBalancesDocument> update = Builders<ClientBalancesDocument>.Update;
         List<UpdateDefinition<ClientBalancesDocument>> increments = entry.Lines
             .GroupBy(line => line.AccountId)
-            .Select(group => update.Inc($"Balances.{group.Key:N}", group.Sum(line => line.SignedEffect)))
+            .Select(group => update.Inc($"Balances.{group.Key:N}", sign * group.Sum(line => line.SignedEffect)))
             .ToList();
 
         return _balances.UpdateOneAsync(

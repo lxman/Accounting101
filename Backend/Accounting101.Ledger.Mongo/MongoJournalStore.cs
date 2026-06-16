@@ -29,6 +29,21 @@ public sealed class MongoJournalStore
         return _entries.InsertOneAsync(JournalEntryDocument.FromDomain(entry), cancellationToken: cancellationToken);
     }
 
+    /// <summary>
+    /// Persist a lifecycle/posting-state transition of an existing entry (approve, void,
+    /// supersede). Only the status fields change — the lines/references are unchanged, so
+    /// the "a reference is never erased" rule holds.
+    /// </summary>
+    public Task ReplaceAsync(JournalEntry entry, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        return _entries.ReplaceOneAsync(
+            e => e.Id == entry.Id,
+            JournalEntryDocument.FromDomain(entry),
+            new ReplaceOptions(),
+            cancellationToken);
+    }
+
     public async Task<JournalEntry?> GetAsync(Guid id, CancellationToken cancellationToken = default)
     {
         JournalEntryDocument? doc = await _entries

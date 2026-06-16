@@ -113,6 +113,49 @@ public sealed record JournalEntry
         return Lines.Where(line => line.AccountId == accountId).Sum(line => line.SignedEffect);
     }
 
+    /// <summary>
+    /// Approve a pending entry, putting it on the books (PendingApproval -&gt; Posted).
+    /// Content is unchanged, so the balanced invariant still holds.
+    /// </summary>
+    public JournalEntry Approve(Guid approvedBy)
+    {
+        if (Posting != PostingState.PendingApproval)
+            throw new InvalidOperationException(
+                $"Only a {PostingState.PendingApproval} entry can be approved; this one is {Posting}.");
+
+        return this with
+        {
+            Posting = PostingState.Posted,
+            Version = Version + 1,
+            Audit = Audit with { ApprovedBy = approvedBy },
+        };
+    }
+
+    /// <summary>Void an active entry (delete-as-event). The entry and its references remain.</summary>
+    public JournalEntry Void()
+    {
+        if (Status != LifecycleStatus.Active)
+            throw new InvalidOperationException(
+                $"Only an {LifecycleStatus.Active} entry can be voided; this one is {Status}.");
+
+        return this with { Status = LifecycleStatus.Voided, Version = Version + 1 };
+    }
+
+    /// <summary>Mark this active entry superseded by a replacement (the edit path).</summary>
+    public JournalEntry Supersede(Guid replacementId)
+    {
+        if (Status != LifecycleStatus.Active)
+            throw new InvalidOperationException(
+                $"Only an {LifecycleStatus.Active} entry can be superseded; this one is {Status}.");
+
+        return this with
+        {
+            Status = LifecycleStatus.Superseded,
+            SupersededBy = replacementId,
+            Version = Version + 1,
+        };
+    }
+
     private static decimal SumSignedEffects(IReadOnlyList<Line> lines)
     {
         return lines.Sum(line => line.SignedEffect);
