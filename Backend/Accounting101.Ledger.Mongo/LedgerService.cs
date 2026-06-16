@@ -1,3 +1,4 @@
+using Accounting101.Ledger.Core.Accounts;
 using Accounting101.Ledger.Core.Journal;
 
 namespace Accounting101.Ledger.Mongo;
@@ -112,6 +113,70 @@ public sealed class LedgerService
         await _audit.AppendAsync(clientId, null, 0, AuditAction.PeriodClosed, actor, $"closed through {asOf:yyyy-MM-dd}", DateTimeOffset.UtcNow, cancellationToken);
         return balances;
     }
+
+    /// <summary>
+    /// Close a fiscal year: post a balanced <see cref="EntryType.Closing"/> entry that zeros every
+    /// temporary account (revenue/expense, per the chart) into the designated retained-earnings
+    /// account, then close and freeze the year. The closing entry flows through the normal post +
+    /// approve path, so it is audited and reflected in the projection like any other entry. Returns
+    /// the closing entry, or null if there was nothing to close.
+    /// </summary>
+    public async Task<JournalEntry?> CloseYearAsync(
+        Guid clientId,
+        DateOnly fiscalYearEnd,
+        Actor actor,
+        ChartOfAccounts chart,
+        long closingSequenceNumber,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(actor);
+        ArgumentNullException.ThrowIfNull(chart);
+
+        IReadOnlyDictionary<Guid, decimal> balances = await _journal.AggregateBalancesAsync(clientId, fiscalYearEnd, cancellationToken);
+
+        List<(Guid AccountId, decimal Signed)> temporaries = balances
+            .Where(kv => kv.Value != 0m && chart.Find(kv.Key) is { IsTemporary: true })
+            .Select(kv => (kv.Key, kv.Value))
+            .ToList();
+
+        JournalEntry? closing = null;
+        if (temporaries.Count > 0)
+        {
+            Account retainedEarnings = chart.RetainedEarnings
+                ?? throw new InvalidOperationException("Year-end close requires a designated retained-earnings account.");
+
+            decimal netTemporary = temporaries.Sum(t => t.Signed);
+
+            List<Line> lines = temporaries.Select(t => SignedLine(t.AccountId, -t.Signed)).ToList();
+            if (netTemporary != 0m)
+                lines.Add(SignedLine(retainedEarnings.Id, netTemporary));
+
+            closing = JournalEntry.Create(
+                id: Guid.NewGuid(),
+                clientId: clientId,
+                sequenceNumber: closingSequenceNumber,
+                effectiveDate: fiscalYearEnd,
+                postedAt: DateTimeOffset.UtcNow,
+                type: EntryType.Closing,
+                audit: new AuditStamp { CreatedBy = actor.UserId, CreatedAt = DateTimeOffset.UtcNow },
+                lines: lines);
+
+            await PostAsync(closing, actor, cancellationToken);
+            await ApproveAsync(closing.Id, actor, cancellationToken);
+        }
+
+        await CloseAsync(clientId, fiscalYearEnd, actor, cancellationToken);
+        return closing;
+    }
+
+    /// <summary>A single line with the given debit-positive signed effect (normalized to a positive amount).</summary>
+    private static Line SignedLine(Guid accountId, decimal signedEffect) => new()
+    {
+        Id = Guid.NewGuid(),
+        AccountId = accountId,
+        Direction = signedEffect >= 0 ? Direction.Debit : Direction.Credit,
+        Amount = Math.Abs(signedEffect),
+    };
 
     private async Task EnsureOpenAsync(Guid clientId, DateOnly effectiveDate, CancellationToken cancellationToken)
     {
