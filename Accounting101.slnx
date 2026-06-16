@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/Backend/">
+    <Project Path="Backend/Accounting101.Ledger.Core.Tests/Accounting101.Ledger.Core.Tests.csproj" />
+    <Project Path="Backend/Accounting101.Ledger.Core/Accounting101.Ledger.Core.csproj" />
+    <Project Path="Backend/Accounting101.Ledger.Mongo.Tests/Accounting101.Ledger.Mongo.Tests.csproj" />
+    <Project Path="Backend/Accounting101.Ledger.Mongo/Accounting101.Ledger.Mongo.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path="UI/README.md" />
+  </Folder>
+  <Folder Name="/UI/" />
+</Solution>
