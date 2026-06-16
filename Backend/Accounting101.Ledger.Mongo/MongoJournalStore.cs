@@ -1,5 +1,7 @@
 using System.Globalization;
 using Accounting101.Ledger.Core.Journal;
+using Accounting101.Ledger.Mongo.Documents;
+using Accounting101.Ledger.Mongo.Serialization;
 using MongoDB.Bson;
 using MongoDB.Driver;
 

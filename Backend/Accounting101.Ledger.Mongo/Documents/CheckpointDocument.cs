@@ -1,6 +1,6 @@
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace Accounting101.Ledger.Mongo;
+namespace Accounting101.Ledger.Mongo.Documents;
 
 /// <summary>
 /// The single period-close checkpoint for a client: per-account balances as of the close

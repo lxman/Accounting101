@@ -2,7 +2,7 @@ using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
 
-namespace Accounting101.Ledger.Mongo;
+namespace Accounting101.Ledger.Mongo.Serialization;
 
 /// <summary>
 /// One-time MongoDB serialization setup for the ledger. Stores GUIDs as the

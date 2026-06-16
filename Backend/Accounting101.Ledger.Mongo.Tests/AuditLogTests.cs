@@ -1,4 +1,5 @@
 using Accounting101.Ledger.Core.Journal;
+using Accounting101.Ledger.Mongo.Documents;
 using MongoDB.Driver;
 
 namespace Accounting101.Ledger.Mongo.Tests;

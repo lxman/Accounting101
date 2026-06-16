@@ -2,7 +2,7 @@ using Accounting101.Ledger.Core.Journal;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace Accounting101.Ledger.Mongo;
+namespace Accounting101.Ledger.Mongo.Documents;
 
 /// <summary>
 /// Mongo storage shape for a <see cref="Line"/>. Amount is stored as Decimal128

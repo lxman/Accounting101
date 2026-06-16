@@ -1,7 +1,7 @@
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace Accounting101.Ledger.Mongo;
+namespace Accounting101.Ledger.Mongo.Documents;
 
 /// <summary>
 /// One append-only, hash-chained audit record: who did what, when, with a point-in-time

@@ -1,6 +1,8 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Accounting101.Ledger.Core.Journal;
 using Accounting101.Ledger.Mongo;
+using Accounting101.Ledger.Mongo.Documents;
+using Accounting101.Ledger.Mongo.Serialization;
 using MongoDB.Driver;
 
 // Persistence prototype benchmark — runs against a real/native Mongo (NOT a container,

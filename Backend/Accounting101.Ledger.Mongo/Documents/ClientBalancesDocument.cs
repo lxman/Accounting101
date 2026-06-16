@@ -1,6 +1,6 @@
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace Accounting101.Ledger.Mongo;
+namespace Accounting101.Ledger.Mongo.Documents;
 
 /// <summary>
 /// The maintained trial-balance projection for one client — a single document

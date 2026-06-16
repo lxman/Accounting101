@@ -1,4 +1,6 @@
 using Accounting101.Ledger.Core.Journal;
+using Accounting101.Ledger.Mongo.Documents;
+using Accounting101.Ledger.Mongo.Serialization;
 using MongoDB.Driver;
 
 namespace Accounting101.Ledger.Mongo;

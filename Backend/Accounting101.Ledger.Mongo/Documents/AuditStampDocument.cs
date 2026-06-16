@@ -1,7 +1,7 @@
 using Accounting101.Ledger.Core.Journal;
 using MongoDB.Bson.Serialization.Attributes;
 
-namespace Accounting101.Ledger.Mongo;
+namespace Accounting101.Ledger.Mongo.Documents;
 
 /// <summary>Mongo storage shape for <see cref="AuditStamp"/>. Timestamps are stored in UTC.</summary>
 public sealed class AuditStampDocument
