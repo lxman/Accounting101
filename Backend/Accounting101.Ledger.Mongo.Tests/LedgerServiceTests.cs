@@ -10,12 +10,20 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
         CreatedAt = DateTimeOffset.UnixEpoch,
     };
 
-    private (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, MongoCheckpointStore checkpoints) NewLedger()
+    private static Actor User() => new()
+    {
+        UserId = Guid.NewGuid(),
+        Name = "tester",
+        Claims = [new Claim("role", "bookkeeper")],
+    };
+
+    private (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, MongoCheckpointStore checkpoints, MongoAuditLog audit) NewLedger()
     {
         MongoJournalStore store = fixture.NewStore();
         MongoBalanceProjection projection = new(fixture.Database, store, "balances_" + Guid.NewGuid().ToString("N"));
         MongoCheckpointStore checkpoints = new(fixture.Database, "checkpoints_" + Guid.NewGuid().ToString("N"));
-        return (new LedgerService(store, projection, checkpoints), store, projection, checkpoints);
+        MongoAuditLog audit = new(fixture.Database, "audit_" + Guid.NewGuid().ToString("N"));
+        return (new LedgerService(store, projection, checkpoints, audit), store, projection, checkpoints, audit);
     }
 
     private static JournalEntry Entry(
@@ -40,17 +48,17 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
     [Fact]
     public async Task Approval_puts_an_entry_on_the_books()
     {
-        (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, _) = NewLedger();
+        (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, _, _) = NewLedger();
         Guid client = Guid.NewGuid();
         Guid cash = Guid.NewGuid();
         Guid revenue = Guid.NewGuid();
 
         JournalEntry entry = Entry(client, 1, cash, revenue, 100m);
-        await service.PostAsync(entry);
+        await service.PostAsync(entry, User());
 
         Assert.Empty(await projection.GetTrialBalanceAsync(client)); // pending: not on the books
 
-        await service.ApproveAsync(entry.Id, Guid.NewGuid());
+        await service.ApproveAsync(entry.Id, User());
 
         IReadOnlyDictionary<Guid, decimal> balances = await projection.GetTrialBalanceAsync(client);
         Assert.Equal(100m, balances[cash]);
@@ -61,16 +69,16 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
     [Fact]
     public async Task Voiding_reverses_the_entry_from_the_projection()
     {
-        (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, _) = NewLedger();
+        (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, _, _) = NewLedger();
         Guid client = Guid.NewGuid();
         Guid cash = Guid.NewGuid();
         Guid revenue = Guid.NewGuid();
 
         JournalEntry entry = Entry(client, 1, cash, revenue, 100m);
-        await service.PostAsync(entry);
-        await service.ApproveAsync(entry.Id, Guid.NewGuid());
+        await service.PostAsync(entry, User());
+        await service.ApproveAsync(entry.Id, User());
 
-        await service.VoidAsync(entry.Id);
+        await service.VoidAsync(entry.Id, User());
 
         IReadOnlyDictionary<Guid, decimal> balances = await projection.GetTrialBalanceAsync(client);
         Assert.Equal(0m, balances[cash]);     // reversed back out
@@ -81,18 +89,18 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
     [Fact]
     public async Task Revising_supersedes_the_original_and_nets_to_the_replacement()
     {
-        (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, _) = NewLedger();
+        (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, _, _) = NewLedger();
         Guid client = Guid.NewGuid();
         Guid cash = Guid.NewGuid();
         Guid revenue = Guid.NewGuid();
 
         JournalEntry original = Entry(client, 1, cash, revenue, 100m);
-        await service.PostAsync(original);
-        await service.ApproveAsync(original.Id, Guid.NewGuid());
+        await service.PostAsync(original, User());
+        await service.ApproveAsync(original.Id, User());
 
         // Corrected amount, immediately on the books, linked to the original.
         JournalEntry replacement = Entry(client, 2, cash, revenue, 80m, PostingState.Posted, original.Id);
-        await service.ReviseAsync(original.Id, replacement);
+        await service.ReviseAsync(original.Id, replacement, User());
 
         IReadOnlyDictionary<Guid, decimal> balances = await projection.GetTrialBalanceAsync(client);
         Assert.Equal(80m, balances[cash]);      // 100 reversed, 80 applied
