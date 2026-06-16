@@ -10,11 +10,12 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
         CreatedAt = DateTimeOffset.UnixEpoch,
     };
 
-    private (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection) NewLedger()
+    private (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, MongoCheckpointStore checkpoints) NewLedger()
     {
         MongoJournalStore store = fixture.NewStore();
         MongoBalanceProjection projection = new(fixture.Database, store, "balances_" + Guid.NewGuid().ToString("N"));
-        return (new LedgerService(store, projection), store, projection);
+        MongoCheckpointStore checkpoints = new(fixture.Database, "checkpoints_" + Guid.NewGuid().ToString("N"));
+        return (new LedgerService(store, projection, checkpoints), store, projection, checkpoints);
     }
 
     private static JournalEntry Entry(
@@ -39,7 +40,7 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
     [Fact]
     public async Task Approval_puts_an_entry_on_the_books()
     {
-        (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection) = NewLedger();
+        (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, _) = NewLedger();
         Guid client = Guid.NewGuid();
         Guid cash = Guid.NewGuid();
         Guid revenue = Guid.NewGuid();
@@ -60,7 +61,7 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
     [Fact]
     public async Task Voiding_reverses_the_entry_from_the_projection()
     {
-        (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection) = NewLedger();
+        (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, _) = NewLedger();
         Guid client = Guid.NewGuid();
         Guid cash = Guid.NewGuid();
         Guid revenue = Guid.NewGuid();
@@ -80,7 +81,7 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
     [Fact]
     public async Task Revising_supersedes_the_original_and_nets_to_the_replacement()
     {
-        (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection) = NewLedger();
+        (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, _) = NewLedger();
         Guid client = Guid.NewGuid();
         Guid cash = Guid.NewGuid();
         Guid revenue = Guid.NewGuid();

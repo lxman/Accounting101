@@ -1,3 +1,4 @@
+using System.Globalization;
 using Accounting101.Ledger.Core.Journal;
 using MongoDB.Bson;
 using MongoDB.Driver;
@@ -104,16 +105,20 @@ public sealed class MongoJournalStore
     /// <see cref="GetByClientAsync"/> + <see cref="LedgerReplay.Balances"/>.
     /// </summary>
     public async Task<IReadOnlyDictionary<Guid, decimal>> AggregateBalancesAsync(
-        Guid clientId, CancellationToken cancellationToken = default)
+        Guid clientId, DateOnly? asOf = null, CancellationToken cancellationToken = default)
     {
+        BsonDocument match = new()
+        {
+            { "ClientId", new BsonBinaryData(clientId, GuidRepresentation.Standard) },
+            { "Status", nameof(LifecycleStatus.Active) },
+            { "Posting", nameof(PostingState.Posted) },
+        };
+        if (asOf is { } asOfDate)
+            match.Add("EffectiveDate", new BsonDocument("$lte", asOfDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)));
+
         BsonDocument[] pipeline =
         [
-            new("$match", new BsonDocument
-            {
-                { "ClientId", new BsonBinaryData(clientId, GuidRepresentation.Standard) },
-                { "Status", nameof(LifecycleStatus.Active) },
-                { "Posting", nameof(PostingState.Posted) },
-            }),
+            new("$match", match),
             new("$unwind", "$Lines"),
             new("$group", new BsonDocument
             {

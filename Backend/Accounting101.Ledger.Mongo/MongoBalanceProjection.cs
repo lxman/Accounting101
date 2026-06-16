@@ -84,7 +84,7 @@ public sealed class MongoBalanceProjection
     /// </summary>
     public async Task RebuildAsync(Guid clientId, CancellationToken cancellationToken = default)
     {
-        IReadOnlyDictionary<Guid, decimal> balances = await _journal.AggregateBalancesAsync(clientId, cancellationToken);
+        IReadOnlyDictionary<Guid, decimal> balances = await _journal.AggregateBalancesAsync(clientId, cancellationToken: cancellationToken);
 
         ClientBalancesDocument doc = new()
         {
