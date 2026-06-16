@@ -7,9 +7,10 @@ namespace Accounting101.Ledger.Mongo;
 /// <summary>
 /// One-time MongoDB serialization setup for the ledger. Stores GUIDs as the
 /// standard binary subtype (4). Amounts (Decimal128) and enums (as strings) are
-/// configured per-property on the document DTOs.
+/// configured per-property on the document DTOs. Call once at startup (the store
+/// also calls it from its static constructor).
 /// </summary>
-internal static class LedgerMongoBootstrap
+public static class LedgerMongoBootstrap
 {
     private static int _registered;
 

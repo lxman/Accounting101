@@ -1,4 +1,5 @@
 using Accounting101.Ledger.Core.Journal;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace Accounting101.Ledger.Mongo;
@@ -78,5 +79,52 @@ public sealed class MongoJournalStore
         ];
 
         return _entries.Indexes.CreateManyAsync(models, cancellationToken);
+    }
+
+    /// <summary>
+    /// Server-side trial balance: folds the journal in MongoDB via aggregation,
+    /// applying the same on-the-books gate as <see cref="LedgerReplay"/> (Active +
+    /// Posted) and the same debit-positive signed-effect (Debit => +Amount,
+    /// Credit => -Amount). The "load entries and fold in C#" path is
+    /// <see cref="GetByClientAsync"/> + <see cref="LedgerReplay.Balances"/>.
+    /// </summary>
+    public async Task<IReadOnlyDictionary<Guid, decimal>> AggregateBalancesAsync(
+        Guid clientId, CancellationToken cancellationToken = default)
+    {
+        BsonDocument[] pipeline =
+        [
+            new("$match", new BsonDocument
+            {
+                { "ClientId", new BsonBinaryData(clientId, GuidRepresentation.Standard) },
+                { "Status", nameof(LifecycleStatus.Active) },
+                { "Posting", nameof(PostingState.Posted) },
+            }),
+            new("$unwind", "$Lines"),
+            new("$group", new BsonDocument
+            {
+                { "_id", "$Lines.AccountId" },
+                {
+                    "balance", new BsonDocument("$sum", new BsonDocument("$cond", new BsonArray
+                    {
+                        new BsonDocument("$eq", new BsonArray { "$Lines.Direction", nameof(Direction.Debit) }),
+                        "$Lines.Amount",
+                        new BsonDocument("$multiply", new BsonArray { "$Lines.Amount", -1 }),
+                    }))
+                },
+            }),
+        ];
+
+        IAsyncCursor<BsonDocument> cursor =
+            await _entries.AggregateAsync<BsonDocument>(pipeline, cancellationToken: cancellationToken);
+        List<BsonDocument> results = await cursor.ToListAsync(cancellationToken);
+
+        Dictionary<Guid, decimal> balances = new(results.Count);
+        foreach (BsonDocument doc in results)
+        {
+            Guid accountId = doc["_id"].AsBsonBinaryData.ToGuid(GuidRepresentation.Standard);
+            balances[accountId] = doc["balance"].AsDecimal;
+        }
+
+        return balances;
     }
 }
