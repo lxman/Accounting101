@@ -28,3 +28,9 @@ public sealed record ReverseRequest(DateOnly ReversalDate, long SequenceNumber, 
 /// into retained earnings, then freeze through <see cref="FiscalYearEnd"/>.
 /// </summary>
 public sealed record CloseYearRequest(DateOnly FiscalYearEnd, long ClosingSequenceNumber);
+
+/// <summary>
+/// Reopen a closed period: move the freeze pointer back to <see cref="ReopenThrough"/>, or null to clear
+/// it entirely. The most privileged period action — admin-only and gated by step-up re-auth.
+/// </summary>
+public sealed record ReopenRequest(DateOnly? ReopenThrough, string? Reason);

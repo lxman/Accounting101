@@ -230,6 +230,45 @@ public sealed class LedgerService
     }
 
     /// <summary>
+    /// Reopen a closed period: either move the freeze pointer back to an earlier date (recomputing the
+    /// checkpoint there) or, when <paramref name="reopenThrough"/> is null, clear the checkpoint entirely
+    /// so nothing is frozen. The most privileged period operation — the host gates it on the admin role
+    /// plus step-up re-auth. Note most closed-period corrections need no reopen: a reversing entry handles
+    /// them in the open period. Recorded as <see cref="AuditAction.PeriodReopened"/>.
+    /// </summary>
+    public async Task ReopenAsync(Guid clientId, DateOnly? reopenThrough, Actor actor, string? reason = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(actor);
+        DateOnly? closedThrough = await _checkpoints.GetClosedThroughAsync(clientId, cancellationToken);
+        if (closedThrough is not { } current)
+            throw new InvalidOperationException("There is no closed period to reopen.");
+        if (reopenThrough is { } target && target >= current)
+            throw new InvalidOperationException(
+                $"Reopen must move the freeze earlier than the current close ({current:yyyy-MM-dd}).");
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        string detail = reopenThrough is { } t ? $"reopened to {t:yyyy-MM-dd}" : "fully reopened";
+
+        if (reopenThrough is { } newAsOf)
+        {
+            IReadOnlyDictionary<Guid, decimal> balances = await _journal.AggregateBalancesAsync(clientId, newAsOf, cancellationToken);
+            await InTransactionAsync(async session =>
+            {
+                await _checkpoints.SaveAsync(clientId, newAsOf, balances, actor.UserId, now, session, cancellationToken);
+                await _audit.AppendAsync(clientId, null, 0, AuditAction.PeriodReopened, actor, reason ?? detail, now, session, cancellationToken);
+            }, cancellationToken);
+        }
+        else
+        {
+            await InTransactionAsync(async session =>
+            {
+                await _checkpoints.DeleteAsync(clientId, session, cancellationToken);
+                await _audit.AppendAsync(clientId, null, 0, AuditAction.PeriodReopened, actor, reason ?? detail, now, session, cancellationToken);
+            }, cancellationToken);
+        }
+    }
+
+    /// <summary>
     /// Close a fiscal year: post a balanced <see cref="EntryType.Closing"/> entry that zeros every
     /// temporary account (revenue/expense, per the chart) into the designated retained-earnings
     /// account, then close and freeze the year. The closing entry flows through the normal post +

@@ -33,6 +33,7 @@ public enum Permission
     Reverse,
     Close,
     ManageAccounts,
+    Reopen,
 }
 
 /// <summary>The role → permission matrix. The single source of truth for "what can this role do".</summary>
@@ -48,12 +49,12 @@ public static class RolePermissions
             Permission.Read, Permission.Post, Permission.Revise, Permission.Approve,
             Permission.Void, Permission.Reverse, Permission.Close, Permission.ManageAccounts,
         ],
-        // Admin mirrors Controller across the journal + chart surface today; it also owns the (future)
-        // reopen and user-administration endpoints once those exist.
+        // Admin mirrors Controller across the journal + chart surface, and additionally owns reopen
+        // (and future user-administration endpoints).
         [LedgerRole.Admin] =
         [
-            Permission.Read, Permission.Post, Permission.Revise, Permission.Approve,
-            Permission.Void, Permission.Reverse, Permission.Close, Permission.ManageAccounts,
+            Permission.Read, Permission.Post, Permission.Revise, Permission.Approve, Permission.Void,
+            Permission.Reverse, Permission.Close, Permission.ManageAccounts, Permission.Reopen,
         ],
     };
 

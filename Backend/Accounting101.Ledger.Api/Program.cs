@@ -4,6 +4,7 @@ using Accounting101.Ledger.Api.Endpoints;
 using Accounting101.Ledger.Api.Tenancy;
 using Accounting101.Ledger.Mongo.Serialization;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using MongoDB.Driver;
 
 // Register the ledger's GUID (binary subtype 4) and Decimal128 serializers once, before any Mongo I/O.
@@ -30,7 +31,12 @@ builder.Services
     .AddAuthentication(DevTokenDefaults.Scheme)
     .AddScheme<AuthenticationSchemeOptions, DevTokenAuthenticationHandler>(DevTokenDefaults.Scheme, null);
 builder.Services.AddAuthorization(options =>
-    options.AddPolicy(AdminEndpoints.Policy, policy => policy.RequireClaim("admin", "true")));
+{
+    options.AddPolicy(AdminEndpoints.Policy, policy => policy.RequireClaim("admin", "true"));
+    options.AddPolicy(StepUpAuthorizationHandler.Policy, policy =>
+        policy.AddRequirements(new StepUpRequirement(TimeSpan.FromMinutes(5))));
+});
+builder.Services.AddSingleton<IAuthorizationHandler, StepUpAuthorizationHandler>();
 
 WebApplication app = builder.Build();
 

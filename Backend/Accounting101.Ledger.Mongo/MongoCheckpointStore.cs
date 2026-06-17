@@ -51,6 +51,15 @@ public sealed class MongoCheckpointStore
             : _checkpoints.ReplaceOneAsync(session, filter, doc, options, cancellationToken);
     }
 
+    /// <summary>Remove the client's checkpoint entirely — a full reopen (no period frozen).</summary>
+    public Task DeleteAsync(Guid clientId, IClientSessionHandle? session = null, CancellationToken cancellationToken = default)
+    {
+        FilterDefinition<CheckpointDocument> filter = Builders<CheckpointDocument>.Filter.Where(c => c.ClientId == clientId);
+        return session is null
+            ? _checkpoints.DeleteOneAsync(filter, cancellationToken)
+            : _checkpoints.DeleteOneAsync(session, filter, cancellationToken: cancellationToken);
+    }
+
     /// <summary>The client's close date (the freeze pointer), or null if never closed.</summary>
     public async Task<DateOnly?> GetClosedThroughAsync(Guid clientId, CancellationToken cancellationToken = default)
     {

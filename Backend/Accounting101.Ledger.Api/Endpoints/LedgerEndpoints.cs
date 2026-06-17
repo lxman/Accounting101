@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Contracts;
 using Accounting101.Ledger.Api.Control;
 using Accounting101.Ledger.Core.Accounts;
@@ -31,6 +32,7 @@ public static class LedgerEndpoints
         clients.MapPost("/entries/{originalId:guid}/reverse", ReverseEntry);
         clients.MapPost("/periods/close", ClosePeriod);
         clients.MapPost("/periods/close-year", CloseYear);
+        clients.MapPost("/periods/reopen", Reopen).RequireAuthorization(StepUpAuthorizationHandler.Policy);
         clients.MapPut("/accounts/{accountId:guid}", UpsertAccount);
 
         // Queries
@@ -201,6 +203,23 @@ public static class LedgerEndpoints
             return Results.Ok(new CloseResponse(request.AsOf, ToAccountBalances(balances)));
         }
         catch (InvalidOperationException ex) // already closed through >= AsOf
+        {
+            return Conflict(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> Reopen(
+        Guid clientId, ReopenRequest request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Reopen, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        try
+        {
+            await ctx.Ledger.Service.ReopenAsync(clientId, request.ReopenThrough, ctx.Actor, request.Reason, cancellationToken);
+            return Results.NoContent();
+        }
+        catch (InvalidOperationException ex) // nothing to reopen, or not earlier than the current close
         {
             return Conflict(ex.Message);
         }
