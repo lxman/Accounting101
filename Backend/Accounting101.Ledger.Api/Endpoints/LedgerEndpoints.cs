@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Accounting101.Ledger.Api.Contracts;
 using Accounting101.Ledger.Api.Control;
+using Accounting101.Ledger.Core.Accounts;
 using Accounting101.Ledger.Core.Journal;
 using Accounting101.Ledger.Mongo;
 using Accounting101.Ledger.Mongo.Documents;
@@ -29,11 +30,15 @@ public static class LedgerEndpoints
         clients.MapPost("/entries/{originalId:guid}/revise", ReviseEntry);
         clients.MapPost("/entries/{originalId:guid}/reverse", ReverseEntry);
         clients.MapPost("/periods/close", ClosePeriod);
+        clients.MapPost("/periods/close-year", CloseYear);
+        clients.MapPut("/accounts/{accountId:guid}", UpsertAccount);
 
         // Queries
         clients.MapGet("/entries", ListEntries);
         clients.MapGet("/entries/{entryId:guid}", GetEntry);
         clients.MapGet("/trial-balance", GetTrialBalance);
+        clients.MapGet("/accounts", ListAccounts);
+        clients.MapGet("/accounts/{accountId:guid}", GetAccount);
         clients.MapGet("/accounts/{accountId:guid}/balance", GetAccountBalance);
         clients.MapGet("/audit", GetClientAudit);
         clients.MapGet("/audit/verify", VerifyAudit);
@@ -281,6 +286,85 @@ public static class LedgerEndpoints
         return Results.Ok(new AuditVerifyResponse(valid));
     }
 
+    // ---- Chart of accounts + year-end -------------------------------------------------------
+
+    private static async Task<IResult> UpsertAccount(
+        Guid clientId, Guid accountId, AccountRequest request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.ManageAccounts, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        Account account;
+        try
+        {
+            account = MapAccount(clientId, accountId, request);
+        }
+        catch (ArgumentException ex) // unknown Type / RequiredDimension
+        {
+            return Unprocessable(ex.Message);
+        }
+
+        // Validate the resulting chart before persisting, so an invalid chart can never be stored.
+        ChartOfAccounts current = await ctx.Ledger.Accounts.GetChartAsync(clientId, cancellationToken);
+        List<Account> proposed = current.Accounts.Where(a => a.Id != accountId).Append(account).ToList();
+        try
+        {
+            _ = new ChartOfAccounts(proposed);
+        }
+        catch (InvalidChartOfAccountsException ex)
+        {
+            return Unprocessable(ex.Message);
+        }
+
+        await ctx.Ledger.Accounts.UpsertAsync(account, cancellationToken);
+        return Results.Ok(ToAccountResponse(account));
+    }
+
+    private static async Task<IResult> ListAccounts(
+        Guid clientId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        ChartOfAccounts chart = await ctx.Ledger.Accounts.GetChartAsync(clientId, cancellationToken);
+        return Results.Ok(chart.Accounts.Select(ToAccountResponse).ToList());
+    }
+
+    private static async Task<IResult> GetAccount(
+        Guid clientId, Guid accountId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        Account? account = await ctx.Ledger.Accounts.GetAsync(accountId, cancellationToken);
+        return account is null || account.ClientId != clientId
+            ? Results.NotFound()
+            : Results.Ok(ToAccountResponse(account));
+    }
+
+    private static async Task<IResult> CloseYear(
+        Guid clientId, CloseYearRequest request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Close, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        ChartOfAccounts chart = await ctx.Ledger.Accounts.GetChartAsync(clientId, cancellationToken);
+        try
+        {
+            JournalEntry? closing = await ctx.Ledger.Service.CloseYearAsync(
+                clientId, request.FiscalYearEnd, ctx.Actor, chart, request.ClosingSequenceNumber, cancellationToken);
+            return Results.Ok(new CloseYearResponse(closing is null ? null : ToEntryResponse(closing)));
+        }
+        catch (InvalidOperationException ex) // already closed, or no retained-earnings account configured
+        {
+            return Conflict(ex.Message);
+        }
+        catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
+        {
+            return Conflict("The closing sequence number is already in use.");
+        }
+    }
+
     // ---- Mapping ----------------------------------------------------------------------------
 
     private static IResult Conflict(string detail) =>
@@ -293,6 +377,26 @@ public static class LedgerEndpoints
         e.Id, e.SequenceNumber, e.EffectiveDate,
         e.Type.ToString(), e.Status.ToString(), e.Posting.ToString(),
         e.Lines.Count, e.Supersedes, e.SupersededBy, e.ReversalOf, e.ReversedBy);
+
+    private static AccountResponse ToAccountResponse(Account a) => new(
+        a.Id, a.Number, a.Name, a.Type.ToString(), a.ParentId, a.Postable,
+        a.RequiredDimension?.ToString(), a.IsRetainedEarnings, a.Active, a.NormalSide.ToString(), a.IsTemporary);
+
+    private static Account MapAccount(Guid clientId, Guid accountId, AccountRequest request) => new()
+    {
+        Id = accountId,
+        ClientId = clientId,
+        Number = request.Number,
+        Name = request.Name,
+        Type = Enum.Parse<AccountType>(request.Type, ignoreCase: true),
+        ParentId = request.ParentId,
+        Postable = request.Postable,
+        RequiredDimension = request.RequiredDimension is null
+            ? null
+            : Enum.Parse<DimensionKind>(request.RequiredDimension, ignoreCase: true),
+        IsRetainedEarnings = request.IsRetainedEarnings,
+        Active = request.Active,
+    };
 
     private static List<AccountBalanceResponse> ToAccountBalances(IReadOnlyDictionary<Guid, decimal> balances) =>
         balances.Select(kv => new AccountBalanceResponse(kv.Key, kv.Value)).ToList();

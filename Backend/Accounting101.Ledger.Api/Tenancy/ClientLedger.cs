@@ -12,4 +12,5 @@ public sealed record ClientLedger(
     MongoJournalStore Journal,
     MongoAuditLog Audit,
     MongoBalanceProjection Projection,
-    MongoCheckpointStore Checkpoints);
+    MongoCheckpointStore Checkpoints,
+    MongoAccountStore Accounts);

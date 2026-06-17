@@ -15,10 +15,10 @@ public enum LedgerRole
     /// <summary>Approves, voids, and reverses (checker), but does not enter.</summary>
     Approver,
 
-    /// <summary>Full journal authority: enter, approve, reverse, and close periods.</summary>
+    /// <summary>Full journal authority: enter, approve, reverse, close periods, and manage the chart.</summary>
     Controller,
 
-    /// <summary>Everything a controller can do, plus (future) reopen, chart-of-accounts, and user admin.</summary>
+    /// <summary>Everything a controller can do, plus (future) reopen and user administration.</summary>
     Admin,
 }
 
@@ -32,6 +32,7 @@ public enum Permission
     Void,
     Reverse,
     Close,
+    ManageAccounts,
 }
 
 /// <summary>The role → permission matrix. The single source of truth for "what can this role do".</summary>
@@ -43,11 +44,17 @@ public static class RolePermissions
         [LedgerRole.Clerk] = [Permission.Read, Permission.Post, Permission.Revise],
         [LedgerRole.Approver] = [Permission.Read, Permission.Approve, Permission.Void, Permission.Reverse],
         [LedgerRole.Controller] =
-            [Permission.Read, Permission.Post, Permission.Revise, Permission.Approve, Permission.Void, Permission.Reverse, Permission.Close],
-        // Admin mirrors Controller across the journal surface today; it also owns the (future) reopen,
-        // chart-of-accounts, and user-administration endpoints once those exist.
+        [
+            Permission.Read, Permission.Post, Permission.Revise, Permission.Approve,
+            Permission.Void, Permission.Reverse, Permission.Close, Permission.ManageAccounts,
+        ],
+        // Admin mirrors Controller across the journal + chart surface today; it also owns the (future)
+        // reopen and user-administration endpoints once those exist.
         [LedgerRole.Admin] =
-            [Permission.Read, Permission.Post, Permission.Revise, Permission.Approve, Permission.Void, Permission.Reverse, Permission.Close],
+        [
+            Permission.Read, Permission.Post, Permission.Revise, Permission.Approve,
+            Permission.Void, Permission.Reverse, Permission.Close, Permission.ManageAccounts,
+        ],
     };
 
     public static bool Allows(LedgerRole role, Permission permission) =>

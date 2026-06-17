@@ -1,0 +1,36 @@
+namespace Accounting101.Ledger.Api.Contracts;
+
+/// <summary>
+/// Wire contract for creating or updating a chart-of-accounts account (upsert by route id). The host
+/// validates the resulting chart before persisting, so the chart is always structurally sound.
+/// </summary>
+public sealed record AccountRequest
+{
+    public required string Number { get; init; }
+    public required string Name { get; init; }
+
+    /// <summary>Asset | Liability | Equity | Revenue | Expense.</summary>
+    public required string Type { get; init; }
+
+    public Guid? ParentId { get; init; }
+    public bool Postable { get; init; } = true;
+
+    /// <summary>Customer | Vendor | Item — set for a control account that requires that dimension.</summary>
+    public string? RequiredDimension { get; init; }
+
+    public bool IsRetainedEarnings { get; init; }
+    public bool Active { get; init; } = true;
+}
+
+public sealed record AccountResponse(
+    Guid Id,
+    string Number,
+    string Name,
+    string Type,
+    Guid? ParentId,
+    bool Postable,
+    string? RequiredDimension,
+    bool IsRetainedEarnings,
+    bool Active,
+    string NormalSide,
+    bool IsTemporary);

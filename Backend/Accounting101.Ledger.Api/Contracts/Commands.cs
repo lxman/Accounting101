@@ -22,3 +22,9 @@ public sealed record ClosePeriodRequest(DateOnly AsOf);
 /// open period). Used for reversing accruals and for correcting a closed period without unfreezing it.
 /// </summary>
 public sealed record ReverseRequest(DateOnly ReversalDate, long SequenceNumber, string? Reason);
+
+/// <summary>
+/// Close a fiscal year: post a balanced closing entry that resets temporary accounts (revenue/expense)
+/// into retained earnings, then freeze through <see cref="FiscalYearEnd"/>.
+/// </summary>
+public sealed record CloseYearRequest(DateOnly FiscalYearEnd, long ClosingSequenceNumber);

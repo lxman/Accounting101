@@ -34,4 +34,7 @@ public sealed record TrialBalanceResponse(DateOnly? AsOf, IReadOnlyList<AccountB
 
 public sealed record CloseResponse(DateOnly AsOf, IReadOnlyList<AccountBalanceResponse> OpeningBalances);
 
+/// <summary>The result of a year-end close — the materialized closing entry, or null if there was nothing to close.</summary>
+public sealed record CloseYearResponse(EntryResponse? ClosingEntry);
+
 public sealed record AuditVerifyResponse(bool Valid);
