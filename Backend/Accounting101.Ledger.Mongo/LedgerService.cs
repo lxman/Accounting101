@@ -206,6 +206,34 @@ public sealed class LedgerService
     }
 
     /// <summary>
+    /// Establish a client's opening balances — the position carried in from a prior system at the
+    /// cutover date — as a single balanced <see cref="EntryType.Opening"/> entry, posted and approved
+    /// so it lands on the books. It is an ordinary journal entry (the source of truth), so it flows
+    /// into every balance, report, and replay, and can be corrected like any other. Throws if the
+    /// lines do not balance — an opening trial balance must balance. Lock it afterward with a close if desired.
+    /// </summary>
+    public async Task<JournalEntry> OpenAsync(
+        Guid clientId, DateOnly asOf, IReadOnlyList<Line> lines, long sequenceNumber, Actor actor, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(actor);
+        ArgumentNullException.ThrowIfNull(lines);
+
+        JournalEntry opening = JournalEntry.Create(
+            id: Guid.NewGuid(),
+            clientId: clientId,
+            sequenceNumber: sequenceNumber,
+            effectiveDate: asOf,
+            postedAt: DateTimeOffset.UtcNow,
+            type: EntryType.Opening,
+            audit: new AuditStamp { CreatedBy = actor.UserId, CreatedAt = DateTimeOffset.UtcNow },
+            lines: lines,
+            memo: "Opening balances");
+
+        await PostAsync(opening, actor, cancellationToken);
+        return await ApproveAsync(opening.Id, actor, cancellationToken);
+    }
+
+    /// <summary>
     /// Close a period: snapshot the on-the-books balances effective on or before
     /// <paramref name="asOf"/> as a checkpoint (the opening balance for the next period), freeze
     /// everything through that date, and record the close in the audit log. Returns the snapshot.

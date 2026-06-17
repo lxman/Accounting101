@@ -34,3 +34,17 @@ public sealed record CloseYearRequest(DateOnly FiscalYearEnd, long ClosingSequen
 /// it entirely. The most privileged period action — admin-only and gated by step-up re-auth.
 /// </summary>
 public sealed record ReopenRequest(DateOnly? ReopenThrough, string? Reason);
+
+/// <summary>
+/// Establish opening balances at a cutover date as one balanced Opening entry. Balances are signed
+/// debit-positive (a debit balance positive, a credit balance negative) and must net to zero.
+/// </summary>
+public sealed record OnboardingRequest(DateOnly AsOf, long SequenceNumber, IReadOnlyList<OpeningBalanceLine> Balances);
+
+/// <summary>One account's carried-in balance (signed, debit-positive), with any required dimension.</summary>
+public sealed record OpeningBalanceLine(
+    Guid AccountId,
+    decimal Balance,
+    Guid? CustomerId = null,
+    Guid? VendorId = null,
+    Guid? ItemId = null);

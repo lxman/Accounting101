@@ -13,6 +13,7 @@ public enum Direction
 /// <summary>Classifies an entry for reporting and close behaviour.</summary>
 public enum EntryType
 {
+    Opening,
     Standard,
     Adjusting,
     Closing,

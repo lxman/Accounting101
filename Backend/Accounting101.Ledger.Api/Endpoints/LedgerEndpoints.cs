@@ -34,6 +34,7 @@ public static class LedgerEndpoints
         clients.MapPost("/periods/close-year", CloseYear);
         clients.MapPost("/periods/reopen", Reopen).RequireAuthorization(StepUpAuthorizationHandler.Policy);
         clients.MapPut("/accounts/{accountId:guid}", UpsertAccount);
+        clients.MapPost("/onboarding", Onboard);
 
         // Queries
         clients.MapGet("/entries", ListEntries);
@@ -228,6 +229,37 @@ public static class LedgerEndpoints
         catch (InvalidOperationException ex) // nothing to reopen, or not earlier than the current close
         {
             return Conflict(ex.Message);
+        }
+    }
+
+    private static async Task<IResult> Onboard(
+        Guid clientId, OnboardingRequest request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.ManageAccounts, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        List<Line> lines = MapOpeningLines(request.Balances);
+
+        if (await ChartViolationsAsync(ctx.Ledger.Accounts, clientId, lines, cancellationToken) is { } violation)
+            return violation;
+
+        try
+        {
+            JournalEntry opening = await ctx.Ledger.Service.OpenAsync(
+                clientId, request.AsOf, lines, request.SequenceNumber, ctx.Actor, cancellationToken);
+            return Results.Created($"/clients/{clientId}/entries/{opening.Id}", ToEntryResponse(opening));
+        }
+        catch (Exception ex) when (ex is ArgumentException or UnbalancedEntryException) // an opening trial balance must balance
+        {
+            return Unprocessable(ex.Message);
+        }
+        catch (InvalidOperationException ex) // cutover lands in a closed period
+        {
+            return Conflict(ex.Message);
+        }
+        catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
+        {
+            return Conflict("An entry with this id or sequence number already exists.");
         }
     }
 
@@ -477,6 +509,18 @@ public static class LedgerEndpoints
             CustomerId = l.CustomerId,
             VendorId = l.VendorId,
             ItemId = l.ItemId,
+        }).ToList();
+
+    private static List<Line> MapOpeningLines(IReadOnlyList<OpeningBalanceLine> balances) =>
+        balances.Select(b => new Line
+        {
+            Id = Guid.NewGuid(),
+            AccountId = b.AccountId,
+            Direction = b.Balance >= 0m ? Direction.Debit : Direction.Credit,
+            Amount = Math.Abs(b.Balance),
+            CustomerId = b.CustomerId,
+            VendorId = b.VendorId,
+            ItemId = b.ItemId,
         }).ToList();
 
     /// <summary>
