@@ -40,17 +40,44 @@ public sealed class LedgerService
         await _audit.AppendAsync(entry.ClientId, entry.Id, entry.Version, AuditAction.Created, actor, null, DateTimeOffset.UtcNow, cancellationToken);
     }
 
-    /// <summary>Approve a pending entry — it goes on the books and updates the projection.</summary>
+    /// <summary>
+    /// Approve a pending entry — it goes on the books and updates the projection. If the entry is a
+    /// correction (it supersedes another), the swap happens here, atomically: the superseded original
+    /// is retired and its effect reversed at the same moment the replacement goes on the books. The
+    /// original must still be active to approve its replacement, so a correction cannot double-count.
+    /// </summary>
     public async Task<JournalEntry> ApproveAsync(Guid entryId, Actor actor, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(actor);
         JournalEntry entry = await RequireAsync(entryId, cancellationToken);
         await EnsureOpenAsync(entry.ClientId, entry.EffectiveDate, cancellationToken);
 
+        // A revision only takes effect on approval. Verify the original is still revisable before
+        // mutating anything, so we never half-apply a correction.
+        JournalEntry? original = null;
+        if (entry.Supersedes is { } originalId)
+        {
+            original = await RequireAsync(originalId, cancellationToken);
+            if (original.Status != LifecycleStatus.Active)
+                throw new InvalidOperationException(
+                    $"Cannot approve this revision: the entry it supersedes ({originalId}) is no longer {LifecycleStatus.Active} (it is {original.Status}).");
+        }
+
         JournalEntry approved = entry.Approve(actor.UserId);
         await _journal.ReplaceAsync(approved, cancellationToken);
         await _projection.ApplyAsync(approved, cancellationToken);
-        await _audit.AppendAsync(approved.ClientId, approved.Id, approved.Version, AuditAction.Approved, actor, null, DateTimeOffset.UtcNow, cancellationToken);
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        await _audit.AppendAsync(approved.ClientId, approved.Id, approved.Version, AuditAction.Approved, actor, null, now, cancellationToken);
+
+        if (original is not null)
+        {
+            JournalEntry superseded = original.Supersede(approved.Id);
+            await _journal.ReplaceAsync(superseded, cancellationToken);
+            await _projection.ReverseAsync(original, cancellationToken); // pre-flip: reverses iff it was on the books
+            await _audit.AppendAsync(superseded.ClientId, superseded.Id, superseded.Version, AuditAction.Superseded, actor, "superseded by approved revision", now, cancellationToken);
+        }
+
         return approved;
     }
 
@@ -69,9 +96,11 @@ public sealed class LedgerService
     }
 
     /// <summary>
-    /// Replace an active entry with a corrected one (the edit path): the original is superseded
-    /// and kept; the replacement is appended. The projection nets out to the replacement's effect.
-    /// Both the original and the replacement must be in open periods.
+    /// Propose a correction to an active entry (the edit path). The corrected entry is recorded as a
+    /// <em>pending</em> replacement linked to the original via <see cref="JournalEntry.Supersedes"/>,
+    /// but has no effect on the journal or the books until it is approved — a revision does not exist
+    /// until approved. The original stays active and on the books until then, so there is never a gap;
+    /// the supersede swap happens in <see cref="ApproveAsync"/>. Both entries must be in open periods.
     /// </summary>
     public async Task<JournalEntry> ReviseAsync(Guid originalId, JournalEntry replacement, Actor actor, string? reason = null, CancellationToken cancellationToken = default)
     {
@@ -79,20 +108,21 @@ public sealed class LedgerService
         ArgumentNullException.ThrowIfNull(actor);
         if (replacement.Supersedes != originalId)
             throw new ArgumentException("Replacement must reference the original via Supersedes.", nameof(replacement));
+        if (replacement.Posting != PostingState.PendingApproval)
+            throw new ArgumentException("A revision must be submitted pending approval.", nameof(replacement));
 
         JournalEntry original = await RequireAsync(originalId, cancellationToken);
+        if (original.Status != LifecycleStatus.Active)
+            throw new InvalidOperationException(
+                $"Only an {LifecycleStatus.Active} entry can be revised; entry {originalId} is {original.Status}.");
+
         await EnsureOpenAsync(original.ClientId, original.EffectiveDate, cancellationToken);
         await EnsureOpenAsync(replacement.ClientId, replacement.EffectiveDate, cancellationToken);
 
-        JournalEntry superseded = original.Supersede(replacement.Id);
-        await _journal.ReplaceAsync(superseded, cancellationToken);
+        // Record the proposal only. The original is untouched and the projection unchanged until
+        // approval — see ApproveAsync, which performs the atomic swap.
         await _journal.AppendAsync(replacement, cancellationToken);
-        await _projection.ReverseAsync(original, cancellationToken);
-        await _projection.ApplyAsync(replacement, cancellationToken);
-
-        DateTimeOffset now = DateTimeOffset.UtcNow;
-        await _audit.AppendAsync(superseded.ClientId, superseded.Id, superseded.Version, AuditAction.Superseded, actor, reason, now, cancellationToken);
-        await _audit.AppendAsync(replacement.ClientId, replacement.Id, replacement.Version, AuditAction.Created, actor, reason, now, cancellationToken);
+        await _audit.AppendAsync(replacement.ClientId, replacement.Id, replacement.Version, AuditAction.Created, actor, reason, DateTimeOffset.UtcNow, cancellationToken);
         return replacement;
     }
 

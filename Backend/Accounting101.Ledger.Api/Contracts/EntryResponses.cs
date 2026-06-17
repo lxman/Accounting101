@@ -9,7 +9,9 @@ public sealed record EntryResponse(
     string Type,
     string Status,
     string Posting,
-    int LineCount);
+    int LineCount,
+    Guid? Supersedes,
+    Guid? SupersededBy);
 
 public sealed record AuditRecordResponse(
     long Sequence,
@@ -23,3 +25,11 @@ public sealed record AuditRecordResponse(
 public sealed record ActorResponse(Guid UserId, string? Name, IReadOnlyList<ClaimResponse> Claims);
 
 public sealed record ClaimResponse(string Type, string Value);
+
+public sealed record AccountBalanceResponse(Guid AccountId, decimal Balance);
+
+public sealed record TrialBalanceResponse(DateOnly? AsOf, IReadOnlyList<AccountBalanceResponse> Accounts);
+
+public sealed record CloseResponse(DateOnly AsOf, IReadOnlyList<AccountBalanceResponse> OpeningBalances);
+
+public sealed record AuditVerifyResponse(bool Valid);

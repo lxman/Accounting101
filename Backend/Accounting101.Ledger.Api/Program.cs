@@ -22,6 +22,7 @@ builder.Services.AddSingleton(sp =>
 // Tenant resolution + per-client ledger construction (the isolation boundary).
 builder.Services.AddSingleton<IClientDatabaseResolver, ClientDatabaseResolver>();
 builder.Services.AddSingleton<ClientLedgerFactory>();
+builder.Services.AddSingleton<LedgerGateway>();
 
 // Identity is IdP-agnostic: a dev-token scheme now; the claims → Actor mapping is ours and stable.
 builder.Services.AddSingleton<IActorFactory, ClaimsActorFactory>();

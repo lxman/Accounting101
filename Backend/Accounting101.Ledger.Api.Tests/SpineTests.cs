@@ -29,7 +29,7 @@ public sealed class SpineTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 
     private async Task<(Guid Client, string Db)> RegisterClientAsync(ControlStore control, string name)
     {
-        Guid client = Guid.NewGuid();
+        var client = Guid.NewGuid();
         string db = "client_" + client.ToString("N");
         await control.RegisterClientAsync(new ClientRegistration { Id = client, Name = name, DatabaseName = db });
         return (client, db);
@@ -40,7 +40,7 @@ public sealed class SpineTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     {
         ControlStore control = fixture.Control();
         (Guid client, _) = await RegisterClientAsync(control, "Acme");
-        Guid user = Guid.NewGuid();
+        var user = Guid.NewGuid();
         await control.AddMembershipAsync(user, client);
 
         HttpClient http = fixture.ClientFor(user, "Dana Clerk", ("role", "clerk"));
@@ -49,7 +49,7 @@ public sealed class SpineTests(ApiFixture fixture) : IClassFixture<ApiFixture>
             $"/clients/{client}/entries", BalancedEntry(1, Guid.NewGuid(), Guid.NewGuid(), 250m));
 
         Assert.Equal(HttpStatusCode.Created, posted.StatusCode);
-        PostEntryResponse? created = await posted.Content.ReadFromJsonAsync<PostEntryResponse>();
+        var created = await posted.Content.ReadFromJsonAsync<PostEntryResponse>();
         Assert.NotNull(created);
         Assert.Equal("PendingApproval", created!.Posting);
 
@@ -79,7 +79,7 @@ public sealed class SpineTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         ControlStore control = fixture.Control();
         (Guid clientA, _) = await RegisterClientAsync(control, "A");
         (Guid clientB, _) = await RegisterClientAsync(control, "B");
-        Guid userA = Guid.NewGuid();
+        var userA = Guid.NewGuid();
         await control.AddMembershipAsync(userA, clientA); // member of A only
 
         HttpClient http = fixture.ClientFor(userA, "A user", ("role", "clerk"));
@@ -94,7 +94,7 @@ public sealed class SpineTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     {
         ControlStore control = fixture.Control();
         (Guid client, _) = await RegisterClientAsync(control, "C");
-        Guid user = Guid.NewGuid();
+        var user = Guid.NewGuid();
         await control.AddMembershipAsync(user, client);
 
         HttpClient http = fixture.ClientFor(user, "C user", ("role", "clerk"));
@@ -112,7 +112,7 @@ public sealed class SpineTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         ControlStore control = fixture.Control();
         (Guid clientA, string dbA) = await RegisterClientAsync(control, "A");
         (Guid clientB, string dbB) = await RegisterClientAsync(control, "B");
-        Guid userA = Guid.NewGuid();
+        var userA = Guid.NewGuid();
         await control.AddMembershipAsync(userA, clientA);
 
         HttpClient http = fixture.ClientFor(userA, "A user", ("role", "clerk"));

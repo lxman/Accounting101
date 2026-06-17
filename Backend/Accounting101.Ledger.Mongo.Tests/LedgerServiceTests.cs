@@ -49,9 +49,9 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
     public async Task Approval_puts_an_entry_on_the_books()
     {
         (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, _, _) = NewLedger();
-        Guid client = Guid.NewGuid();
-        Guid cash = Guid.NewGuid();
-        Guid revenue = Guid.NewGuid();
+        var client = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
 
         JournalEntry entry = Entry(client, 1, cash, revenue, 100m);
         await service.PostAsync(entry, User());
@@ -70,9 +70,9 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
     public async Task Voiding_reverses_the_entry_from_the_projection()
     {
         (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, _, _) = NewLedger();
-        Guid client = Guid.NewGuid();
-        Guid cash = Guid.NewGuid();
-        Guid revenue = Guid.NewGuid();
+        var client = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
 
         JournalEntry entry = Entry(client, 1, cash, revenue, 100m);
         await service.PostAsync(entry, User());
@@ -87,31 +87,41 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
     }
 
     [Fact]
-    public async Task Revising_supersedes_the_original_and_nets_to_the_replacement()
+    public async Task A_revision_has_no_effect_until_approved_then_it_swaps()
     {
         (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, _, _) = NewLedger();
-        Guid client = Guid.NewGuid();
-        Guid cash = Guid.NewGuid();
-        Guid revenue = Guid.NewGuid();
+        var client = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
 
         JournalEntry original = Entry(client, 1, cash, revenue, 100m);
         await service.PostAsync(original, User());
         await service.ApproveAsync(original.Id, User());
 
-        // Corrected amount, immediately on the books, linked to the original.
-        JournalEntry replacement = Entry(client, 2, cash, revenue, 80m, PostingState.Posted, original.Id);
+        // Propose a correction (80). A revision is pending: no effect on the books or the original yet.
+        JournalEntry replacement = Entry(client, 2, cash, revenue, 80m, supersedes: original.Id);
         await service.ReviseAsync(original.Id, replacement, User());
 
-        IReadOnlyDictionary<Guid, decimal> balances = await projection.GetTrialBalanceAsync(client);
-        Assert.Equal(80m, balances[cash]);      // 100 reversed, 80 applied
-        Assert.Equal(-80m, balances[revenue]);
+        IReadOnlyDictionary<Guid, decimal> afterRevise = await projection.GetTrialBalanceAsync(client);
+        Assert.Equal(100m, afterRevise[cash]); // unchanged — the revision does not exist until approved
+        Assert.Equal(LifecycleStatus.Active, (await store.GetAsync(original.Id))!.Status);
+        JournalEntry? pending = await store.GetAsync(replacement.Id);
+        Assert.Equal(PostingState.PendingApproval, pending!.Posting);
+        Assert.Equal(original.Id, pending.Supersedes);
+
+        // Approving the replacement swaps atomically: it posts, the original is superseded.
+        await service.ApproveAsync(replacement.Id, User());
+
+        IReadOnlyDictionary<Guid, decimal> afterApprove = await projection.GetTrialBalanceAsync(client);
+        Assert.Equal(80m, afterApprove[cash]);   // 100 reversed, 80 applied — at approval, no gap
+        Assert.Equal(-80m, afterApprove[revenue]);
 
         JournalEntry? storedOriginal = await store.GetAsync(original.Id);
         Assert.Equal(LifecycleStatus.Superseded, storedOriginal!.Status);
         Assert.Equal(replacement.Id, storedOriginal.SupersededBy);
 
         JournalEntry? storedReplacement = await store.GetAsync(replacement.Id);
-        Assert.Equal(LifecycleStatus.Active, storedReplacement!.Status);
+        Assert.Equal(PostingState.Posted, storedReplacement!.Posting);
         Assert.Equal(original.Id, storedReplacement.Supersedes);
     }
 }

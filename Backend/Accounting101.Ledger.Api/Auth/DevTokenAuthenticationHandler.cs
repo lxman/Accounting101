@@ -24,7 +24,7 @@ public sealed class DevTokenAuthenticationHandler(
         if (!Request.Headers.TryGetValue("Authorization", out var header))
             return Task.FromResult(AuthenticateResult.NoResult());
 
-        string value = header.ToString();
+        var value = header.ToString();
         if (string.IsNullOrWhiteSpace(value) || !value.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
             return Task.FromResult(AuthenticateResult.NoResult());
 
