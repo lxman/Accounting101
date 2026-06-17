@@ -13,5 +13,14 @@ public sealed record PostEntryRequest(
     string? Memo,
     IReadOnlyList<PostLineRequest> Lines);
 
-/// <summary>One posting line: which account, debit or credit, and a signed amount.</summary>
-public sealed record PostLineRequest(Guid AccountId, string Direction, decimal Amount);
+/// <summary>
+/// One posting line: which account, debit or credit, a signed amount, and any subledger dimension
+/// (set the one the account's control type requires — e.g. CustomerId on an A/R line).
+/// </summary>
+public sealed record PostLineRequest(
+    Guid AccountId,
+    string Direction,
+    decimal Amount,
+    Guid? CustomerId = null,
+    Guid? VendorId = null,
+    Guid? ItemId = null);

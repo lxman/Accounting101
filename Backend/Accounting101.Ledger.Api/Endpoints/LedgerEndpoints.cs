@@ -65,6 +65,9 @@ public static class LedgerEndpoints
             return Unprocessable(ex.Message);
         }
 
+        if (await ChartViolationsAsync(ctx.Ledger.Accounts, clientId, entry.Lines, cancellationToken) is { } violation)
+            return violation;
+
         try
         {
             await ctx.Ledger.Service.PostAsync(entry, ctx.Actor, cancellationToken);
@@ -150,6 +153,9 @@ public static class LedgerEndpoints
         {
             return Unprocessable(ex.Message);
         }
+
+        if (await ChartViolationsAsync(ctx.Ledger.Accounts, clientId, replacement.Lines, cancellationToken) is { } violation)
+            return violation;
 
         try
         {
@@ -468,5 +474,51 @@ public static class LedgerEndpoints
             AccountId = l.AccountId,
             Direction = Enum.Parse<Direction>(l.Direction, ignoreCase: true),
             Amount = l.Amount,
+            CustomerId = l.CustomerId,
+            VendorId = l.VendorId,
+            ItemId = l.ItemId,
         }).ToList();
+
+    /// <summary>
+    /// Validate posted lines against the client's chart: each account must exist, be active and
+    /// postable, and carry any dimension its control type requires. Skipped when no chart has been set
+    /// up yet (nothing to validate against — keeps the onboarding bootstrap open). Returns a 422 result
+    /// listing the violations, or null when the lines conform.
+    /// </summary>
+    private static async Task<IResult?> ChartViolationsAsync(
+        MongoAccountStore accounts, Guid clientId, IReadOnlyList<Line> lines, CancellationToken cancellationToken)
+    {
+        ChartOfAccounts chart = await accounts.GetChartAsync(clientId, cancellationToken);
+        if (chart.Accounts.Count == 0)
+            return null;
+
+        List<string> errors = [];
+        foreach (Line line in lines)
+        {
+            Account? account = chart.Find(line.AccountId);
+            if (account is null)
+            {
+                errors.Add($"Account {line.AccountId} is not in the chart of accounts.");
+                continue;
+            }
+
+            if (!account.Active)
+                errors.Add($"Account {account.Number} \"{account.Name}\" is inactive.");
+            else if (!account.Postable)
+                errors.Add($"Account {account.Number} \"{account.Name}\" is a summary account and cannot be posted to.");
+
+            if (account.RequiredDimension is { } dimension && !LineHasDimension(line, dimension))
+                errors.Add($"Account {account.Number} \"{account.Name}\" requires a {dimension} on the posting line.");
+        }
+
+        return errors.Count == 0 ? null : Unprocessable(string.Join(" ", errors));
+    }
+
+    private static bool LineHasDimension(Line line, DimensionKind dimension) => dimension switch
+    {
+        DimensionKind.Customer => line.CustomerId is not null,
+        DimensionKind.Vendor => line.VendorId is not null,
+        DimensionKind.Item => line.ItemId is not null,
+        _ => true,
+    };
 }
