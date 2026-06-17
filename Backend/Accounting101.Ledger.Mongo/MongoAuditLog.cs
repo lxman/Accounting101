@@ -23,6 +23,14 @@ public sealed class MongoAuditLog
         _audit = database.GetCollection<AuditRecordDocument>(collectionName);
     }
 
+    private const int MaxAppendAttempts = 64;
+
+    /// <summary>
+    /// Append a record to the client's chain. The per-client sequence is a linear, tamper-evident
+    /// structure, so it is intentionally serialized: under concurrency two appends may compute the same
+    /// sequence, the <see cref="EnsureIndexesAsync">unique index</see> rejects the loser with a
+    /// duplicate key, and this method re-reads the tail and re-chains. A silent fork becomes a safe retry.
+    /// </summary>
     public async Task AppendAsync(
         Guid clientId,
         Guid? entryId,
@@ -34,29 +42,57 @@ public sealed class MongoAuditLog
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(actor);
-
-        AuditRecordDocument? latest = await _audit
-            .Find(a => a.ClientId == clientId)
-            .SortByDescending(a => a.Sequence)
-            .FirstOrDefaultAsync(cancellationToken);
-
         long atMs = at.ToUnixTimeMilliseconds();
-        AuditRecordDocument record = new()
-        {
-            Id = Guid.NewGuid(),
-            ClientId = clientId,
-            Sequence = (latest?.Sequence ?? 0) + 1,
-            EntryId = entryId,
-            EntryVersion = entryVersion,
-            Action = action,
-            Actor = ToSnapshot(actor),
-            At = DateTimeOffset.FromUnixTimeMilliseconds(atMs).UtcDateTime, // ms precision — matches the hash on read-back
-            Reason = reason,
-            PreviousHash = latest?.Hash ?? string.Empty,
-        };
-        record.Hash = ComputeHash(record);
+        ActorSnapshot snapshot = ToSnapshot(actor);
 
-        await _audit.InsertOneAsync(record, cancellationToken: cancellationToken);
+        for (int attempt = 1; ; attempt++)
+        {
+            AuditRecordDocument? latest = await _audit
+                .Find(a => a.ClientId == clientId)
+                .SortByDescending(a => a.Sequence)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            AuditRecordDocument record = new()
+            {
+                Id = Guid.NewGuid(),
+                ClientId = clientId,
+                Sequence = (latest?.Sequence ?? 0) + 1,
+                EntryId = entryId,
+                EntryVersion = entryVersion,
+                Action = action,
+                Actor = snapshot,
+                At = DateTimeOffset.FromUnixTimeMilliseconds(atMs).UtcDateTime, // ms precision — matches the hash on read-back
+                Reason = reason,
+                PreviousHash = latest?.Hash ?? string.Empty,
+            };
+            record.Hash = ComputeHash(record);
+
+            try
+            {
+                await _audit.InsertOneAsync(record, cancellationToken: cancellationToken);
+                return;
+            }
+            catch (MongoWriteException ex)
+                when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey && attempt < MaxAppendAttempts)
+            {
+                // A concurrent append took this sequence; loop to re-read the tail and re-chain.
+            }
+        }
+    }
+
+    /// <summary>
+    /// Creates the unique per-client sequence index that keeps the hash chain a single linear sequence
+    /// under concurrent appends (the retry in <see cref="AppendAsync"/> relies on it). Idempotent.
+    /// </summary>
+    public Task EnsureIndexesAsync(CancellationToken cancellationToken = default)
+    {
+        IndexKeysDefinition<AuditRecordDocument> keys = Builders<AuditRecordDocument>.IndexKeys
+            .Ascending(a => a.ClientId)
+            .Ascending(a => a.Sequence);
+
+        return _audit.Indexes.CreateOneAsync(
+            new CreateIndexModel<AuditRecordDocument>(keys, new CreateIndexOptions { Name = "client_sequence_unique", Unique = true }),
+            cancellationToken: cancellationToken);
     }
 
     /// <summary>The action timeline for one entry — the "what happened to this entry" look-back.</summary>

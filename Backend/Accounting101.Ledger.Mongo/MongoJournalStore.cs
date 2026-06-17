@@ -33,18 +33,26 @@ public sealed class MongoJournalStore
     }
 
     /// <summary>
-    /// Persist a lifecycle/posting-state transition of an existing entry (approve, void,
-    /// supersede). Only the status fields change — the lines/references are unchanged, so
-    /// the "a reference is never erased" rule holds.
+    /// Persist a lifecycle/posting-state transition of an existing entry (approve, void, supersede)
+    /// with optimistic concurrency. Only the status fields change — the lines/references are unchanged,
+    /// so the "a reference is never erased" rule holds. The replace only matches if the stored version
+    /// is the one this transition was derived from (<c>entry.Version - 1</c>); otherwise a concurrent
+    /// writer moved the entry first and <see cref="ConcurrencyConflictException"/> is thrown, before any
+    /// projection update, so an interleaved transition can never be double-applied.
     /// </summary>
-    public Task ReplaceAsync(JournalEntry entry, CancellationToken cancellationToken = default)
+    public async Task ReplaceAsync(JournalEntry entry, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
-        return _entries.ReplaceOneAsync(
-            e => e.Id == entry.Id,
+        int expectedVersion = entry.Version - 1;
+
+        ReplaceOneResult result = await _entries.ReplaceOneAsync(
+            e => e.Id == entry.Id && e.Version == expectedVersion,
             JournalEntryDocument.FromDomain(entry),
             new ReplaceOptions(),
             cancellationToken);
+
+        if (result.MatchedCount == 0)
+            throw new ConcurrencyConflictException(entry.Id, expectedVersion);
     }
 
     public async Task<JournalEntry?> GetAsync(Guid id, CancellationToken cancellationToken = default)

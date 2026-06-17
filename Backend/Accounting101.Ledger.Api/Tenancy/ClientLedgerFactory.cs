@@ -28,7 +28,10 @@ public sealed class ClientLedgerFactory(IClientDatabaseResolver resolver)
         LedgerService service = new(journal, projection, checkpoints, audit);
 
         if (_indexed.TryAdd(clientId, true))
+        {
             await journal.EnsureIndexesAsync(cancellationToken);
+            await audit.EnsureIndexesAsync(cancellationToken);
+        }
 
         return new ClientLedger(service, journal, audit, projection, checkpoints, accounts);
     }
