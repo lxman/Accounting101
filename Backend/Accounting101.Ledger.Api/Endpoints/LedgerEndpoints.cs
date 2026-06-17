@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Accounting101.Ledger.Api.Contracts;
+using Accounting101.Ledger.Api.Control;
 using Accounting101.Ledger.Core.Journal;
 using Accounting101.Ledger.Mongo;
 using Accounting101.Ledger.Mongo.Documents;
@@ -75,13 +76,22 @@ public static class LedgerEndpoints
     }
 
     private static async Task<IResult> ApproveEntry(
-        Guid clientId, Guid entryId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+        Guid clientId, Guid entryId, LedgerGateway gateway, ControlStore control, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
-        if (await ctx.Ledger.Journal.GetAsync(entryId, cancellationToken) is null)
+        JournalEntry? entry = await ctx.Ledger.Journal.GetAsync(entryId, cancellationToken);
+        if (entry is null)
             return Results.NotFound();
+
+        // Segregation of duties (host policy, per client): the approver may not be the author. This
+        // also covers revisions, since a correction is approved through this same endpoint.
+        ClientRegistration? client = await control.GetClientAsync(clientId, cancellationToken);
+        if (client?.RequireSegregationOfDuties == true && entry.Audit.CreatedBy == ctx.Actor.UserId)
+            return Results.Problem(
+                "Segregation of duties: an entry must be approved by someone other than the person who entered it.",
+                statusCode: StatusCodes.Status403Forbidden);
 
         try
         {

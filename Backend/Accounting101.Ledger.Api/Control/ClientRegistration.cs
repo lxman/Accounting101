@@ -16,4 +16,11 @@ public sealed class ClientRegistration
 
     /// <summary>The MongoDB database name holding this client's ledger (journal, balances, audit, …).</summary>
     public string DatabaseName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// When true, the host enforces segregation of duties: an entry must be approved by someone other
+    /// than its author. Off by default — some shops (e.g. a sole proprietor) allow self-approval. This
+    /// policy lives here in the control DB, not in the engine.
+    /// </summary>
+    public bool RequireSegregationOfDuties { get; set; }
 }

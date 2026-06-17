@@ -64,18 +64,32 @@ public sealed class ApiFixture : IAsyncLifetime
     public HttpClient AnonymousClient() => _factory.CreateClient();
 
     /// <summary>Register a fresh client plus a member user, returning an HttpClient authed as that user.</summary>
-    public async Task<SeededClient> SeedClientAsync(string name = "Acme")
+    public async Task<SeededClient> SeedClientAsync(string name = "Acme", bool requireSod = false)
     {
         Guid clientId = Guid.NewGuid();
         string database = "client_" + clientId.ToString("N");
         Guid userId = Guid.NewGuid();
 
         ControlStore control = Control();
-        await control.RegisterClientAsync(new ClientRegistration { Id = clientId, Name = name, DatabaseName = database });
+        await control.RegisterClientAsync(new ClientRegistration
+        {
+            Id = clientId,
+            Name = name,
+            DatabaseName = database,
+            RequireSegregationOfDuties = requireSod,
+        });
         await control.AddMembershipAsync(userId, clientId);
 
         HttpClient http = ClientFor(userId, name + " controller", ("role", "controller"));
         return new SeededClient(clientId, database, userId, http);
+    }
+
+    /// <summary>Add another member user to a client and return an HttpClient authenticated as that user.</summary>
+    public async Task<HttpClient> AddMemberAsync(Guid clientId, string name = "Approver")
+    {
+        Guid userId = Guid.NewGuid();
+        await Control().AddMembershipAsync(userId, clientId);
+        return ClientFor(userId, name, ("role", "controller"));
     }
 }
 
