@@ -55,4 +55,12 @@ public sealed class ControlStore
             new Membership { Id = Guid.NewGuid(), UserId = userId, ClientId = clientId, Role = role },
             cancellationToken: cancellationToken);
     }
+
+    /// <summary>All clients registered in this deployment.</summary>
+    public async Task<IReadOnlyList<ClientRegistration>> ListClientsAsync(CancellationToken cancellationToken = default) =>
+        await _clients.Find(FilterDefinition<ClientRegistration>.Empty).ToListAsync(cancellationToken);
+
+    /// <summary>All memberships granted on a client.</summary>
+    public async Task<IReadOnlyList<Membership>> GetMembersAsync(Guid clientId, CancellationToken cancellationToken = default) =>
+        await _memberships.Find(m => m.ClientId == clientId).ToListAsync(cancellationToken);
 }

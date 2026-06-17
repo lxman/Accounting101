@@ -29,12 +29,14 @@ builder.Services.AddSingleton<IActorFactory, ClaimsActorFactory>();
 builder.Services
     .AddAuthentication(DevTokenDefaults.Scheme)
     .AddScheme<AuthenticationSchemeOptions, DevTokenAuthenticationHandler>(DevTokenDefaults.Scheme, null);
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+    options.AddPolicy(AdminEndpoints.Policy, policy => policy.RequireClaim("admin", "true")));
 
 WebApplication app = builder.Build();
 
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapLedgerEndpoints();
+app.MapAdminEndpoints();
 
 app.Run();

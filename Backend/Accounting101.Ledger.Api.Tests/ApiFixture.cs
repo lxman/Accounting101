@@ -63,6 +63,9 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public HttpClient AnonymousClient() => _factory.CreateClient();
 
+    /// <summary>An HttpClient authenticated as a deployment admin (carries the provisioning claim).</summary>
+    public HttpClient AdminClient() => ClientFor(Guid.NewGuid(), "Deployment Admin", ("admin", "true"));
+
     /// <summary>Register a fresh client plus a member user, returning an HttpClient authed as that user.</summary>
     public async Task<SeededClient> SeedClientAsync(string name = "Acme", bool requireSod = false, LedgerRole role = LedgerRole.Controller)
     {
