@@ -24,7 +24,7 @@ public sealed class YearEndCloseTests(MongoFixture fixture) : IClassFixture<Mong
         MongoBalanceProjection projection = new(fixture.Database, store, "balances_" + Guid.NewGuid().ToString("N"));
         MongoCheckpointStore checkpoints = new(fixture.Database, "checkpoints_" + Guid.NewGuid().ToString("N"));
         MongoAuditLog audit = new(fixture.Database, "audit_" + Guid.NewGuid().ToString("N"));
-        return (new LedgerService(store, projection, checkpoints, audit), projection);
+        return (new LedgerService(fixture.Database.Client, store, projection, checkpoints, audit), projection);
     }
 
     private static Account Acct(Guid client, string number, string name, AccountType type, bool retainedEarnings = false) => new()

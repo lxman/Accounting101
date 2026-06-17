@@ -31,17 +31,17 @@ public sealed class MongoBalanceProjection
     /// document (upsert). No-op for entries that are not <see cref="LedgerReplay.IsOnBooks"/>
     /// (e.g. pending approval). Lines to the same account are netted into one increment.
     /// </summary>
-    public Task ApplyAsync(JournalEntry entry, CancellationToken cancellationToken = default) =>
-        UpdateAsync(entry, +1, cancellationToken);
+    public Task ApplyAsync(JournalEntry entry, IClientSessionHandle? session = null, CancellationToken cancellationToken = default) =>
+        UpdateAsync(entry, +1, session, cancellationToken);
 
     /// <summary>
     /// Reverse an entry's deltas — used when an on-the-books entry is voided or superseded.
     /// No-op if the entry was not on the books.
     /// </summary>
-    public Task ReverseAsync(JournalEntry entry, CancellationToken cancellationToken = default) =>
-        UpdateAsync(entry, -1, cancellationToken);
+    public Task ReverseAsync(JournalEntry entry, IClientSessionHandle? session = null, CancellationToken cancellationToken = default) =>
+        UpdateAsync(entry, -1, session, cancellationToken);
 
-    private Task UpdateAsync(JournalEntry entry, int sign, CancellationToken cancellationToken)
+    private Task UpdateAsync(JournalEntry entry, int sign, IClientSessionHandle? session, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(entry);
         if (!LedgerReplay.IsOnBooks(entry))
@@ -53,11 +53,14 @@ public sealed class MongoBalanceProjection
             .Select(group => update.Inc($"Balances.{group.Key:N}", sign * group.Sum(line => line.SignedEffect)))
             .ToList();
 
-        return _balances.UpdateOneAsync(
-            balances => balances.ClientId == entry.ClientId,
-            update.Combine(increments),
-            new UpdateOptions { IsUpsert = true },
-            cancellationToken);
+        FilterDefinition<ClientBalancesDocument> filter = Builders<ClientBalancesDocument>.Filter
+            .Where(balances => balances.ClientId == entry.ClientId);
+        UpdateDefinition<ClientBalancesDocument> combined = update.Combine(increments);
+        UpdateOptions options = new() { IsUpsert = true };
+
+        return session is null
+            ? _balances.UpdateOneAsync(filter, combined, options, cancellationToken)
+            : _balances.UpdateOneAsync(session, filter, combined, options, cancellationToken);
     }
 
     /// <summary>O(1): the whole trial balance for a client (empty if none recorded yet).</summary>

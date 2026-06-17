@@ -25,11 +25,17 @@ public sealed class MongoJournalStore
         _entries = database.GetCollection<JournalEntryDocument>(collectionName);
     }
 
-    /// <summary>Durably append one entry. The entry id is the document <c>_id</c>.</summary>
-    public Task AppendAsync(JournalEntry entry, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Durably append one entry (the id is the document <c>_id</c>). Joins the given transaction
+    /// session when one is supplied, so the append commits atomically with its audit record.
+    /// </summary>
+    public Task AppendAsync(JournalEntry entry, IClientSessionHandle? session = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
-        return _entries.InsertOneAsync(JournalEntryDocument.FromDomain(entry), cancellationToken: cancellationToken);
+        JournalEntryDocument doc = JournalEntryDocument.FromDomain(entry);
+        return session is null
+            ? _entries.InsertOneAsync(doc, cancellationToken: cancellationToken)
+            : _entries.InsertOneAsync(session, doc, cancellationToken: cancellationToken);
     }
 
     /// <summary>
@@ -40,16 +46,17 @@ public sealed class MongoJournalStore
     /// writer moved the entry first and <see cref="ConcurrencyConflictException"/> is thrown, before any
     /// projection update, so an interleaved transition can never be double-applied.
     /// </summary>
-    public async Task ReplaceAsync(JournalEntry entry, CancellationToken cancellationToken = default)
+    public async Task ReplaceAsync(JournalEntry entry, IClientSessionHandle? session = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
         int expectedVersion = entry.Version - 1;
+        FilterDefinition<JournalEntryDocument> filter = Builders<JournalEntryDocument>.Filter
+            .Where(e => e.Id == entry.Id && e.Version == expectedVersion);
+        JournalEntryDocument doc = JournalEntryDocument.FromDomain(entry);
 
-        ReplaceOneResult result = await _entries.ReplaceOneAsync(
-            e => e.Id == entry.Id && e.Version == expectedVersion,
-            JournalEntryDocument.FromDomain(entry),
-            new ReplaceOptions(),
-            cancellationToken);
+        ReplaceOneResult result = session is null
+            ? await _entries.ReplaceOneAsync(filter, doc, new ReplaceOptions(), cancellationToken)
+            : await _entries.ReplaceOneAsync(session, filter, doc, new ReplaceOptions(), cancellationToken);
 
         if (result.MatchedCount == 0)
             throw new ConcurrencyConflictException(entry.Id, expectedVersion);

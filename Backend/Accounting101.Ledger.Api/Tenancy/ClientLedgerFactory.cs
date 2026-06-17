@@ -25,7 +25,7 @@ public sealed class ClientLedgerFactory(IClientDatabaseResolver resolver)
         MongoCheckpointStore checkpoints = new(database);
         MongoAuditLog audit = new(database);
         MongoAccountStore accounts = new(database);
-        LedgerService service = new(journal, projection, checkpoints, audit);
+        LedgerService service = new(database.Client, journal, projection, checkpoints, audit);
 
         if (_indexed.TryAdd(clientId, true))
         {

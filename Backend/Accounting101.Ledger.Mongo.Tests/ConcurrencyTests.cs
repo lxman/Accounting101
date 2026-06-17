@@ -20,14 +20,14 @@ public sealed class ConcurrencyTests(MongoFixture fixture) : IClassFixture<Mongo
         MongoBalanceProjection projection = new(fixture.Database, store, "balances_" + Guid.NewGuid().ToString("N"));
         MongoCheckpointStore checkpoints = new(fixture.Database, "checkpoints_" + Guid.NewGuid().ToString("N"));
         MongoAuditLog audit = new(fixture.Database, "audit_" + Guid.NewGuid().ToString("N"));
-        return (new LedgerService(store, projection, checkpoints, audit), store, projection);
+        return (new LedgerService(fixture.Database.Client, store, projection, checkpoints, audit), store, projection);
     }
 
-    private static JournalEntry Entry(Guid clientId, Guid debit, Guid credit, decimal amount) =>
+    private static JournalEntry Entry(Guid clientId, Guid debit, Guid credit, decimal amount, long sequence = 1) =>
         JournalEntry.Create(
             id: Guid.NewGuid(),
             clientId: clientId,
-            sequenceNumber: 1,
+            sequenceNumber: sequence,
             effectiveDate: new DateOnly(2026, 6, 1),
             postedAt: DateTimeOffset.UnixEpoch,
             type: EntryType.Standard,
@@ -92,5 +92,29 @@ public sealed class ConcurrencyTests(MongoFixture fixture) : IClassFixture<Mongo
         Assert.Equal(n, records.Count);
         Assert.Equal(Enumerable.Range(1, n).Select(i => (long)i), records.Select(r => r.Sequence)); // gapless, no fork
         Assert.True(await audit.VerifyAsync(client));                                                // chain intact
+    }
+
+    [Fact]
+    public async Task Concurrent_posts_to_one_client_commit_atomically_with_a_gapless_chain()
+    {
+        MongoJournalStore store = fixture.NewStore();
+        MongoBalanceProjection projection = new(fixture.Database, store, "balances_" + Guid.NewGuid().ToString("N"));
+        MongoCheckpointStore checkpoints = new(fixture.Database, "checkpoints_" + Guid.NewGuid().ToString("N"));
+        MongoAuditLog audit = new(fixture.Database, "audit_" + Guid.NewGuid().ToString("N"));
+        await audit.EnsureIndexesAsync(); // the unique chain index turns concurrent appends into retryable conflicts
+        LedgerService service = new(fixture.Database.Client, store, projection, checkpoints, audit);
+
+        var client = Guid.NewGuid();
+        const int n = 10;
+        Task[] posts = Enumerable.Range(1, n)
+            .Select(seq => Task.Run(() => service.PostAsync(Entry(client, Guid.NewGuid(), Guid.NewGuid(), 10m, seq), User())))
+            .ToArray();
+        await Task.WhenAll(posts);
+
+        // Each post's journal + audit committed together; the chain serialized to a gapless 1..n.
+        Assert.Equal(n, (await store.GetByClientAsync(client)).Count);
+        IReadOnlyList<AuditRecordDocument> records = await audit.GetForClientAsync(client);
+        Assert.Equal(Enumerable.Range(1, n).Select(i => (long)i), records.Select(r => r.Sequence));
+        Assert.True(await audit.VerifyAsync(client));
     }
 }

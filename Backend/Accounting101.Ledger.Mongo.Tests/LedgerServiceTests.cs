@@ -23,7 +23,7 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
         MongoBalanceProjection projection = new(fixture.Database, store, "balances_" + Guid.NewGuid().ToString("N"));
         MongoCheckpointStore checkpoints = new(fixture.Database, "checkpoints_" + Guid.NewGuid().ToString("N"));
         MongoAuditLog audit = new(fixture.Database, "audit_" + Guid.NewGuid().ToString("N"));
-        return (new LedgerService(store, projection, checkpoints, audit), store, projection, checkpoints, audit);
+        return (new LedgerService(fixture.Database.Client, store, projection, checkpoints, audit), store, projection, checkpoints, audit);
     }
 
     private static JournalEntry Entry(

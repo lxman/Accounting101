@@ -31,6 +31,7 @@ public sealed class MongoCheckpointStore
         IReadOnlyDictionary<Guid, decimal> balances,
         Guid closedBy,
         DateTimeOffset closedAt,
+        IClientSessionHandle? session = null,
         CancellationToken cancellationToken = default)
     {
         CheckpointDocument doc = new()
@@ -43,11 +44,11 @@ public sealed class MongoCheckpointStore
         };
 
         // One checkpoint per client — each close replaces the previous.
-        return _checkpoints.ReplaceOneAsync(
-            c => c.ClientId == clientId,
-            doc,
-            new ReplaceOptions { IsUpsert = true },
-            cancellationToken);
+        FilterDefinition<CheckpointDocument> filter = Builders<CheckpointDocument>.Filter.Where(c => c.ClientId == clientId);
+        ReplaceOptions options = new() { IsUpsert = true };
+        return session is null
+            ? _checkpoints.ReplaceOneAsync(filter, doc, options, cancellationToken)
+            : _checkpoints.ReplaceOneAsync(session, filter, doc, options, cancellationToken);
     }
 
     /// <summary>The client's close date (the freeze pointer), or null if never closed.</summary>

@@ -39,6 +39,7 @@ public sealed class MongoAuditLog
         Actor actor,
         string? reason,
         DateTimeOffset at,
+        IClientSessionHandle? session = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(actor);
@@ -47,10 +48,7 @@ public sealed class MongoAuditLog
 
         for (int attempt = 1; ; attempt++)
         {
-            AuditRecordDocument? latest = await _audit
-                .Find(a => a.ClientId == clientId)
-                .SortByDescending(a => a.Sequence)
-                .FirstOrDefaultAsync(cancellationToken);
+            AuditRecordDocument? latest = await FindLatestAsync(clientId, session, cancellationToken);
 
             AuditRecordDocument record = new()
             {
@@ -69,15 +67,27 @@ public sealed class MongoAuditLog
 
             try
             {
-                await _audit.InsertOneAsync(record, cancellationToken: cancellationToken);
+                if (session is null)
+                    await _audit.InsertOneAsync(record, cancellationToken: cancellationToken);
+                else
+                    await _audit.InsertOneAsync(session, record, cancellationToken: cancellationToken);
                 return;
             }
             catch (MongoWriteException ex)
-                when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey && attempt < MaxAppendAttempts)
+                when (session is null && ex.WriteError?.Category == ServerErrorCategory.DuplicateKey && attempt < MaxAppendAttempts)
             {
-                // A concurrent append took this sequence; loop to re-read the tail and re-chain.
+                // Standalone: a concurrent append took this sequence — re-read the tail and re-chain.
+                // Inside a transaction the conflict propagates instead, so the transaction re-runs the whole op.
             }
         }
+    }
+
+    private async Task<AuditRecordDocument?> FindLatestAsync(Guid clientId, IClientSessionHandle? session, CancellationToken cancellationToken)
+    {
+        IFindFluent<AuditRecordDocument, AuditRecordDocument> find = session is null
+            ? _audit.Find(a => a.ClientId == clientId)
+            : _audit.Find(session, a => a.ClientId == clientId);
+        return await find.SortByDescending(a => a.Sequence).FirstOrDefaultAsync(cancellationToken);
     }
 
     /// <summary>

@@ -1,28 +1,33 @@
 using Accounting101.Ledger.Core.Accounts;
 using Accounting101.Ledger.Core.Journal;
+using MongoDB.Driver;
 
 namespace Accounting101.Ledger.Mongo;
 
 /// <summary>
 /// Coordinates the journal (source of truth), the balance projection (read model), period-close
-/// checkpoints, and the audit log across the entry lifecycle. The journal is written first; the
-/// projection follows; every mutation is recorded in the audit log with the acting principal.
-/// The engine enforces only integrity invariants (balance, the closed-period freeze) — it does
-/// not authenticate or authorize. The host does that and hands in an authenticated <see cref="Actor"/>.
+/// checkpoints, and the audit log across the entry lifecycle. Each mutation's writes commit together
+/// in a replica-set transaction, so the journal, projection, and audit move atomically — a crash mid
+/// way leaves nothing partially applied. The engine enforces only integrity invariants (balance, the
+/// closed-period freeze, optimistic concurrency) — it does not authenticate or authorize. The host
+/// does that and hands in an authenticated <see cref="Actor"/>.
 /// </summary>
 public sealed class LedgerService
 {
+    private readonly IMongoClient _client;
     private readonly MongoJournalStore _journal;
     private readonly MongoBalanceProjection _projection;
     private readonly MongoCheckpointStore _checkpoints;
     private readonly MongoAuditLog _audit;
 
     public LedgerService(
+        IMongoClient client,
         MongoJournalStore journal,
         MongoBalanceProjection projection,
         MongoCheckpointStore checkpoints,
         MongoAuditLog audit)
     {
+        _client = client ?? throw new ArgumentNullException(nameof(client));
         _journal = journal ?? throw new ArgumentNullException(nameof(journal));
         _projection = projection ?? throw new ArgumentNullException(nameof(projection));
         _checkpoints = checkpoints ?? throw new ArgumentNullException(nameof(checkpoints));
@@ -36,8 +41,12 @@ public sealed class LedgerService
         ArgumentNullException.ThrowIfNull(actor);
         await EnsureOpenAsync(entry.ClientId, entry.EffectiveDate, cancellationToken);
 
-        await _journal.AppendAsync(entry, cancellationToken);
-        await _audit.AppendAsync(entry.ClientId, entry.Id, entry.Version, AuditAction.Created, actor, null, DateTimeOffset.UtcNow, cancellationToken);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        await InTransactionAsync(async session =>
+        {
+            await _journal.AppendAsync(entry, session, cancellationToken);
+            await _audit.AppendAsync(entry.ClientId, entry.Id, entry.Version, AuditAction.Created, actor, null, now, session, cancellationToken);
+        }, cancellationToken);
     }
 
     /// <summary>
@@ -64,19 +73,22 @@ public sealed class LedgerService
         }
 
         JournalEntry approved = entry.Approve(actor.UserId);
-        await _journal.ReplaceAsync(approved, cancellationToken);
-        await _projection.ApplyAsync(approved, cancellationToken);
-
         DateTimeOffset now = DateTimeOffset.UtcNow;
-        await _audit.AppendAsync(approved.ClientId, approved.Id, approved.Version, AuditAction.Approved, actor, null, now, cancellationToken);
 
-        if (original is not null)
+        await InTransactionAsync(async session =>
         {
-            JournalEntry superseded = original.Supersede(approved.Id);
-            await _journal.ReplaceAsync(superseded, cancellationToken);
-            await _projection.ReverseAsync(original, cancellationToken); // pre-flip: reverses iff it was on the books
-            await _audit.AppendAsync(superseded.ClientId, superseded.Id, superseded.Version, AuditAction.Superseded, actor, "superseded by approved revision", now, cancellationToken);
-        }
+            await _journal.ReplaceAsync(approved, session, cancellationToken);
+            await _projection.ApplyAsync(approved, session, cancellationToken);
+            await _audit.AppendAsync(approved.ClientId, approved.Id, approved.Version, AuditAction.Approved, actor, null, now, session, cancellationToken);
+
+            if (original is not null)
+            {
+                JournalEntry superseded = original.Supersede(approved.Id);
+                await _journal.ReplaceAsync(superseded, session, cancellationToken);
+                await _projection.ReverseAsync(original, session, cancellationToken); // pre-flip: reverses iff it was on the books
+                await _audit.AppendAsync(superseded.ClientId, superseded.Id, superseded.Version, AuditAction.Superseded, actor, "superseded by approved revision", now, session, cancellationToken);
+            }
+        }, cancellationToken);
 
         return approved;
     }
@@ -89,9 +101,15 @@ public sealed class LedgerService
         await EnsureOpenAsync(entry.ClientId, entry.EffectiveDate, cancellationToken);
 
         JournalEntry voided = entry.Void();
-        await _journal.ReplaceAsync(voided, cancellationToken);
-        await _projection.ReverseAsync(entry, cancellationToken); // pre-flip entry: reverses iff it was on the books
-        await _audit.AppendAsync(voided.ClientId, voided.Id, voided.Version, AuditAction.Voided, actor, reason, DateTimeOffset.UtcNow, cancellationToken);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+
+        await InTransactionAsync(async session =>
+        {
+            await _journal.ReplaceAsync(voided, session, cancellationToken);
+            await _projection.ReverseAsync(entry, session, cancellationToken); // pre-flip entry: reverses iff it was on the books
+            await _audit.AppendAsync(voided.ClientId, voided.Id, voided.Version, AuditAction.Voided, actor, reason, now, session, cancellationToken);
+        }, cancellationToken);
+
         return voided;
     }
 
@@ -121,8 +139,13 @@ public sealed class LedgerService
 
         // Record the proposal only. The original is untouched and the projection unchanged until
         // approval — see ApproveAsync, which performs the atomic swap.
-        await _journal.AppendAsync(replacement, cancellationToken);
-        await _audit.AppendAsync(replacement.ClientId, replacement.Id, replacement.Version, AuditAction.Created, actor, reason, DateTimeOffset.UtcNow, cancellationToken);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        await InTransactionAsync(async session =>
+        {
+            await _journal.AppendAsync(replacement, session, cancellationToken);
+            await _audit.AppendAsync(replacement.ClientId, replacement.Id, replacement.Version, AuditAction.Created, actor, reason, now, session, cancellationToken);
+        }, cancellationToken);
+
         return replacement;
     }
 
@@ -172,8 +195,13 @@ public sealed class LedgerService
             reference: original.Reference,
             memo: reason ?? $"Reversal of entry {originalId}");
 
-        await _journal.AppendAsync(reversal, cancellationToken);
-        await _audit.AppendAsync(reversal.ClientId, reversal.Id, reversal.Version, AuditAction.Created, actor, reason, DateTimeOffset.UtcNow, cancellationToken);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        await InTransactionAsync(async session =>
+        {
+            await _journal.AppendAsync(reversal, session, cancellationToken);
+            await _audit.AppendAsync(reversal.ClientId, reversal.Id, reversal.Version, AuditAction.Created, actor, reason, now, session, cancellationToken);
+        }, cancellationToken);
+
         return reversal;
     }
 
@@ -190,8 +218,14 @@ public sealed class LedgerService
             throw new InvalidOperationException($"Period is already closed through {through:yyyy-MM-dd}.");
 
         IReadOnlyDictionary<Guid, decimal> balances = await _journal.AggregateBalancesAsync(clientId, asOf, cancellationToken);
-        await _checkpoints.SaveAsync(clientId, asOf, balances, actor.UserId, DateTimeOffset.UtcNow, cancellationToken);
-        await _audit.AppendAsync(clientId, null, 0, AuditAction.PeriodClosed, actor, $"closed through {asOf:yyyy-MM-dd}", DateTimeOffset.UtcNow, cancellationToken);
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        await InTransactionAsync(async session =>
+        {
+            await _checkpoints.SaveAsync(clientId, asOf, balances, actor.UserId, now, session, cancellationToken);
+            await _audit.AppendAsync(clientId, null, 0, AuditAction.PeriodClosed, actor, $"closed through {asOf:yyyy-MM-dd}", now, session, cancellationToken);
+        }, cancellationToken);
+
         return balances;
     }
 
@@ -248,6 +282,25 @@ public sealed class LedgerService
 
         await CloseAsync(clientId, fiscalYearEnd, actor, cancellationToken);
         return closing;
+    }
+
+    /// <summary>
+    /// Runs a coordinator's multi-document write atomically in a replica-set transaction.
+    /// <c>WithTransactionAsync</c> commits on success and retries the body on transient errors —
+    /// including the write-conflict that serializes concurrent appends to a client's audit chain —
+    /// so journal + projection + audit move together or not at all. A
+    /// <see cref="ConcurrencyConflictException"/> (a real version clash) is not transient and propagates.
+    /// </summary>
+    private async Task InTransactionAsync(Func<IClientSessionHandle, Task> work, CancellationToken cancellationToken)
+    {
+        using IClientSessionHandle session = await _client.StartSessionAsync(cancellationToken: cancellationToken);
+        await session.WithTransactionAsync(
+            async (s, _) =>
+            {
+                await work(s);
+                return true;
+            },
+            cancellationToken: cancellationToken);
     }
 
     /// <summary>A single line with the given debit-positive signed effect (normalized to a positive amount).</summary>
