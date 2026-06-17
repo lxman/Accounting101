@@ -143,7 +143,7 @@ public sealed class MongoJournalStore
         Dictionary<Guid, decimal> balances = new(results.Count);
         foreach (BsonDocument doc in results)
         {
-            Guid accountId = doc["_id"].AsBsonBinaryData.ToGuid(GuidRepresentation.Standard);
+            var accountId = doc["_id"].AsBsonBinaryData.ToGuid(GuidRepresentation.Standard);
             balances[accountId] = doc["balance"].AsDecimal;
         }
 

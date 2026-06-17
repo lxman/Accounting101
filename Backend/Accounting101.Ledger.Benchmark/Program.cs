@@ -70,11 +70,11 @@ static async Task MeasureAppendLatency(IMongoDatabase database, int count, int a
 {
     MongoJournalStore store = new(database, "append_" + Guid.NewGuid().ToString("N"));
     await store.EnsureIndexesAsync();
-    Guid clientId = Guid.NewGuid();
+    var clientId = Guid.NewGuid();
     Guid[] accounts = CreateAccounts(accountCount);
 
-    Stopwatch sw = Stopwatch.StartNew();
-    for (int i = 0; i < count; i++)
+    var sw = Stopwatch.StartNew();
+    for (var i = 0; i < count; i++)
         await store.AppendAsync(BuildEntry(clientId, i + 1, accounts, i));
     sw.Stop();
 
@@ -90,14 +90,14 @@ static async Task CompareReadPaths(IMongoDatabase database, int entryCount, int 
     string collection = "read_" + Guid.NewGuid().ToString("N");
     MongoJournalStore store = new(database, collection);
     await store.EnsureIndexesAsync();
-    Guid clientId = Guid.NewGuid();
+    var clientId = Guid.NewGuid();
     Guid[] accounts = CreateAccounts(accountCount);
 
     // Bulk-seed (setup, not measured) straight to the collection.
     IMongoCollection<JournalEntryDocument> raw = database.GetCollection<JournalEntryDocument>(collection);
     const int batchSize = 5_000;
     List<JournalEntryDocument> buffer = new(batchSize);
-    for (int i = 0; i < entryCount; i++)
+    for (var i = 0; i < entryCount; i++)
     {
         buffer.Add(JournalEntryDocument.FromDomain(BuildEntry(clientId, i + 1, accounts, i)));
         if (buffer.Count == batchSize)
@@ -137,8 +137,8 @@ static async Task CompareReadPaths(IMongoDatabase database, int entryCount, int 
 
 static async Task<double> TimeAverage(int runs, Func<Task> action)
 {
-    Stopwatch sw = Stopwatch.StartNew();
-    for (int r = 0; r < runs; r++)
+    var sw = Stopwatch.StartNew();
+    for (var r = 0; r < runs; r++)
         await action();
     sw.Stop();
     return sw.Elapsed.TotalMilliseconds / runs;

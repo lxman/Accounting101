@@ -84,8 +84,8 @@ public class ChartOfAccountsTests
     [Fact]
     public void Rejects_a_cycle()
     {
-        Guid aId = Guid.NewGuid();
-        Guid bId = Guid.NewGuid();
+        var aId = Guid.NewGuid();
+        var bId = Guid.NewGuid();
         Account a = Acct("1000", "A", AccountType.Asset, parent: bId, id: aId);
         Account b = Acct("1001", "B", AccountType.Asset, parent: aId, id: bId);
         Assert.Throws<InvalidChartOfAccountsException>(() => new ChartOfAccounts([a, b]));

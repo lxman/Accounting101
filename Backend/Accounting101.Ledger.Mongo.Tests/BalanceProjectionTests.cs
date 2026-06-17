@@ -37,10 +37,10 @@ public sealed class BalanceProjectionTests(MongoFixture fixture) : IClassFixture
     {
         MongoJournalStore store = fixture.NewStore();
         MongoBalanceProjection projection = NewProjection(store);
-        Guid client = Guid.NewGuid();
-        Guid cash = Guid.NewGuid();
-        Guid revenue = Guid.NewGuid();
-        Guid rent = Guid.NewGuid();
+        var client = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
+        var rent = Guid.NewGuid();
 
         await PostAsync(store, projection, Builder(client, 1, PostingState.Posted).Debit(cash, 100m).Credit(revenue, 100m).Build());
         await PostAsync(store, projection, Builder(client, 2, PostingState.Posted).Debit(rent, 30m).Credit(cash, 30m).Build());
@@ -67,9 +67,9 @@ public sealed class BalanceProjectionTests(MongoFixture fixture) : IClassFixture
     {
         MongoJournalStore store = fixture.NewStore();
         MongoBalanceProjection projection = NewProjection(store);
-        Guid client = Guid.NewGuid();
-        Guid cash = Guid.NewGuid();
-        Guid revenue = Guid.NewGuid();
+        var client = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
 
         await PostAsync(store, projection, Builder(client, 1, PostingState.Posted).Debit(cash, 100m).Credit(revenue, 100m).Build());
         await PostAsync(store, projection, Builder(client, 2, PostingState.PendingApproval).Debit(cash, 999m).Credit(revenue, 999m).Build());
@@ -84,10 +84,10 @@ public sealed class BalanceProjectionTests(MongoFixture fixture) : IClassFixture
     {
         MongoJournalStore store = fixture.NewStore();
         MongoBalanceProjection projection = NewProjection(store);
-        Guid client = Guid.NewGuid();
-        Guid cash = Guid.NewGuid();
-        Guid a = Guid.NewGuid();
-        Guid b = Guid.NewGuid();
+        var client = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
 
         // Two debit lines to the same account in one entry; credits split across two.
         await PostAsync(store, projection, Builder(client, 1, PostingState.Posted)
@@ -105,9 +105,9 @@ public sealed class BalanceProjectionTests(MongoFixture fixture) : IClassFixture
     {
         MongoJournalStore store = fixture.NewStore();
         MongoBalanceProjection projection = NewProjection(store);
-        Guid client = Guid.NewGuid();
-        Guid cash = Guid.NewGuid();
-        Guid revenue = Guid.NewGuid();
+        var client = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
 
         // Append posted entries WITHOUT applying — simulate a lost/stale projection.
         await store.AppendAsync(Builder(client, 1, PostingState.Posted).Debit(cash, 100m).Credit(revenue, 100m).Build());

@@ -58,7 +58,7 @@ public class JournalEntryTests
     [Fact]
     public void Single_line_entry_is_rejected()
     {
-        ArgumentException ex = Assert.Throws<ArgumentException>(() =>
+        var ex = Assert.Throws<ArgumentException>(() =>
             Entry(L(Direction.Debit, AcctD, 100m)));
 
         Assert.Equal("lines", ex.ParamName);
@@ -67,7 +67,7 @@ public class JournalEntryTests
     [Fact]
     public void Unbalanced_entry_is_rejected_and_reports_the_imbalance()
     {
-        UnbalancedEntryException ex = Assert.Throws<UnbalancedEntryException>(() =>
+        var ex = Assert.Throws<UnbalancedEntryException>(() =>
             Entry(
                 L(Direction.Debit, AcctD, 100m),
                 L(Direction.Credit, AcctB, 90m)));

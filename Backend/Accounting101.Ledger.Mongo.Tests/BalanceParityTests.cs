@@ -27,10 +27,10 @@ public sealed class BalanceParityTests(MongoFixture fixture) : IClassFixture<Mon
     public async Task Load_and_fold_matches_server_side_aggregation()
     {
         MongoJournalStore store = fixture.NewStore();
-        Guid client = Guid.NewGuid();
-        Guid cash = Guid.NewGuid();
-        Guid revenue = Guid.NewGuid();
-        Guid rent = Guid.NewGuid();
+        var client = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
+        var rent = Guid.NewGuid();
 
         await store.AppendAsync(Builder(client, 1, PostingState.Posted).Debit(cash, 100m).Credit(revenue, 100m).Build());
         await store.AppendAsync(Builder(client, 2, PostingState.Posted).Debit(rent, 30m).Credit(cash, 30m).Build());

@@ -22,14 +22,17 @@ public enum DimensionKind
 
 public static class AccountTypeExtensions
 {
-    /// <summary>The side that increases the account: Asset/Expense are debit-normal, the rest credit-normal.</summary>
-    public static Direction NormalSide(this AccountType type) =>
-        type is AccountType.Asset or AccountType.Expense ? Direction.Debit : Direction.Credit;
+    extension(AccountType type)
+    {
+        /// <summary>The side that increases the account: Asset/Expense are debit-normal, the rest credit-normal.</summary>
+        public Direction NormalSide() =>
+            type is AccountType.Asset or AccountType.Expense ? Direction.Debit : Direction.Credit;
 
-    /// <summary>Revenue and Expense are temporary — reset into retained earnings at year-end.</summary>
-    public static bool IsTemporary(this AccountType type) =>
-        type is AccountType.Revenue or AccountType.Expense;
+        /// <summary>Revenue and Expense are temporary — reset into retained earnings at year-end.</summary>
+        public bool IsTemporary() =>
+            type is AccountType.Revenue or AccountType.Expense;
 
-    /// <summary>Asset, Liability, and Equity carry forward across fiscal years.</summary>
-    public static bool IsPermanent(this AccountType type) => !type.IsTemporary();
+        /// <summary>Asset, Liability, and Equity carry forward across fiscal years.</summary>
+        public bool IsPermanent() => !type.IsTemporary();
+    }
 }

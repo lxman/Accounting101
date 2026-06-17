@@ -24,7 +24,7 @@ public class LifecycleTransitionTests
     [Fact]
     public void Approve_puts_a_pending_entry_on_the_books()
     {
-        Guid approver = Guid.NewGuid();
+        var approver = Guid.NewGuid();
         JournalEntry approved = Pending().Approve(approver);
 
         Assert.Equal(PostingState.Posted, approved.Posting);
@@ -59,7 +59,7 @@ public class LifecycleTransitionTests
     [Fact]
     public void SupersededBy_links_and_marks_superseded()
     {
-        Guid replacementId = Guid.NewGuid();
+        var replacementId = Guid.NewGuid();
         JournalEntry superseded = Pending().Supersede(replacementId);
 
         Assert.Equal(LifecycleStatus.Superseded, superseded.Status);

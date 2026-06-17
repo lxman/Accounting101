@@ -23,10 +23,10 @@ public sealed class MongoJournalStoreTests(MongoFixture fixture) : IClassFixture
     public async Task Entry_round_trips_with_amounts_and_balance_intact()
     {
         MongoJournalStore store = fixture.NewStore();
-        Guid clientId = Guid.NewGuid();
-        Guid cash = Guid.NewGuid();
-        Guid revenue = Guid.NewGuid();
-        Guid taxPayable = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
+        var taxPayable = Guid.NewGuid();
 
         JournalEntryBuilder builder = Builder(clientId, 1);
         builder.Memo = "tax sale";
@@ -59,10 +59,10 @@ public sealed class MongoJournalStoreTests(MongoFixture fixture) : IClassFixture
     public async Task Query_by_account_returns_only_entries_touching_that_account()
     {
         MongoJournalStore store = fixture.NewStore();
-        Guid clientId = Guid.NewGuid();
-        Guid cash = Guid.NewGuid();
-        Guid rent = Guid.NewGuid();
-        Guid revenue = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var rent = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
 
         await store.AppendAsync(Builder(clientId, 1).Debit(cash, 100m).Credit(revenue, 100m).Build());
         await store.AppendAsync(Builder(clientId, 2).Debit(rent, 50m).Credit(cash, 50m).Build());
@@ -79,9 +79,9 @@ public sealed class MongoJournalStoreTests(MongoFixture fixture) : IClassFixture
         MongoJournalStore store = fixture.NewStore();
         await store.EnsureIndexesAsync();
 
-        Guid clientId = Guid.NewGuid();
-        Guid a = Guid.NewGuid();
-        Guid b = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
 
         await store.AppendAsync(Builder(clientId, 1).Debit(a, 10m).Credit(b, 10m).Build());
 

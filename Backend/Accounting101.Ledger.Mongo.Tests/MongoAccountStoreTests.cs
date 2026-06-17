@@ -11,7 +11,7 @@ public sealed class MongoAccountStoreTests(MongoFixture fixture) : IClassFixture
     public async Task Account_round_trips_with_all_fields()
     {
         MongoAccountStore store = NewStore();
-        Guid client = Guid.NewGuid();
+        var client = Guid.NewGuid();
 
         Account receivable = new()
         {
@@ -39,7 +39,7 @@ public sealed class MongoAccountStoreTests(MongoFixture fixture) : IClassFixture
     public async Task GetChart_builds_the_validated_client_chart()
     {
         MongoAccountStore store = NewStore();
-        Guid client = Guid.NewGuid();
+        var client = Guid.NewGuid();
 
         Account assets = new() { Id = Guid.NewGuid(), ClientId = client, Number = "1000", Name = "Assets", Type = AccountType.Asset, Postable = false };
         Account cash = new() { Id = Guid.NewGuid(), ClientId = client, Number = "1100", Name = "Cash", Type = AccountType.Asset, ParentId = assets.Id };
@@ -59,8 +59,8 @@ public sealed class MongoAccountStoreTests(MongoFixture fixture) : IClassFixture
     public async Task Upsert_updates_an_existing_account()
     {
         MongoAccountStore store = NewStore();
-        Guid client = Guid.NewGuid();
-        Guid id = Guid.NewGuid();
+        var client = Guid.NewGuid();
+        var id = Guid.NewGuid();
 
         await store.UpsertAsync(new Account { Id = id, ClientId = client, Number = "5000", Name = "Rent", Type = AccountType.Expense });
         await store.UpsertAsync(new Account { Id = id, ClientId = client, Number = "5000", Name = "Rent Expense", Type = AccountType.Expense });

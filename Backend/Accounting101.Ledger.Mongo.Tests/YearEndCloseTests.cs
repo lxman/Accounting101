@@ -56,7 +56,7 @@ public sealed class YearEndCloseTests(MongoFixture fixture) : IClassFixture<Mong
     public async Task Year_end_close_resets_temporaries_into_retained_earnings()
     {
         (LedgerService service, MongoBalanceProjection projection) = NewLedger();
-        Guid client = Guid.NewGuid();
+        var client = Guid.NewGuid();
 
         Account cash = Acct(client, "1000", "Cash", AccountType.Asset);
         Account revenue = Acct(client, "4000", "Revenue", AccountType.Revenue);
@@ -94,7 +94,7 @@ public sealed class YearEndCloseTests(MongoFixture fixture) : IClassFixture<Mong
     public async Task Year_end_close_with_no_activity_just_closes()
     {
         (LedgerService service, _) = NewLedger();
-        Guid client = Guid.NewGuid();
+        var client = Guid.NewGuid();
         ChartOfAccounts chart = new([Acct(client, "3900", "Retained Earnings", AccountType.Equity, retainedEarnings: true)]);
 
         JournalEntry? closing = await service.CloseYearAsync(client, new DateOnly(2026, 12, 31), User(), chart, closingSequenceNumber: 1);

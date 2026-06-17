@@ -83,7 +83,7 @@ public sealed class MongoAuditLog
             .SortBy(a => a.Sequence)
             .ToListAsync(cancellationToken);
 
-        string previousHash = string.Empty;
+        var previousHash = string.Empty;
         foreach (AuditRecordDocument record in records)
         {
             if (record.PreviousHash != previousHash || record.Hash != ComputeHash(record))

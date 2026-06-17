@@ -48,9 +48,9 @@ public sealed class AuditLogTests(MongoFixture fixture) : IClassFixture<MongoFix
     public async Task Lifecycle_actions_are_recorded_with_the_principal_snapshot()
     {
         (LedgerService service, MongoAuditLog audit, _) = NewLedger();
-        Guid client = Guid.NewGuid();
-        Guid a = Guid.NewGuid();
-        Guid b = Guid.NewGuid();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
 
         Actor poster = User();
         Actor approver = User();
@@ -77,9 +77,9 @@ public sealed class AuditLogTests(MongoFixture fixture) : IClassFixture<MongoFix
     public async Task The_chain_verifies_after_a_sequence_of_actions()
     {
         (LedgerService service, MongoAuditLog audit, _) = NewLedger();
-        Guid client = Guid.NewGuid();
-        Guid a = Guid.NewGuid();
-        Guid b = Guid.NewGuid();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
 
         JournalEntry e1 = Entry(client, 1, a, b, 10m);
         await service.PostAsync(e1, User());
@@ -97,9 +97,9 @@ public sealed class AuditLogTests(MongoFixture fixture) : IClassFixture<MongoFix
     public async Task Tampering_with_a_record_breaks_the_chain()
     {
         (LedgerService service, MongoAuditLog audit, string auditCollection) = NewLedger();
-        Guid client = Guid.NewGuid();
-        Guid a = Guid.NewGuid();
-        Guid b = Guid.NewGuid();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
 
         JournalEntry entry = Entry(client, 1, a, b, 10m);
         await service.PostAsync(entry, User());

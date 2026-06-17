@@ -52,9 +52,9 @@ public sealed class PeriodCloseTests(MongoFixture fixture) : IClassFixture<Mongo
     public async Task Closing_snapshots_the_period_end_balances()
     {
         (LedgerService service, _, _, MongoCheckpointStore checkpoints, _) = NewLedger();
-        Guid client = Guid.NewGuid();
-        Guid cash = Guid.NewGuid();
-        Guid revenue = Guid.NewGuid();
+        var client = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
 
         await PostApproveAsync(service, Entry(client, 1, new DateOnly(2026, 3, 10), cash, revenue, 100m));
         await PostApproveAsync(service, Entry(client, 2, new DateOnly(2026, 3, 20), cash, revenue, 50m));
@@ -74,9 +74,9 @@ public sealed class PeriodCloseTests(MongoFixture fixture) : IClassFixture<Mongo
     public async Task A_closed_period_rejects_backdated_posts_but_allows_open_ones()
     {
         (LedgerService service, _, _, _, _) = NewLedger();
-        Guid client = Guid.NewGuid();
-        Guid a = Guid.NewGuid();
-        Guid b = Guid.NewGuid();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
 
         await service.CloseAsync(client, new DateOnly(2026, 3, 31), User());
 
@@ -90,9 +90,9 @@ public sealed class PeriodCloseTests(MongoFixture fixture) : IClassFixture<Mongo
     public async Task A_closed_period_entry_cannot_be_voided()
     {
         (LedgerService service, _, _, _, _) = NewLedger();
-        Guid client = Guid.NewGuid();
-        Guid a = Guid.NewGuid();
-        Guid b = Guid.NewGuid();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
 
         JournalEntry march = await PostApproveAsync(service, Entry(client, 1, new DateOnly(2026, 3, 15), a, b, 10m));
         await service.CloseAsync(client, new DateOnly(2026, 3, 31), User());
@@ -104,7 +104,7 @@ public sealed class PeriodCloseTests(MongoFixture fixture) : IClassFixture<Mongo
     public async Task Cannot_close_at_or_before_the_last_close()
     {
         (LedgerService service, _, _, _, _) = NewLedger();
-        Guid client = Guid.NewGuid();
+        var client = Guid.NewGuid();
 
         await service.CloseAsync(client, new DateOnly(2026, 3, 31), User());
 
