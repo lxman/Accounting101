@@ -16,3 +16,9 @@ public sealed record ReviseRequest(
 
 /// <summary>Close a period: snapshot on-the-books balances as of this date and freeze through it.</summary>
 public sealed record ClosePeriodRequest(DateOnly AsOf);
+
+/// <summary>
+/// Reverse a posted entry: book a negating entry dated <see cref="ReversalDate"/> (which must be in an
+/// open period). Used for reversing accruals and for correcting a closed period without unfreezing it.
+/// </summary>
+public sealed record ReverseRequest(DateOnly ReversalDate, long SequenceNumber, string? Reason);

@@ -9,15 +9,19 @@ namespace Accounting101.Ledger.Api.Endpoints;
 
 /// <summary>
 /// Shared front door for every ledger endpoint: turns the authenticated principal into an
-/// <see cref="Actor"/>, authorizes it against the control DB (membership), and resolves the
-/// client's ledger — collapsing the auth + authz + tenant-resolution boilerplate into one call.
+/// <see cref="Actor"/>, authorizes it against the control DB (membership role must hold the required
+/// <see cref="Permission"/>), and resolves the client's ledger — collapsing authn + authz + tenant
+/// resolution into one call. Segregation of duties (an individual check) is layered on at the endpoint.
 /// </summary>
 public sealed class LedgerGateway(IActorFactory actorFactory, ControlStore control, ClientLedgerFactory ledgers)
 {
-    public async Task<LedgerContext> ResolveAsync(ClaimsPrincipal user, Guid clientId, CancellationToken cancellationToken)
+    public async Task<LedgerContext> ResolveAsync(
+        ClaimsPrincipal user, Guid clientId, Permission required, CancellationToken cancellationToken)
     {
         Actor actor = actorFactory.Create(user);
-        if (!await control.IsMemberAsync(actor.UserId, clientId, cancellationToken))
+
+        Membership? membership = await control.GetMembershipAsync(actor.UserId, clientId, cancellationToken);
+        if (membership is null || !RolePermissions.Allows(membership.Role, required))
             return LedgerContext.Forbidden();
 
         ClientLedger? ledger = await ledgers.CreateAsync(clientId, cancellationToken);

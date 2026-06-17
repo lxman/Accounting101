@@ -11,7 +11,9 @@ public sealed record EntryResponse(
     string Posting,
     int LineCount,
     Guid? Supersedes,
-    Guid? SupersededBy);
+    Guid? SupersededBy,
+    Guid? ReversalOf,
+    Guid? ReversedBy);
 
 public sealed record AuditRecordResponse(
     long Sequence,

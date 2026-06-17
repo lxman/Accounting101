@@ -30,6 +30,10 @@ public sealed class ControlStore
     public async Task<bool> IsMemberAsync(Guid userId, Guid clientId, CancellationToken cancellationToken = default) =>
         await _memberships.Find(m => m.UserId == userId && m.ClientId == clientId).AnyAsync(cancellationToken);
 
+    /// <summary>The user's membership (and role) on the client, or null if they are not a member.</summary>
+    public async Task<Membership?> GetMembershipAsync(Guid userId, Guid clientId, CancellationToken cancellationToken = default) =>
+        await _memberships.Find(m => m.UserId == userId && m.ClientId == clientId).FirstOrDefaultAsync(cancellationToken);
+
     /// <summary>Register (or update) a client and the database that holds its ledger.</summary>
     public Task RegisterClientAsync(ClientRegistration registration, CancellationToken cancellationToken = default)
     {
@@ -41,14 +45,14 @@ public sealed class ControlStore
             cancellationToken);
     }
 
-    /// <summary>Grant a user access to a client's books (idempotent).</summary>
-    public async Task AddMembershipAsync(Guid userId, Guid clientId, CancellationToken cancellationToken = default)
+    /// <summary>Grant a user a role on a client's books (idempotent — an existing membership is left as is).</summary>
+    public async Task AddMembershipAsync(Guid userId, Guid clientId, LedgerRole role = LedgerRole.Controller, CancellationToken cancellationToken = default)
     {
         if (await IsMemberAsync(userId, clientId, cancellationToken))
             return;
 
         await _memberships.InsertOneAsync(
-            new Membership { Id = Guid.NewGuid(), UserId = userId, ClientId = clientId },
+            new Membership { Id = Guid.NewGuid(), UserId = userId, ClientId = clientId, Role = role },
             cancellationToken: cancellationToken);
     }
 }

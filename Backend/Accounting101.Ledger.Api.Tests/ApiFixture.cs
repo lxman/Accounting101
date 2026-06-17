@@ -64,7 +64,7 @@ public sealed class ApiFixture : IAsyncLifetime
     public HttpClient AnonymousClient() => _factory.CreateClient();
 
     /// <summary>Register a fresh client plus a member user, returning an HttpClient authed as that user.</summary>
-    public async Task<SeededClient> SeedClientAsync(string name = "Acme", bool requireSod = false)
+    public async Task<SeededClient> SeedClientAsync(string name = "Acme", bool requireSod = false, LedgerRole role = LedgerRole.Controller)
     {
         Guid clientId = Guid.NewGuid();
         string database = "client_" + clientId.ToString("N");
@@ -78,18 +78,18 @@ public sealed class ApiFixture : IAsyncLifetime
             DatabaseName = database,
             RequireSegregationOfDuties = requireSod,
         });
-        await control.AddMembershipAsync(userId, clientId);
+        await control.AddMembershipAsync(userId, clientId, role);
 
-        HttpClient http = ClientFor(userId, name + " controller", ("role", "controller"));
+        HttpClient http = ClientFor(userId, $"{name} {role}", ("role", role.ToString()));
         return new SeededClient(clientId, database, userId, http);
     }
 
-    /// <summary>Add another member user to a client and return an HttpClient authenticated as that user.</summary>
-    public async Task<HttpClient> AddMemberAsync(Guid clientId, string name = "Approver")
+    /// <summary>Add another member user (with a role) to a client and return an HttpClient authed as them.</summary>
+    public async Task<HttpClient> AddMemberAsync(Guid clientId, LedgerRole role = LedgerRole.Controller, string name = "Member")
     {
         Guid userId = Guid.NewGuid();
-        await Control().AddMembershipAsync(userId, clientId);
-        return ClientFor(userId, name, ("role", "controller"));
+        await Control().AddMembershipAsync(userId, clientId, role);
+        return ClientFor(userId, name, ("role", role.ToString()));
     }
 }
 

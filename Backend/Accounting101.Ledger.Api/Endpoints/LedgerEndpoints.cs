@@ -10,9 +10,9 @@ namespace Accounting101.Ledger.Api.Endpoints;
 
 /// <summary>
 /// The ledger HTTP surface, CQRS-shaped: command verbs and resource reads under
-/// <c>/clients/{clientId}</c>. Every endpoint authenticates (the scheme), authorizes (control-DB
-/// membership via <see cref="LedgerGateway"/>), resolves the client's database, and threads the
-/// authenticated actor into the engine. Authorization lives here, in the host — the engine records.
+/// <c>/clients/{clientId}</c>. Every endpoint resolves through <see cref="LedgerGateway"/>, which
+/// authenticates, checks the caller's role holds the required <see cref="Permission"/>, and resolves
+/// the client's database. Segregation of duties (approver ≠ author) is enforced on top, at approval.
 /// </summary>
 public static class LedgerEndpoints
 {
@@ -27,6 +27,7 @@ public static class LedgerEndpoints
         clients.MapPost("/entries/{entryId:guid}/approve", ApproveEntry);
         clients.MapPost("/entries/{entryId:guid}/void", VoidEntry);
         clients.MapPost("/entries/{originalId:guid}/revise", ReviseEntry);
+        clients.MapPost("/entries/{originalId:guid}/reverse", ReverseEntry);
         clients.MapPost("/periods/close", ClosePeriod);
 
         // Queries
@@ -44,7 +45,7 @@ public static class LedgerEndpoints
     private static async Task<IResult> PostEntry(
         Guid clientId, PostEntryRequest request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Post, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         JournalEntry entry;
@@ -54,7 +55,7 @@ public static class LedgerEndpoints
         }
         catch (Exception ex) when (ex is ArgumentException or UnbalancedEntryException)
         {
-            return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+            return Unprocessable(ex.Message);
         }
 
         try
@@ -63,7 +64,7 @@ public static class LedgerEndpoints
         }
         catch (InvalidOperationException ex) // closed-period freeze
         {
-            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+            return Conflict(ex.Message);
         }
         catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
         {
@@ -78,7 +79,7 @@ public static class LedgerEndpoints
     private static async Task<IResult> ApproveEntry(
         Guid clientId, Guid entryId, LedgerGateway gateway, ControlStore control, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Approve, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         JournalEntry? entry = await ctx.Ledger.Journal.GetAsync(entryId, cancellationToken);
@@ -86,7 +87,7 @@ public static class LedgerEndpoints
             return Results.NotFound();
 
         // Segregation of duties (host policy, per client): the approver may not be the author. This
-        // also covers revisions, since a correction is approved through this same endpoint.
+        // also covers revisions and reversals, since they are approved through this same endpoint.
         ClientRegistration? client = await control.GetClientAsync(clientId, cancellationToken);
         if (client?.RequireSegregationOfDuties == true && entry.Audit.CreatedBy == ctx.Actor.UserId)
             return Results.Problem(
@@ -107,7 +108,7 @@ public static class LedgerEndpoints
     private static async Task<IResult> VoidEntry(
         Guid clientId, Guid entryId, string? reason, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Void, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         if (await ctx.Ledger.Journal.GetAsync(entryId, cancellationToken) is null)
@@ -127,7 +128,7 @@ public static class LedgerEndpoints
     private static async Task<IResult> ReviseEntry(
         Guid clientId, Guid originalId, ReviseRequest request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Revise, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         if (await ctx.Ledger.Journal.GetAsync(originalId, cancellationToken) is null)
@@ -140,7 +141,7 @@ public static class LedgerEndpoints
         }
         catch (Exception ex) when (ex is ArgumentException or UnbalancedEntryException)
         {
-            return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+            return Unprocessable(ex.Message);
         }
 
         try
@@ -148,7 +149,32 @@ public static class LedgerEndpoints
             JournalEntry result = await ctx.Ledger.Service.ReviseAsync(originalId, replacement, ctx.Actor, request.Reason, cancellationToken);
             return Results.Created($"/clients/{clientId}/entries/{result.Id}", ToEntryResponse(result));
         }
-        catch (InvalidOperationException ex) // closed-period freeze
+        catch (InvalidOperationException ex) // closed-period freeze, or original no longer active
+        {
+            return Conflict(ex.Message);
+        }
+        catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
+        {
+            return Conflict("An entry with this id or sequence number already exists.");
+        }
+    }
+
+    private static async Task<IResult> ReverseEntry(
+        Guid clientId, Guid originalId, ReverseRequest request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Reverse, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        if (await ctx.Ledger.Journal.GetAsync(originalId, cancellationToken) is null)
+            return Results.NotFound();
+
+        try
+        {
+            JournalEntry reversal = await ctx.Ledger.Service.ReverseAsync(
+                originalId, request.ReversalDate, request.SequenceNumber, ctx.Actor, request.Reason, cancellationToken);
+            return Results.Created($"/clients/{clientId}/entries/{reversal.Id}", ToEntryResponse(reversal));
+        }
+        catch (InvalidOperationException ex) // not reversible, or reversal date in a closed period
         {
             return Conflict(ex.Message);
         }
@@ -161,7 +187,7 @@ public static class LedgerEndpoints
     private static async Task<IResult> ClosePeriod(
         Guid clientId, ClosePeriodRequest request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Close, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         try
@@ -180,7 +206,7 @@ public static class LedgerEndpoints
     private static async Task<IResult> ListEntries(
         Guid clientId, Guid? account, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         IReadOnlyList<JournalEntry> entries = account is { } accountId
@@ -193,7 +219,7 @@ public static class LedgerEndpoints
     private static async Task<IResult> GetEntry(
         Guid clientId, Guid entryId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         JournalEntry? entry = await ctx.Ledger.Journal.GetAsync(entryId, cancellationToken);
@@ -205,7 +231,7 @@ public static class LedgerEndpoints
     private static async Task<IResult> GetTrialBalance(
         Guid clientId, DateOnly? asOf, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         // Current balances come from the O(1) projection; an as-of balance is a point-in-time
@@ -220,7 +246,7 @@ public static class LedgerEndpoints
     private static async Task<IResult> GetAccountBalance(
         Guid clientId, Guid accountId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         decimal balance = await ctx.Ledger.Projection.GetBalanceAsync(clientId, accountId, cancellationToken);
@@ -230,7 +256,7 @@ public static class LedgerEndpoints
     private static async Task<IResult> GetClientAudit(
         Guid clientId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         return Results.Ok(ToAuditResponses(await ctx.Ledger.Audit.GetForClientAsync(clientId, cancellationToken)));
@@ -239,7 +265,7 @@ public static class LedgerEndpoints
     private static async Task<IResult> GetEntryAudit(
         Guid clientId, Guid entryId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         return Results.Ok(ToAuditResponses(await ctx.Ledger.Audit.GetForEntryAsync(clientId, entryId, cancellationToken)));
@@ -248,7 +274,7 @@ public static class LedgerEndpoints
     private static async Task<IResult> VerifyAudit(
         Guid clientId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         bool valid = await ctx.Ledger.Audit.VerifyAsync(clientId, cancellationToken);
@@ -260,10 +286,13 @@ public static class LedgerEndpoints
     private static IResult Conflict(string detail) =>
         Results.Problem(detail, statusCode: StatusCodes.Status409Conflict);
 
+    private static IResult Unprocessable(string detail) =>
+        Results.Problem(detail, statusCode: StatusCodes.Status422UnprocessableEntity);
+
     private static EntryResponse ToEntryResponse(JournalEntry e) => new(
         e.Id, e.SequenceNumber, e.EffectiveDate,
         e.Type.ToString(), e.Status.ToString(), e.Posting.ToString(),
-        e.Lines.Count, e.Supersedes, e.SupersededBy);
+        e.Lines.Count, e.Supersedes, e.SupersededBy, e.ReversalOf, e.ReversedBy);
 
     private static List<AccountBalanceResponse> ToAccountBalances(IReadOnlyDictionary<Guid, decimal> balances) =>
         balances.Select(kv => new AccountBalanceResponse(kv.Key, kv.Value)).ToList();

@@ -127,6 +127,57 @@ public sealed class LedgerService
     }
 
     /// <summary>
+    /// Reverse a posted entry by booking a new <see cref="EntryType.Reversing"/> entry that negates it
+    /// (every line's direction flipped), linked via <see cref="JournalEntry.ReversalOf"/>. Both entries
+    /// stay on the books — nothing is removed — so this is how a <em>closed</em> period is corrected: the
+    /// original is left frozen and the reversal lands in an open period. The reversal is pending until
+    /// approved, like any entry. The original must be active and posted.
+    /// </summary>
+    public async Task<JournalEntry> ReverseAsync(
+        Guid originalId, DateOnly reversalDate, long sequenceNumber, Actor actor, string? reason = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(actor);
+        JournalEntry original = await RequireAsync(originalId, cancellationToken);
+        if (original.Status != LifecycleStatus.Active || original.Posting != PostingState.Posted)
+            throw new InvalidOperationException(
+                $"Only an active, posted entry can be reversed; entry {originalId} is {original.Status}/{original.Posting}.");
+
+        // The reversal lands in an open period; the original may be in a closed one — that is the point.
+        await EnsureOpenAsync(original.ClientId, reversalDate, cancellationToken);
+
+        List<Line> reversedLines = original.Lines
+            .Select(line => new Line
+            {
+                Id = Guid.NewGuid(),
+                AccountId = line.AccountId,
+                Direction = line.Direction == Direction.Debit ? Direction.Credit : Direction.Debit,
+                Amount = line.Amount,
+                CustomerId = line.CustomerId,
+                VendorId = line.VendorId,
+                ItemId = line.ItemId,
+                LineMemo = line.LineMemo,
+            })
+            .ToList();
+
+        JournalEntry reversal = JournalEntry.Create(
+            id: Guid.NewGuid(),
+            clientId: original.ClientId,
+            sequenceNumber: sequenceNumber,
+            effectiveDate: reversalDate,
+            postedAt: DateTimeOffset.UtcNow,
+            type: EntryType.Reversing,
+            audit: new AuditStamp { CreatedBy = actor.UserId, CreatedAt = DateTimeOffset.UtcNow },
+            lines: reversedLines,
+            reversalOf: originalId,
+            reference: original.Reference,
+            memo: reason ?? $"Reversal of entry {originalId}");
+
+        await _journal.AppendAsync(reversal, cancellationToken);
+        await _audit.AppendAsync(reversal.ClientId, reversal.Id, reversal.Version, AuditAction.Created, actor, reason, DateTimeOffset.UtcNow, cancellationToken);
+        return reversal;
+    }
+
+    /// <summary>
     /// Close a period: snapshot the on-the-books balances effective on or before
     /// <paramref name="asOf"/> as a checkpoint (the opening balance for the next period), freeze
     /// everything through that date, and record the close in the audit log. Returns the snapshot.
