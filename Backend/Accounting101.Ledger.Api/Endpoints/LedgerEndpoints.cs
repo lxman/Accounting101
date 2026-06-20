@@ -43,6 +43,7 @@ public static class LedgerEndpoints
         clients.MapGet("/entries/{entryId:guid}", GetEntry);
         clients.MapGet("/trial-balance", GetTrialBalance);
         clients.MapGet("/subledger", GetSubledger);
+        clients.MapGet("/subledger/reconciliation", GetSubledgerReconciliation);
         clients.MapGet("/statements/balance-sheet", GetBalanceSheet);
         clients.MapGet("/statements/income-statement", GetIncomeStatement);
         clients.MapGet("/statements/cash-flow", GetCashFlow);
@@ -336,6 +337,33 @@ public static class LedgerEndpoints
             dimension,
             asOf,
             balances.Select(b => new SubledgerLineResponse(b.AccountId, b.DimensionValue, b.Balance)).ToList()));
+    }
+
+    private static async Task<IResult> GetSubledgerReconciliation(
+        Guid clientId, Guid? account, string? dimension, DateOnly? asOf,
+        LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        if (account is not { } accountId)
+            return Unprocessable("Reconciliation requires an 'account' — the control account to tie out.");
+        if (string.IsNullOrWhiteSpace(dimension))
+            return Unprocessable("Reconciliation requires a 'dimension' type.");
+
+        // Both sides folded the same way: the control balance includes every line on the account; the
+        // subledger only the lines carrying the dimension. Their difference is the untagged remainder.
+        IReadOnlyDictionary<Guid, decimal> balances =
+            await ctx.Ledger.Journal.AggregateBalancesAsync(clientId, asOf, cancellationToken);
+        decimal control = balances.GetValueOrDefault(accountId);
+
+        IReadOnlyList<SubledgerBalance> subledger =
+            await ctx.Ledger.Journal.AggregateSubledgerAsync(clientId, dimension, accountId, asOf, cancellationToken);
+        decimal subledgerTotal = subledger.Sum(s => s.Balance);
+
+        decimal variance = control - subledgerTotal;
+        return Results.Ok(new SubledgerReconciliationResponse(
+            accountId, dimension, asOf, control, subledgerTotal, variance, variance == 0m));
     }
 
     private static async Task<IResult> GetBalanceSheet(

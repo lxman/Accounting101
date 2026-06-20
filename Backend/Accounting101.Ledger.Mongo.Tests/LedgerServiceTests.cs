@@ -124,6 +124,24 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
     }
 
     [Fact]
+    public async Task An_explicit_number_advances_the_counter_so_a_later_auto_number_cannot_collide()
+    {
+        (LedgerService service, MongoJournalStore store, _, _, _) = NewLedger();
+        var client = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
+
+        // An imported entry is placed at an explicit high number...
+        await service.PostAsync(Entry(client, 5000, cash, revenue, 10m), User());
+
+        // ...so the next auto-assigned post continues past the imported block, not back at 1.
+        JournalEntry next = Entry(client, 0, cash, revenue, 20m);
+        await service.PostAsync(next, User());
+
+        Assert.Equal(5001, (await store.GetAsync(next.Id))!.SequenceNumber);
+    }
+
+    [Fact]
     public async Task A_revision_has_no_effect_until_approved_then_it_swaps()
     {
         (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, _, _) = NewLedger();

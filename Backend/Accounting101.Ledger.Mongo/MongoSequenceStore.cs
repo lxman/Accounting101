@@ -38,4 +38,17 @@ public sealed class MongoSequenceStore
         BsonDocument counter = await _counters.FindOneAndUpdateAsync(session, filter, increment, options, cancellationToken);
         return counter["seq"].ToInt64();
     }
+
+    /// <summary>
+    /// Raise the journal counter to at least <paramref name="atLeast"/> (never lowers it). Called when an
+    /// entry is appended with an explicit, caller-chosen number (bulk import), so the counter advances past
+    /// the imported block and a later auto-allocation cannot collide with it. Joins the caller's transaction.
+    /// </summary>
+    public Task ReseedJournalAsync(
+        Guid clientId, long atLeast, IClientSessionHandle session, CancellationToken cancellationToken = default)
+    {
+        FilterDefinition<BsonDocument> filter = Builders<BsonDocument>.Filter.Eq("_id", "journal:" + clientId);
+        UpdateDefinition<BsonDocument> raise = Builders<BsonDocument>.Update.Max("seq", atLeast);
+        return _counters.UpdateOneAsync(session, filter, raise, new UpdateOptions { IsUpsert = true }, cancellationToken);
+    }
 }

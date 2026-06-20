@@ -45,9 +45,18 @@ public sealed class LedgerService
     private async Task<JournalEntry> AppendSequencedAsync(
         JournalEntry entry, IClientSessionHandle session, CancellationToken cancellationToken)
     {
-        JournalEntry sequenced = entry.SequenceNumber == 0
-            ? entry.WithSequenceNumber(await _sequences.NextJournalAsync(entry.ClientId, session, cancellationToken))
-            : entry;
+        JournalEntry sequenced;
+        if (entry.SequenceNumber == 0)
+        {
+            sequenced = entry.WithSequenceNumber(await _sequences.NextJournalAsync(entry.ClientId, session, cancellationToken));
+        }
+        else
+        {
+            // An explicit number (bulk import) is honored, but the counter is advanced past it in the same
+            // transaction, so a later auto-allocation continues beyond the imported block and never collides.
+            await _sequences.ReseedJournalAsync(entry.ClientId, entry.SequenceNumber, session, cancellationToken);
+            sequenced = entry;
+        }
         await _journal.AppendAsync(sequenced, session, cancellationToken);
         return sequenced;
     }

@@ -68,6 +68,50 @@ public sealed class SubledgerTests(ApiFixture fixture) : IClassFixture<ApiFixtur
     }
 
     [Fact]
+    public async Task Reconciliation_ties_out_when_every_control_line_is_tagged()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid ar = Guid.NewGuid(), revenue = Guid.NewGuid();
+        Guid custA = Guid.NewGuid(), custB = Guid.NewGuid();
+
+        await PostArSaleAsync(c.Http, c.ClientId, 1, ar, revenue, custA, 100m);
+        await PostArSaleAsync(c.Http, c.ClientId, 2, ar, revenue, custB, 60m);
+
+        SubledgerReconciliationResponse rec = (await c.Http.GetFromJsonAsync<SubledgerReconciliationResponse>(
+            $"/clients/{c.ClientId}/subledger/reconciliation?account={ar}&dimension=Customer"))!;
+
+        Assert.Equal(160m, rec.ControlBalance);
+        Assert.Equal(160m, rec.SubledgerTotal);
+        Assert.Equal(0m, rec.Variance);
+        Assert.True(rec.TiesOut);
+    }
+
+    [Fact]
+    public async Task Reconciliation_surfaces_an_untagged_remainder_as_a_variance()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid ar = Guid.NewGuid(), revenue = Guid.NewGuid();
+        Guid custA = Guid.NewGuid();
+
+        await PostArSaleAsync(c.Http, c.ClientId, 1, ar, revenue, custA, 100m);
+
+        // A line hits the same control account with NO customer tag — invisible to the subledger.
+        PostEntryRequest untagged = new(null, new DateOnly(2026, 3, 31), null, null,
+            [new PostLineRequest(ar, "Debit", 50m), new PostLineRequest(revenue, "Credit", 50m)]);
+        PostEntryResponse posted = (await (await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", untagged))
+            .Content.ReadFromJsonAsync<PostEntryResponse>())!;
+        (await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{posted.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        SubledgerReconciliationResponse rec = (await c.Http.GetFromJsonAsync<SubledgerReconciliationResponse>(
+            $"/clients/{c.ClientId}/subledger/reconciliation?account={ar}&dimension=Customer"))!;
+
+        Assert.Equal(150m, rec.ControlBalance);   // both lines
+        Assert.Equal(100m, rec.SubledgerTotal);   // only the tagged one
+        Assert.Equal(50m, rec.Variance);          // the untagged remainder is now visible
+        Assert.False(rec.TiesOut);
+    }
+
+    [Fact]
     public async Task Subledger_requires_a_dimension_but_accepts_any_type()
     {
         SeededClient c = await fixture.SeedClientAsync();
