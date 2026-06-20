@@ -1,3 +1,4 @@
+using Accounting101.Ledger.Core.Accounts;
 using Accounting101.Ledger.Core.Journal;
 using MongoDB.Driver;
 
@@ -18,6 +19,14 @@ public sealed class MongoJournalStoreTests(MongoFixture fixture) : IClassFixture
         effectiveDate: new DateOnly(2026, 3, 15),
         postedAt: DateTimeOffset.UnixEpoch,
         audit: Stamp());
+
+    /// <summary>A builder for an entry that is already on the books (Active + Posted) — the fold's gate.</summary>
+    private static JournalEntryBuilder Posted(Guid clientId, long sequence)
+    {
+        JournalEntryBuilder builder = Builder(clientId, sequence);
+        builder.Posting = PostingState.Posted;
+        return builder;
+    }
 
     [Fact]
     public async Task Entry_round_trips_with_amounts_and_balance_intact()
@@ -102,6 +111,52 @@ public sealed class MongoJournalStoreTests(MongoFixture fixture) : IClassFixture
         Assert.Equal(2, fromInvoice.Count);
         Assert.All(fromInvoice, e => Assert.Equal(invoice, e.SourceRef));
         Assert.All(fromInvoice, e => Assert.Equal("Invoice", e.SourceType));
+    }
+
+    [Fact]
+    public async Task Subledger_breaks_a_control_account_out_by_customer_and_ties_to_its_balance()
+    {
+        MongoJournalStore store = fixture.NewStore();
+        var clientId = Guid.NewGuid();
+        var ar = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
+        var custA = Guid.NewGuid();
+        var custB = Guid.NewGuid();
+
+        await store.AppendAsync(Posted(clientId, 1).Debit(ar, 100m, customerId: custA).Credit(revenue, 100m).Build());
+        await store.AppendAsync(Posted(clientId, 2).Debit(ar, 60m, customerId: custB).Credit(revenue, 60m).Build());
+        await store.AppendAsync(Posted(clientId, 3).Debit(ar, 40m, customerId: custA).Credit(revenue, 40m).Build());
+
+        IReadOnlyList<SubledgerBalance> subledger =
+            await store.AggregateSubledgerAsync(clientId, DimensionKind.Customer, accountId: ar);
+
+        Assert.Equal(140m, subledger.Single(s => s.DimensionValue == custA).Balance); // 100 + 40
+        Assert.Equal(60m, subledger.Single(s => s.DimensionValue == custB).Balance);
+        Assert.All(subledger, s => Assert.Equal(ar, s.AccountId));
+
+        // The subledger is the same lines grouped finer, so it sums to the control-account balance.
+        IReadOnlyDictionary<Guid, decimal> trialBalance = await store.AggregateBalancesAsync(clientId);
+        Assert.Equal(trialBalance[ar], subledger.Sum(s => s.Balance));
+    }
+
+    [Fact]
+    public async Task Dimension_detail_returns_only_entries_touching_that_customer()
+    {
+        MongoJournalStore store = fixture.NewStore();
+        var clientId = Guid.NewGuid();
+        var ar = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
+        var custA = Guid.NewGuid();
+        var custB = Guid.NewGuid();
+
+        await store.AppendAsync(Posted(clientId, 1).Debit(ar, 100m, customerId: custA).Credit(revenue, 100m).Build());
+        await store.AppendAsync(Posted(clientId, 2).Debit(ar, 60m, customerId: custB).Credit(revenue, 60m).Build());
+        await store.AppendAsync(Posted(clientId, 3).Debit(ar, 40m, customerId: custA).Credit(revenue, 40m).Build());
+
+        IReadOnlyList<JournalEntry> forCustA =
+            await store.GetTouchingDimensionAsync(clientId, DimensionKind.Customer, custA);
+
+        Assert.Equal([1, 3], forCustA.Select(e => e.SequenceNumber).OrderBy(n => n));
     }
 
     [Fact]

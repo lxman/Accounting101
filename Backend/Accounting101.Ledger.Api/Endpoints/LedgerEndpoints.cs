@@ -41,6 +41,7 @@ public static class LedgerEndpoints
         clients.MapGet("/entries", ListEntries);
         clients.MapGet("/entries/{entryId:guid}", GetEntry);
         clients.MapGet("/trial-balance", GetTrialBalance);
+        clients.MapGet("/subledger", GetSubledger);
         clients.MapGet("/statements/balance-sheet", GetBalanceSheet);
         clients.MapGet("/statements/income-statement", GetIncomeStatement);
         clients.MapGet("/statements/cash-flow", GetCashFlow);
@@ -270,17 +271,23 @@ public static class LedgerEndpoints
     // ---- Queries ----------------------------------------------------------------------------
 
     private static async Task<IResult> ListEntries(
-        Guid clientId, Guid? account, Guid? sourceRef, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+        Guid clientId, Guid? account, Guid? sourceRef, string? dimension, Guid? value,
+        LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
-        // sourceRef (the module back-link) takes precedence over account when both are given.
-        IReadOnlyList<JournalEntry> entries = sourceRef is { } source
-            ? await ctx.Ledger.Journal.GetBySourceRefAsync(clientId, source, cancellationToken)
-            : account is { } accountId
-                ? await ctx.Ledger.Journal.GetTouchingAccountAsync(clientId, accountId, cancellationToken)
-                : await ctx.Ledger.Journal.GetByClientAsync(clientId, cancellationToken);
+        // Filters are mutually exclusive; precedence is sourceRef, then dimension, then account, then all.
+        IReadOnlyList<JournalEntry> entries;
+        if (sourceRef is { } source)
+            entries = await ctx.Ledger.Journal.GetBySourceRefAsync(clientId, source, cancellationToken);
+        else if (dimension is not null && value is { } dimValue
+                 && Enum.TryParse(dimension, ignoreCase: true, out DimensionKind kind))
+            entries = await ctx.Ledger.Journal.GetTouchingDimensionAsync(clientId, kind, dimValue, cancellationToken);
+        else if (account is { } accountId)
+            entries = await ctx.Ledger.Journal.GetTouchingAccountAsync(clientId, accountId, cancellationToken);
+        else
+            entries = await ctx.Ledger.Journal.GetByClientAsync(clientId, cancellationToken);
 
         return Results.Ok(entries.Select(ToEntryResponse).ToList());
     }
@@ -310,6 +317,25 @@ public static class LedgerEndpoints
             : await ctx.Ledger.Projection.GetTrialBalanceAsync(clientId, cancellationToken);
 
         return Results.Ok(new TrialBalanceResponse(asOf, ToAccountBalances(balances)));
+    }
+
+    private static async Task<IResult> GetSubledger(
+        Guid clientId, string? dimension, Guid? account, DateOnly? asOf,
+        LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        if (dimension is null || !Enum.TryParse(dimension, ignoreCase: true, out DimensionKind kind))
+            return Unprocessable("A subledger requires a 'dimension' of Customer, Vendor, or Item.");
+
+        IReadOnlyList<SubledgerBalance> balances =
+            await ctx.Ledger.Journal.AggregateSubledgerAsync(clientId, kind, account, asOf, cancellationToken);
+
+        return Results.Ok(new SubledgerResponse(
+            kind.ToString(),
+            asOf,
+            balances.Select(b => new SubledgerLineResponse(b.AccountId, b.DimensionValue, b.Balance)).ToList()));
     }
 
     private static async Task<IResult> GetBalanceSheet(

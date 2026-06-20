@@ -1,4 +1,5 @@
 using System.Globalization;
+using Accounting101.Ledger.Core.Accounts;
 using Accounting101.Ledger.Core.Journal;
 using Accounting101.Ledger.Mongo.Documents;
 using Accounting101.Ledger.Mongo.Serialization;
@@ -95,6 +96,31 @@ public sealed class MongoJournalStore
     }
 
     /// <summary>
+    /// Every entry with a line carrying <paramref name="value"/> on the given subledger
+    /// <paramref name="dimension"/> — the subsidiary-ledger detail for one customer, vendor, or item
+    /// (served by the matching dimension index).
+    /// </summary>
+    public async Task<IReadOnlyList<JournalEntry>> GetTouchingDimensionAsync(
+        Guid clientId, DimensionKind dimension, Guid value, CancellationToken cancellationToken = default)
+    {
+        FilterDefinition<LineDocument> lineFilter = dimension switch
+        {
+            DimensionKind.Customer => Builders<LineDocument>.Filter.Eq(l => l.CustomerId, value),
+            DimensionKind.Vendor => Builders<LineDocument>.Filter.Eq(l => l.VendorId, value),
+            DimensionKind.Item => Builders<LineDocument>.Filter.Eq(l => l.ItemId, value),
+            _ => throw new ArgumentOutOfRangeException(nameof(dimension)),
+        };
+
+        FilterDefinitionBuilder<JournalEntryDocument> f = Builders<JournalEntryDocument>.Filter;
+        FilterDefinition<JournalEntryDocument> filter = f.And(
+            f.Eq(e => e.ClientId, clientId),
+            f.ElemMatch(e => e.Lines, lineFilter));
+
+        List<JournalEntryDocument> docs = await _entries.Find(filter).ToListAsync(cancellationToken);
+        return docs.Select(d => d.ToDomain()).ToList();
+    }
+
+    /// <summary>
     /// Every entry spawned by one source document — the back-link an upstream module follows to reach
     /// the journal from one of its business documents (invoice, pay-run). More than one can share a
     /// <paramref name="sourceRef"/>: a revised entry leaves the superseded original behind, and a
@@ -129,6 +155,12 @@ public sealed class MongoJournalStore
                 new CreateIndexOptions { Name = "client_sequence_unique", Unique = true }),
             new(keys.Ascending(e => e.ClientId).Ascending(e => e.SourceRef),
                 new CreateIndexOptions { Name = "client_sourceRef" }),
+            new(keys.Ascending(e => e.ClientId).Ascending("Lines.CustomerId"),
+                new CreateIndexOptions { Name = "client_lineCustomer" }),
+            new(keys.Ascending(e => e.ClientId).Ascending("Lines.VendorId"),
+                new CreateIndexOptions { Name = "client_lineVendor" }),
+            new(keys.Ascending(e => e.ClientId).Ascending("Lines.ItemId"),
+                new CreateIndexOptions { Name = "client_lineItem" }),
         ];
 
         return _entries.Indexes.CreateManyAsync(models, cancellationToken);
@@ -171,6 +203,65 @@ public sealed class MongoJournalStore
         return FoldAsync(match, cancellationToken);
     }
 
+    /// <summary>
+    /// Subsidiary-ledger balances: the same on-the-books, debit-positive fold as
+    /// <see cref="AggregateBalancesAsync"/>, but grouped one level finer — by (account, dimension value)
+    /// instead of by account alone. With <paramref name="accountId"/> the fold is scoped to one control
+    /// account (e.g. Accounts Receivable broken out per customer); without it, every account carrying the
+    /// dimension is included. Because it is the very same lines grouped finer, the per-dimension balances
+    /// sum back to the control-account balance by construction — the subledger cannot drift from the GL.
+    /// Only lines that actually carry the dimension contribute.
+    /// </summary>
+    public async Task<IReadOnlyList<SubledgerBalance>> AggregateSubledgerAsync(
+        Guid clientId, DimensionKind dimension, Guid? accountId = null, DateOnly? asOf = null,
+        CancellationToken cancellationToken = default)
+    {
+        string dimField = DimensionField(dimension);
+
+        BsonDocument match = OnBooks(clientId);
+        if (asOf is { } asOfDate)
+            match.Add("EffectiveDate", new BsonDocument("$lte", Iso(asOfDate)));
+
+        BsonDocument lineMatch = new() { { dimField, new BsonDocument("$ne", BsonNull.Value) } };
+        if (accountId is { } account)
+            lineMatch.Add("Lines.AccountId", new BsonBinaryData(account, GuidRepresentation.Standard));
+
+        BsonDocument[] pipeline =
+        [
+            new("$match", match),
+            new("$unwind", "$Lines"),
+            new("$match", lineMatch),
+            new("$group", new BsonDocument
+            {
+                { "_id", new BsonDocument { { "account", "$Lines.AccountId" }, { "dim", "$" + dimField } } },
+                { "balance", new BsonDocument("$sum", SignedAmount()) },
+            }),
+        ];
+
+        IAsyncCursor<BsonDocument> cursor =
+            await _entries.AggregateAsync<BsonDocument>(pipeline, cancellationToken: cancellationToken);
+        List<BsonDocument> results = await cursor.ToListAsync(cancellationToken);
+
+        List<SubledgerBalance> balances = new(results.Count);
+        foreach (BsonDocument doc in results)
+        {
+            BsonDocument id = doc["_id"].AsBsonDocument;
+            Guid groupAccount = id["account"].AsBsonBinaryData.ToGuid(GuidRepresentation.Standard);
+            Guid dimValue = id["dim"].AsBsonBinaryData.ToGuid(GuidRepresentation.Standard);
+            balances.Add(new SubledgerBalance(groupAccount, dimValue, doc["balance"].AsDecimal));
+        }
+
+        return balances;
+    }
+
+    private static string DimensionField(DimensionKind dimension) => dimension switch
+    {
+        DimensionKind.Customer => "Lines.CustomerId",
+        DimensionKind.Vendor => "Lines.VendorId",
+        DimensionKind.Item => "Lines.ItemId",
+        _ => throw new ArgumentOutOfRangeException(nameof(dimension)),
+    };
+
     /// <summary>The on-the-books predicate shared by every balance fold: this client, Active and Posted.</summary>
     private static BsonDocument OnBooks(Guid clientId) => new()
     {
@@ -196,14 +287,7 @@ public sealed class MongoJournalStore
             new("$group", new BsonDocument
             {
                 { "_id", "$Lines.AccountId" },
-                {
-                    "balance", new BsonDocument("$sum", new BsonDocument("$cond", new BsonArray
-                    {
-                        new BsonDocument("$eq", new BsonArray { "$Lines.Direction", nameof(Direction.Debit) }),
-                        "$Lines.Amount",
-                        new BsonDocument("$multiply", new BsonArray { "$Lines.Amount", -1 }),
-                    }))
-                },
+                { "balance", new BsonDocument("$sum", SignedAmount()) },
             }),
         ];
 
@@ -220,4 +304,16 @@ public sealed class MongoJournalStore
 
         return balances;
     }
+
+    /// <summary>
+    /// The debit-positive signed amount of an unwound line, as an aggregation expression:
+    /// Debit =&gt; +Amount, Credit =&gt; -Amount. Shared by every fold so the trial balance, the windowed
+    /// activity, and the subledger all measure the same thing.
+    /// </summary>
+    private static BsonDocument SignedAmount() => new("$cond", new BsonArray
+    {
+        new BsonDocument("$eq", new BsonArray { "$Lines.Direction", nameof(Direction.Debit) }),
+        "$Lines.Amount",
+        new BsonDocument("$multiply", new BsonArray { "$Lines.Amount", -1 }),
+    });
 }
