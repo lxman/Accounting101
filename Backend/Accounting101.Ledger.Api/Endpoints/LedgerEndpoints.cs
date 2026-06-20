@@ -43,6 +43,7 @@ public static class LedgerEndpoints
         clients.MapGet("/trial-balance", GetTrialBalance);
         clients.MapGet("/statements/balance-sheet", GetBalanceSheet);
         clients.MapGet("/statements/income-statement", GetIncomeStatement);
+        clients.MapGet("/statements/cash-flow", GetCashFlow);
         clients.MapGet("/accounts", ListAccounts);
         clients.MapGet("/accounts/{accountId:guid}", GetAccount);
         clients.MapGet("/accounts/{accountId:guid}/balance", GetAccountBalance);
@@ -336,6 +337,22 @@ public static class LedgerEndpoints
         return Results.Ok(ToIncomeStatementResponse(statement));
     }
 
+    private static async Task<IResult> GetCashFlow(
+        Guid clientId, DateOnly? from, DateOnly? to, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        // A cash-flow statement is a flow over a window, so both bounds are required and must be ordered.
+        if (from is not { } start || to is not { } end)
+            return Unprocessable("A cash-flow statement requires both 'from' and 'to' dates.");
+        if (start > end)
+            return Unprocessable("'from' must not be after 'to'.");
+
+        CashFlowStatement statement = await ctx.Ledger.Statements.CashFlowStatementAsync(clientId, start, end, cancellationToken);
+        return Results.Ok(ToCashFlowResponse(statement));
+    }
+
     private static async Task<IResult> GetAccountBalance(
         Guid clientId, Guid accountId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
@@ -468,7 +485,8 @@ public static class LedgerEndpoints
 
     private static AccountResponse ToAccountResponse(Account a) => new(
         a.Id, a.Number, a.Name, a.Type.ToString(), a.ParentId, a.Postable,
-        a.RequiredDimension?.ToString(), a.IsRetainedEarnings, a.Active, a.NormalSide.ToString(), a.IsTemporary);
+        a.RequiredDimension?.ToString(), a.CashFlowActivity?.ToString(),
+        a.IsRetainedEarnings, a.Active, a.NormalSide.ToString(), a.IsTemporary);
 
     private static Account MapAccount(Guid clientId, Guid accountId, AccountRequest request) => new()
     {
@@ -482,6 +500,9 @@ public static class LedgerEndpoints
         RequiredDimension = request.RequiredDimension is null
             ? null
             : Enum.Parse<DimensionKind>(request.RequiredDimension, ignoreCase: true),
+        CashFlowActivity = request.CashFlowActivity is null
+            ? null
+            : Enum.Parse<CashFlowActivity>(request.CashFlowActivity, ignoreCase: true),
         IsRetainedEarnings = request.IsRetainedEarnings,
         Active = request.Active,
     };
@@ -504,6 +525,19 @@ public static class LedgerEndpoints
         ToSectionResponse(statement.Revenue),
         ToSectionResponse(statement.Expenses),
         statement.NetIncome);
+
+    private static CashFlowStatementResponse ToCashFlowResponse(CashFlowStatement s) => new(
+        s.From,
+        s.To,
+        s.NetIncome,
+        ToSectionResponse(s.OperatingAdjustments),
+        s.OperatingCash,
+        ToSectionResponse(s.Investing),
+        ToSectionResponse(s.Financing),
+        s.NetChangeInCash,
+        s.BeginningCash,
+        s.EndingCash,
+        s.TiesOut);
 
     private static StatementSectionResponse ToSectionResponse(StatementSection section) => new(
         section.Title,

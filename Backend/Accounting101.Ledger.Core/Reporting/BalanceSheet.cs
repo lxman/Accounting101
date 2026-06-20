@@ -35,7 +35,7 @@ public sealed record BalanceSheet
 
         StatementSection equity = StatementPresentation.Section("Equity", chart, AccountType.Equity, balances);
 
-        decimal netIncome = NetIncome(chart, balances);
+        decimal netIncome = StatementPresentation.NetIncome(chart, balances);
         if (netIncome != 0m)
             equity = equity with { Lines = [.. equity.Lines, new StatementLine { Name = "Net income", Amount = netIncome }] };
 
@@ -47,15 +47,4 @@ public sealed record BalanceSheet
             Equity = equity,
         };
     }
-
-    /// <summary>
-    /// Current-period earnings = −Σ(debit-positive balance) over the temporary accounts: a profitable
-    /// (credit-heavy) book yields a positive figure that lifts equity. This is exactly
-    /// <see cref="IncomeStatement.NetIncome"/> over the same balances, which is what keeps the two
-    /// statements articulated.
-    /// </summary>
-    private static decimal NetIncome(ChartOfAccounts chart, IReadOnlyDictionary<Guid, decimal> balances) =>
-        -chart.Accounts
-            .Where(account => account.IsTemporary && account.Postable)
-            .Sum(account => balances.GetValueOrDefault(account.Id));
 }

@@ -36,6 +36,16 @@ internal static class StatementPresentation
         type.NormalSide() == Direction.Debit ? debitPositive : -debitPositive;
 
     /// <summary>
+    /// Net income over a set of debit-positive figures: −Σ over the temporary accounts. A profitable
+    /// (credit-heavy) book yields a positive number. Shared by the balance sheet (folded into equity) and
+    /// the cash-flow statement (the operating lead line), so both report the identical figure.
+    /// </summary>
+    public static decimal NetIncome(ChartOfAccounts chart, IReadOnlyDictionary<Guid, decimal> figures) =>
+        -chart.Accounts
+            .Where(account => account.IsTemporary && account.Postable)
+            .Sum(account => figures.GetValueOrDefault(account.Id));
+
+    /// <summary>
     /// A section of every postable account of one type, each shown on its natural side and ordered by
     /// account number. Accounts with no activity appear at zero, so the section mirrors the chart.
     /// </summary>

@@ -24,3 +24,18 @@ public sealed record IncomeStatementResponse(
     StatementSectionResponse Revenue,
     StatementSectionResponse Expenses,
     decimal NetIncome);
+
+/// <summary>The statement of cash flows for a period (indirect method). <see cref="TiesOut"/> asserts the
+/// three sections explain the actual <see cref="EndingCash"/> − <see cref="BeginningCash"/> movement.</summary>
+public sealed record CashFlowStatementResponse(
+    DateOnly From,
+    DateOnly To,
+    decimal NetIncome,
+    StatementSectionResponse OperatingAdjustments,
+    decimal OperatingCash,
+    StatementSectionResponse Investing,
+    StatementSectionResponse Financing,
+    decimal NetChangeInCash,
+    decimal BeginningCash,
+    decimal EndingCash,
+    bool TiesOut);

@@ -28,4 +28,16 @@ public sealed class FinancialStatementService(MongoJournalStore journal, MongoAc
         ChartOfAccounts chart = await accounts.GetChartAsync(clientId, cancellationToken);
         return IncomeStatement.Build(chart, activity, from, to);
     }
+
+    public async Task<CashFlowStatement> CashFlowStatementAsync(
+        Guid clientId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyDictionary<Guid, decimal> activity =
+            await journal.AggregateActivityAsync(clientId, from, to, cancellationToken);
+        // Opening cash is the balance the instant before the period begins.
+        IReadOnlyDictionary<Guid, decimal> beginning =
+            await journal.AggregateBalancesAsync(clientId, from.AddDays(-1), cancellationToken);
+        ChartOfAccounts chart = await accounts.GetChartAsync(clientId, cancellationToken);
+        return CashFlowStatement.Build(chart, activity, beginning, from, to);
+    }
 }

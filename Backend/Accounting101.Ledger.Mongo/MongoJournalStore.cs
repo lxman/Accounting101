@@ -135,15 +135,18 @@ public sealed class MongoJournalStore
     /// <summary>
     /// Per-account activity over a window — the same debit-positive fold as
     /// <see cref="AggregateBalancesAsync"/>, restricted to entries whose effective date falls within
-    /// [<paramref name="from"/>, <paramref name="to"/>]. Feeds the income statement, which is a flow
-    /// over a period rather than a balance at an instant. The period is expected to sit within one
-    /// fiscal year, so a year-end closing entry does not net into the window.
+    /// [<paramref name="from"/>, <paramref name="to"/>]. Feeds the income statement and the cash-flow
+    /// statement, both of which measure flow over a period rather than a balance at an instant.
+    /// Year-end <see cref="EntryType.Closing"/> entries are excluded: they are cash-neutral mechanics
+    /// that reset the temporaries into retained earnings, so counting them would zero out a period's
+    /// revenue, expense, and net income whenever the window contains the close.
     /// </summary>
     public Task<IReadOnlyDictionary<Guid, decimal>> AggregateActivityAsync(
         Guid clientId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
     {
         BsonDocument match = OnBooks(clientId);
         match.Add("EffectiveDate", new BsonDocument { { "$gte", Iso(from) }, { "$lte", Iso(to) } });
+        match.Add("Type", new BsonDocument("$ne", nameof(EntryType.Closing)));
 
         return FoldAsync(match, cancellationToken);
     }

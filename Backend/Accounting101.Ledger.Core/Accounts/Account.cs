@@ -24,6 +24,14 @@ public sealed record Account
     /// <summary>If set, this is a control account requiring that dimension on every posting (e.g. A/R → Customer).</summary>
     public DimensionKind? RequiredDimension { get; init; }
 
+    /// <summary>
+    /// Which statement-of-cash-flows activity this account's movements represent. Null falls back to a
+    /// type-based default (<see cref="AccountTypeExtensions.DefaultCashFlowActivity"/>); the cash accounts
+    /// and the investing/financing exceptions (fixed assets, loans, stock) are tagged explicitly — the same
+    /// kind of declared classification as <see cref="Type"/>, never a stored value.
+    /// </summary>
+    public CashFlowActivity? CashFlowActivity { get; init; }
+
     /// <summary>The single equity account that absorbs the temporary accounts at year-end close.</summary>
     public bool IsRetainedEarnings { get; init; }
 
