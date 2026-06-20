@@ -9,6 +9,10 @@
     <Project Path="Backend/Accounting101.Ledger.Mongo.Tests/Accounting101.Ledger.Mongo.Tests.csproj" />
     <Project Path="Backend/Accounting101.Ledger.Mongo/Accounting101.Ledger.Mongo.csproj" />
   </Folder>
+  <Folder Name="/Modules/">
+    <Project Path="Modules/Accounting101.Invoicing/Accounting101.Invoicing.csproj" />
+    <Project Path="Modules/Accounting101.Invoicing.Tests/Accounting101.Invoicing.Tests.csproj" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path="UI/README.md" />
   </Folder>
