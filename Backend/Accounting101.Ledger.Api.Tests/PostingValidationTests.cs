@@ -81,7 +81,7 @@ public sealed class PostingValidationTests(ApiFixture fixture) : IClassFixture<A
 
         // With the customer → accepted.
         HttpResponseMessage ok = await PostAsync(c.Http, c.ClientId,
-            new PostLineRequest(receivable, "Debit", 100m, CustomerId: Guid.NewGuid()),
+            new PostLineRequest(receivable, "Debit", 100m, Dimensions: new Dictionary<string, Guid> { ["Customer"] = Guid.NewGuid() }),
             new PostLineRequest(revenue, "Credit", 100m));
         Assert.Equal(HttpStatusCode.Created, ok.StatusCode);
     }

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Security.Claims;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Contracts;
@@ -281,9 +282,8 @@ public static class LedgerEndpoints
         IReadOnlyList<JournalEntry> entries;
         if (sourceRef is { } source)
             entries = await ctx.Ledger.Journal.GetBySourceRefAsync(clientId, source, cancellationToken);
-        else if (dimension is not null && value is { } dimValue
-                 && Enum.TryParse(dimension, ignoreCase: true, out DimensionKind kind))
-            entries = await ctx.Ledger.Journal.GetTouchingDimensionAsync(clientId, kind, dimValue, cancellationToken);
+        else if (!string.IsNullOrWhiteSpace(dimension) && value is { } dimValue)
+            entries = await ctx.Ledger.Journal.GetTouchingDimensionAsync(clientId, dimension, dimValue, cancellationToken);
         else if (account is { } accountId)
             entries = await ctx.Ledger.Journal.GetTouchingAccountAsync(clientId, accountId, cancellationToken);
         else
@@ -326,14 +326,14 @@ public static class LedgerEndpoints
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
-        if (dimension is null || !Enum.TryParse(dimension, ignoreCase: true, out DimensionKind kind))
-            return Unprocessable("A subledger requires a 'dimension' of Customer, Vendor, or Item.");
+        if (string.IsNullOrWhiteSpace(dimension))
+            return Unprocessable("A subledger requires a 'dimension' type (e.g. Customer, Vendor, Employee).");
 
         IReadOnlyList<SubledgerBalance> balances =
-            await ctx.Ledger.Journal.AggregateSubledgerAsync(clientId, kind, account, asOf, cancellationToken);
+            await ctx.Ledger.Journal.AggregateSubledgerAsync(clientId, dimension, account, asOf, cancellationToken);
 
         return Results.Ok(new SubledgerResponse(
-            kind.ToString(),
+            dimension,
             asOf,
             balances.Select(b => new SubledgerLineResponse(b.AccountId, b.DimensionValue, b.Balance)).ToList()));
     }
@@ -515,7 +515,7 @@ public static class LedgerEndpoints
 
     private static AccountResponse ToAccountResponse(Account a) => new(
         a.Id, a.Number, a.Name, a.Type.ToString(), a.ParentId, a.Postable,
-        a.RequiredDimension?.ToString(), a.CashFlowActivity?.ToString(),
+        a.RequiredDimension, a.CashFlowActivity?.ToString(),
         a.IsRetainedEarnings, a.Active, a.NormalSide.ToString(), a.IsTemporary);
 
     private static Account MapAccount(Guid clientId, Guid accountId, AccountRequest request) => new()
@@ -527,9 +527,7 @@ public static class LedgerEndpoints
         Type = Enum.Parse<AccountType>(request.Type, ignoreCase: true),
         ParentId = request.ParentId,
         Postable = request.Postable,
-        RequiredDimension = request.RequiredDimension is null
-            ? null
-            : Enum.Parse<DimensionKind>(request.RequiredDimension, ignoreCase: true),
+        RequiredDimension = request.RequiredDimension,
         CashFlowActivity = request.CashFlowActivity is null
             ? null
             : Enum.Parse<CashFlowActivity>(request.CashFlowActivity, ignoreCase: true),
@@ -626,9 +624,7 @@ public static class LedgerEndpoints
             AccountId = l.AccountId,
             Direction = Enum.Parse<Direction>(l.Direction, ignoreCase: true),
             Amount = l.Amount,
-            CustomerId = l.CustomerId,
-            VendorId = l.VendorId,
-            ItemId = l.ItemId,
+            Dimensions = l.Dimensions ?? ReadOnlyDictionary<string, Guid>.Empty,
         }).ToList();
 
     private static List<Line> MapOpeningLines(IReadOnlyList<OpeningBalanceLine> balances) =>
@@ -638,9 +634,7 @@ public static class LedgerEndpoints
             AccountId = b.AccountId,
             Direction = b.Balance >= 0m ? Direction.Debit : Direction.Credit,
             Amount = Math.Abs(b.Balance),
-            CustomerId = b.CustomerId,
-            VendorId = b.VendorId,
-            ItemId = b.ItemId,
+            Dimensions = b.Dimensions ?? ReadOnlyDictionary<string, Guid>.Empty,
         }).ToList();
 
     /// <summary>
@@ -671,18 +665,10 @@ public static class LedgerEndpoints
             else if (!account.Postable)
                 errors.Add($"Account {account.Number} \"{account.Name}\" is a summary account and cannot be posted to.");
 
-            if (account.RequiredDimension is { } dimension && !LineHasDimension(line, dimension))
+            if (account.RequiredDimension is { } dimension && !line.Dimensions.ContainsKey(dimension))
                 errors.Add($"Account {account.Number} \"{account.Name}\" requires a {dimension} on the posting line.");
         }
 
         return errors.Count == 0 ? null : Unprocessable(string.Join(" ", errors));
     }
-
-    private static bool LineHasDimension(Line line, DimensionKind dimension) => dimension switch
-    {
-        DimensionKind.Customer => line.CustomerId is not null,
-        DimensionKind.Vendor => line.VendorId is not null,
-        DimensionKind.Item => line.ItemId is not null,
-        _ => true,
-    };
 }

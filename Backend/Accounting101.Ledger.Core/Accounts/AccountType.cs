@@ -12,14 +12,6 @@ public enum AccountType
     Expense,
 }
 
-/// <summary>A subledger dimension a control account requires when posting.</summary>
-public enum DimensionKind
-{
-    Customer,
-    Vendor,
-    Item,
-}
-
 /// <summary>
 /// Which statement-of-cash-flows activity an account's movements represent. <see cref="Cash"/> marks the
 /// cash pool the statement explains (not bucketed); the other three are the activity sections. Account

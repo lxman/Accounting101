@@ -17,13 +17,11 @@ public sealed record PostEntryRequest(
     string? SourceType = null);
 
 /// <summary>
-/// One posting line: which account, debit or credit, a signed amount, and any subledger dimension
-/// (set the one the account's control type requires — e.g. CustomerId on an A/R line).
+/// One posting line: which account, debit or credit, a signed amount, and any subledger dimensions —
+/// a map of dimension type to the referenced entity id (e.g. { "Customer": "..." } on an A/R line).
 /// </summary>
 public sealed record PostLineRequest(
     Guid AccountId,
     string Direction,
     decimal Amount,
-    Guid? CustomerId = null,
-    Guid? VendorId = null,
-    Guid? ItemId = null);
+    IReadOnlyDictionary<string, Guid>? Dimensions = null);

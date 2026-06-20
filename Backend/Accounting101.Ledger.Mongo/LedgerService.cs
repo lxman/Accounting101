@@ -175,9 +175,7 @@ public sealed class LedgerService
                 AccountId = line.AccountId,
                 Direction = line.Direction == Direction.Debit ? Direction.Credit : Direction.Debit,
                 Amount = line.Amount,
-                CustomerId = line.CustomerId,
-                VendorId = line.VendorId,
-                ItemId = line.ItemId,
+                Dimensions = line.Dimensions,
                 LineMemo = line.LineMemo,
             })
             .ToList();

@@ -1,4 +1,3 @@
-using Accounting101.Ledger.Core.Accounts;
 using Accounting101.Ledger.Core.Journal;
 using MongoDB.Driver;
 
@@ -27,6 +26,8 @@ public sealed class MongoJournalStoreTests(MongoFixture fixture) : IClassFixture
         builder.Posting = PostingState.Posted;
         return builder;
     }
+
+    private static Dictionary<string, Guid> Customer(Guid id) => new() { ["Customer"] = id };
 
     [Fact]
     public async Task Entry_round_trips_with_amounts_and_balance_intact()
@@ -123,12 +124,12 @@ public sealed class MongoJournalStoreTests(MongoFixture fixture) : IClassFixture
         var custA = Guid.NewGuid();
         var custB = Guid.NewGuid();
 
-        await store.AppendAsync(Posted(clientId, 1).Debit(ar, 100m, customerId: custA).Credit(revenue, 100m).Build());
-        await store.AppendAsync(Posted(clientId, 2).Debit(ar, 60m, customerId: custB).Credit(revenue, 60m).Build());
-        await store.AppendAsync(Posted(clientId, 3).Debit(ar, 40m, customerId: custA).Credit(revenue, 40m).Build());
+        await store.AppendAsync(Posted(clientId, 1).Debit(ar, 100m, Customer(custA)).Credit(revenue, 100m).Build());
+        await store.AppendAsync(Posted(clientId, 2).Debit(ar, 60m, Customer(custB)).Credit(revenue, 60m).Build());
+        await store.AppendAsync(Posted(clientId, 3).Debit(ar, 40m, Customer(custA)).Credit(revenue, 40m).Build());
 
         IReadOnlyList<SubledgerBalance> subledger =
-            await store.AggregateSubledgerAsync(clientId, DimensionKind.Customer, accountId: ar);
+            await store.AggregateSubledgerAsync(clientId, "Customer", accountId: ar);
 
         Assert.Equal(140m, subledger.Single(s => s.DimensionValue == custA).Balance); // 100 + 40
         Assert.Equal(60m, subledger.Single(s => s.DimensionValue == custB).Balance);
@@ -149,12 +150,12 @@ public sealed class MongoJournalStoreTests(MongoFixture fixture) : IClassFixture
         var custA = Guid.NewGuid();
         var custB = Guid.NewGuid();
 
-        await store.AppendAsync(Posted(clientId, 1).Debit(ar, 100m, customerId: custA).Credit(revenue, 100m).Build());
-        await store.AppendAsync(Posted(clientId, 2).Debit(ar, 60m, customerId: custB).Credit(revenue, 60m).Build());
-        await store.AppendAsync(Posted(clientId, 3).Debit(ar, 40m, customerId: custA).Credit(revenue, 40m).Build());
+        await store.AppendAsync(Posted(clientId, 1).Debit(ar, 100m, Customer(custA)).Credit(revenue, 100m).Build());
+        await store.AppendAsync(Posted(clientId, 2).Debit(ar, 60m, Customer(custB)).Credit(revenue, 60m).Build());
+        await store.AppendAsync(Posted(clientId, 3).Debit(ar, 40m, Customer(custA)).Credit(revenue, 40m).Build());
 
         IReadOnlyList<JournalEntry> forCustA =
-            await store.GetTouchingDimensionAsync(clientId, DimensionKind.Customer, custA);
+            await store.GetTouchingDimensionAsync(clientId, "Customer", custA);
 
         Assert.Equal([1, 3], forCustA.Select(e => e.SequenceNumber).OrderBy(n => n));
     }

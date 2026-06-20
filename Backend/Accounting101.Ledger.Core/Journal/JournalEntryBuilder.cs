@@ -24,30 +24,28 @@ public sealed class JournalEntryBuilder(
     public string? SourceType { get; set; }
 
     public JournalEntryBuilder Debit(Guid accountId, decimal amount,
-        Guid? customerId = null, Guid? vendorId = null, Guid? itemId = null,
+        IReadOnlyDictionary<string, Guid>? dimensions = null,
         string? lineMemo = null, Guid? lineId = null)
-        => AddLine(Direction.Debit, accountId, amount, customerId, vendorId, itemId, lineMemo, lineId);
+        => AddLine(Direction.Debit, accountId, amount, dimensions, lineMemo, lineId);
 
     public JournalEntryBuilder Credit(Guid accountId, decimal amount,
-        Guid? customerId = null, Guid? vendorId = null, Guid? itemId = null,
+        IReadOnlyDictionary<string, Guid>? dimensions = null,
         string? lineMemo = null, Guid? lineId = null)
-        => AddLine(Direction.Credit, accountId, amount, customerId, vendorId, itemId, lineMemo, lineId);
+        => AddLine(Direction.Credit, accountId, amount, dimensions, lineMemo, lineId);
 
     public JournalEntryBuilder AddLine(Direction direction, Guid accountId, decimal amount,
-        Guid? customerId = null, Guid? vendorId = null, Guid? itemId = null,
+        IReadOnlyDictionary<string, Guid>? dimensions = null,
         string? lineMemo = null, Guid? lineId = null)
     {
-        _lines.Add(new Line
+        Line line = new()
         {
             Id = lineId ?? Guid.NewGuid(),
             AccountId = accountId,
             Direction = direction,
             Amount = amount,
-            CustomerId = customerId,
-            VendorId = vendorId,
-            ItemId = itemId,
             LineMemo = lineMemo,
-        });
+        };
+        _lines.Add(dimensions is null ? line : line with { Dimensions = dimensions });
         return this;
     }
 

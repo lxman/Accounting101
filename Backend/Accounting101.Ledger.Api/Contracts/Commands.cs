@@ -43,10 +43,8 @@ public sealed record ReopenRequest(DateOnly? ReopenThrough, string? Reason);
 /// </summary>
 public sealed record OnboardingRequest(DateOnly AsOf, long SequenceNumber, IReadOnlyList<OpeningBalanceLine> Balances);
 
-/// <summary>One account's carried-in balance (signed, debit-positive), with any required dimension.</summary>
+/// <summary>One account's carried-in balance (signed, debit-positive), with any required dimensions.</summary>
 public sealed record OpeningBalanceLine(
     Guid AccountId,
     decimal Balance,
-    Guid? CustomerId = null,
-    Guid? VendorId = null,
-    Guid? ItemId = null);
+    IReadOnlyDictionary<string, Guid>? Dimensions = null);

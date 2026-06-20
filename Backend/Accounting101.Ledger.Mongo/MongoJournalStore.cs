@@ -1,5 +1,4 @@
 using System.Globalization;
-using Accounting101.Ledger.Core.Accounts;
 using Accounting101.Ledger.Core.Journal;
 using Accounting101.Ledger.Mongo.Documents;
 using Accounting101.Ledger.Mongo.Serialization;
@@ -96,20 +95,15 @@ public sealed class MongoJournalStore
     }
 
     /// <summary>
-    /// Every entry with a line carrying <paramref name="value"/> on the given subledger
-    /// <paramref name="dimension"/> — the subsidiary-ledger detail for one customer, vendor, or item
-    /// (served by the matching dimension index).
+    /// Every entry with a line carrying <paramref name="value"/> on the given subledger dimension
+    /// <paramref name="type"/> — the subsidiary-ledger detail for one customer, vendor, employee, etc.
+    /// (served by the dimension index).
     /// </summary>
     public async Task<IReadOnlyList<JournalEntry>> GetTouchingDimensionAsync(
-        Guid clientId, DimensionKind dimension, Guid value, CancellationToken cancellationToken = default)
+        Guid clientId, string type, Guid value, CancellationToken cancellationToken = default)
     {
-        FilterDefinition<LineDocument> lineFilter = dimension switch
-        {
-            DimensionKind.Customer => Builders<LineDocument>.Filter.Eq(l => l.CustomerId, value),
-            DimensionKind.Vendor => Builders<LineDocument>.Filter.Eq(l => l.VendorId, value),
-            DimensionKind.Item => Builders<LineDocument>.Filter.Eq(l => l.ItemId, value),
-            _ => throw new ArgumentOutOfRangeException(nameof(dimension)),
-        };
+        FilterDefinition<LineDocument> lineFilter = Builders<LineDocument>.Filter
+            .ElemMatch(l => l.Dimensions, d => d.Type == type && d.Value == value);
 
         FilterDefinitionBuilder<JournalEntryDocument> f = Builders<JournalEntryDocument>.Filter;
         FilterDefinition<JournalEntryDocument> filter = f.And(
@@ -155,12 +149,8 @@ public sealed class MongoJournalStore
                 new CreateIndexOptions { Name = "client_sequence_unique", Unique = true }),
             new(keys.Ascending(e => e.ClientId).Ascending(e => e.SourceRef),
                 new CreateIndexOptions { Name = "client_sourceRef" }),
-            new(keys.Ascending(e => e.ClientId).Ascending("Lines.CustomerId"),
-                new CreateIndexOptions { Name = "client_lineCustomer" }),
-            new(keys.Ascending(e => e.ClientId).Ascending("Lines.VendorId"),
-                new CreateIndexOptions { Name = "client_lineVendor" }),
-            new(keys.Ascending(e => e.ClientId).Ascending("Lines.ItemId"),
-                new CreateIndexOptions { Name = "client_lineItem" }),
+            new(keys.Ascending(e => e.ClientId).Ascending("Lines.Dimensions.Type").Ascending("Lines.Dimensions.Value"),
+                new CreateIndexOptions { Name = "client_lineDimension" }),
         ];
 
         return _entries.Indexes.CreateManyAsync(models, cancellationToken);
@@ -213,27 +203,28 @@ public sealed class MongoJournalStore
     /// Only lines that actually carry the dimension contribute.
     /// </summary>
     public async Task<IReadOnlyList<SubledgerBalance>> AggregateSubledgerAsync(
-        Guid clientId, DimensionKind dimension, Guid? accountId = null, DateOnly? asOf = null,
+        Guid clientId, string dimensionType, Guid? accountId = null, DateOnly? asOf = null,
         CancellationToken cancellationToken = default)
     {
-        string dimField = DimensionField(dimension);
-
         BsonDocument match = OnBooks(clientId);
         if (asOf is { } asOfDate)
             match.Add("EffectiveDate", new BsonDocument("$lte", Iso(asOfDate)));
 
-        BsonDocument lineMatch = new() { { dimField, new BsonDocument("$ne", BsonNull.Value) } };
+        // After unwinding lines and their dimension tags, keep only the tags of the requested type (a
+        // line carries at most one tag per type, so its amount is counted once), optionally on one account.
+        BsonDocument tagMatch = new() { { "Lines.Dimensions.Type", dimensionType } };
         if (accountId is { } account)
-            lineMatch.Add("Lines.AccountId", new BsonBinaryData(account, GuidRepresentation.Standard));
+            tagMatch.Add("Lines.AccountId", new BsonBinaryData(account, GuidRepresentation.Standard));
 
         BsonDocument[] pipeline =
         [
             new("$match", match),
             new("$unwind", "$Lines"),
-            new("$match", lineMatch),
+            new("$unwind", "$Lines.Dimensions"),
+            new("$match", tagMatch),
             new("$group", new BsonDocument
             {
-                { "_id", new BsonDocument { { "account", "$Lines.AccountId" }, { "dim", "$" + dimField } } },
+                { "_id", new BsonDocument { { "account", "$Lines.AccountId" }, { "dim", "$Lines.Dimensions.Value" } } },
                 { "balance", new BsonDocument("$sum", SignedAmount()) },
             }),
         ];
@@ -253,14 +244,6 @@ public sealed class MongoJournalStore
 
         return balances;
     }
-
-    private static string DimensionField(DimensionKind dimension) => dimension switch
-    {
-        DimensionKind.Customer => "Lines.CustomerId",
-        DimensionKind.Vendor => "Lines.VendorId",
-        DimensionKind.Item => "Lines.ItemId",
-        _ => throw new ArgumentOutOfRangeException(nameof(dimension)),
-    };
 
     /// <summary>The on-the-books predicate shared by every balance fold: this client, Active and Posted.</summary>
     private static BsonDocument OnBooks(Guid clientId) => new()

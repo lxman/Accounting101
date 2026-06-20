@@ -20,9 +20,13 @@ public sealed class LineDocument
     [BsonRepresentation(BsonType.Decimal128)]
     public decimal Amount { get; set; }
 
-    public Guid? CustomerId { get; set; }
-    public Guid? VendorId { get; set; }
-    public Guid? ItemId { get; set; }
+    /// <summary>
+    /// Subledger dimensions as an array of (type, value) sub-documents — the indexable shape of the
+    /// domain's type-keyed dictionary, so one ordinary multikey index over every dimension serves the
+    /// subledger fold.
+    /// </summary>
+    public List<DimensionDocument> Dimensions { get; set; } = [];
+
     public string? LineMemo { get; set; }
 
     public static LineDocument FromDomain(Line l) => new()
@@ -31,9 +35,7 @@ public sealed class LineDocument
         AccountId = l.AccountId,
         Direction = l.Direction,
         Amount = l.Amount,
-        CustomerId = l.CustomerId,
-        VendorId = l.VendorId,
-        ItemId = l.ItemId,
+        Dimensions = l.Dimensions.Select(kv => new DimensionDocument { Type = kv.Key, Value = kv.Value }).ToList(),
         LineMemo = l.LineMemo,
     };
 
@@ -43,9 +45,14 @@ public sealed class LineDocument
         AccountId = AccountId,
         Direction = Direction,
         Amount = Amount,
-        CustomerId = CustomerId,
-        VendorId = VendorId,
-        ItemId = ItemId,
+        Dimensions = Dimensions.ToDictionary(d => d.Type, d => d.Value),
         LineMemo = LineMemo,
     };
+}
+
+/// <summary>One subledger tag on a line: the dimension type (e.g. "Customer") and the referenced entity id.</summary>
+public sealed class DimensionDocument
+{
+    public string Type { get; set; } = string.Empty;
+    public Guid Value { get; set; }
 }

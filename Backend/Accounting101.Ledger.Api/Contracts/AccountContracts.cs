@@ -15,7 +15,8 @@ public sealed record AccountRequest
     public Guid? ParentId { get; init; }
     public bool Postable { get; init; } = true;
 
-    /// <summary>Customer | Vendor | Item — set for a control account that requires that dimension.</summary>
+    /// <summary>The dimension type a control account requires on every posting line (e.g. "Customer").
+    /// A free-string axis the engine never interprets; omit for a non-control account.</summary>
     public string? RequiredDimension { get; init; }
 
     /// <summary>Cash | Operating | Investing | Financing — the statement-of-cash-flows bucket. Omit to use

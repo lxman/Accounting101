@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+
 namespace Accounting101.Ledger.Core.Journal;
 
 /// <summary>
@@ -21,10 +23,13 @@ public sealed record Line
     /// </summary>
     public required decimal Amount { get; init; }
 
-    // Sparse subledger dimensions — set only where the account is a control account.
-    public Guid? CustomerId { get; init; }
-    public Guid? VendorId { get; init; }
-    public Guid? ItemId { get; init; }
+    /// <summary>
+    /// Sparse subledger dimensions, keyed by an open-ended dimension <em>type</em> (e.g. "Customer",
+    /// "Vendor", "Employee") to the referenced entity's id. The engine never interprets a type — it only
+    /// groups and ties out by it — so a module brings whatever axes it needs without the engine knowing
+    /// them. At most one value per type (the dictionary key). Empty on lines that carry no dimension.
+    /// </summary>
+    public IReadOnlyDictionary<string, Guid> Dimensions { get; init; } = ReadOnlyDictionary<string, Guid>.Empty;
 
     public string? LineMemo { get; init; }
 

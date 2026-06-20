@@ -20,8 +20,7 @@ public sealed class AccountDocument
     public Guid? ParentId { get; set; }
     public bool Postable { get; set; } = true;
 
-    [BsonRepresentation(BsonType.String)]
-    public DimensionKind? RequiredDimension { get; set; }
+    public string? RequiredDimension { get; set; }
 
     [BsonRepresentation(BsonType.String)]
     public CashFlowActivity? CashFlowActivity { get; set; }

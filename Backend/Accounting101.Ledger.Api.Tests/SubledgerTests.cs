@@ -16,7 +16,7 @@ public sealed class SubledgerTests(ApiFixture fixture) : IClassFixture<ApiFixtur
     {
         PostEntryRequest entry = new(
             null, seq, new DateOnly(2026, 3, 31), null, null,
-            [new PostLineRequest(ar, "Debit", amount, CustomerId: customer),
+            [new PostLineRequest(ar, "Debit", amount, Dimensions: new Dictionary<string, Guid> { ["Customer"] = customer }),
              new PostLineRequest(revenue, "Credit", amount)]);
 
         HttpResponseMessage posted = await http.PostAsJsonAsync($"/clients/{client}/entries", entry);
@@ -67,14 +67,18 @@ public sealed class SubledgerTests(ApiFixture fixture) : IClassFixture<ApiFixtur
     }
 
     [Fact]
-    public async Task Subledger_requires_a_valid_dimension()
+    public async Task Subledger_requires_a_dimension_but_accepts_any_type()
     {
         SeededClient c = await fixture.SeedClientAsync();
 
+        // Missing the dimension is the only bad request — the engine doesn't have a fixed dimension vocabulary.
         HttpResponseMessage missing = await c.Http.GetAsync($"/clients/{c.ClientId}/subledger");
         Assert.Equal(HttpStatusCode.UnprocessableEntity, missing.StatusCode);
 
-        HttpResponseMessage bogus = await c.Http.GetAsync($"/clients/{c.ClientId}/subledger?dimension=Department");
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, bogus.StatusCode);
+        // An axis the engine has never heard of is valid — it just has no postings yet, so it returns empty.
+        SubledgerResponse department = (await c.Http.GetFromJsonAsync<SubledgerResponse>(
+            $"/clients/{c.ClientId}/subledger?dimension=Department"))!;
+        Assert.Equal("Department", department.Dimension);
+        Assert.Empty(department.Lines);
     }
 }

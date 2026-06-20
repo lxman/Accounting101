@@ -20,7 +20,7 @@ public sealed class MongoAccountStoreTests(MongoFixture fixture) : IClassFixture
             Number = "1200",
             Name = "Accounts Receivable",
             Type = AccountType.Asset,
-            RequiredDimension = DimensionKind.Customer,
+            RequiredDimension = "Customer",
         };
 
         await store.UpsertAsync(receivable);
@@ -30,7 +30,7 @@ public sealed class MongoAccountStoreTests(MongoFixture fixture) : IClassFixture
         Assert.Equal("1200", read!.Number);
         Assert.Equal("Accounts Receivable", read.Name);
         Assert.Equal(AccountType.Asset, read.Type);
-        Assert.Equal(DimensionKind.Customer, read.RequiredDimension);
+        Assert.Equal("Customer", read.RequiredDimension);
         Assert.True(read.Postable);
         Assert.Equal(Direction.Debit, read.NormalSide); // derived semantics survive the round-trip
     }
