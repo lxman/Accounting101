@@ -26,7 +26,7 @@ public sealed class AuditLogTests(MongoFixture fixture) : IClassFixture<MongoFix
         MongoCheckpointStore checkpoints = new(fixture.Database, "checkpoints_" + Guid.NewGuid().ToString("N"));
         string auditCollection = "audit_" + Guid.NewGuid().ToString("N");
         MongoAuditLog audit = new(fixture.Database, auditCollection);
-        return (new LedgerService(fixture.Database.Client, store, projection, checkpoints, audit), audit, auditCollection);
+        return (new LedgerService(fixture.Database.Client, store, projection, checkpoints, audit, new MongoSequenceStore(fixture.Database)), audit, auditCollection);
     }
 
     private static JournalEntry Entry(Guid clientId, long sequence, Guid debit, Guid credit, decimal amount) =>

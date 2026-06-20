@@ -14,8 +14,9 @@ public sealed class SubledgerTests(ApiFixture fixture) : IClassFixture<ApiFixtur
     private static async Task PostArSaleAsync(
         HttpClient http, Guid client, long seq, Guid ar, Guid revenue, Guid customer, decimal amount)
     {
+        _ = seq; // sequence is engine-assigned now
         PostEntryRequest entry = new(
-            null, seq, new DateOnly(2026, 3, 31), null, null,
+            null, new DateOnly(2026, 3, 31), null, null,
             [new PostLineRequest(ar, "Debit", amount, Dimensions: new Dictionary<string, Guid> { ["Customer"] = customer }),
              new PostLineRequest(revenue, "Credit", amount)]);
 

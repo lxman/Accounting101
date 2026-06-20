@@ -19,19 +19,37 @@ public sealed class LedgerService
     private readonly MongoBalanceProjection _projection;
     private readonly MongoCheckpointStore _checkpoints;
     private readonly MongoAuditLog _audit;
+    private readonly MongoSequenceStore _sequences;
 
     public LedgerService(
         IMongoClient client,
         MongoJournalStore journal,
         MongoBalanceProjection projection,
         MongoCheckpointStore checkpoints,
-        MongoAuditLog audit)
+        MongoAuditLog audit,
+        MongoSequenceStore sequences)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _journal = journal ?? throw new ArgumentNullException(nameof(journal));
         _projection = projection ?? throw new ArgumentNullException(nameof(projection));
         _checkpoints = checkpoints ?? throw new ArgumentNullException(nameof(checkpoints));
         _audit = audit ?? throw new ArgumentNullException(nameof(audit));
+        _sequences = sequences ?? throw new ArgumentNullException(nameof(sequences));
+    }
+
+    /// <summary>
+    /// Append an entry, assigning the gapless per-client sequence number when the caller left it
+    /// unset (0). An explicit non-zero number is honored — the seam the block-allocating bulk importer
+    /// uses. The increment joins the caller's transaction, so number and entry commit together.
+    /// </summary>
+    private async Task<JournalEntry> AppendSequencedAsync(
+        JournalEntry entry, IClientSessionHandle session, CancellationToken cancellationToken)
+    {
+        JournalEntry sequenced = entry.SequenceNumber == 0
+            ? entry.WithSequenceNumber(await _sequences.NextJournalAsync(entry.ClientId, session, cancellationToken))
+            : entry;
+        await _journal.AppendAsync(sequenced, session, cancellationToken);
+        return sequenced;
     }
 
     /// <summary>Record a new entry. Durable immediately, but not on the books until approved.</summary>
@@ -44,8 +62,8 @@ public sealed class LedgerService
         DateTimeOffset now = DateTimeOffset.UtcNow;
         await InTransactionAsync(async session =>
         {
-            await _journal.AppendAsync(entry, session, cancellationToken);
-            await _audit.AppendAsync(entry.ClientId, entry.Id, entry.Version, AuditAction.Created, actor, null, now, session, cancellationToken);
+            JournalEntry posted = await AppendSequencedAsync(entry, session, cancellationToken);
+            await _audit.AppendAsync(posted.ClientId, posted.Id, posted.Version, AuditAction.Created, actor, null, now, session, cancellationToken);
         }, cancellationToken);
     }
 
@@ -140,13 +158,14 @@ public sealed class LedgerService
         // Record the proposal only. The original is untouched and the projection unchanged until
         // approval — see ApproveAsync, which performs the atomic swap.
         DateTimeOffset now = DateTimeOffset.UtcNow;
+        JournalEntry recorded = replacement;
         await InTransactionAsync(async session =>
         {
-            await _journal.AppendAsync(replacement, session, cancellationToken);
-            await _audit.AppendAsync(replacement.ClientId, replacement.Id, replacement.Version, AuditAction.Created, actor, reason, now, session, cancellationToken);
+            recorded = await AppendSequencedAsync(replacement, session, cancellationToken);
+            await _audit.AppendAsync(recorded.ClientId, recorded.Id, recorded.Version, AuditAction.Created, actor, reason, now, session, cancellationToken);
         }, cancellationToken);
 
-        return replacement;
+        return recorded;
     }
 
     /// <summary>
@@ -157,7 +176,7 @@ public sealed class LedgerService
     /// approved, like any entry. The original must be active and posted.
     /// </summary>
     public async Task<JournalEntry> ReverseAsync(
-        Guid originalId, DateOnly reversalDate, long sequenceNumber, Actor actor, string? reason = null, CancellationToken cancellationToken = default)
+        Guid originalId, DateOnly reversalDate, Actor actor, string? reason = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(actor);
         JournalEntry original = await RequireAsync(originalId, cancellationToken);
@@ -183,7 +202,7 @@ public sealed class LedgerService
         JournalEntry reversal = JournalEntry.Create(
             id: Guid.NewGuid(),
             clientId: original.ClientId,
-            sequenceNumber: sequenceNumber,
+            sequenceNumber: 0, // engine-assigned at append
             effectiveDate: reversalDate,
             postedAt: DateTimeOffset.UtcNow,
             type: EntryType.Reversing,
@@ -193,14 +212,15 @@ public sealed class LedgerService
             reference: original.Reference,
             memo: reason ?? $"Reversal of entry {originalId}");
 
+        JournalEntry recorded = reversal;
         DateTimeOffset now = DateTimeOffset.UtcNow;
         await InTransactionAsync(async session =>
         {
-            await _journal.AppendAsync(reversal, session, cancellationToken);
-            await _audit.AppendAsync(reversal.ClientId, reversal.Id, reversal.Version, AuditAction.Created, actor, reason, now, session, cancellationToken);
+            recorded = await AppendSequencedAsync(reversal, session, cancellationToken);
+            await _audit.AppendAsync(recorded.ClientId, recorded.Id, recorded.Version, AuditAction.Created, actor, reason, now, session, cancellationToken);
         }, cancellationToken);
 
-        return reversal;
+        return recorded;
     }
 
     /// <summary>
@@ -211,7 +231,7 @@ public sealed class LedgerService
     /// lines do not balance — an opening trial balance must balance. Lock it afterward with a close if desired.
     /// </summary>
     public async Task<JournalEntry> OpenAsync(
-        Guid clientId, DateOnly asOf, IReadOnlyList<Line> lines, long sequenceNumber, Actor actor, CancellationToken cancellationToken = default)
+        Guid clientId, DateOnly asOf, IReadOnlyList<Line> lines, Actor actor, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(actor);
         ArgumentNullException.ThrowIfNull(lines);
@@ -219,7 +239,7 @@ public sealed class LedgerService
         JournalEntry opening = JournalEntry.Create(
             id: Guid.NewGuid(),
             clientId: clientId,
-            sequenceNumber: sequenceNumber,
+            sequenceNumber: 0, // engine-assigned at append
             effectiveDate: asOf,
             postedAt: DateTimeOffset.UtcNow,
             type: EntryType.Opening,
@@ -306,7 +326,6 @@ public sealed class LedgerService
         DateOnly fiscalYearEnd,
         Actor actor,
         ChartOfAccounts chart,
-        long closingSequenceNumber,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(actor);
@@ -334,7 +353,7 @@ public sealed class LedgerService
             closing = JournalEntry.Create(
                 id: Guid.NewGuid(),
                 clientId: clientId,
-                sequenceNumber: closingSequenceNumber,
+                sequenceNumber: 0, // engine-assigned at append
                 effectiveDate: fiscalYearEnd,
                 postedAt: DateTimeOffset.UtcNow,
                 type: EntryType.Closing,

@@ -10,14 +10,14 @@ namespace Accounting101.Ledger.Api.Tests;
 /// </summary>
 public sealed class ReverseTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 {
-    private static PostEntryRequest Entry(long seq, DateOnly date, Guid debit, Guid credit, decimal amount) =>
-        new(null, seq, date, null, null,
+    private static PostEntryRequest Entry(DateOnly date, Guid debit, Guid credit, decimal amount) =>
+        new(null, date, null, null,
             [new PostLineRequest(debit, "Debit", amount), new PostLineRequest(credit, "Credit", amount)]);
 
     private static async Task<Guid> PostAndApproveAsync(
-        HttpClient http, Guid client, long seq, DateOnly date, Guid debit, Guid credit, decimal amount)
+        HttpClient http, Guid client, DateOnly date, Guid debit, Guid credit, decimal amount)
     {
-        HttpResponseMessage posted = await http.PostAsJsonAsync($"/clients/{client}/entries", Entry(seq, date, debit, credit, amount));
+        HttpResponseMessage posted = await http.PostAsJsonAsync($"/clients/{client}/entries", Entry(date, debit, credit, amount));
         posted.EnsureSuccessStatusCode();
         PostEntryResponse created = (await posted.Content.ReadFromJsonAsync<PostEntryResponse>())!;
         (await http.PostAsync($"/clients/{client}/entries/{created.Id}/approve", null)).EnsureSuccessStatusCode();
@@ -32,11 +32,11 @@ public sealed class ReverseTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     {
         SeededClient c = await fixture.SeedClientAsync();
         Guid cash = Guid.NewGuid(), revenue = Guid.NewGuid();
-        Guid originalId = await PostAndApproveAsync(c.Http, c.ClientId, 1, new DateOnly(2026, 3, 31), cash, revenue, 100m);
+        Guid originalId = await PostAndApproveAsync(c.Http, c.ClientId, new DateOnly(2026, 3, 31), cash, revenue, 100m);
 
         HttpResponseMessage reversed = await c.Http.PostAsJsonAsync(
             $"/clients/{c.ClientId}/entries/{originalId}/reverse",
-            new ReverseRequest(new DateOnly(2026, 4, 1), 2, "accrual reversal"));
+            new ReverseRequest(new DateOnly(2026, 4, 1), "accrual reversal"));
         Assert.Equal(HttpStatusCode.Created, reversed.StatusCode);
         EntryResponse reversal = (await reversed.Content.ReadFromJsonAsync<EntryResponse>())!;
         Assert.Equal(originalId, reversal.ReversalOf);
@@ -60,7 +60,7 @@ public sealed class ReverseTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     {
         SeededClient c = await fixture.SeedClientAsync();
         Guid cash = Guid.NewGuid(), revenue = Guid.NewGuid();
-        Guid id = await PostAndApproveAsync(c.Http, c.ClientId, 1, new DateOnly(2026, 3, 31), cash, revenue, 100m);
+        Guid id = await PostAndApproveAsync(c.Http, c.ClientId, new DateOnly(2026, 3, 31), cash, revenue, 100m);
 
         // Close March.
         (await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/periods/close",
@@ -68,12 +68,12 @@ public sealed class ReverseTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 
         // Reversing back INTO the closed period is refused...
         HttpResponseMessage intoClosed = await c.Http.PostAsJsonAsync(
-            $"/clients/{c.ClientId}/entries/{id}/reverse", new ReverseRequest(new DateOnly(2026, 3, 15), 2, null));
+            $"/clients/{c.ClientId}/entries/{id}/reverse", new ReverseRequest(new DateOnly(2026, 3, 15), null));
         Assert.Equal(HttpStatusCode.Conflict, intoClosed.StatusCode);
 
         // ...but reversing in the open period (April) is allowed, leaving the frozen entry untouched.
         HttpResponseMessage intoOpen = await c.Http.PostAsJsonAsync(
-            $"/clients/{c.ClientId}/entries/{id}/reverse", new ReverseRequest(new DateOnly(2026, 4, 1), 3, "correct prior period"));
+            $"/clients/{c.ClientId}/entries/{id}/reverse", new ReverseRequest(new DateOnly(2026, 4, 1), "correct prior period"));
         Assert.Equal(HttpStatusCode.Created, intoOpen.StatusCode);
         EntryResponse reversal = (await intoOpen.Content.ReadFromJsonAsync<EntryResponse>())!;
         (await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{reversal.Id}/approve", null)).EnsureSuccessStatusCode();

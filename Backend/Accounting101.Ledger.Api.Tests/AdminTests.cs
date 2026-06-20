@@ -26,7 +26,7 @@ public sealed class AdminTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 
         // The freshly provisioned user can now post to the freshly provisioned client.
         HttpClient userClient = fixture.ClientFor(user, "Provisioned User");
-        PostEntryRequest entry = new(null, 1, new DateOnly(2026, 3, 31), null, null,
+        PostEntryRequest entry = new(null, new DateOnly(2026, 3, 31), null, null,
             [new PostLineRequest(Guid.NewGuid(), "Debit", 100m), new PostLineRequest(Guid.NewGuid(), "Credit", 100m)]);
         HttpResponseMessage posted = await userClient.PostAsJsonAsync($"/clients/{client.Id}/entries", entry);
         Assert.Equal(HttpStatusCode.Created, posted.StatusCode);

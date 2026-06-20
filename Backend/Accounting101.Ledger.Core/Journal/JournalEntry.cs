@@ -124,6 +124,13 @@ public sealed record JournalEntry
     }
 
     /// <summary>
+    /// Assign the gapless per-client sequence number. The engine sets this at append time when the
+    /// caller left it unassigned (0); everything else is unchanged, so the balanced invariant still
+    /// holds. Set once, before the entry is first persisted — the number never changes afterward.
+    /// </summary>
+    public JournalEntry WithSequenceNumber(long sequenceNumber) => this with { SequenceNumber = sequenceNumber };
+
+    /// <summary>
     /// Approve a pending entry, putting it on the books (PendingApproval -&gt; Posted).
     /// Content is unchanged, so the balanced invariant still holds.
     /// </summary>

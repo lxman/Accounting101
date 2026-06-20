@@ -30,7 +30,7 @@ public sealed class OnboardingTests(ApiFixture fixture) : IClassFixture<ApiFixtu
         Guid equity = await CreateAccountAsync(c.Http, c.ClientId, "3000", "Retained Earnings", "Equity", retained: true);
 
         // Carried-in trial balance: cash 1000 (debit), loan 400 (credit), equity 600 (credit) — nets to zero.
-        OnboardingRequest request = new(new DateOnly(2025, 12, 31), 1,
+        OnboardingRequest request = new(new DateOnly(2025, 12, 31),
         [
             new OpeningBalanceLine(cash, 1000m),
             new OpeningBalanceLine(loan, -400m),
@@ -57,7 +57,7 @@ public sealed class OnboardingTests(ApiFixture fixture) : IClassFixture<ApiFixtu
         Guid cash = await CreateAccountAsync(c.Http, c.ClientId, "1000", "Cash", "Asset");
         Guid equity = await CreateAccountAsync(c.Http, c.ClientId, "3000", "Retained Earnings", "Equity", retained: true);
 
-        OnboardingRequest request = new(new DateOnly(2025, 12, 31), 1,
+        OnboardingRequest request = new(new DateOnly(2025, 12, 31),
         [
             new OpeningBalanceLine(cash, 1000m),
             new OpeningBalanceLine(equity, -900m), // does not net to zero
@@ -71,7 +71,7 @@ public sealed class OnboardingTests(ApiFixture fixture) : IClassFixture<ApiFixtu
     public async Task A_clerk_cannot_onboard()
     {
         SeededClient c = await fixture.SeedClientAsync(role: LedgerRole.Clerk);
-        OnboardingRequest request = new(new DateOnly(2025, 12, 31), 1,
+        OnboardingRequest request = new(new DateOnly(2025, 12, 31),
         [
             new OpeningBalanceLine(Guid.NewGuid(), 100m),
             new OpeningBalanceLine(Guid.NewGuid(), -100m),

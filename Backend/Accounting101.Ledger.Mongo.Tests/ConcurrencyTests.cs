@@ -20,7 +20,7 @@ public sealed class ConcurrencyTests(MongoFixture fixture) : IClassFixture<Mongo
         MongoBalanceProjection projection = new(fixture.Database, store, "balances_" + Guid.NewGuid().ToString("N"));
         MongoCheckpointStore checkpoints = new(fixture.Database, "checkpoints_" + Guid.NewGuid().ToString("N"));
         MongoAuditLog audit = new(fixture.Database, "audit_" + Guid.NewGuid().ToString("N"));
-        return (new LedgerService(fixture.Database.Client, store, projection, checkpoints, audit), store, projection);
+        return (new LedgerService(fixture.Database.Client, store, projection, checkpoints, audit, new MongoSequenceStore(fixture.Database)), store, projection);
     }
 
     private static JournalEntry Entry(Guid clientId, Guid debit, Guid credit, decimal amount, long sequence = 1) =>
@@ -102,7 +102,7 @@ public sealed class ConcurrencyTests(MongoFixture fixture) : IClassFixture<Mongo
         MongoCheckpointStore checkpoints = new(fixture.Database, "checkpoints_" + Guid.NewGuid().ToString("N"));
         MongoAuditLog audit = new(fixture.Database, "audit_" + Guid.NewGuid().ToString("N"));
         await audit.EnsureIndexesAsync(); // the unique chain index turns concurrent appends into retryable conflicts
-        LedgerService service = new(fixture.Database.Client, store, projection, checkpoints, audit);
+        LedgerService service = new(fixture.Database.Client, store, projection, checkpoints, audit, new MongoSequenceStore(fixture.Database));
 
         var client = Guid.NewGuid();
         const int n = 10;

@@ -14,10 +14,9 @@ namespace Accounting101.Ledger.Api.Tests;
 /// </summary>
 public sealed class SpineTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 {
-    private static PostEntryRequest BalancedEntry(long seq, Guid debit, Guid credit, decimal amount) =>
+    private static PostEntryRequest BalancedEntry(Guid debit, Guid credit, decimal amount) =>
         new(
             Id: null,
-            SequenceNumber: seq,
             EffectiveDate: new DateOnly(2026, 6, 30),
             Reference: "INV-1",
             Memo: "spine test",
@@ -46,7 +45,7 @@ public sealed class SpineTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         HttpClient http = fixture.ClientFor(user, "Dana Clerk", ("role", "clerk"));
 
         HttpResponseMessage posted = await http.PostAsJsonAsync(
-            $"/clients/{client}/entries", BalancedEntry(1, Guid.NewGuid(), Guid.NewGuid(), 250m));
+            $"/clients/{client}/entries", BalancedEntry(Guid.NewGuid(), Guid.NewGuid(), 250m));
 
         Assert.Equal(HttpStatusCode.Created, posted.StatusCode);
         var created = await posted.Content.ReadFromJsonAsync<PostEntryResponse>();
@@ -69,7 +68,7 @@ public sealed class SpineTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     {
         HttpClient http = fixture.AnonymousClient();
         HttpResponseMessage posted = await http.PostAsJsonAsync(
-            $"/clients/{Guid.NewGuid()}/entries", BalancedEntry(1, Guid.NewGuid(), Guid.NewGuid(), 10m));
+            $"/clients/{Guid.NewGuid()}/entries", BalancedEntry(Guid.NewGuid(), Guid.NewGuid(), 10m));
         Assert.Equal(HttpStatusCode.Unauthorized, posted.StatusCode);
     }
 
@@ -84,7 +83,7 @@ public sealed class SpineTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 
         HttpClient http = fixture.ClientFor(userA, "A user", ("role", "clerk"));
         HttpResponseMessage posted = await http.PostAsJsonAsync(
-            $"/clients/{clientB}/entries", BalancedEntry(1, Guid.NewGuid(), Guid.NewGuid(), 10m));
+            $"/clients/{clientB}/entries", BalancedEntry(Guid.NewGuid(), Guid.NewGuid(), 10m));
 
         Assert.Equal(HttpStatusCode.Forbidden, posted.StatusCode);
     }
@@ -99,7 +98,7 @@ public sealed class SpineTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 
         HttpClient http = fixture.ClientFor(user, "C user", ("role", "clerk"));
         PostEntryRequest unbalanced = new(
-            Id: null, SequenceNumber: 1, EffectiveDate: new DateOnly(2026, 6, 30), Reference: null, Memo: null,
+            Id: null, EffectiveDate: new DateOnly(2026, 6, 30), Reference: null, Memo: null,
             Lines: [new PostLineRequest(Guid.NewGuid(), "Debit", 100m), new PostLineRequest(Guid.NewGuid(), "Credit", 99m)]);
 
         HttpResponseMessage posted = await http.PostAsJsonAsync($"/clients/{client}/entries", unbalanced);
@@ -117,7 +116,7 @@ public sealed class SpineTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 
         HttpClient http = fixture.ClientFor(userA, "A user", ("role", "clerk"));
         HttpResponseMessage posted = await http.PostAsJsonAsync(
-            $"/clients/{clientA}/entries", BalancedEntry(1, Guid.NewGuid(), Guid.NewGuid(), 500m));
+            $"/clients/{clientA}/entries", BalancedEntry(Guid.NewGuid(), Guid.NewGuid(), 500m));
         Assert.Equal(HttpStatusCode.Created, posted.StatusCode);
 
         long inA = await fixture.ClientDatabase(dbA)

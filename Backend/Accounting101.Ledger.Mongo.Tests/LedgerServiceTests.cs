@@ -23,7 +23,7 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
         MongoBalanceProjection projection = new(fixture.Database, store, "balances_" + Guid.NewGuid().ToString("N"));
         MongoCheckpointStore checkpoints = new(fixture.Database, "checkpoints_" + Guid.NewGuid().ToString("N"));
         MongoAuditLog audit = new(fixture.Database, "audit_" + Guid.NewGuid().ToString("N"));
-        return (new LedgerService(fixture.Database.Client, store, projection, checkpoints, audit), store, projection, checkpoints, audit);
+        return (new LedgerService(fixture.Database.Client, store, projection, checkpoints, audit, new MongoSequenceStore(fixture.Database)), store, projection, checkpoints, audit);
     }
 
     private static JournalEntry Entry(
@@ -84,6 +84,43 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
         Assert.Equal(0m, balances[cash]);     // reversed back out
         Assert.Equal(0m, balances[revenue]);
         Assert.Equal(LifecycleStatus.Voided, (await store.GetAsync(entry.Id))!.Status);
+    }
+
+    [Fact]
+    public async Task The_engine_assigns_a_gapless_per_client_sequence_when_unset()
+    {
+        (LedgerService service, MongoJournalStore store, _, _, _) = NewLedger();
+        var clientA = Guid.NewGuid();
+        var clientB = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
+
+        // Posted with sequence 0 (unset) — the engine numbers them.
+        JournalEntry a1 = Entry(clientA, 0, cash, revenue, 10m);
+        JournalEntry a2 = Entry(clientA, 0, cash, revenue, 20m);
+        JournalEntry b1 = Entry(clientB, 0, cash, revenue, 30m);
+        await service.PostAsync(a1, User());
+        await service.PostAsync(a2, User());
+        await service.PostAsync(b1, User());
+
+        Assert.Equal(1, (await store.GetAsync(a1.Id))!.SequenceNumber);
+        Assert.Equal(2, (await store.GetAsync(a2.Id))!.SequenceNumber);
+        Assert.Equal(1, (await store.GetAsync(b1.Id))!.SequenceNumber); // a separate client starts its own count
+    }
+
+    [Fact]
+    public async Task An_explicit_sequence_is_honored_for_block_allocated_import()
+    {
+        (LedgerService service, MongoJournalStore store, _, _, _) = NewLedger();
+        var client = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
+
+        // A non-zero sequence is left as given — the seam the bulk importer uses to place a pre-numbered block.
+        JournalEntry imported = Entry(client, 5000, cash, revenue, 10m);
+        await service.PostAsync(imported, User());
+
+        Assert.Equal(5000, (await store.GetAsync(imported.Id))!.SequenceNumber);
     }
 
     [Fact]

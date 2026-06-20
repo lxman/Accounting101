@@ -191,7 +191,7 @@ public static class LedgerEndpoints
         try
         {
             JournalEntry reversal = await ctx.Ledger.Service.ReverseAsync(
-                originalId, request.ReversalDate, request.SequenceNumber, ctx.Actor, request.Reason, cancellationToken);
+                originalId, request.ReversalDate, ctx.Actor, request.Reason, cancellationToken);
             return Results.Created($"/clients/{clientId}/entries/{reversal.Id}", ToEntryResponse(reversal));
         }
         catch (InvalidOperationException ex) // not reversible, or reversal date in a closed period
@@ -252,7 +252,7 @@ public static class LedgerEndpoints
         try
         {
             JournalEntry opening = await ctx.Ledger.Service.OpenAsync(
-                clientId, request.AsOf, lines, request.SequenceNumber, ctx.Actor, cancellationToken);
+                clientId, request.AsOf, lines, ctx.Actor, cancellationToken);
             return Results.Created($"/clients/{clientId}/entries/{opening.Id}", ToEntryResponse(opening));
         }
         catch (Exception ex) when (ex is ArgumentException or UnbalancedEntryException) // an opening trial balance must balance
@@ -486,7 +486,7 @@ public static class LedgerEndpoints
         try
         {
             JournalEntry? closing = await ctx.Ledger.Service.CloseYearAsync(
-                clientId, request.FiscalYearEnd, ctx.Actor, chart, request.ClosingSequenceNumber, cancellationToken);
+                clientId, request.FiscalYearEnd, ctx.Actor, chart, cancellationToken);
             return Results.Ok(new CloseYearResponse(closing is null ? null : ToEntryResponse(closing)));
         }
         catch (InvalidOperationException ex) // already closed, or no retained-earnings account configured
@@ -590,7 +590,7 @@ public static class LedgerEndpoints
         JournalEntry.Create(
             id: request.Id ?? Guid.NewGuid(),
             clientId: clientId,
-            sequenceNumber: request.SequenceNumber,
+            sequenceNumber: 0, // engine-assigned at append
             effectiveDate: request.EffectiveDate,
             postedAt: DateTimeOffset.UtcNow,
             type: EntryType.Standard,
@@ -605,7 +605,7 @@ public static class LedgerEndpoints
         JournalEntry.Create(
             id: request.Id ?? Guid.NewGuid(),
             clientId: clientId,
-            sequenceNumber: request.SequenceNumber,
+            sequenceNumber: 0, // engine-assigned at append
             effectiveDate: request.EffectiveDate,
             postedAt: DateTimeOffset.UtcNow,
             type: EntryType.Standard,

@@ -7,7 +7,6 @@ namespace Accounting101.Ledger.Api.Contracts;
 /// </summary>
 public sealed record ReviseRequest(
     Guid? Id,
-    long SequenceNumber,
     DateOnly EffectiveDate,
     string? Reference,
     string? Memo,
@@ -23,13 +22,13 @@ public sealed record ClosePeriodRequest(DateOnly AsOf);
 /// Reverse a posted entry: book a negating entry dated <see cref="ReversalDate"/> (which must be in an
 /// open period). Used for reversing accruals and for correcting a closed period without unfreezing it.
 /// </summary>
-public sealed record ReverseRequest(DateOnly ReversalDate, long SequenceNumber, string? Reason);
+public sealed record ReverseRequest(DateOnly ReversalDate, string? Reason);
 
 /// <summary>
 /// Close a fiscal year: post a balanced closing entry that resets temporary accounts (revenue/expense)
 /// into retained earnings, then freeze through <see cref="FiscalYearEnd"/>.
 /// </summary>
-public sealed record CloseYearRequest(DateOnly FiscalYearEnd, long ClosingSequenceNumber);
+public sealed record CloseYearRequest(DateOnly FiscalYearEnd);
 
 /// <summary>
 /// Reopen a closed period: move the freeze pointer back to <see cref="ReopenThrough"/>, or null to clear
@@ -41,7 +40,7 @@ public sealed record ReopenRequest(DateOnly? ReopenThrough, string? Reason);
 /// Establish opening balances at a cutover date as one balanced Opening entry. Balances are signed
 /// debit-positive (a debit balance positive, a credit balance negative) and must net to zero.
 /// </summary>
-public sealed record OnboardingRequest(DateOnly AsOf, long SequenceNumber, IReadOnlyList<OpeningBalanceLine> Balances);
+public sealed record OnboardingRequest(DateOnly AsOf, IReadOnlyList<OpeningBalanceLine> Balances);
 
 /// <summary>One account's carried-in balance (signed, debit-positive), with any required dimensions.</summary>
 public sealed record OpeningBalanceLine(

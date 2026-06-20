@@ -20,7 +20,7 @@ public sealed class PostingValidationTests(ApiFixture fixture) : IClassFixture<A
 
     private static Task<HttpResponseMessage> PostAsync(HttpClient http, Guid client, params PostLineRequest[] lines) =>
         http.PostAsJsonAsync($"/clients/{client}/entries",
-            new PostEntryRequest(null, 1, new DateOnly(2026, 3, 31), null, null, lines));
+            new PostEntryRequest(null, new DateOnly(2026, 3, 31), null, null, lines));
 
     [Fact]
     public async Task Posting_to_an_account_not_in_the_chart_is_rejected()

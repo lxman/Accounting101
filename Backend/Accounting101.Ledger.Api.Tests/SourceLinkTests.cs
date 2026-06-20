@@ -18,7 +18,7 @@ public sealed class SourceLinkTests(ApiFixture fixture) : IClassFixture<ApiFixtu
         Guid invoice = Guid.NewGuid();
 
         PostEntryRequest entry = new(
-            null, 1, new DateOnly(2026, 3, 31), Reference: "INV-1042", Memo: null,
+            null, new DateOnly(2026, 3, 31), Reference: "INV-1042", Memo: null,
             Lines: [new PostLineRequest(ar, "Debit", 100m), new PostLineRequest(revenue, "Credit", 100m)],
             SourceRef: invoice, SourceType: "Invoice");
 
@@ -45,7 +45,7 @@ public sealed class SourceLinkTests(ApiFixture fixture) : IClassFixture<ApiFixtu
         Guid cash = Guid.NewGuid(), revenue = Guid.NewGuid();
 
         PostEntryRequest entry = new(
-            null, 1, new DateOnly(2026, 3, 31), null, null,
+            null, new DateOnly(2026, 3, 31), null, null,
             [new PostLineRequest(cash, "Debit", 75m), new PostLineRequest(revenue, "Credit", 75m)]);
 
         HttpResponseMessage posted = await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", entry);

@@ -24,7 +24,7 @@ public sealed class YearEndCloseTests(MongoFixture fixture) : IClassFixture<Mong
         MongoBalanceProjection projection = new(fixture.Database, store, "balances_" + Guid.NewGuid().ToString("N"));
         MongoCheckpointStore checkpoints = new(fixture.Database, "checkpoints_" + Guid.NewGuid().ToString("N"));
         MongoAuditLog audit = new(fixture.Database, "audit_" + Guid.NewGuid().ToString("N"));
-        return (new LedgerService(fixture.Database.Client, store, projection, checkpoints, audit), projection);
+        return (new LedgerService(fixture.Database.Client, store, projection, checkpoints, audit, new MongoSequenceStore(fixture.Database)), projection);
     }
 
     private static Account Acct(Guid client, string number, string name, AccountType type, bool retainedEarnings = false) => new()
@@ -74,7 +74,7 @@ public sealed class YearEndCloseTests(MongoFixture fixture) : IClassFixture<Mong
         await service.ApproveAsync(cost.Id, User());
 
         JournalEntry? closing = await service.CloseYearAsync(
-            client, new DateOnly(2026, 12, 31), User(), chart, closingSequenceNumber: 1000);
+            client, new DateOnly(2026, 12, 31), User(), chart);
 
         IReadOnlyDictionary<Guid, decimal> balances = await projection.GetTrialBalanceAsync(client);
         Assert.Equal(0m, balances.GetValueOrDefault(revenue.Id));   // temporary reset
@@ -97,7 +97,7 @@ public sealed class YearEndCloseTests(MongoFixture fixture) : IClassFixture<Mong
         var client = Guid.NewGuid();
         ChartOfAccounts chart = new([Acct(client, "3900", "Retained Earnings", AccountType.Equity, retainedEarnings: true)]);
 
-        JournalEntry? closing = await service.CloseYearAsync(client, new DateOnly(2026, 12, 31), User(), chart, closingSequenceNumber: 1);
+        JournalEntry? closing = await service.CloseYearAsync(client, new DateOnly(2026, 12, 31), User(), chart);
 
         Assert.Null(closing); // nothing to close
         await Assert.ThrowsAsync<InvalidOperationException>(() =>

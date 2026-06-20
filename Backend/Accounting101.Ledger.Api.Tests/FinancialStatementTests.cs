@@ -23,7 +23,8 @@ public sealed class FinancialStatementTests(ApiFixture fixture) : IClassFixture<
     private static async Task PostAndApproveAsync(
         HttpClient http, Guid client, long seq, DateOnly date, Guid debit, Guid credit, decimal amount)
     {
-        PostEntryRequest entry = new(null, seq, date, null, null,
+        _ = seq; // sequence is engine-assigned now; the parameter just keeps call sites readable
+        PostEntryRequest entry = new(null, date, null, null,
             [new PostLineRequest(debit, "Debit", amount), new PostLineRequest(credit, "Credit", amount)]);
 
         HttpResponseMessage posted = await http.PostAsJsonAsync($"/clients/{client}/entries", entry);

@@ -24,7 +24,8 @@ public sealed class AccountTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     private static async Task PostAndApproveAsync(
         HttpClient http, Guid client, long seq, DateOnly date, Guid debit, Guid credit, decimal amount)
     {
-        PostEntryRequest req = new(null, seq, date, null, null,
+        _ = seq; // sequence is engine-assigned now
+        PostEntryRequest req = new(null, date, null, null,
             [new PostLineRequest(debit, "Debit", amount), new PostLineRequest(credit, "Credit", amount)]);
         HttpResponseMessage posted = await http.PostAsJsonAsync($"/clients/{client}/entries", req);
         posted.EnsureSuccessStatusCode();
@@ -89,7 +90,7 @@ public sealed class AccountTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         await PostAndApproveAsync(c.Http, c.ClientId, 2, new DateOnly(2026, 9, 30), expense, cash, 600m);   // cost
 
         HttpResponseMessage closed = await c.Http.PostAsJsonAsync(
-            $"/clients/{c.ClientId}/periods/close-year", new CloseYearRequest(new DateOnly(2026, 12, 31), 1000));
+            $"/clients/{c.ClientId}/periods/close-year", new CloseYearRequest(new DateOnly(2026, 12, 31)));
         Assert.Equal(HttpStatusCode.OK, closed.StatusCode);
         CloseYearResponse result = (await closed.Content.ReadFromJsonAsync<CloseYearResponse>())!;
         Assert.NotNull(result.ClosingEntry);

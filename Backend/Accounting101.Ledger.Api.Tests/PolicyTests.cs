@@ -13,7 +13,7 @@ namespace Accounting101.Ledger.Api.Tests;
 public sealed class PolicyTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 {
     private static PostEntryRequest Entry(Guid debit, Guid credit, decimal amount) =>
-        new(null, 1, new DateOnly(2026, 3, 31), null, null,
+        new(null, new DateOnly(2026, 3, 31), null, null,
             [new PostLineRequest(debit, "Debit", amount), new PostLineRequest(credit, "Credit", amount)]);
 
     private static async Task<Guid> PostAsync(HttpClient http, Guid client, Guid debit, Guid credit, decimal amount)
@@ -63,7 +63,7 @@ public sealed class PolicyTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         (await checker.PostAsync($"/clients/{c.ClientId}/entries/{originalId}/approve", null)).EnsureSuccessStatusCode();
 
         // The checker proposes a correction...
-        ReviseRequest revise = new(null, 2, new DateOnly(2026, 3, 31), null, null, "corrected amount",
+        ReviseRequest revise = new(null, new DateOnly(2026, 3, 31), null, null, "corrected amount",
             [new PostLineRequest(cash, "Debit", 120m), new PostLineRequest(revenue, "Credit", 120m)]);
         HttpResponseMessage revised = await checker.PostAsJsonAsync($"/clients/{c.ClientId}/entries/{originalId}/revise", revise);
         revised.EnsureSuccessStatusCode();
@@ -127,7 +127,7 @@ public sealed class PolicyTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         // The permission check precedes the entry lookup, so a clerk is refused outright.
         HttpResponseMessage reverse = await c.Http.PostAsJsonAsync(
             $"/clients/{c.ClientId}/entries/{Guid.NewGuid()}/reverse",
-            new ReverseRequest(new DateOnly(2026, 4, 1), 99, null));
+            new ReverseRequest(new DateOnly(2026, 4, 1), null));
         Assert.Equal(HttpStatusCode.Forbidden, reverse.StatusCode);
     }
 }

@@ -12,7 +12,7 @@ namespace Accounting101.Ledger.Api.Tests;
 public sealed class CommandQueryTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 {
     private static PostEntryRequest Entry(long seq, DateOnly date, Guid debit, Guid credit, decimal amount) =>
-        new(null, seq, date, null, null,
+        new(null, date, null, null, // seq is engine-assigned; the parameter just keeps call sites readable
             [new PostLineRequest(debit, "Debit", amount), new PostLineRequest(credit, "Credit", amount)]);
 
     private static async Task<Guid> PostAndApproveAsync(
@@ -71,7 +71,7 @@ public sealed class CommandQueryTests(ApiFixture fixture) : IClassFixture<ApiFix
 
         // Propose a correction (120). It is pending and must not move the books or the original.
         ReviseRequest revise = new(
-            Id: null, SequenceNumber: 2, EffectiveDate: new DateOnly(2026, 3, 31),
+            Id: null, EffectiveDate: new DateOnly(2026, 3, 31),
             Reference: null, Memo: null, Reason: "corrected amount",
             Lines: [new PostLineRequest(cash, "Debit", 120m), new PostLineRequest(revenue, "Credit", 120m)]);
 

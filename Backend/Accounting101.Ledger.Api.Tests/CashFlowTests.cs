@@ -26,7 +26,8 @@ public sealed class CashFlowTests(ApiFixture fixture) : IClassFixture<ApiFixture
     private static async Task PostAndApproveAsync(
         HttpClient http, Guid client, long seq, DateOnly date, Guid debit, Guid credit, decimal amount)
     {
-        PostEntryRequest entry = new(null, seq, date, null, null,
+        _ = seq; // sequence is engine-assigned now
+        PostEntryRequest entry = new(null, date, null, null,
             [new PostLineRequest(debit, "Debit", amount), new PostLineRequest(credit, "Credit", amount)]);
 
         HttpResponseMessage posted = await http.PostAsJsonAsync($"/clients/{client}/entries", entry);
@@ -90,7 +91,7 @@ public sealed class CashFlowTests(ApiFixture fixture) : IClassFixture<ApiFixture
 
         // Close the fiscal year: posts a Closing entry dated 2026-12-31 that resets the temporaries into RE.
         (await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/periods/close-year",
-            new CloseYearRequest(new DateOnly(2026, 12, 31), 100))).EnsureSuccessStatusCode();
+            new CloseYearRequest(new DateOnly(2026, 12, 31)))).EnsureSuccessStatusCode();
 
         // The full-year window contains the close, but the closing entry is excluded, so the period's real
         // revenue, expense, and net income are intact — not zeroed by the reset.

@@ -8,7 +8,6 @@ namespace Accounting101.Ledger.Api.Contracts;
 /// </summary>
 public sealed record PostEntryRequest(
     Guid? Id,
-    long SequenceNumber,
     DateOnly EffectiveDate,
     string? Reference,
     string? Memo,
