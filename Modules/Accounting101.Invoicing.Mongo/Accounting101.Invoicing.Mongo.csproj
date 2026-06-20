@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Persistence for the invoicing module: its own collections in the client's database. Kept separate
+       so the core module stays Mongo-free and depends only on the wire contract. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Accounting101.Invoicing\Accounting101.Invoicing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MongoDB.Driver" Version="3.9.0" />
+  </ItemGroup>
+
+</Project>

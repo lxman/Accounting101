@@ -11,6 +11,8 @@
   </Folder>
   <Folder Name="/Modules/">
     <Project Path="Modules/Accounting101.Invoicing/Accounting101.Invoicing.csproj" />
+    <Project Path="Modules/Accounting101.Invoicing.Mongo/Accounting101.Invoicing.Mongo.csproj" />
+    <Project Path="Modules/Accounting101.Invoicing.Mongo.Tests/Accounting101.Invoicing.Mongo.Tests.csproj" />
     <Project Path="Modules/Accounting101.Invoicing.Tests/Accounting101.Invoicing.Tests.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
