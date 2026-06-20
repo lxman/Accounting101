@@ -1,4 +1,4 @@
-namespace Accounting101.Ledger.Api.Contracts;
+namespace Accounting101.Ledger.Contracts;
 
 public sealed record PostEntryResponse(Guid Id, string Status, string Posting);
 

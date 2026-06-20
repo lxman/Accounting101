@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The HTTP wire contract: request/response DTOs only, no logic and no dependencies. Both the API
+       host and any module (or UI) reference this, so the contract is a real boundary, not a host detail.
+       Today a project; promote to a versioned NuGet package if a module ever ships on its own clock. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Security.Claims;
 using Accounting101.Ledger.Api.Auth;
-using Accounting101.Ledger.Api.Contracts;
+using Accounting101.Ledger.Contracts;
 using Accounting101.Ledger.Api.Control;
 using Accounting101.Ledger.Core.Accounts;
 using Accounting101.Ledger.Core.Journal;

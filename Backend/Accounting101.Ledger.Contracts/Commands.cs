@@ -1,4 +1,4 @@
-namespace Accounting101.Ledger.Api.Contracts;
+namespace Accounting101.Ledger.Contracts;
 
 /// <summary>
 /// Replace an active entry with a corrected one (the edit path). The replacement supersedes the

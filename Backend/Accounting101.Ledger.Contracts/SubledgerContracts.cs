@@ -1,4 +1,4 @@
-namespace Accounting101.Ledger.Api.Contracts;
+namespace Accounting101.Ledger.Contracts;
 
 /// <summary>
 /// A subsidiary ledger: balances within a control account broken out by one dimension (customer,

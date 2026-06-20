@@ -4,6 +4,7 @@
     <Project Path="Backend/Accounting101.Ledger.Api/Accounting101.Ledger.Api.csproj" />
     <Project Path="Backend/Accounting101.Ledger.Benchmark/Accounting101.Ledger.Benchmark.csproj" />
     <Project Path="Backend/Accounting101.Ledger.Core.Tests/Accounting101.Ledger.Core.Tests.csproj" />
+    <Project Path="Backend/Accounting101.Ledger.Contracts/Accounting101.Ledger.Contracts.csproj" />
     <Project Path="Backend/Accounting101.Ledger.Core/Accounting101.Ledger.Core.csproj" />
     <Project Path="Backend/Accounting101.Ledger.Mongo.Tests/Accounting101.Ledger.Mongo.Tests.csproj" />
     <Project Path="Backend/Accounting101.Ledger.Mongo/Accounting101.Ledger.Mongo.csproj" />

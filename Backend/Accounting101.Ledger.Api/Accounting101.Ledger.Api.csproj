@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Accounting101.Ledger.Mongo\Accounting101.Ledger.Mongo.csproj" />
+    <ProjectReference Include="..\Accounting101.Ledger.Contracts\Accounting101.Ledger.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

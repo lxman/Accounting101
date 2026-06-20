@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using Accounting101.Ledger.Api.Contracts;
+using Accounting101.Ledger.Contracts;
 
 namespace Accounting101.Ledger.Api.Tests;
 

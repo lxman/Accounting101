@@ -1,4 +1,4 @@
-using Accounting101.Ledger.Api.Contracts;
+using Accounting101.Ledger.Contracts;
 using Accounting101.Ledger.Api.Control;
 
 namespace Accounting101.Ledger.Api.Endpoints;

@@ -1,4 +1,4 @@
-namespace Accounting101.Ledger.Api.Contracts;
+namespace Accounting101.Ledger.Contracts;
 
 /// <summary>One statement line: an account (or a synthesized total, when <see cref="AccountId"/> is null)
 /// and its amount on the account's natural side.</summary>

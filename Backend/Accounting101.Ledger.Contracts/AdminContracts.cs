@@ -1,4 +1,4 @@
-namespace Accounting101.Ledger.Api.Contracts;
+namespace Accounting101.Ledger.Contracts;
 
 /// <summary>Provision a new client (a set of books). The ledger database name is generated if omitted.</summary>
 public sealed record CreateClientRequest

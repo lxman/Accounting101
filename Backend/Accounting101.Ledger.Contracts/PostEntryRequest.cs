@@ -1,4 +1,4 @@
-namespace Accounting101.Ledger.Api.Contracts;
+namespace Accounting101.Ledger.Contracts;
 
 /// <summary>
 /// Wire contract for posting a journal entry. The client id comes from the route, never the body,

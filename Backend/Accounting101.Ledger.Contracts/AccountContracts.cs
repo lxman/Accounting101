@@ -1,4 +1,4 @@
-namespace Accounting101.Ledger.Api.Contracts;
+namespace Accounting101.Ledger.Contracts;
 
 /// <summary>
 /// Wire contract for creating or updating a chart-of-accounts account (upsert by route id). The host

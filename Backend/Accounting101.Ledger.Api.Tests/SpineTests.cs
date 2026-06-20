@@ -1,6 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
-using Accounting101.Ledger.Api.Contracts;
+using Accounting101.Ledger.Contracts;
 using Accounting101.Ledger.Api.Control;
 using Accounting101.Ledger.Mongo.Documents;
 using MongoDB.Driver;
