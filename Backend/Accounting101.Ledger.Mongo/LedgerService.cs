@@ -209,6 +209,8 @@ public sealed class LedgerService
             audit: new AuditStamp { CreatedBy = actor.UserId, CreatedAt = DateTimeOffset.UtcNow },
             lines: reversedLines,
             reversalOf: originalId,
+            sourceRef: original.SourceRef,   // a reversal stays linked to the same source document...
+            sourceType: original.SourceType, // ...so drill-down from that document still finds it
             reference: original.Reference,
             memo: reason ?? $"Reversal of entry {originalId}");
 

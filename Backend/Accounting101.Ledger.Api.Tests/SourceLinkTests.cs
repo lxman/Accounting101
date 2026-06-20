@@ -39,6 +39,38 @@ public sealed class SourceLinkTests(ApiFixture fixture) : IClassFixture<ApiFixtu
     }
 
     [Fact]
+    public async Task A_reversal_inherits_the_source_link_so_the_document_resolves_both_entries()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid ar = Guid.NewGuid(), revenue = Guid.NewGuid();
+        Guid invoice = Guid.NewGuid();
+
+        PostEntryRequest entry = new(
+            null, new DateOnly(2026, 3, 31), null, null,
+            [new PostLineRequest(ar, "Debit", 100m), new PostLineRequest(revenue, "Credit", 100m)],
+            SourceRef: invoice, SourceType: "Invoice");
+
+        PostEntryResponse created = (await (await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", entry))
+            .Content.ReadFromJsonAsync<PostEntryResponse>())!;
+        (await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{created.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        // Reverse it; the reversal carries no source ref of its own — it must inherit the original's.
+        EntryResponse reversal = (await (await c.Http.PostAsJsonAsync(
+            $"/clients/{c.ClientId}/entries/{created.Id}/reverse",
+            new ReverseRequest(new DateOnly(2026, 4, 1), "voided invoice")))
+            .Content.ReadFromJsonAsync<EntryResponse>())!;
+        Assert.Equal(invoice, reversal.SourceRef);
+        Assert.Equal("Invoice", reversal.SourceType);
+
+        // The document now resolves to both the original entry and its reversal.
+        List<EntryResponse> fromInvoice = (await c.Http.GetFromJsonAsync<List<EntryResponse>>(
+            $"/clients/{c.ClientId}/entries?sourceRef={invoice}"))!;
+        Assert.Equal(2, fromInvoice.Count);
+        Assert.Contains(fromInvoice, e => e.Id == created.Id);
+        Assert.Contains(fromInvoice, e => e.Id == reversal.Id);
+    }
+
+    [Fact]
     public async Task An_entry_with_no_source_document_reports_a_null_back_link()
     {
         SeededClient c = await fixture.SeedClientAsync();
