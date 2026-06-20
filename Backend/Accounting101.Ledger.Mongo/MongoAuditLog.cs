@@ -112,10 +112,17 @@ public sealed class MongoAuditLog
             .SortBy(a => a.Sequence)
             .ToListAsync(cancellationToken);
 
+    /// <summary>
+    /// The client's audit records in sequence order. <paramref name="skip"/>/<paramref name="limit"/> page
+    /// the result (limit &lt;= 0 means no limit); the endpoint applies a default cap so an unbounded scan
+    /// can't be requested by accident.
+    /// </summary>
     public async Task<IReadOnlyList<AuditRecordDocument>> GetForClientAsync(
-        Guid clientId, CancellationToken cancellationToken = default) =>
+        Guid clientId, int skip = 0, int limit = 0, CancellationToken cancellationToken = default) =>
         await _audit.Find(a => a.ClientId == clientId)
             .SortBy(a => a.Sequence)
+            .Skip(skip > 0 ? skip : null)
+            .Limit(limit > 0 ? limit : null)
             .ToListAsync(cancellationToken);
 
     /// <summary>

@@ -71,11 +71,19 @@ public sealed class MongoJournalStore
         return doc?.ToDomain();
     }
 
+    /// <summary>
+    /// The client's entries in sequence order. <paramref name="skip"/>/<paramref name="limit"/> page the
+    /// result (limit &lt;= 0 means no limit, for internal full scans like a projection rebuild); the list
+    /// endpoint applies a default cap so a whole-journal scan can't be requested by accident.
+    /// </summary>
     public async Task<IReadOnlyList<JournalEntry>> GetByClientAsync(
-        Guid clientId, CancellationToken cancellationToken = default)
+        Guid clientId, int skip = 0, int limit = 0, CancellationToken cancellationToken = default)
     {
         List<JournalEntryDocument> docs = await _entries
             .Find(e => e.ClientId == clientId)
+            .SortBy(e => e.SequenceNumber)
+            .Skip(skip > 0 ? skip : null)
+            .Limit(limit > 0 ? limit : null)
             .ToListAsync(cancellationToken);
 
         return docs.Select(d => d.ToDomain()).ToList();

@@ -14,8 +14,17 @@ public sealed record EntryResponse(
     Guid? SupersededBy,
     Guid? ReversalOf,
     Guid? ReversedBy,
+    IReadOnlyList<EntryLineResponse> Lines,
     Guid? SourceRef = null,
     string? SourceType = null);
+
+/// <summary>One posting line as read back: which account, side, amount, and any subledger dimensions.</summary>
+public sealed record EntryLineResponse(
+    Guid AccountId,
+    string Direction,
+    decimal Amount,
+    IReadOnlyDictionary<string, Guid> Dimensions,
+    string? LineMemo);
 
 public sealed record AuditRecordResponse(
     long Sequence,

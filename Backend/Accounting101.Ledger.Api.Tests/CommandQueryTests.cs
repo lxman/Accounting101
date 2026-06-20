@@ -51,7 +51,7 @@ public sealed class CommandQueryTests(ApiFixture fixture) : IClassFixture<ApiFix
         Guid cash = Guid.NewGuid(), revenue = Guid.NewGuid();
         Guid id = await PostAndApproveAsync(c.Http, c.ClientId, 1, new DateOnly(2026, 3, 31), cash, revenue, 100m);
 
-        HttpResponseMessage voided = await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{id}/void?reason=keyed%20twice", null);
+        HttpResponseMessage voided = await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries/{id}/void", new VoidRequest("keyed twice"));
         Assert.Equal(HttpStatusCode.OK, voided.StatusCode);
 
         AccountBalanceResponse bal = (await c.Http.GetFromJsonAsync<AccountBalanceResponse>(
@@ -146,6 +146,60 @@ public sealed class CommandQueryTests(ApiFixture fixture) : IClassFixture<ApiFix
         AuditVerifyResponse verify = (await c.Http.GetFromJsonAsync<AuditVerifyResponse>(
             $"/clients/{c.ClientId}/audit/verify"))!;
         Assert.True(verify.Valid);
+    }
+
+    [Fact]
+    public async Task Reading_an_entry_returns_its_line_detail()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid cash = Guid.NewGuid(), revenue = Guid.NewGuid();
+        PostEntryRequest req = new(null, new DateOnly(2026, 3, 31), null, null,
+            [new PostLineRequest(cash, "Debit", 250m), new PostLineRequest(revenue, "Credit", 250m)]);
+        PostEntryResponse created = (await (await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", req))
+            .Content.ReadFromJsonAsync<PostEntryResponse>())!;
+
+        EntryResponse read = (await c.Http.GetFromJsonAsync<EntryResponse>($"/clients/{c.ClientId}/entries/{created.Id}"))!;
+        Assert.Equal(2, read.Lines.Count);
+        EntryLineResponse debit = read.Lines.Single(l => l.AccountId == cash);
+        Assert.Equal("Debit", debit.Direction);
+        Assert.Equal(250m, debit.Amount);
+    }
+
+    [Fact]
+    public async Task An_adjusting_entry_posts_but_a_closing_entry_is_refused()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid a = Guid.NewGuid(), b = Guid.NewGuid();
+
+        PostEntryRequest adjusting = new(null, new DateOnly(2026, 3, 31), null, null,
+            [new PostLineRequest(a, "Debit", 10m), new PostLineRequest(b, "Credit", 10m)], EntryType: "Adjusting");
+        PostEntryResponse created = (await (await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", adjusting))
+            .Content.ReadFromJsonAsync<PostEntryResponse>())!;
+        EntryResponse read = (await c.Http.GetFromJsonAsync<EntryResponse>($"/clients/{c.ClientId}/entries/{created.Id}"))!;
+        Assert.Equal("Adjusting", read.Type);
+
+        // Closing is engine-generated only — the post endpoint refuses it.
+        PostEntryRequest closing = new(null, new DateOnly(2026, 3, 31), null, null,
+            [new PostLineRequest(a, "Debit", 10m), new PostLineRequest(b, "Credit", 10m)], EntryType: "Closing");
+        HttpResponseMessage refused = await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", closing);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
+    }
+
+    [Fact]
+    public async Task The_entry_list_pages_with_skip_and_limit()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid a = Guid.NewGuid(), b = Guid.NewGuid();
+        for (int i = 0; i < 3; i++)
+            await PostAndApproveAsync(c.Http, c.ClientId, i + 1, new DateOnly(2026, 3, 31), a, b, 10m);
+
+        List<EntryResponse> firstTwo = (await c.Http.GetFromJsonAsync<List<EntryResponse>>(
+            $"/clients/{c.ClientId}/entries?limit=2"))!;
+        Assert.Equal(2, firstTwo.Count);
+
+        List<EntryResponse> rest = (await c.Http.GetFromJsonAsync<List<EntryResponse>>(
+            $"/clients/{c.ClientId}/entries?skip=2&limit=2"))!;
+        Assert.Single(rest);
     }
 
     [Fact]

@@ -124,7 +124,7 @@ public static class LedgerEndpoints
     }
 
     private static async Task<IResult> VoidEntry(
-        Guid clientId, Guid entryId, string? reason, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+        Guid clientId, Guid entryId, VoidRequest? request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Void, cancellationToken);
         if (ctx.Failed) return ctx.Error;
@@ -134,7 +134,7 @@ public static class LedgerEndpoints
 
         try
         {
-            JournalEntry voided = await ctx.Ledger.Service.VoidAsync(entryId, ctx.Actor, reason, cancellationToken);
+            JournalEntry voided = await ctx.Ledger.Service.VoidAsync(entryId, ctx.Actor, request?.Reason, cancellationToken);
             return Results.Ok(ToEntryResponse(voided));
         }
         catch (InvalidOperationException ex)
@@ -273,13 +273,14 @@ public static class LedgerEndpoints
     // ---- Queries ----------------------------------------------------------------------------
 
     private static async Task<IResult> ListEntries(
-        Guid clientId, Guid? account, Guid? sourceRef, string? dimension, Guid? value,
+        Guid clientId, Guid? account, Guid? sourceRef, string? dimension, Guid? value, int? skip, int? limit,
         LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         // Filters are mutually exclusive; precedence is sourceRef, then dimension, then account, then all.
+        // The unfiltered list is paged with a default cap so it can't load the whole journal by accident.
         IReadOnlyList<JournalEntry> entries;
         if (sourceRef is { } source)
             entries = await ctx.Ledger.Journal.GetBySourceRefAsync(clientId, source, cancellationToken);
@@ -288,10 +289,16 @@ public static class LedgerEndpoints
         else if (account is { } accountId)
             entries = await ctx.Ledger.Journal.GetTouchingAccountAsync(clientId, accountId, cancellationToken);
         else
-            entries = await ctx.Ledger.Journal.GetByClientAsync(clientId, cancellationToken);
+            entries = await ctx.Ledger.Journal.GetByClientAsync(clientId, Page(skip), PageLimit(limit), cancellationToken);
 
         return Results.Ok(entries.Select(ToEntryResponse).ToList());
     }
+
+    /// <summary>Page offset, never negative.</summary>
+    private static int Page(int? skip) => skip is > 0 ? skip.Value : 0;
+
+    /// <summary>Page size: defaults to 200, capped at 1000, so an unbounded scan can't be requested.</summary>
+    private static int PageLimit(int? limit) => Math.Clamp(limit ?? 200, 1, 1000);
 
     private static async Task<IResult> GetEntry(
         Guid clientId, Guid entryId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
@@ -421,12 +428,13 @@ public static class LedgerEndpoints
     }
 
     private static async Task<IResult> GetClientAudit(
-        Guid clientId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+        Guid clientId, int? skip, int? limit, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
-        return Results.Ok(ToAuditResponses(await ctx.Ledger.Audit.GetForClientAsync(clientId, cancellationToken)));
+        return Results.Ok(ToAuditResponses(
+            await ctx.Ledger.Audit.GetForClientAsync(clientId, Page(skip), PageLimit(limit), cancellationToken)));
     }
 
     private static async Task<IResult> GetEntryAudit(
@@ -539,6 +547,8 @@ public static class LedgerEndpoints
         e.Id, e.SequenceNumber, e.EffectiveDate,
         e.Type.ToString(), e.Status.ToString(), e.Posting.ToString(),
         e.Lines.Count, e.Supersedes, e.SupersededBy, e.ReversalOf, e.ReversedBy,
+        e.Lines.Select(l => new EntryLineResponse(
+            l.AccountId, l.Direction.ToString(), l.Amount, l.Dimensions, l.LineMemo)).ToList(),
         e.SourceRef, e.SourceType);
 
     private static AccountResponse ToAccountResponse(Account a) => new(
@@ -621,7 +631,7 @@ public static class LedgerEndpoints
             sequenceNumber: 0, // engine-assigned at append
             effectiveDate: request.EffectiveDate,
             postedAt: DateTimeOffset.UtcNow,
-            type: EntryType.Standard,
+            type: ParsePostableType(request.EntryType),
             audit: new AuditStamp { CreatedBy = actor.UserId, CreatedAt = DateTimeOffset.UtcNow },
             lines: MapLines(request.Lines),
             sourceRef: request.SourceRef,
@@ -636,7 +646,7 @@ public static class LedgerEndpoints
             sequenceNumber: 0, // engine-assigned at append
             effectiveDate: request.EffectiveDate,
             postedAt: DateTimeOffset.UtcNow,
-            type: EntryType.Standard,
+            type: ParsePostableType(request.EntryType),
             audit: new AuditStamp { CreatedBy = actor.UserId, CreatedAt = DateTimeOffset.UtcNow },
             lines: MapLines(request.Lines),
             supersedes: originalId,
@@ -644,6 +654,20 @@ public static class LedgerEndpoints
             sourceType: request.SourceType,
             reference: request.Reference,
             memo: request.Memo);
+
+    /// <summary>
+    /// The entry type a caller may set when posting: Standard (default) or Adjusting. Opening, Closing,
+    /// and Reversing are engine-generated through their own paths, so they are refused here.
+    /// </summary>
+    private static EntryType ParsePostableType(string? type)
+    {
+        if (string.IsNullOrWhiteSpace(type))
+            return EntryType.Standard;
+        if (!Enum.TryParse(type, ignoreCase: true, out EntryType parsed) ||
+            parsed is not (EntryType.Standard or EntryType.Adjusting))
+            throw new ArgumentException($"EntryType must be 'Standard' or 'Adjusting'; '{type}' cannot be posted directly.");
+        return parsed;
+    }
 
     private static List<Line> MapLines(IReadOnlyList<PostLineRequest> lines) =>
         lines.Select(l => new Line

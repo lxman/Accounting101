@@ -13,10 +13,14 @@ public sealed record ReviseRequest(
     string? Reason,
     IReadOnlyList<PostLineRequest> Lines,
     Guid? SourceRef = null,
-    string? SourceType = null);
+    string? SourceType = null,
+    string? EntryType = null); // "Standard" (default) or "Adjusting"
 
 /// <summary>Close a period: snapshot on-the-books balances as of this date and freeze through it.</summary>
 public sealed record ClosePeriodRequest(DateOnly AsOf);
+
+/// <summary>Void an active entry (delete-as-event), with an optional reason for the audit log.</summary>
+public sealed record VoidRequest(string? Reason);
 
 /// <summary>
 /// Reverse a posted entry: book a negating entry dated <see cref="ReversalDate"/> (which must be in an
