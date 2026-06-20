@@ -4,6 +4,7 @@ using Accounting101.Ledger.Api.Contracts;
 using Accounting101.Ledger.Api.Control;
 using Accounting101.Ledger.Core.Accounts;
 using Accounting101.Ledger.Core.Journal;
+using Accounting101.Ledger.Core.Reporting;
 using Accounting101.Ledger.Mongo;
 using Accounting101.Ledger.Mongo.Documents;
 using MongoDB.Driver;
@@ -40,6 +41,8 @@ public static class LedgerEndpoints
         clients.MapGet("/entries", ListEntries);
         clients.MapGet("/entries/{entryId:guid}", GetEntry);
         clients.MapGet("/trial-balance", GetTrialBalance);
+        clients.MapGet("/statements/balance-sheet", GetBalanceSheet);
+        clients.MapGet("/statements/income-statement", GetIncomeStatement);
         clients.MapGet("/accounts", ListAccounts);
         clients.MapGet("/accounts/{accountId:guid}", GetAccount);
         clients.MapGet("/accounts/{accountId:guid}/balance", GetAccountBalance);
@@ -305,6 +308,34 @@ public static class LedgerEndpoints
         return Results.Ok(new TrialBalanceResponse(asOf, ToAccountBalances(balances)));
     }
 
+    private static async Task<IResult> GetBalanceSheet(
+        Guid clientId, DateOnly? asOf, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        // "As of now" defaults to today; future-dated entries are excluded, as a balance sheet expects.
+        DateOnly asOfDate = asOf ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        BalanceSheet sheet = await ctx.Ledger.Statements.BalanceSheetAsync(clientId, asOfDate, cancellationToken);
+        return Results.Ok(ToBalanceSheetResponse(sheet));
+    }
+
+    private static async Task<IResult> GetIncomeStatement(
+        Guid clientId, DateOnly? from, DateOnly? to, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        // An income statement is a flow over a window, so both bounds are required and must be ordered.
+        if (from is not { } start || to is not { } end)
+            return Unprocessable("An income statement requires both 'from' and 'to' dates.");
+        if (start > end)
+            return Unprocessable("'from' must not be after 'to'.");
+
+        IncomeStatement statement = await ctx.Ledger.Statements.IncomeStatementAsync(clientId, start, end, cancellationToken);
+        return Results.Ok(ToIncomeStatementResponse(statement));
+    }
+
     private static async Task<IResult> GetAccountBalance(
         Guid clientId, Guid accountId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
@@ -457,6 +488,27 @@ public static class LedgerEndpoints
 
     private static List<AccountBalanceResponse> ToAccountBalances(IReadOnlyDictionary<Guid, decimal> balances) =>
         balances.Select(kv => new AccountBalanceResponse(kv.Key, kv.Value)).ToList();
+
+    private static BalanceSheetResponse ToBalanceSheetResponse(BalanceSheet sheet) => new(
+        sheet.AsOf,
+        ToSectionResponse(sheet.Assets),
+        ToSectionResponse(sheet.Liabilities),
+        ToSectionResponse(sheet.Equity),
+        sheet.TotalAssets,
+        sheet.TotalLiabilitiesAndEquity,
+        sheet.IsBalanced);
+
+    private static IncomeStatementResponse ToIncomeStatementResponse(IncomeStatement statement) => new(
+        statement.From,
+        statement.To,
+        ToSectionResponse(statement.Revenue),
+        ToSectionResponse(statement.Expenses),
+        statement.NetIncome);
+
+    private static StatementSectionResponse ToSectionResponse(StatementSection section) => new(
+        section.Title,
+        section.Lines.Select(l => new StatementLineResponse(l.AccountId, l.Number, l.Name, l.Amount)).ToList(),
+        section.Total);
 
     private static List<AuditRecordResponse> ToAuditResponses(IEnumerable<AuditRecordDocument> records) =>
         records.Select(r => new AuditRecordResponse(

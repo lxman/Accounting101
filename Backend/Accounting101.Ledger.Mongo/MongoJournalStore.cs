@@ -118,21 +118,54 @@ public sealed class MongoJournalStore
     /// Server-side trial balance: folds the journal in MongoDB via aggregation,
     /// applying the same on-the-books gate as <see cref="LedgerReplay"/> (Active +
     /// Posted) and the same debit-positive signed-effect (Debit => +Amount,
-    /// Credit => -Amount). The "load entries and fold in C#" path is
-    /// <see cref="GetByClientAsync"/> + <see cref="LedgerReplay.Balances"/>.
+    /// Credit => -Amount). With <paramref name="asOf"/>, balances are taken at that
+    /// instant (entries after it are excluded). The "load entries and fold in C#"
+    /// path is <see cref="GetByClientAsync"/> + <see cref="LedgerReplay.Balances"/>.
     /// </summary>
-    public async Task<IReadOnlyDictionary<Guid, decimal>> AggregateBalancesAsync(
+    public Task<IReadOnlyDictionary<Guid, decimal>> AggregateBalancesAsync(
         Guid clientId, DateOnly? asOf = null, CancellationToken cancellationToken = default)
     {
-        BsonDocument match = new()
-        {
-            { "ClientId", new BsonBinaryData(clientId, GuidRepresentation.Standard) },
-            { "Status", nameof(LifecycleStatus.Active) },
-            { "Posting", nameof(PostingState.Posted) },
-        };
+        BsonDocument match = OnBooks(clientId);
         if (asOf is { } asOfDate)
-            match.Add("EffectiveDate", new BsonDocument("$lte", asOfDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)));
+            match.Add("EffectiveDate", new BsonDocument("$lte", Iso(asOfDate)));
 
+        return FoldAsync(match, cancellationToken);
+    }
+
+    /// <summary>
+    /// Per-account activity over a window — the same debit-positive fold as
+    /// <see cref="AggregateBalancesAsync"/>, restricted to entries whose effective date falls within
+    /// [<paramref name="from"/>, <paramref name="to"/>]. Feeds the income statement, which is a flow
+    /// over a period rather than a balance at an instant. The period is expected to sit within one
+    /// fiscal year, so a year-end closing entry does not net into the window.
+    /// </summary>
+    public Task<IReadOnlyDictionary<Guid, decimal>> AggregateActivityAsync(
+        Guid clientId, DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
+    {
+        BsonDocument match = OnBooks(clientId);
+        match.Add("EffectiveDate", new BsonDocument { { "$gte", Iso(from) }, { "$lte", Iso(to) } });
+
+        return FoldAsync(match, cancellationToken);
+    }
+
+    /// <summary>The on-the-books predicate shared by every balance fold: this client, Active and Posted.</summary>
+    private static BsonDocument OnBooks(Guid clientId) => new()
+    {
+        { "ClientId", new BsonBinaryData(clientId, GuidRepresentation.Standard) },
+        { "Status", nameof(LifecycleStatus.Active) },
+        { "Posting", nameof(PostingState.Posted) },
+    };
+
+    private static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Unwind the matched entries' lines and sum the debit-positive signed effect per account
+    /// (Debit => +Amount, Credit => -Amount). The caller supplies the <c>$match</c> stage; everything
+    /// downstream is identical for a full trial balance and a windowed activity fold.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<Guid, decimal>> FoldAsync(
+        BsonDocument match, CancellationToken cancellationToken)
+    {
         BsonDocument[] pipeline =
         [
             new("$match", match),
@@ -158,7 +191,7 @@ public sealed class MongoJournalStore
         Dictionary<Guid, decimal> balances = new(results.Count);
         foreach (BsonDocument doc in results)
         {
-            var accountId = doc["_id"].AsBsonBinaryData.ToGuid(GuidRepresentation.Standard);
+            Guid accountId = doc["_id"].AsBsonBinaryData.ToGuid(GuidRepresentation.Standard);
             balances[accountId] = doc["balance"].AsDecimal;
         }
 

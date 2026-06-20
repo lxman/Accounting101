@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Accounting101.Ledger.Mongo;
+using Accounting101.Ledger.Mongo.Reporting;
 using MongoDB.Driver;
 
 namespace Accounting101.Ledger.Api.Tenancy;
@@ -26,6 +27,7 @@ public sealed class ClientLedgerFactory(IClientDatabaseResolver resolver)
         MongoAuditLog audit = new(database);
         MongoAccountStore accounts = new(database);
         LedgerService service = new(database.Client, journal, projection, checkpoints, audit);
+        FinancialStatementService statements = new(journal, accounts);
 
         if (_indexed.TryAdd(clientId, true))
         {
@@ -33,6 +35,6 @@ public sealed class ClientLedgerFactory(IClientDatabaseResolver resolver)
             await audit.EnsureIndexesAsync(cancellationToken);
         }
 
-        return new ClientLedger(service, journal, audit, projection, checkpoints, accounts);
+        return new ClientLedger(service, journal, audit, projection, checkpoints, accounts, statements);
     }
 }
