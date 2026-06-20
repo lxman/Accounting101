@@ -132,6 +132,24 @@ public sealed class MongoJournalStore
         return docs.Select(d => d.ToDomain()).ToList();
     }
 
+    /// <summary>
+    /// Every entry that reverses <paramref name="originalId"/> (its <see cref="JournalEntry.ReversalOf"/>
+    /// points here). Lets the reverse path detect — and refuse — a second reversal of the same entry, and
+    /// lets a caller walk from an entry to the reversal that negated it without storing a back-pointer on
+    /// the (possibly frozen) original.
+    /// </summary>
+    public async Task<IReadOnlyList<JournalEntry>> GetByReversalOfAsync(
+        Guid clientId, Guid originalId, CancellationToken cancellationToken = default)
+    {
+        FilterDefinitionBuilder<JournalEntryDocument> f = Builders<JournalEntryDocument>.Filter;
+        FilterDefinition<JournalEntryDocument> filter = f.And(
+            f.Eq(e => e.ClientId, clientId),
+            f.Eq(e => e.ReversalOf, originalId));
+
+        List<JournalEntryDocument> docs = await _entries.Find(filter).ToListAsync(cancellationToken);
+        return docs.Select(d => d.ToDomain()).ToList();
+    }
+
     /// <summary>Creates the indexes the prototype's read paths rely on. Idempotent.</summary>
     public Task EnsureIndexesAsync(CancellationToken cancellationToken = default)
     {

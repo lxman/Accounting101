@@ -56,6 +56,28 @@ public sealed class ReverseTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     }
 
     [Fact]
+    public async Task An_entry_cannot_be_reversed_twice_and_its_timeline_records_the_reversal()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid cash = Guid.NewGuid(), revenue = Guid.NewGuid();
+        Guid id = await PostAndApproveAsync(c.Http, c.ClientId, new DateOnly(2026, 3, 31), cash, revenue, 100m);
+
+        HttpResponseMessage first = await c.Http.PostAsJsonAsync(
+            $"/clients/{c.ClientId}/entries/{id}/reverse", new ReverseRequest(new DateOnly(2026, 4, 1), "first"));
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+
+        // A second reversal of the same entry is refused — it would over-correct.
+        HttpResponseMessage second = await c.Http.PostAsJsonAsync(
+            $"/clients/{c.ClientId}/entries/{id}/reverse", new ReverseRequest(new DateOnly(2026, 4, 2), "second"));
+        Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
+
+        // The original's own audit timeline shows it was reversed (recorded without mutating the entry).
+        AuditRecordResponse[] timeline = (await c.Http.GetFromJsonAsync<AuditRecordResponse[]>(
+            $"/clients/{c.ClientId}/audit/{id}"))!;
+        Assert.Contains(timeline, a => a.Action == "Reversed");
+    }
+
+    [Fact]
     public async Task A_closed_period_entry_is_reversed_in_an_open_period_not_unfrozen()
     {
         SeededClient c = await fixture.SeedClientAsync();

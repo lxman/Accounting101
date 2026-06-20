@@ -7,6 +7,7 @@ public enum AuditAction
     Approved,
     Voided,
     Superseded,
+    Reversed,
     PeriodClosed,
     PeriodReopened,
 }

@@ -193,6 +193,13 @@ public sealed class LedgerService
             throw new InvalidOperationException(
                 $"Only an active, posted entry can be reversed; entry {originalId} is {original.Status}/{original.Posting}.");
 
+        // Refuse a second reversal: an entry already negated by a live reversal must not be reversed again,
+        // or it would be over-corrected. The back-link is derived (the original may be frozen, so we never
+        // mutate it) — an existing reversal that was itself voided does not count.
+        IReadOnlyList<JournalEntry> existing = await _journal.GetByReversalOfAsync(original.ClientId, originalId, cancellationToken);
+        if (existing.Any(r => r.Status == LifecycleStatus.Active))
+            throw new InvalidOperationException($"Entry {originalId} has already been reversed.");
+
         // The reversal lands in an open period; the original may be in a closed one — that is the point.
         await EnsureOpenAsync(original.ClientId, reversalDate, cancellationToken);
 
@@ -229,6 +236,9 @@ public sealed class LedgerService
         {
             recorded = await AppendSequencedAsync(reversal, session, cancellationToken);
             await _audit.AppendAsync(recorded.ClientId, recorded.Id, recorded.Version, AuditAction.Created, actor, reason, now, session, cancellationToken);
+            // Also record the reversal against the ORIGINAL's timeline (an append, so it is freeze-safe and
+            // never mutates the frozen entry), so "what happened to this entry" shows it was reversed.
+            await _audit.AppendAsync(original.ClientId, originalId, original.Version, AuditAction.Reversed, actor, reason, now, session, cancellationToken);
         }, cancellationToken);
 
         return recorded;

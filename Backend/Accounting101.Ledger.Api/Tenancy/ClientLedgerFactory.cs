@@ -30,10 +30,21 @@ public sealed class ClientLedgerFactory(IClientDatabaseResolver resolver)
         LedgerService service = new(database.Client, journal, projection, checkpoints, audit, sequences);
         FinancialStatementService statements = new(journal, accounts);
 
+        // Ensure indexes once per client per process — but only mark the client done once it actually
+        // succeeds, or a transient failure on the first attempt would latch it into the skip path and the
+        // client would run unindexed for the life of the process.
         if (_indexed.TryAdd(clientId, true))
         {
-            await journal.EnsureIndexesAsync(cancellationToken);
-            await audit.EnsureIndexesAsync(cancellationToken);
+            try
+            {
+                await journal.EnsureIndexesAsync(cancellationToken);
+                await audit.EnsureIndexesAsync(cancellationToken);
+            }
+            catch
+            {
+                _indexed.TryRemove(clientId, out _); // re-arm so a later request retries
+                throw;
+            }
         }
 
         return new ClientLedger(service, journal, audit, projection, checkpoints, accounts, statements);
