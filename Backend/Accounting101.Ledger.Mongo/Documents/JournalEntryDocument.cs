@@ -42,6 +42,7 @@ public sealed class JournalEntryDocument
     public Guid? ReversalOf { get; set; }
     public Guid? ReversedBy { get; set; }
     public Guid? SourceRef { get; set; }
+    public string? SourceType { get; set; }
     public string? Reference { get; set; }
     public string? Memo { get; set; }
     public int Version { get; set; }
@@ -64,6 +65,7 @@ public sealed class JournalEntryDocument
         ReversalOf = e.ReversalOf,
         ReversedBy = e.ReversedBy,
         SourceRef = e.SourceRef,
+        SourceType = e.SourceType,
         Reference = e.Reference,
         Memo = e.Memo,
         Version = e.Version,
@@ -88,6 +90,7 @@ public sealed class JournalEntryDocument
         reversalOf: ReversalOf,
         reversedBy: ReversedBy,
         sourceRef: SourceRef,
+        sourceType: SourceType,
         reference: Reference,
         memo: Memo);
 }

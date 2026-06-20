@@ -270,14 +270,17 @@ public static class LedgerEndpoints
     // ---- Queries ----------------------------------------------------------------------------
 
     private static async Task<IResult> ListEntries(
-        Guid clientId, Guid? account, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+        Guid clientId, Guid? account, Guid? sourceRef, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
-        IReadOnlyList<JournalEntry> entries = account is { } accountId
-            ? await ctx.Ledger.Journal.GetTouchingAccountAsync(clientId, accountId, cancellationToken)
-            : await ctx.Ledger.Journal.GetByClientAsync(clientId, cancellationToken);
+        // sourceRef (the module back-link) takes precedence over account when both are given.
+        IReadOnlyList<JournalEntry> entries = sourceRef is { } source
+            ? await ctx.Ledger.Journal.GetBySourceRefAsync(clientId, source, cancellationToken)
+            : account is { } accountId
+                ? await ctx.Ledger.Journal.GetTouchingAccountAsync(clientId, accountId, cancellationToken)
+                : await ctx.Ledger.Journal.GetByClientAsync(clientId, cancellationToken);
 
         return Results.Ok(entries.Select(ToEntryResponse).ToList());
     }
@@ -481,7 +484,8 @@ public static class LedgerEndpoints
     private static EntryResponse ToEntryResponse(JournalEntry e) => new(
         e.Id, e.SequenceNumber, e.EffectiveDate,
         e.Type.ToString(), e.Status.ToString(), e.Posting.ToString(),
-        e.Lines.Count, e.Supersedes, e.SupersededBy, e.ReversalOf, e.ReversedBy);
+        e.Lines.Count, e.Supersedes, e.SupersededBy, e.ReversalOf, e.ReversedBy,
+        e.SourceRef, e.SourceType);
 
     private static AccountResponse ToAccountResponse(Account a) => new(
         a.Id, a.Number, a.Name, a.Type.ToString(), a.ParentId, a.Postable,
@@ -568,6 +572,8 @@ public static class LedgerEndpoints
             type: EntryType.Standard,
             audit: new AuditStamp { CreatedBy = actor.UserId, CreatedAt = DateTimeOffset.UtcNow },
             lines: MapLines(request.Lines),
+            sourceRef: request.SourceRef,
+            sourceType: request.SourceType,
             reference: request.Reference,
             memo: request.Memo);
 
@@ -582,6 +588,8 @@ public static class LedgerEndpoints
             audit: new AuditStamp { CreatedBy = actor.UserId, CreatedAt = DateTimeOffset.UtcNow },
             lines: MapLines(request.Lines),
             supersedes: originalId,
+            sourceRef: request.SourceRef,
+            sourceType: request.SourceType,
             reference: request.Reference,
             memo: request.Memo);
 

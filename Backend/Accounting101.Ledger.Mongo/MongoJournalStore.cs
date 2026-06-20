@@ -94,6 +94,24 @@ public sealed class MongoJournalStore
         return docs.Select(d => d.ToDomain()).ToList();
     }
 
+    /// <summary>
+    /// Every entry spawned by one source document — the back-link an upstream module follows to reach
+    /// the journal from one of its business documents (invoice, pay-run). More than one can share a
+    /// <paramref name="sourceRef"/>: a revised entry leaves the superseded original behind, and a
+    /// reversal points at the same source. Served by the (client, sourceRef) index.
+    /// </summary>
+    public async Task<IReadOnlyList<JournalEntry>> GetBySourceRefAsync(
+        Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default)
+    {
+        FilterDefinitionBuilder<JournalEntryDocument> f = Builders<JournalEntryDocument>.Filter;
+        FilterDefinition<JournalEntryDocument> filter = f.And(
+            f.Eq(e => e.ClientId, clientId),
+            f.Eq(e => e.SourceRef, sourceRef));
+
+        List<JournalEntryDocument> docs = await _entries.Find(filter).ToListAsync(cancellationToken);
+        return docs.Select(d => d.ToDomain()).ToList();
+    }
+
     /// <summary>Creates the indexes the prototype's read paths rely on. Idempotent.</summary>
     public Task EnsureIndexesAsync(CancellationToken cancellationToken = default)
     {
@@ -109,6 +127,8 @@ public sealed class MongoJournalStore
                 new CreateIndexOptions { Name = "client_effectiveDate" }),
             new(keys.Ascending(e => e.ClientId).Ascending(e => e.SequenceNumber),
                 new CreateIndexOptions { Name = "client_sequence_unique", Unique = true }),
+            new(keys.Ascending(e => e.ClientId).Ascending(e => e.SourceRef),
+                new CreateIndexOptions { Name = "client_sourceRef" }),
         ];
 
         return _entries.Indexes.CreateManyAsync(models, cancellationToken);

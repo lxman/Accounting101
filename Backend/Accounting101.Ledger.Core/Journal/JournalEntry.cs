@@ -21,6 +21,14 @@ public sealed record JournalEntry
     public Guid? ReversalOf { get; private init; }
     public Guid? ReversedBy { get; private init; }
     public Guid? SourceRef { get; private init; }
+
+    /// <summary>
+    /// Opaque discriminator naming the kind of document <see cref="SourceRef"/> points at
+    /// (e.g. "Invoice", "PayRun"). The engine never interprets it; it tells an upstream module
+    /// which of its stores to resolve the back-link in. Null when the entry has no source document.
+    /// </summary>
+    public string? SourceType { get; private init; }
+
     public string? Reference { get; private init; }
     public string? Memo { get; private init; }
     public int Version { get; private init; }
@@ -33,7 +41,7 @@ public sealed record JournalEntry
         Guid id, Guid clientId, long sequenceNumber, DateOnly effectiveDate, DateTimeOffset postedAt,
         EntryType type, LifecycleStatus status, PostingState posting,
         Guid? supersedes, Guid? supersededBy, Guid? reversalOf, Guid? reversedBy,
-        Guid? sourceRef, string? reference, string? memo, int version,
+        Guid? sourceRef, string? sourceType, string? reference, string? memo, int version,
         AuditStamp audit, IReadOnlyList<Line> lines)
     {
         Id = id;
@@ -49,6 +57,7 @@ public sealed record JournalEntry
         ReversalOf = reversalOf;
         ReversedBy = reversedBy;
         SourceRef = sourceRef;
+        SourceType = sourceType;
         Reference = reference;
         Memo = memo;
         Version = version;
@@ -79,6 +88,7 @@ public sealed record JournalEntry
         Guid? reversalOf = null,
         Guid? reversedBy = null,
         Guid? sourceRef = null,
+        string? sourceType = null,
         string? reference = null,
         string? memo = null)
     {
@@ -96,7 +106,7 @@ public sealed record JournalEntry
             id, clientId, sequenceNumber, effectiveDate, postedAt,
             type, status, posting,
             supersedes, supersededBy, reversalOf, reversedBy,
-            sourceRef, reference, memo, version,
+            sourceRef, sourceType, reference, memo, version,
             audit, [.. lines]); // defensive immutable snapshot
     }
 

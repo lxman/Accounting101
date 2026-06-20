@@ -12,7 +12,9 @@ public sealed record ReviseRequest(
     string? Reference,
     string? Memo,
     string? Reason,
-    IReadOnlyList<PostLineRequest> Lines);
+    IReadOnlyList<PostLineRequest> Lines,
+    Guid? SourceRef = null,
+    string? SourceType = null);
 
 /// <summary>Close a period: snapshot on-the-books balances as of this date and freeze through it.</summary>
 public sealed record ClosePeriodRequest(DateOnly AsOf);

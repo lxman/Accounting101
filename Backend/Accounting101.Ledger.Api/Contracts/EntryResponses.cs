@@ -13,7 +13,9 @@ public sealed record EntryResponse(
     Guid? Supersedes,
     Guid? SupersededBy,
     Guid? ReversalOf,
-    Guid? ReversedBy);
+    Guid? ReversedBy,
+    Guid? SourceRef = null,
+    string? SourceType = null);
 
 public sealed record AuditRecordResponse(
     long Sequence,

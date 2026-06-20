@@ -21,6 +21,7 @@ public sealed class JournalEntryBuilder(
     public string? Memo { get; set; }
     public string? Reference { get; set; }
     public Guid? SourceRef { get; set; }
+    public string? SourceType { get; set; }
 
     public JournalEntryBuilder Debit(Guid accountId, decimal amount,
         Guid? customerId = null, Guid? vendorId = null, Guid? itemId = null,
@@ -61,6 +62,7 @@ public sealed class JournalEntryBuilder(
         lines: _lines,
         posting: Posting,
         sourceRef: SourceRef,
+        sourceType: SourceType,
         reference: Reference,
         memo: Memo);
 }

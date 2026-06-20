@@ -74,6 +74,37 @@ public sealed class MongoJournalStoreTests(MongoFixture fixture) : IClassFixture
     }
 
     [Fact]
+    public async Task Source_back_link_round_trips_and_resolves_an_entry_from_its_document()
+    {
+        MongoJournalStore store = fixture.NewStore();
+        var clientId = Guid.NewGuid();
+        var ar = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var invoice = Guid.NewGuid();
+
+        // The invoice posts an entry, then a reversal — both carry the same back-link.
+        JournalEntryBuilder issued = Builder(clientId, 1);
+        issued.SourceRef = invoice;
+        issued.SourceType = "Invoice";
+        await store.AppendAsync(issued.Debit(ar, 100m).Credit(revenue, 100m).Build());
+
+        JournalEntryBuilder reversed = Builder(clientId, 2);
+        reversed.SourceRef = invoice;
+        reversed.SourceType = "Invoice";
+        await store.AppendAsync(reversed.Credit(ar, 100m).Debit(revenue, 100m).Build());
+
+        // An unrelated entry with no source document must not come back.
+        await store.AppendAsync(Builder(clientId, 3).Debit(cash, 50m).Credit(revenue, 50m).Build());
+
+        IReadOnlyList<JournalEntry> fromInvoice = await store.GetBySourceRefAsync(clientId, invoice);
+
+        Assert.Equal(2, fromInvoice.Count);
+        Assert.All(fromInvoice, e => Assert.Equal(invoice, e.SourceRef));
+        Assert.All(fromInvoice, e => Assert.Equal("Invoice", e.SourceType));
+    }
+
+    [Fact]
     public async Task Unique_sequence_index_rejects_a_duplicate_sequence_for_a_client()
     {
         MongoJournalStore store = fixture.NewStore();
