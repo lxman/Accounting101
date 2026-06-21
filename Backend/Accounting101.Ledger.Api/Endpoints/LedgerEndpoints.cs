@@ -486,7 +486,9 @@ public static class LedgerEndpoints
             return Unprocessable(ex.Message);
         }
 
-        await ctx.Ledger.Accounts.UpsertAsync(account, cancellationToken);
+        // Routed through ChartService so the change is recorded on the tamper-evident chain (who, what,
+        // before/after) atomically with the write — chart edits are control-relevant, not silent.
+        await ctx.Ledger.Chart.UpsertAsync(account, ctx.Actor, cancellationToken);
         return Results.Ok(ToAccountResponse(account));
     }
 

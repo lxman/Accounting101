@@ -10,4 +10,6 @@ public enum AuditAction
     Reversed,
     PeriodClosed,
     PeriodReopened,
+    AccountCreated,
+    AccountUpdated,
 }

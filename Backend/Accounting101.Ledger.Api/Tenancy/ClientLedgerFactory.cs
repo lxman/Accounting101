@@ -28,6 +28,7 @@ public sealed class ClientLedgerFactory(IClientDatabaseResolver resolver)
         MongoAccountStore accounts = new(database);
         MongoSequenceStore sequences = new(database);
         LedgerService service = new(database.Client, journal, projection, checkpoints, audit, sequences);
+        ChartService chart = new(database.Client, accounts, audit);
         FinancialStatementService statements = new(journal, accounts);
 
         // Ensure indexes once per client per process — but only mark the client done once it actually
@@ -47,6 +48,6 @@ public sealed class ClientLedgerFactory(IClientDatabaseResolver resolver)
             }
         }
 
-        return new ClientLedger(service, journal, audit, projection, checkpoints, accounts, statements);
+        return new ClientLedger(service, journal, audit, projection, checkpoints, accounts, chart, statements);
     }
 }

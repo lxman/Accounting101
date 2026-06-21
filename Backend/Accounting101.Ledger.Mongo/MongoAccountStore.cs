@@ -22,15 +22,19 @@ public sealed class MongoAccountStore
         _accounts = database.GetCollection<AccountDocument>(collectionName);
     }
 
-    /// <summary>Add or update an account (by its stable id).</summary>
-    public Task UpsertAsync(Account account, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Add or update an account (by its stable id). Joins the given transaction when one is supplied, so
+    /// the change can commit atomically with its audit record (chart changes are audited via <c>ChartService</c>).
+    /// </summary>
+    public Task UpsertAsync(Account account, IClientSessionHandle? session = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(account);
-        return _accounts.ReplaceOneAsync(
-            a => a.Id == account.Id,
-            AccountDocument.FromDomain(account),
-            new ReplaceOptions { IsUpsert = true },
-            cancellationToken);
+        AccountDocument doc = AccountDocument.FromDomain(account);
+        FilterDefinition<AccountDocument> filter = Builders<AccountDocument>.Filter.Where(a => a.Id == account.Id);
+        ReplaceOptions options = new() { IsUpsert = true };
+        return session is null
+            ? _accounts.ReplaceOneAsync(filter, doc, options, cancellationToken)
+            : _accounts.ReplaceOneAsync(session, filter, doc, options, cancellationToken);
     }
 
     public async Task<Account?> GetAsync(Guid id, CancellationToken cancellationToken = default)

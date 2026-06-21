@@ -15,4 +15,5 @@ public sealed record ClientLedger(
     MongoBalanceProjection Projection,
     MongoCheckpointStore Checkpoints,
     MongoAccountStore Accounts,
+    ChartService Chart,
     FinancialStatementService Statements);
