@@ -31,7 +31,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Accounting101.Ledger.Api\Accounting101.Ledger.Api.csproj" />
+    <ProjectReference Include="..\Accounting101.Host\Accounting101.Host.csproj" />
   </ItemGroup>
 
 </Project>
