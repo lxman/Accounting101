@@ -22,6 +22,9 @@ public sealed class MongoDocumentStore
         _database = database;
     }
 
+    private static readonly DocumentState[] HiddenStates =
+        [DocumentState.Inactive, DocumentState.Superseded, DocumentState.Voided];
+
     private IMongoCollection<ModuleDocument> Collection(string collection) =>
         _database.GetCollection<ModuleDocument>(collection);
 
@@ -54,5 +57,34 @@ public sealed class MongoDocumentStore
         return session is null
             ? c.DeleteOneAsync(filter, cancellationToken)
             : c.DeleteOneAsync(session, filter, null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Documents whose tags match every entry in <paramref name="tagFilter"/> (equality). Hides
+    /// Inactive/Superseded/Voided — the active view, mirroring the journal's "replay sums Active" default.
+    /// </summary>
+    public async Task<IReadOnlyList<ModuleDocument>> QueryAsync(
+        string collection, IReadOnlyDictionary<string, string> tagFilter, CancellationToken cancellationToken = default)
+    {
+        FilterDefinitionBuilder<ModuleDocument> b = Builders<ModuleDocument>.Filter;
+        List<FilterDefinition<ModuleDocument>> clauses = [b.Nin(d => d.State, HiddenStates)];
+        clauses.AddRange(tagFilter.Select(t => b.Eq("Tags." + t.Key, t.Value)));
+        return await Collection(collection).Find(b.And(clauses)).ToListAsync(cancellationToken);
+    }
+
+    /// <summary>Ensure an index on each declared indexed-tag key (<c>Tags.{key}</c>). Idempotent.</summary>
+    public async Task EnsureTagIndexesAsync(
+        string collection, IReadOnlyList<string> indexedTags, CancellationToken cancellationToken = default)
+    {
+        if (indexedTags.Count == 0)
+            return;
+
+        List<CreateIndexModel<ModuleDocument>> models = indexedTags
+            .Select(tag => new CreateIndexModel<ModuleDocument>(
+                Builders<ModuleDocument>.IndexKeys.Ascending("Tags." + tag),
+                new CreateIndexOptions { Name = "tag_" + tag }))
+            .ToList();
+
+        await Collection(collection).Indexes.CreateManyAsync(models, cancellationToken);
     }
 }
