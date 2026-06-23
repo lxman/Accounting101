@@ -36,7 +36,7 @@ public sealed class ModuleManifest
     public IReadOnlyList<string> IndexedTags(string collection) =>
         _indexedTags.TryGetValue(collection, out IReadOnlyList<string>? tags) ? tags : [];
 
-    public IReadOnlyCollection<string> Collections => (IReadOnlyCollection<string>)_policies.Keys;
+    public IReadOnlyCollection<string> Collections => _policies.Keys.ToArray();
 }
 
 /// <summary>Fluent builder a module uses to declare its collections at <c>AddModule</c> time.</summary>
