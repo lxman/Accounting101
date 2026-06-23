@@ -63,22 +63,47 @@ internal sealed class InMemoryCustomerStore : ICustomerStore
 internal sealed class InMemoryInvoiceStore : IInvoiceStore
 {
     private readonly ConcurrentDictionary<(Guid, Guid), Invoice> _store = new();
+    private int _next;
 
-    public Task SaveAsync(Guid clientId, Invoice invoice, CancellationToken cancellationToken = default)
+    public Task<Invoice> CreateDraftAsync(Guid clientId, InvoiceBody body, CancellationToken cancellationToken = default)
     {
-        _store[(clientId, invoice.Id)] = invoice;
+        Invoice draft = new()
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = body.CustomerId,
+            Number = null,
+            IssueDate = body.IssueDate,
+            DueDate = body.DueDate,
+            Status = InvoiceStatus.Draft,
+            TaxRate = body.TaxRate,
+            Memo = body.Memo,
+            Lines = body.Lines.Select(l => new InvoiceLine { Description = l.Description, Quantity = l.Quantity, UnitPrice = l.UnitPrice, Taxable = l.Taxable }).ToList(),
+        };
+        _store[(clientId, draft.Id)] = draft;
+        return Task.FromResult(draft);
+    }
+
+    public Task<Invoice> FinalizeAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default)
+    {
+        Invoice draft = _store[(clientId, invoiceId)];
+        Invoice issued = draft with { Number = $"INV-{Interlocked.Increment(ref _next):D5}", Status = InvoiceStatus.Issued };
+        _store[(clientId, invoiceId)] = issued;
+        return Task.FromResult(issued);
+    }
+
+    public Task VoidAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default)
+    {
+        _store[(clientId, invoiceId)] = _store[(clientId, invoiceId)] with { Status = InvoiceStatus.Void };
         return Task.CompletedTask;
     }
 
     public Task<Invoice?> GetAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default) =>
         Task.FromResult(_store.GetValueOrDefault((clientId, invoiceId)));
-}
 
-internal sealed class FakeInvoiceNumbers : IInvoiceNumbers
-{
-    private int _next;
-    public Task<string> NextAsync(Guid clientId, CancellationToken cancellationToken = default) =>
-        Task.FromResult($"INV-{Interlocked.Increment(ref _next):D4}");
+    public Task<IReadOnlyList<Invoice>> GetByCustomerAsync(Guid clientId, Guid customerId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Invoice>>(
+            _store.Where(kv => kv.Key.Item1 == clientId && kv.Value.CustomerId == customerId && kv.Value.Status != InvoiceStatus.Void)
+                .Select(kv => kv.Value).ToList());
 }
 
 internal sealed class FixedAccountsProvider(InvoicePostingAccounts accounts) : IInvoiceAccountsProvider

@@ -10,8 +10,9 @@ public sealed record Invoice
     public required Guid Id { get; init; }
     public required Guid CustomerId { get; init; }
 
-    /// <summary>Human-facing invoice number — the module's own sequence, distinct from the journal sequence.</summary>
-    public required string Number { get; init; }
+    /// <summary>Human-facing invoice number, derived from the engine's gapless sequence at issue.
+    /// Null while the invoice is a draft (a draft consumes no number).</summary>
+    public string? Number { get; init; }
 
     public required DateOnly IssueDate { get; init; }
     public DateOnly? DueDate { get; init; }

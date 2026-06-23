@@ -1,12 +1,11 @@
-using Accounting101.Invoicing;
 using Accounting101.Ledger.Contracts;
 
 namespace Accounting101.Invoicing.Tests;
 
 /// <summary>
-/// The invoice lifecycle against an in-memory engine: issuing a draft posts and approves the composed
-/// A/R entry and flips the invoice to Issued; voiding finds that entry by its source back-link and
-/// reverses it; and the status guards hold (no issuing a non-draft, no voiding a non-issued invoice).
+/// The invoice lifecycle against in-memory fakes: issuing a draft finalizes it (assigning a number),
+/// posts and approves the composed A/R entry; voiding reverses that entry by its source back-link; and
+/// the status guards hold. Number and status are derived from the (faked) store's lifecycle.
 /// </summary>
 public sealed class InvoiceServiceTests
 {
@@ -25,7 +24,6 @@ public sealed class InvoiceServiceTests
         InvoiceService service = new(
             new InMemoryInvoiceStore(),
             new InMemoryCustomerStore(),
-            new FakeInvoiceNumbers(),
             new FixedAccountsProvider(Accounts),
             ledger);
         return new Harness(service, ledger);
@@ -35,26 +33,29 @@ public sealed class InvoiceServiceTests
         [new InvoiceLine { Description = "Work", Quantity = 1m, UnitPrice = amount }];
 
     [Fact]
-    public async Task Issuing_a_draft_posts_the_composed_entry_and_marks_it_issued()
+    public async Task Issuing_a_draft_finalizes_posts_and_marks_it_issued()
     {
         Harness h = NewHarness();
         var client = Guid.NewGuid();
         Customer customer = await h.Service.CreateCustomerAsync(client, "Acme");
         Invoice draft = await h.Service.DraftAsync(client, customer.Id, OneLine(100m), taxRate: 0.07m, new DateOnly(2026, 3, 31));
 
+        Assert.Equal(InvoiceStatus.Draft, draft.Status);
+        Assert.Null(draft.Number);                              // a draft has no number
+
         Invoice issued = await h.Service.IssueAsync(client, draft.Id);
 
         Assert.Equal(InvoiceStatus.Issued, issued.Status);
+        Assert.NotNull(issued.Number);                          // finalize assigned one
 
-        // Exactly one entry was posted, and it is the recipe's output, tagged and back-linked.
         PostEntryRequest entry = Assert.Single(h.Ledger.Posted);
         Assert.Equal(draft.Id, entry.SourceRef);
         Assert.Equal("Invoice", entry.SourceType);
+        Assert.Equal(issued.Number, entry.Reference);           // the entry carries the invoice number
         PostLineRequest ar = entry.Lines.Single(l => l.AccountId == Accounts.ReceivableAccountId);
-        Assert.Equal(107m, ar.Amount);                          // 100 + 7 tax
+        Assert.Equal(107m, ar.Amount);
         Assert.Equal(customer.Id, ar.Dimensions!["Customer"]);
 
-        // It was approved onto the books.
         IReadOnlyList<EntryResponse> onBooks = await h.Ledger.GetEntriesBySourceRefAsync(client, draft.Id);
         Assert.Equal("Posted", Assert.Single(onBooks).Posting);
     }
@@ -71,11 +72,9 @@ public sealed class InvoiceServiceTests
         Invoice voided = await h.Service.VoidAsync(client, draft.Id, "duplicate");
 
         Assert.Equal(InvoiceStatus.Void, voided.Status);
-
-        // The invoice's source now resolves to two entries — the original and its reversal.
         IReadOnlyList<EntryResponse> entries = await h.Ledger.GetEntriesBySourceRefAsync(client, draft.Id);
         Assert.Equal(2, entries.Count);
-        Assert.Contains(entries, e => e.ReversalOf is not null); // the reversal inherited the source link
+        Assert.Contains(entries, e => e.ReversalOf is not null);
     }
 
     [Fact]

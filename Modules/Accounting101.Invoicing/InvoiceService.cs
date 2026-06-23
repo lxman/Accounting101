@@ -3,15 +3,14 @@ using Accounting101.Ledger.Contracts;
 namespace Accounting101.Invoicing;
 
 /// <summary>
-/// The invoicing lifecycle: draft an invoice, issue it (which posts and approves the A/R entry through
-/// the engine), and void it (which reverses that entry). The module owns its documents; the engine owns
-/// the ledger. The link between them is the source back-link — void finds the entry an invoice produced
-/// by querying the engine for it, rather than storing the entry id, so the two can't drift.
+/// The invoicing lifecycle: draft an invoice, issue it (finalize the document — which assigns the number —
+/// then post and approve the A/R entry through the engine), and void it (reverse that entry, then void the
+/// document). The module owns its documents; the engine owns the ledger. The link between them is the
+/// source back-link — void finds the entry an invoice produced by querying the engine for it.
 /// </summary>
 public sealed class InvoiceService(
     IInvoiceStore invoices,
     ICustomerStore customers,
-    IInvoiceNumbers numbers,
     IInvoiceAccountsProvider accounts,
     ILedgerClient ledger)
 {
@@ -23,7 +22,7 @@ public sealed class InvoiceService(
         return customer;
     }
 
-    /// <summary>Create a draft invoice. It is assigned a number but has no ledger effect until issued.</summary>
+    /// <summary>Create a draft invoice. It has no number and no ledger effect until issued.</summary>
     public async Task<Invoice> DraftAsync(
         Guid clientId, Guid customerId, IReadOnlyList<InvoiceLine> lines, decimal taxRate,
         DateOnly issueDate, DateOnly? dueDate = null, string? memo = null, CancellationToken cancellationToken = default)
@@ -34,57 +33,47 @@ public sealed class InvoiceService(
         if (lines.Count == 0)
             throw new InvalidOperationException("An invoice needs at least one line.");
 
-        Invoice invoice = new()
-        {
-            Id = Guid.NewGuid(),
-            CustomerId = customerId,
-            Number = await numbers.NextAsync(clientId, cancellationToken),
-            IssueDate = issueDate,
-            DueDate = dueDate,
-            Status = InvoiceStatus.Draft,
-            TaxRate = taxRate,
-            Memo = memo,
-            Lines = lines,
-        };
-        await invoices.SaveAsync(clientId, invoice, cancellationToken);
-        return invoice;
+        InvoiceBody body = new(
+            customerId, issueDate, dueDate, taxRate, memo,
+            lines.Select(l => new LineBody(l.Description, l.Quantity, l.UnitPrice, l.Taxable)).ToList());
+
+        return await invoices.CreateDraftAsync(clientId, body, cancellationToken);
     }
 
     /// <summary>
-    /// Issue a draft: compose its entry, post it, and approve it onto the books. The A/R-by-customer
-    /// subledger and reconciliation light up from the engine the moment this commits.
+    /// Issue a draft: finalize it (assigns the number), then compose, post, and approve its A/R entry.
+    /// The total-must-be-positive check runs before finalize, since finalize cannot be undone.
     /// </summary>
     public async Task<Invoice> IssueAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default)
     {
-        Invoice invoice = await RequireAsync(clientId, invoiceId, cancellationToken);
-        if (invoice.Status != InvoiceStatus.Draft)
-            throw new InvalidOperationException($"Only a draft invoice can be issued; {invoice.Number} is {invoice.Status}.");
-        if (invoice.Total <= 0m)
-            throw new InvalidOperationException($"Invoice {invoice.Number} must total more than zero to be issued.");
+        Invoice draft = await RequireAsync(clientId, invoiceId, cancellationToken);
+        if (draft.Status != InvoiceStatus.Draft)
+            throw new InvalidOperationException($"Only a draft invoice can be issued; {invoiceId} is {draft.Status}.");
+        if (draft.Total <= 0m)
+            throw new InvalidOperationException($"Invoice {invoiceId} must total more than zero to be issued.");
+
+        Invoice issued = await invoices.FinalizeAsync(clientId, invoiceId, cancellationToken);
 
         InvoicePostingAccounts postingAccounts = await accounts.GetAsync(clientId, cancellationToken);
-        PostEntryRequest entry = InvoicePosting.Compose(invoice, postingAccounts);
-
+        PostEntryRequest entry = InvoicePosting.Compose(issued, postingAccounts);
         PostEntryResponse posted = await ledger.PostAsync(clientId, entry, cancellationToken);
         await ledger.ApproveAsync(clientId, posted.Id, cancellationToken);
 
-        Invoice issued = invoice with { Status = InvoiceStatus.Issued };
-        await invoices.SaveAsync(clientId, issued, cancellationToken);
         return issued;
     }
 
     /// <summary>
-    /// Void an issued invoice: find the entry it produced (by source back-link) and reverse it. The engine
-    /// refuses a second reversal, so a double-void can't over-correct.
+    /// Void an issued invoice: find the entry it produced (by source back-link), reverse and approve that,
+    /// then void the document. Correct the books before marking the source.
     /// </summary>
     public async Task<Invoice> VoidAsync(
         Guid clientId, Guid invoiceId, string? reason = null, CancellationToken cancellationToken = default)
     {
         Invoice invoice = await RequireAsync(clientId, invoiceId, cancellationToken);
         if (invoice.Status != InvoiceStatus.Issued)
-            throw new InvalidOperationException($"Only an issued invoice can be voided; {invoice.Number} is {invoice.Status}.");
+            throw new InvalidOperationException($"Only an issued invoice can be voided; {invoiceId} is {invoice.Status}.");
 
-        IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, invoice.Id, cancellationToken);
+        IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, invoiceId, cancellationToken);
         EntryResponse issueEntry = spawned.FirstOrDefault(e => e is { Status: "Active", Posting: "Posted", ReversalOf: null })
             ?? throw new InvalidOperationException($"No posted entry found for invoice {invoice.Number} to reverse.");
 
@@ -92,9 +81,8 @@ public sealed class InvoiceService(
             clientId, issueEntry.Id, new ReverseRequest(invoice.IssueDate, reason ?? $"Voided invoice {invoice.Number}"), cancellationToken);
         await ledger.ApproveAsync(clientId, reversal.Id, cancellationToken);
 
-        Invoice voided = invoice with { Status = InvoiceStatus.Void };
-        await invoices.SaveAsync(clientId, voided, cancellationToken);
-        return voided;
+        await invoices.VoidAsync(clientId, invoiceId, cancellationToken);
+        return await RequireAsync(clientId, invoiceId, cancellationToken);
     }
 
     private async Task<Invoice> RequireAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken) =>
