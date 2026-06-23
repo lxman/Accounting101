@@ -85,6 +85,10 @@ public sealed class InvoiceService(
         return await RequireAsync(clientId, invoiceId, cancellationToken);
     }
 
+    /// <summary>Fetch an invoice (number/status derived from the engine envelope), or null if not found.</summary>
+    public Task<Invoice?> GetAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default) =>
+        invoices.GetAsync(clientId, invoiceId, cancellationToken);
+
     private async Task<Invoice> RequireAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken) =>
         await invoices.GetAsync(clientId, invoiceId, cancellationToken)
         ?? throw new InvalidOperationException($"Invoice {invoiceId} not found.");

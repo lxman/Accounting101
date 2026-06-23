@@ -1,3 +1,4 @@
+using Accounting101.Invoicing.Api;
 using Accounting101.Ledger.Api.Endpoints;
 using Accounting101.Ledger.Api.Hosting;
 
@@ -6,6 +7,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 // The engine. Installed modules add themselves here too — e.g. builder.Services.AddInvoicing() —
 // which is also where each module's identity gets stamped. "Installed" = its line is present.
 builder.Services.AddLedgerEngine(builder.Configuration);
+builder.Services.AddInvoicing(builder.Configuration);
 
 WebApplication app = builder.Build();
 
@@ -14,7 +16,7 @@ app.UseAuthorization();
 
 app.MapLedgerEndpoints();
 app.MapAdminEndpoints();
-// Modules map their endpoints here too — e.g. app.MapInvoicingEndpoints().
+app.MapInvoicingEndpoints();
 
 app.Run();
 
