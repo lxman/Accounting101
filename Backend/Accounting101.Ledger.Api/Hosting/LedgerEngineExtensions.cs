@@ -34,6 +34,11 @@ public static class LedgerEngineExtensions
         services.AddSingleton<ClientLedgerFactory>();
         services.AddSingleton<LedgerGateway>();
 
+        // Document store: the engine derives the acting user from the request, and authorizes module calls.
+        services.AddHttpContextAccessor();
+        services.AddSingleton<ICurrentActor, HttpContextCurrentActor>();
+        services.AddSingleton<ModuleAccess>();
+
         // Identity is IdP-agnostic: a dev-token scheme now; the claims → Actor mapping is ours and stable.
         services.AddSingleton<IActorFactory, ClaimsActorFactory>();
         services
