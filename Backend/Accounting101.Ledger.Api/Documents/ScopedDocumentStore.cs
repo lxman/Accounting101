@@ -89,20 +89,138 @@ public sealed class ScopedDocumentStore(
     }
 
     // ---- evidentiary policy (Task 8) ----
-    public Task<Guid> CreateAsync<T>(Guid clientId, string collection, T body, IReadOnlyDictionary<string, string> tags, CancellationToken cancellationToken = default) =>
-        throw new ModuleDocumentException("Create is added in a later slice.");
-    public Task UpdateAsync<T>(Guid clientId, string collection, Guid id, T body, IReadOnlyDictionary<string, string> tags, CancellationToken cancellationToken = default) =>
-        throw new ModuleDocumentException("Update is added in a later slice.");
-    public Task<long> FinalizeAsync(Guid clientId, string collection, Guid id, CancellationToken cancellationToken = default) =>
-        throw new ModuleDocumentException("Finalize is added in a later slice.");
-    public Task<Guid> SupersedeAsync<T>(Guid clientId, string collection, Guid id, T newBody, IReadOnlyDictionary<string, string> newTags, CancellationToken cancellationToken = default) =>
-        throw new ModuleDocumentException("Supersede is added in a later slice.");
-    public Task VoidAsync(Guid clientId, string collection, Guid id, CancellationToken cancellationToken = default) =>
-        throw new ModuleDocumentException("Void is added in a later slice.");
-    public Task<long> NextNumberAsync(Guid clientId, string counterName, CancellationToken cancellationToken = default) =>
-        throw new ModuleDocumentException("NextNumber is added in a later slice.");
+
+    public async Task<Guid> CreateAsync<T>(Guid clientId, string collection, T body,
+        IReadOnlyDictionary<string, string> tags, CancellationToken cancellationToken = default)
+    {
+        RequireEvidentiary(collection);
+        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        Guid id = Guid.NewGuid();
+        ModuleDocument doc = BuildDoc(id, body, tags, DocumentState.Draft, 1, null);
+        await ctx.Store.PutAsync(ctx.Physical, doc, null, cancellationToken); // draft: no audit
+        return id;
+    }
+
+    public async Task UpdateAsync<T>(Guid clientId, string collection, Guid id, T body,
+        IReadOnlyDictionary<string, string> tags, CancellationToken cancellationToken = default)
+    {
+        RequireEvidentiary(collection);
+        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        ModuleDocument current = await Require(ctx, collection, id, cancellationToken);
+        if (current.State != DocumentState.Draft)
+            throw new ModuleDocumentException($"Document '{id}' in '{collection}' is {current.State}; only a Draft may be updated.");
+
+        ModuleDocument doc = BuildDoc(id, body, tags, DocumentState.Draft, current.Version + 1, current);
+        await ctx.Store.PutAsync(ctx.Physical, doc, null, cancellationToken); // draft: no audit
+    }
+
+    public async Task<long> FinalizeAsync(Guid clientId, string collection, Guid id, CancellationToken cancellationToken = default)
+    {
+        RequireEvidentiary(collection);
+        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        ModuleDocument current = await Require(ctx, collection, id, cancellationToken);
+        if (current.State != DocumentState.Draft)
+            throw new ModuleDocumentException($"Document '{id}' in '{collection}' is {current.State}; only a Draft may be finalized.");
+
+        MongoSequenceStore counters = new(ctx.Db, identity.Prefix + "counters");
+        MongoAuditLog audit = new(ctx.Db);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        long assigned = 0;
+
+        using IClientSessionHandle session = await ctx.Db.Client.StartSessionAsync(cancellationToken: cancellationToken);
+        await session.WithTransactionAsync(
+            async (s, _) =>
+            {
+                assigned = await counters.NextAsync(collection, s, cancellationToken);
+                current.State = DocumentState.Finalized;
+                current.Sequence = assigned;
+                current.Version += 1;
+                await ctx.Store.PutAsync(ctx.Physical, current, s, cancellationToken);
+                await audit.AppendAsync(clientId, id, current.Version, AuditAction.DocumentFinalized, ctx.Actor,
+                    $"Finalized {ctx.Physical}/{id} as #{assigned}", now, s, cancellationToken);
+                return true;
+            },
+            cancellationToken: cancellationToken);
+
+        return assigned;
+    }
+
+    public async Task<Guid> SupersedeAsync<T>(Guid clientId, string collection, Guid id, T newBody,
+        IReadOnlyDictionary<string, string> newTags, CancellationToken cancellationToken = default)
+    {
+        RequireEvidentiary(collection);
+        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        ModuleDocument current = await Require(ctx, collection, id, cancellationToken);
+        if (current.State != DocumentState.Finalized)
+            throw new ModuleDocumentException($"Document '{id}' in '{collection}' is {current.State}; only a Finalized document may be superseded.");
+
+        Guid newId = Guid.NewGuid();
+        MongoSequenceStore counters = new(ctx.Db, identity.Prefix + "counters");
+        MongoAuditLog audit = new(ctx.Db);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+
+        using IClientSessionHandle session = await ctx.Db.Client.StartSessionAsync(cancellationToken: cancellationToken);
+        await session.WithTransactionAsync(
+            async (s, _) =>
+            {
+                long assigned = await counters.NextAsync(collection, s, cancellationToken);
+
+                ModuleDocument replacement = BuildDoc(newId, newBody, newTags, DocumentState.Finalized, 1, null);
+                replacement.Sequence = assigned;
+                replacement.Supersedes = id;
+
+                current.State = DocumentState.Superseded;
+                current.SupersededBy = newId;
+                current.Version += 1;
+
+                await ctx.Store.PutAsync(ctx.Physical, replacement, s, cancellationToken);
+                await ctx.Store.PutAsync(ctx.Physical, current, s, cancellationToken);
+                await audit.AppendAsync(clientId, id, current.Version, AuditAction.DocumentSuperseded, ctx.Actor,
+                    $"Superseded {ctx.Physical}/{id} by {newId} (#{assigned})", now, s, cancellationToken);
+                return true;
+            },
+            cancellationToken: cancellationToken);
+
+        return newId;
+    }
+
+    public async Task VoidAsync(Guid clientId, string collection, Guid id, CancellationToken cancellationToken = default)
+    {
+        RequireEvidentiary(collection);
+        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        ModuleDocument current = await Require(ctx, collection, id, cancellationToken);
+        if (current.State != DocumentState.Finalized)
+            throw new ModuleDocumentException($"Document '{id}' in '{collection}' is {current.State}; only a Finalized document may be voided.");
+
+        current.State = DocumentState.Voided;
+        current.Version += 1;
+        await AuditedPutAsync(clientId, ctx, current, id, AuditAction.DocumentVoided, $"Voided {ctx.Physical}/{id}", cancellationToken);
+    }
+
+    public async Task<long> NextNumberAsync(Guid clientId, string counterName, CancellationToken cancellationToken = default)
+    {
+        Actor actor = currentActor.Get();
+        ModuleAccessDecision decision = await access.AuthorizeAsync(identity, identity.Key, actor.UserId, clientId, cancellationToken);
+        if (decision != ModuleAccessDecision.Allowed)
+            throw new ModuleAccessDeniedException(identity.Key, counterName, decision);
+        IMongoDatabase db = await resolver.ResolveAsync(clientId, cancellationToken)
+            ?? throw new ModuleAccessDeniedException(identity.Key, counterName, ModuleAccessDecision.NotMember);
+
+        MongoSequenceStore counters = new(db, identity.Prefix + "counters");
+        return await counters.NextAsync(counterName, null, cancellationToken);
+    }
 
     // ---- shared ----
+
+    private void RequireEvidentiary(string collection)
+    {
+        if (manifest.PolicyOf(collection) != CollectionPolicy.Evidentiary)
+            throw new ModuleDocumentException($"This operation is only valid on evidentiary collections; '{collection}' is not evidentiary.");
+    }
+
+    private static async Task<ModuleDocument> Require(Ctx ctx, string collection, Guid id, CancellationToken cancellationToken) =>
+        await ctx.Store.GetAsync(ctx.Physical, id, null, cancellationToken)
+        ?? throw new ModuleDocumentException($"No document '{id}' in '{collection}'.");
 
     private async Task PutReferenceAsync<T>(Guid clientId, Ctx ctx, Guid id, T body,
         IReadOnlyDictionary<string, string> tags, CancellationToken cancellationToken)
