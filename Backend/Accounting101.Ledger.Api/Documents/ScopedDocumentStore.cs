@@ -126,6 +126,7 @@ public sealed class ScopedDocumentStore(
         MongoAuditLog audit = new(ctx.Db);
         DateTimeOffset now = DateTimeOffset.UtcNow;
         long assigned = 0;
+        int nextVersion = current.Version + 1;
 
         using IClientSessionHandle session = await ctx.Db.Client.StartSessionAsync(cancellationToken: cancellationToken);
         await session.WithTransactionAsync(
@@ -134,7 +135,7 @@ public sealed class ScopedDocumentStore(
                 assigned = await counters.NextAsync(collection, s, cancellationToken);
                 current.State = DocumentState.Finalized;
                 current.Sequence = assigned;
-                current.Version += 1;
+                current.Version = nextVersion;
                 await ctx.Store.PutAsync(ctx.Physical, current, s, cancellationToken);
                 await audit.AppendAsync(clientId, id, current.Version, AuditAction.DocumentFinalized, ctx.Actor,
                     $"Finalized {ctx.Physical}/{id} as #{assigned}", now, s, cancellationToken);
@@ -158,6 +159,7 @@ public sealed class ScopedDocumentStore(
         MongoSequenceStore counters = new(ctx.Db, identity.Prefix + "counters");
         MongoAuditLog audit = new(ctx.Db);
         DateTimeOffset now = DateTimeOffset.UtcNow;
+        int nextVersion = current.Version + 1;
 
         using IClientSessionHandle session = await ctx.Db.Client.StartSessionAsync(cancellationToken: cancellationToken);
         await session.WithTransactionAsync(
@@ -171,7 +173,7 @@ public sealed class ScopedDocumentStore(
 
                 current.State = DocumentState.Superseded;
                 current.SupersededBy = newId;
-                current.Version += 1;
+                current.Version = nextVersion;
 
                 await ctx.Store.PutAsync(ctx.Physical, replacement, s, cancellationToken);
                 await ctx.Store.PutAsync(ctx.Physical, current, s, cancellationToken);
