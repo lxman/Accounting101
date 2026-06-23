@@ -20,14 +20,14 @@ public sealed class MongoSequenceStore
     }
 
     /// <summary>
-    /// Allocate the next journal sequence number for a client. Joins the caller's transaction, so the
-    /// increment commits together with the entry insert — if the post rolls back, so does the number,
-    /// keeping the per-client sequence gapless. The first allocation returns 1.
+    /// Allocate the next value of a named counter (atomic <c>findAndModify</c> <c>$inc</c>, upsert). The
+    /// first allocation returns 1. Joins the caller's transaction when a session is supplied, so the number
+    /// commits with the work that consumed it (keeping the sequence gapless).
     /// </summary>
-    public async Task<long> NextJournalAsync(
-        Guid clientId, IClientSessionHandle session, CancellationToken cancellationToken = default)
+    public async Task<long> NextAsync(
+        string counterId, IClientSessionHandle? session = null, CancellationToken cancellationToken = default)
     {
-        FilterDefinition<BsonDocument> filter = Builders<BsonDocument>.Filter.Eq("_id", "journal:" + clientId);
+        FilterDefinition<BsonDocument> filter = Builders<BsonDocument>.Filter.Eq("_id", counterId);
         UpdateDefinition<BsonDocument> increment = Builders<BsonDocument>.Update.Inc("seq", 1L);
         FindOneAndUpdateOptions<BsonDocument> options = new()
         {
@@ -35,9 +35,20 @@ public sealed class MongoSequenceStore
             ReturnDocument = ReturnDocument.After,
         };
 
-        BsonDocument counter = await _counters.FindOneAndUpdateAsync(session, filter, increment, options, cancellationToken);
+        BsonDocument counter = session is null
+            ? await _counters.FindOneAndUpdateAsync(filter, increment, options, cancellationToken)
+            : await _counters.FindOneAndUpdateAsync(session, filter, increment, options, cancellationToken);
         return counter["seq"].ToInt64();
     }
+
+    /// <summary>
+    /// Allocate the next journal sequence number for a client. Joins the caller's transaction, so the
+    /// increment commits together with the entry insert — if the post rolls back, so does the number,
+    /// keeping the per-client sequence gapless. The first allocation returns 1.
+    /// </summary>
+    public Task<long> NextJournalAsync(
+        Guid clientId, IClientSessionHandle session, CancellationToken cancellationToken = default) =>
+        NextAsync("journal:" + clientId, session, cancellationToken);
 
     /// <summary>
     /// Raise the journal counter to at least <paramref name="atLeast"/> (never lowers it). Called when an
