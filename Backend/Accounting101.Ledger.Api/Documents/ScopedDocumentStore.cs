@@ -52,7 +52,9 @@ public sealed class ScopedDocumentStore(
         manifest.PolicyOf(collection);
         Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
         ModuleDocument? doc = await ctx.Store.GetAsync(ctx.Physical, id, null, cancellationToken);
-        return doc is null ? null : new DocumentResult<T>(doc.Id, doc.Sequence, BsonSerializer.Deserialize<T>(doc.Body));
+        return doc is null
+            ? null
+            : new DocumentResult<T>(doc.Id, MapState(doc.State), doc.Sequence, BsonSerializer.Deserialize<T>(doc.Body));
     }
 
     public async Task<IReadOnlyList<DocumentResult<T>>> QueryAsync<T>(Guid clientId, string collection,
@@ -61,7 +63,7 @@ public sealed class ScopedDocumentStore(
         manifest.PolicyOf(collection);
         Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
         IReadOnlyList<ModuleDocument> docs = await ctx.Store.QueryAsync(ctx.Physical, tagFilter, cancellationToken);
-        return docs.Select(d => new DocumentResult<T>(d.Id, d.Sequence, BsonSerializer.Deserialize<T>(d.Body))).ToList();
+        return docs.Select(d => new DocumentResult<T>(d.Id, MapState(d.State), d.Sequence, BsonSerializer.Deserialize<T>(d.Body))).ToList();
     }
 
     public async Task DeleteAsync(Guid clientId, string collection, Guid id, CancellationToken cancellationToken = default)
@@ -213,6 +215,17 @@ public sealed class ScopedDocumentStore(
     }
 
     // ---- shared ----
+
+    private static DocumentLifecycle MapState(DocumentState state) => state switch
+    {
+        DocumentState.Draft => DocumentLifecycle.Draft,
+        DocumentState.Active => DocumentLifecycle.Active,
+        DocumentState.Finalized => DocumentLifecycle.Finalized,
+        DocumentState.Superseded => DocumentLifecycle.Superseded,
+        DocumentState.Voided => DocumentLifecycle.Voided,
+        DocumentState.Inactive => DocumentLifecycle.Inactive,
+        _ => DocumentLifecycle.Active,
+    };
 
     private void RequireEvidentiary(string collection)
     {

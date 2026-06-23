@@ -1,11 +1,23 @@
 namespace Accounting101.Ledger.Contracts;
 
+/// <summary>The lifecycle state of a stored document, surfaced on reads so a consumer can tell (e.g.)
+/// a voided document from an issued one. Mirrors the engine's internal document state.</summary>
+public enum DocumentLifecycle
+{
+    Draft,
+    Active,
+    Finalized,
+    Superseded,
+    Voided,
+    Inactive,
+}
+
 /// <summary>
 /// A document read back from the store: the module's <see cref="Body"/> plus the engine-owned facts a
-/// module needs to act on it — the storage <see cref="Id"/> (to finalize/supersede/void/get it later)
-/// and the gapless <see cref="Sequence"/> assigned at finalize (null until finalized / for non-evidentiary).
+/// module needs to act on it — the storage <see cref="Id"/>, the lifecycle <see cref="State"/>, and the
+/// gapless <see cref="Sequence"/> assigned at finalize (null until finalized / for non-evidentiary).
 /// </summary>
-public sealed record DocumentResult<T>(Guid Id, long? Sequence, T Body);
+public sealed record DocumentResult<T>(Guid Id, DocumentLifecycle State, long? Sequence, T Body);
 
 /// <summary>
 /// A module's window onto the engine's document store, scoped to that module's namespace. The module

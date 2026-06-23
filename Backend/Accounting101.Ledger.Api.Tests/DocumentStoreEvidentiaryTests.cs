@@ -108,4 +108,20 @@ public sealed class DocumentStoreEvidentiaryTests(ApiFixture fixture) : IClassFi
         Assert.Equal(1, await store.NextNumberAsync(clientId, "batch"));
         Assert.Equal(2, await store.NextNumberAsync(clientId, "batch"));
     }
+
+    [Fact]
+    public async Task Read_exposes_the_lifecycle_state()
+    {
+        (IDocumentStore store, Guid clientId) = await SetupAsync();
+        string cust = Guid.NewGuid().ToString();
+        Guid id = await store.CreateAsync(clientId, "invoices", new Invoice(100m), Tags(cust, "Draft"));
+
+        Assert.Equal(DocumentLifecycle.Draft, (await store.GetAsync<Invoice>(clientId, "invoices", id))!.State);
+
+        await store.FinalizeAsync(clientId, "invoices", id);
+        Assert.Equal(DocumentLifecycle.Finalized, (await store.GetAsync<Invoice>(clientId, "invoices", id))!.State);
+
+        await store.VoidAsync(clientId, "invoices", id);
+        Assert.Equal(DocumentLifecycle.Voided, (await store.GetAsync<Invoice>(clientId, "invoices", id))!.State);
+    }
 }
