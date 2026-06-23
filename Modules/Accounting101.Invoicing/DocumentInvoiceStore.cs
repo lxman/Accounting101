@@ -55,6 +55,7 @@ public sealed class DocumentInvoiceStore(IDocumentStore documents) : IInvoiceSto
         {
             DocumentLifecycle.Finalized => InvoiceStatus.Issued,
             DocumentLifecycle.Voided or DocumentLifecycle.Superseded => InvoiceStatus.Void,
+            // a pre-finalize invoice is Active (and any other non-issued/voided state) — it reads as Draft
             _ => InvoiceStatus.Draft,
         },
         TaxRate = result.Body.TaxRate,

@@ -224,7 +224,7 @@ public sealed class ScopedDocumentStore(
         DocumentState.Superseded => DocumentLifecycle.Superseded,
         DocumentState.Voided => DocumentLifecycle.Voided,
         DocumentState.Inactive => DocumentLifecycle.Inactive,
-        _ => DocumentLifecycle.Active,
+        _ => throw new ArgumentOutOfRangeException(nameof(state), state, "Unmapped document state."),
     };
 
     private void RequireEvidentiary(string collection)
