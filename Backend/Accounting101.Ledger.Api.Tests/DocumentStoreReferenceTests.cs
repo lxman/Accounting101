@@ -61,7 +61,7 @@ public sealed class DocumentStoreReferenceTests(ApiFixture fixture) : IClassFixt
 
         // soft: still gettable by id, but hidden from query
         Assert.NotNull(await store.GetAsync<Customer>(clientId, "customers", id));
-        IReadOnlyList<Customer> active = await store.QueryAsync<Customer>(clientId, "customers", new Dictionary<string, string> { ["Status"] = "Active" });
+        IReadOnlyList<DocumentResult<Customer>> active = await store.QueryAsync<Customer>(clientId, "customers", new Dictionary<string, string> { ["Status"] = "Active" });
         Assert.Empty(active);
 
         IReadOnlyList<AuditRecordDocument> trail = await audit.GetForEntryAsync(clientId, id);

@@ -1,6 +1,13 @@
 namespace Accounting101.Ledger.Contracts;
 
 /// <summary>
+/// A document read back from the store: the module's <see cref="Body"/> plus the engine-owned facts a
+/// module needs to act on it — the storage <see cref="Id"/> (to finalize/supersede/void/get it later)
+/// and the gapless <see cref="Sequence"/> assigned at finalize (null until finalized / for non-evidentiary).
+/// </summary>
+public sealed record DocumentResult<T>(Guid Id, long? Sequence, T Body);
+
+/// <summary>
 /// A module's window onto the engine's document store, scoped to that module's namespace. The module
 /// passes only the client, a logical collection it declared, a typed body, and tags — never an identity
 /// (the engine derives the acting user from the authenticated request). The store routes by the
@@ -9,8 +16,8 @@ namespace Accounting101.Ledger.Contracts;
 public interface IDocumentStore
 {
     // Universal
-    Task<T?> GetAsync<T>(Guid clientId, string collection, Guid id, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<T>> QueryAsync<T>(Guid clientId, string collection,
+    Task<DocumentResult<T>?> GetAsync<T>(Guid clientId, string collection, Guid id, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<DocumentResult<T>>> QueryAsync<T>(Guid clientId, string collection,
         IReadOnlyDictionary<string, string> tagFilter, CancellationToken cancellationToken = default);
 
     // Plain + reference (reference path is audited)

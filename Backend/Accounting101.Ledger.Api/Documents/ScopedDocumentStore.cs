@@ -47,21 +47,21 @@ public sealed class ScopedDocumentStore(
         await ctx.Store.PutAsync(ctx.Physical, doc, null, cancellationToken);
     }
 
-    public async Task<T?> GetAsync<T>(Guid clientId, string collection, Guid id, CancellationToken cancellationToken = default)
+    public async Task<DocumentResult<T>?> GetAsync<T>(Guid clientId, string collection, Guid id, CancellationToken cancellationToken = default)
     {
         manifest.PolicyOf(collection);
         Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
         ModuleDocument? doc = await ctx.Store.GetAsync(ctx.Physical, id, null, cancellationToken);
-        return doc is null ? default : BsonSerializer.Deserialize<T>(doc.Body);
+        return doc is null ? null : new DocumentResult<T>(doc.Id, doc.Sequence, BsonSerializer.Deserialize<T>(doc.Body));
     }
 
-    public async Task<IReadOnlyList<T>> QueryAsync<T>(Guid clientId, string collection,
+    public async Task<IReadOnlyList<DocumentResult<T>>> QueryAsync<T>(Guid clientId, string collection,
         IReadOnlyDictionary<string, string> tagFilter, CancellationToken cancellationToken = default)
     {
         manifest.PolicyOf(collection);
         Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
         IReadOnlyList<ModuleDocument> docs = await ctx.Store.QueryAsync(ctx.Physical, tagFilter, cancellationToken);
-        return docs.Select(d => BsonSerializer.Deserialize<T>(d.Body)).ToList();
+        return docs.Select(d => new DocumentResult<T>(d.Id, d.Sequence, BsonSerializer.Deserialize<T>(d.Body))).ToList();
     }
 
     public async Task DeleteAsync(Guid clientId, string collection, Guid id, CancellationToken cancellationToken = default)

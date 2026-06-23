@@ -43,9 +43,9 @@ public sealed class DocumentStorePlainTests(ApiFixture fixture) : IClassFixture<
         Guid id = Guid.NewGuid();
 
         await store.PutAsync(clientId, "notes", id, new Note("hello"), new Dictionary<string, string> { ["K"] = "v" });
-        Note? read = await store.GetAsync<Note>(clientId, "notes", id);
+        DocumentResult<Note>? read = await store.GetAsync<Note>(clientId, "notes", id);
 
-        Assert.Equal("hello", read!.Text);
+        Assert.Equal("hello", read!.Body.Text);
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public sealed class DocumentStorePlainTests(ApiFixture fixture) : IClassFixture<
         Guid id = Guid.NewGuid();
         await store.PutAsync(clientId, "notes", id, new Note("x"), new Dictionary<string, string> { ["K"] = "find" });
 
-        IReadOnlyList<Note> hits = await store.QueryAsync<Note>(clientId, "notes", new Dictionary<string, string> { ["K"] = "find" });
+        IReadOnlyList<DocumentResult<Note>> hits = await store.QueryAsync<Note>(clientId, "notes", new Dictionary<string, string> { ["K"] = "find" });
         Assert.Single(hits);
 
         await store.DeleteAsync(clientId, "notes", id);

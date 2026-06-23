@@ -44,6 +44,8 @@ public sealed class DocumentStoreEvidentiaryTests(ApiFixture fixture) : IClassFi
         await store.UpdateAsync(clientId, "invoices", id, new Invoice(120m), Tags(cust, "Draft")); // allowed while draft
         long number = await store.FinalizeAsync(clientId, "invoices", id);
         Assert.Equal(1, number);
+        DocumentResult<Invoice>? fetched = await store.GetAsync<Invoice>(clientId, "invoices", id);
+        Assert.Equal(number, fetched!.Sequence);
 
         Guid id2 = await store.CreateAsync(clientId, "invoices", new Invoice(50m), Tags(cust, "Draft"));
         Assert.Equal(2, await store.FinalizeAsync(clientId, "invoices", id2)); // gapless
@@ -63,9 +65,9 @@ public sealed class DocumentStoreEvidentiaryTests(ApiFixture fixture) : IClassFi
 
         Guid newId = await store.SupersedeAsync(clientId, "invoices", id, new Invoice(110m), Tags(cust, "Issued"));
 
-        IReadOnlyList<Invoice> active = await store.QueryAsync<Invoice>(clientId, "invoices", Tags(cust, "Issued"));
+        IReadOnlyList<DocumentResult<Invoice>> active = await store.QueryAsync<Invoice>(clientId, "invoices", Tags(cust, "Issued"));
         Assert.Single(active);
-        Assert.Equal(110m, active[0].Total);
+        Assert.Equal(110m, active[0].Body.Total);
         Assert.NotEqual(id, newId);
     }
 
@@ -79,7 +81,7 @@ public sealed class DocumentStoreEvidentiaryTests(ApiFixture fixture) : IClassFi
 
         await store.VoidAsync(clientId, "invoices", id);
 
-        IReadOnlyList<Invoice> active = await store.QueryAsync<Invoice>(clientId, "invoices", Tags(cust, "Issued"));
+        IReadOnlyList<DocumentResult<Invoice>> active = await store.QueryAsync<Invoice>(clientId, "invoices", Tags(cust, "Issued"));
         Assert.Empty(active);
     }
 
