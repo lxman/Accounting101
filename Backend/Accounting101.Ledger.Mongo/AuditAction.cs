@@ -12,4 +12,10 @@ public enum AuditAction
     PeriodReopened,
     AccountCreated,
     AccountUpdated,
+    DocumentCreated,
+    DocumentUpdated,
+    DocumentDeactivated,
+    DocumentFinalized,
+    DocumentSuperseded,
+    DocumentVoided,
 }
