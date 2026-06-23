@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Accounting101.Invoicing\Accounting101.Invoicing.csproj" />
+    <ProjectReference Include="..\Accounting101.Invoicing.Api\Accounting101.Invoicing.Api.csproj" />
     <ProjectReference Include="..\..\Backend\Accounting101.Ledger.Api\Accounting101.Ledger.Api.csproj" />
   </ItemGroup>
 
