@@ -132,9 +132,13 @@ Everything follows from that line.
   system to a browser. The engine is stateless request/response; there is no view-state.
 - **Real-time is additive, never required.** SSE or WebSocket for the web if we want it, but the core is
   request/response so a CLI that polls is a first-class citizen.
-- **Reserve currency on every monetary value now**, even while single-currency. Formatting is the
-  client's job, but the currency a figure is *denominated in* is domain data — and it's the one seam
-  that's expensive to retrofit and cheap to leave open.
+- **Name the currency on every monetary value**, even though the system is USD-only today. Every money
+  figure in the contract carries an ISO currency code — currently always `"USD"` — so no client ever
+  assumes money is currency-less. Formatting is the client's job, but the currency a figure is
+  *denominated in* is domain data and is always stated. This is hygiene for a frontend-agnostic contract,
+  not a claim that multi-currency is prepared for: the system is single-currency by decision, and genuine
+  multi-currency (foreign transactions, FX gain/loss, rate capture) is a future re-engineering effort
+  taken on only when a real customer requires it — not designed for speculatively now.
 
 The payoff compounds with the architecture: because clients hold no logic, a front end cannot be "upended"
 by module development. New modules add rows to journal-derived statements and a new source-document
