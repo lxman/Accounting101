@@ -85,6 +85,26 @@ public sealed class PaymentService(
         return recorded;
     }
 
+    public async Task<Payment> VoidPaymentAsync(Guid clientId, Guid paymentId, string? reason = null, CancellationToken ct = default)
+    {
+        Payment payment = await payments.GetPaymentAsync(clientId, paymentId, ct)
+            ?? throw new InvalidOperationException($"Payment {paymentId} not found.");
+        if (payment.Voided)
+            throw new InvalidOperationException($"Payment {paymentId} is already voided.");
+
+        IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, paymentId, ct);
+        EntryResponse settlement = spawned.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null })
+            ?? throw new InvalidOperationException($"No entry found for payment {paymentId} to void.");
+
+        if (settlement.Posting == "Posted")
+            await ledger.ReverseAsync(clientId, settlement.Id, new ReverseRequest(payment.Date, reason ?? $"Voided payment {paymentId}"), ct);
+        else
+            await ledger.VoidAsync(clientId, settlement.Id, new VoidRequest(reason ?? $"Voided payment {paymentId}"), ct);
+
+        await payments.VoidAsync(clientId, paymentId, ct);
+        return (await payments.GetPaymentAsync(clientId, paymentId, ct))!;
+    }
+
     /// <summary>Total non-voided allocations (payments + credit applications) applied to one invoice.</summary>
     private async Task<decimal> AppliedToInvoiceAsync(Guid clientId, Guid customerId, Guid invoiceId, CancellationToken ct)
     {
