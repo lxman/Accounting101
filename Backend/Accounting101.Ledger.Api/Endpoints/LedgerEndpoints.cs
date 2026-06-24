@@ -551,7 +551,7 @@ public static class LedgerEndpoints
         e.Lines.Count, e.Supersedes, e.SupersededBy, e.ReversalOf, e.ReversedBy,
         e.Lines.Select(l => new EntryLineResponse(
             l.AccountId, l.Direction.ToString(), l.Amount, l.Dimensions, l.LineMemo)).ToList(),
-        e.SourceRef, e.SourceType);
+        e.SourceRef, e.SourceType, e.Reference, e.Memo);
 
     private static AccountResponse ToAccountResponse(Account a) => new(
         a.Id, a.Number, a.Name, a.Type.ToString(), a.ParentId, a.Postable,

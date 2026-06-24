@@ -71,6 +71,26 @@ public sealed class SourceLinkTests(ApiFixture fixture) : IClassFixture<ApiFixtu
     }
 
     [Fact]
+    public async Task Reference_and_Memo_round_trip_on_entry_read_back()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid debit = Guid.NewGuid(), credit = Guid.NewGuid();
+
+        PostEntryRequest entry = new(
+            null, new DateOnly(2026, 6, 30), Reference: "CHK-4201", Memo: "June rent payment",
+            Lines: [new PostLineRequest(debit, "Debit", 500m), new PostLineRequest(credit, "Credit", 500m)]);
+
+        HttpResponseMessage posted = await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", entry);
+        posted.EnsureSuccessStatusCode();
+        PostEntryResponse created = (await posted.Content.ReadFromJsonAsync<PostEntryResponse>())!;
+
+        EntryResponse read = (await c.Http.GetFromJsonAsync<EntryResponse>(
+            $"/clients/{c.ClientId}/entries/{created.Id}"))!;
+        Assert.Equal("CHK-4201", read.Reference);
+        Assert.Equal("June rent payment", read.Memo);
+    }
+
+    [Fact]
     public async Task An_entry_with_no_source_document_reports_a_null_back_link()
     {
         SeededClient c = await fixture.SeedClientAsync();

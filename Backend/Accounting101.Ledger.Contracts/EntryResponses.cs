@@ -16,7 +16,9 @@ public sealed record EntryResponse(
     Guid? ReversedBy,
     IReadOnlyList<EntryLineResponse> Lines,
     Guid? SourceRef = null,
-    string? SourceType = null);
+    string? SourceType = null,
+    string? Reference = null,
+    string? Memo = null);
 
 /// <summary>One posting line as read back: which account, side, amount, and any subledger dimensions.</summary>
 public sealed record EntryLineResponse(
