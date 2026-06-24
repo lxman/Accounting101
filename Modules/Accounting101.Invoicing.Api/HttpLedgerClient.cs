@@ -38,6 +38,15 @@ public sealed class HttpLedgerClient(HttpClient http, IHttpContextAccessor conte
         return (await response.Content.ReadFromJsonAsync<EntryResponse>(cancellationToken))!;
     }
 
+    public async Task<EntryResponse> VoidAsync(Guid clientId, Guid entryId, VoidRequest request, CancellationToken cancellationToken = default)
+    {
+        using HttpRequestMessage message = Forwarded(HttpMethod.Post, $"clients/{clientId}/entries/{entryId}/void");
+        message.Content = JsonContent.Create(request);
+        using HttpResponseMessage response = await http.SendAsync(message, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<EntryResponse>(cancellationToken))!;
+    }
+
     public async Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default)
     {
         using HttpRequestMessage request = Forwarded(HttpMethod.Get, $"clients/{clientId}/entries?sourceRef={sourceRef}");

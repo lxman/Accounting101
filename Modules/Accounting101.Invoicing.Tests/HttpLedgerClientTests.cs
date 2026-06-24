@@ -71,4 +71,28 @@ public sealed class HttpLedgerClientTests
 
         Assert.Equal($"http://engine.local/clients/{clientId}/entries?sourceRef={sourceRef}", handler.Last!.RequestUri!.ToString());
     }
+
+    [Fact]
+    public async Task Void_forwards_the_authorization_header_and_targets_the_void_endpoint()
+    {
+        CapturingHandler handler = new()
+        {
+            Response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new EntryResponse(
+                    Guid.NewGuid(), 0, default, "Standard", "Voided", "PendingApproval", 0,
+                    null, null, null, null, [], null, null)),
+            },
+        };
+        HttpClient http = new(handler) { BaseAddress = new Uri("http://engine.local") };
+        HttpLedgerClient client = new(http, ContextWith("DevToken abc"));
+
+        Guid clientId = Guid.NewGuid();
+        Guid entryId = Guid.NewGuid();
+        await client.VoidAsync(clientId, entryId, new VoidRequest("test"));
+
+        Assert.Equal(HttpMethod.Post, handler.Last!.Method);
+        Assert.Equal($"http://engine.local/clients/{clientId}/entries/{entryId}/void", handler.Last.RequestUri!.ToString());
+        Assert.Equal("DevToken abc", handler.Last.Headers.GetValues("Authorization").Single());
+    }
 }

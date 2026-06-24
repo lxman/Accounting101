@@ -39,6 +39,13 @@ internal sealed class FakeLedgerClient : ILedgerClient
         return Task.FromResult(reversal);
     }
 
+    public Task<EntryResponse> VoidAsync(Guid clientId, Guid entryId, VoidRequest request, CancellationToken cancellationToken = default)
+    {
+        EntryResponse voided = _entries[entryId] with { Status = "Voided" };
+        _entries[entryId] = voided;
+        return Task.FromResult(voided);
+    }
+
     public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<EntryResponse>>(_entries.Values.Where(e => e.SourceRef == sourceRef).ToList());
 
