@@ -3,9 +3,10 @@ using Accounting101.Ledger.Contracts;
 namespace Accounting101.Invoicing;
 
 /// <summary>
-/// The invoicing lifecycle: draft an invoice, issue it (finalize the document — which assigns the number —
-/// then post and approve the A/R entry through the engine), and void it (reverse that entry, then void the
-/// document). The module owns its documents; the engine owns the ledger. The link between them is the
+/// The invoicing lifecycle: draft an invoice, issue it (finalize — assigns the number —
+/// then post its A/R entry, which lands PendingApproval for a separate approver to book), and
+/// void it (reverse the entry if Posted, or withdraw it if still pending — never self-approving).
+/// The module owns its documents; the engine owns the ledger. The link between them is the
 /// source back-link — void finds the entry an invoice produced by querying the engine for it.
 /// </summary>
 public sealed class InvoiceService(

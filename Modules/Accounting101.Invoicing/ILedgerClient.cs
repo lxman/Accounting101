@@ -16,8 +16,11 @@ public interface ILedgerClient
 
     Task<EntryResponse> ReverseAsync(Guid clientId, Guid entryId, ReverseRequest request, CancellationToken cancellationToken = default);
 
-    /// <summary>Withdraw an entry — voids it. For an approved entry the projection is reversed; for a
-    /// not-yet-approved (pending) entry it simply marks it voided (it was never on the books).</summary>
+    /// <summary>
+    /// Withdraw a pending (not-yet-approved) entry — marks it Voided without leaving any effect on the
+    /// books. The invoicing module uses this when voiding an invoice whose A/R entry was never approved
+    /// (nothing to reverse). For posted entries, use <see cref="ReverseAsync"/> instead.
+    /// </summary>
     Task<EntryResponse> VoidAsync(Guid clientId, Guid entryId, VoidRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>Every entry the engine has tied to a source document — how the module finds the entry an invoice produced.</summary>
