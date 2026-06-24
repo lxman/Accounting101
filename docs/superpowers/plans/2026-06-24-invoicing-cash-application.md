@@ -1335,7 +1335,128 @@ git commit -m "feat(invoicing): payment, credit-application, and settlement-view
 
 ---
 
-### Task 12: End-to-end cash-application tests through the real host
+### Task 12: Settlement-filtered invoice list
+
+**Files:**
+- Create: `Modules/Accounting101.Invoicing/SettlementFilter.cs`
+- Modify: `Modules/Accounting101.Invoicing/PaymentService.cs`
+- Modify: `Modules/Accounting101.Invoicing.Api/InvoicingEndpoints.cs`
+- Test: `Modules/Accounting101.Invoicing.Tests/PaymentServiceTests.cs` (add a method)
+
+**Interfaces:**
+- Consumes: `IInvoiceStore.GetByCustomerAsync` (existing — hides voided invoices), `InvoiceView` (Task 7), `Settlement` (Task 1), `IPaymentStore` reads (Task 5).
+- Produces: `enum SettlementFilter { Open, Paid }`; `Task<IReadOnlyList<InvoiceView>> PaymentService.ListInvoiceViewsAsync(Guid clientId, Guid customerId, SettlementFilter? filter, CancellationToken ct = default)`; route `GET /clients/{clientId}/invoices?customerId={guid}&settlement=open|paid`.
+
+- [ ] **Step 1: Write the failing test** (append to `PaymentServiceTests`)
+
+```csharp
+    [Fact]
+    public async Task Lists_customer_invoices_filtered_by_settlement()
+    {
+        (Harness h, Guid clientId, Guid customerId, Invoice first) = await SetupWithIssuedInvoiceAsync(100m);
+        // Pay the first invoice in full -> Paid.
+        await h.Service.RecordPaymentAsync(clientId, new PaymentBody(customerId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(first.Id, 100m)]));
+        // A second, unpaid invoice -> Open.
+        Invoice d2 = await h.Invoices.CreateDraftAsync(clientId, new InvoiceBody(customerId, new DateOnly(2026, 4, 1), null, 0m, null, [new LineBody("More", 1m, 100m, false)]));
+        Invoice second = await h.Invoices.FinalizeAsync(clientId, d2.Id);
+
+        IReadOnlyList<InvoiceView> open = await h.Service.ListInvoiceViewsAsync(clientId, customerId, SettlementFilter.Open);
+        IReadOnlyList<InvoiceView> paid = await h.Service.ListInvoiceViewsAsync(clientId, customerId, SettlementFilter.Paid);
+        IReadOnlyList<InvoiceView> all = await h.Service.ListInvoiceViewsAsync(clientId, customerId, null);
+
+        Assert.Equal(second.Id, Assert.Single(open).Invoice.Id);
+        Assert.Equal(first.Id, Assert.Single(paid).Invoice.Id);
+        Assert.Equal(2, all.Count);
+    }
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `dotnet test Modules/Accounting101.Invoicing.Tests --filter FullyQualifiedName~PaymentServiceTests`
+Expected: FAIL — `SettlementFilter` / `ListInvoiceViewsAsync` do not exist.
+
+- [ ] **Step 3: Write minimal implementation**
+
+`SettlementFilter.cs`:
+```csharp
+namespace Accounting101.Invoicing;
+
+/// <summary>Filter for listing invoices by settlement: Open = any unpaid balance (Open or PartiallyPaid);
+/// Paid = fully settled.</summary>
+public enum SettlementFilter { Open, Paid }
+```
+
+Add to `PaymentService` (fetches the customer's payments + credit applications once, builds an applied-per-invoice map, then views):
+```csharp
+    public async Task<IReadOnlyList<InvoiceView>> ListInvoiceViewsAsync(Guid clientId, Guid customerId, SettlementFilter? filter, CancellationToken ct = default)
+    {
+        IReadOnlyList<Invoice> customerInvoices = await invoices.GetByCustomerAsync(clientId, customerId, ct);
+        IReadOnlyList<Payment> ps = await payments.GetPaymentsByCustomerAsync(clientId, customerId, ct);
+        IReadOnlyList<CreditApplication> cs = await payments.GetCreditApplicationsByCustomerAsync(clientId, customerId, ct);
+
+        Dictionary<Guid, decimal> applied = new();
+        foreach (Allocation a in ps.Where(p => !p.Voided).SelectMany(p => p.Allocations)
+                     .Concat(cs.Where(c => !c.Voided).SelectMany(c => c.Allocations)))
+            applied[a.InvoiceId] = applied.GetValueOrDefault(a.InvoiceId) + a.Amount;
+
+        IEnumerable<InvoiceView> views = customerInvoices.Select(inv =>
+        {
+            decimal ap = applied.GetValueOrDefault(inv.Id);
+            return new InvoiceView(inv, Settlement.OpenBalance(inv.Total, ap), Settlement.Status(inv.Total, ap));
+        });
+
+        views = filter switch
+        {
+            SettlementFilter.Open => views.Where(v => v.SettlementStatus != SettlementStatus.Paid),
+            SettlementFilter.Paid => views.Where(v => v.SettlementStatus == SettlementStatus.Paid),
+            _ => views,
+        };
+        return views.ToList();
+    }
+```
+
+Add the route + handler to `InvoicingEndpoints`. Inside `MapInvoicingEndpoints`, after the existing `clients.MapGet("/invoices/{invoiceId:guid}", GetInvoice);`:
+```csharp
+        clients.MapGet("/invoices", ListInvoices);
+```
+Add the handler:
+```csharp
+    private static async Task<IResult> ListInvoices(
+        Guid clientId, Guid customerId, string? settlement, PaymentService service, CancellationToken cancellationToken)
+    {
+        SettlementFilter? filter;
+        switch (settlement?.ToLowerInvariant())
+        {
+            case null or "": filter = null; break;
+            case "open": filter = SettlementFilter.Open; break;
+            case "paid": filter = SettlementFilter.Paid; break;
+            default: return Results.Problem($"Unknown settlement filter '{settlement}'.", statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        IReadOnlyList<InvoiceView> views = await service.ListInvoiceViewsAsync(clientId, customerId, filter, cancellationToken);
+        return Results.Ok(views);
+    }
+```
+
+> The two routes `GET /invoices` (list, requires `customerId` query) and `GET /invoices/{invoiceId:guid}` (single) have distinct templates — no routing conflict.
+
+- [ ] **Step 4: Run test, then build**
+
+Run: `dotnet test Modules/Accounting101.Invoicing.Tests --filter FullyQualifiedName~PaymentServiceTests`
+Expected: PASS.
+Run: `dotnet build Accounting101.slnx`
+Expected: Build succeeded, 0 warnings.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add Modules/Accounting101.Invoicing/SettlementFilter.cs Modules/Accounting101.Invoicing/PaymentService.cs Modules/Accounting101.Invoicing.Api/InvoicingEndpoints.cs Modules/Accounting101.Invoicing.Tests/PaymentServiceTests.cs
+git commit -m "feat(invoicing): settlement-filtered customer invoice list"
+```
+
+---
+
+### Task 13: End-to-end cash-application tests through the real host
 
 **Files:**
 - Modify: `Modules/Accounting101.Invoicing.Tests/InvoicingHostFixture.cs` (add Cash + Customer Credits account ids + config)
@@ -1481,10 +1602,10 @@ git commit -m "test(invoicing): cash application end-to-end — payment, credit,
 - PaymentPostingAccounts (Receivable/Cash/CustomerCredits) + provider → Tasks 2, 10.
 - Corrections (void reverses/withdraws, restores balances) → Task 9, proven in Task 12.
 - Validation 422 cases → Task 6 (amount, per-invoice open balance, missing/void invoice, allocations>amount) + Task 8 (credit exceeds available). Non-positive allocation covered in Task 6.
-- Web surface (payments, void, credit-applications, credit-balance, enriched invoice view) → Task 11; list-with-settlement-filter is **deferred** — see note below.
-- End-to-end + subledger tie-out → Task 12.
+- Web surface (payments, void, credit-applications, credit-balance, enriched invoice view) → Task 11; settlement-filtered invoice list → Task 12.
+- End-to-end + subledger tie-out → Task 13.
 
-**Deferred from spec, intentionally:** `GET /invoices?customerId=&settlement=open|paid` (list with settlement filter). Not in any task — it needs a customer-scoped invoice listing that returns views, which is read-only sugar over `GetInvoiceViewAsync`. Add as a follow-on task only if wanted; flag to the user before execution. A/R aging is already out of scope per the spec.
+**A/R aging** remains out of scope per the spec (a separate follow-on slice on top of these open balances).
 
 **Placeholder scan:** No TBD/TODO/"handle errors" — every step has real code. The three `> NOTE` callouts point the implementer at exact existing files to match constructor/DTO shapes (`InvoiceBody`, `DocumentStoreFixture`, `AccountRequest`/`EntryResponse`/`SubledgerReconciliationResponse`) rather than guessing — these are verification instructions, not placeholders.
 
