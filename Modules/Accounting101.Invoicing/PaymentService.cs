@@ -65,6 +65,26 @@ public sealed class PaymentService(
         return created - spent;
     }
 
+    public async Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, CreditApplicationBody body, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        if (body.Allocations.Count == 0 || body.Allocations.Any(a => a.Amount <= 0m))
+            throw new InvalidOperationException("A credit application needs positive allocations.");
+
+        decimal applying = body.Allocations.Sum(a => a.Amount);
+        decimal available = await GetCustomerCreditBalanceAsync(clientId, body.CustomerId, ct);
+        if (applying > available)
+            throw new InvalidOperationException($"Credit application of {applying} exceeds available credit {available}.");
+
+        await ValidateAllocationsAsync(clientId, body.CustomerId, body.Allocations, ct);
+
+        CreditApplication recorded = await payments.RecordCreditApplicationAsync(clientId, body, ct);
+        PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
+        PostEntryRequest entry = PaymentPosting.ComposeCreditApplication(recorded.Id, body, posting);
+        await ledger.PostAsync(clientId, entry, ct);
+        return recorded;
+    }
+
     /// <summary>Total non-voided allocations (payments + credit applications) applied to one invoice.</summary>
     private async Task<decimal> AppliedToInvoiceAsync(Guid clientId, Guid customerId, Guid invoiceId, CancellationToken ct)
     {

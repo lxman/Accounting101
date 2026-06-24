@@ -86,6 +86,34 @@ public sealed class PaymentServiceTests
         InvoiceView? view = await h.Service.GetInvoiceViewAsync(clientId, invoice.Id);
         Assert.Equal(SettlementStatus.Paid, view!.SettlementStatus);
     }
+
+    [Fact]
+    public async Task Applies_existing_credit_to_an_invoice_and_lowers_the_balance()
+    {
+        (Harness h, Guid clientId, Guid customerId, Invoice first) = await SetupWithIssuedInvoiceAsync(100m);
+        // Create $50 of credit via over-payment on the first invoice.
+        await h.Service.RecordPaymentAsync(clientId, new PaymentBody(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(first.Id, 100m)]));
+        // A second issued invoice to apply credit against.
+        Invoice draft2 = await h.Invoices.CreateDraftAsync(clientId, new InvoiceBody(customerId, new DateOnly(2026, 4, 1), null, 0m, null, [new LineBody("More", 1m, 100m, false)]));
+        Invoice second = await h.Invoices.FinalizeAsync(clientId, draft2.Id);
+
+        CreditApplication applied = await h.Service.RecordCreditApplicationAsync(clientId,
+            new CreditApplicationBody(customerId, new DateOnly(2026, 4, 2), [new Allocation(second.Id, 50m)]));
+
+        Assert.Equal(50m, applied.Applied);
+        Assert.Equal(0m, await h.Service.GetCustomerCreditBalanceAsync(clientId, customerId));
+        Assert.Equal(50m, (await h.Service.GetInvoiceViewAsync(clientId, second.Id))!.OpenBalance);
+        Assert.Contains(h.Ledger.Posted, e => e.SourceType == "CreditApplication");
+    }
+
+    [Fact]
+    public async Task Rejects_a_credit_application_exceeding_available_credit()
+    {
+        (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(100m);
+        // No credit created yet.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => h.Service.RecordCreditApplicationAsync(clientId,
+            new CreditApplicationBody(customerId, new DateOnly(2026, 4, 2), [new Allocation(invoice.Id, 25m)])));
+    }
 }
 
 internal sealed class FixedPaymentAccountsProvider(PaymentPostingAccounts accounts) : IPaymentAccountsProvider
