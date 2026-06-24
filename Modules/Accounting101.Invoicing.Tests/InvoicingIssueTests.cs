@@ -29,6 +29,48 @@ public sealed class InvoicingIssueTests(InvoicingHostFixture fixture) : IClassFi
     }
 
     [Fact]
+    public async Task Issuing_a_license_bearing_invoice_splits_revenue_natively_no_reclass()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) =
+            await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId);
+
+        // Add the Software License Revenue account the "License" category maps to.
+        (await controller.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.LicenseRevenueAccountId}",
+            new AccountRequest { Number = "4100", Name = "Software License Revenue", Type = "Revenue" }))
+            .EnsureSuccessStatusCode();
+
+        Customer customer = (await (await clerk.PostAsJsonAsync(
+                $"/clients/{clientId}/customers", new CreateCustomerRequest("Stark Industries", null)))
+            .Content.ReadFromJsonAsync<Customer>())!;
+
+        // Consulting (default revenue, exempt) + a software license (License category, taxable).
+        DraftInvoiceRequest draftRequest = new(
+            customer.Id,
+            [
+                new InvoiceLine { Description = "Consulting", Quantity = 1m, UnitPrice = 9250m, Taxable = false },
+                new InvoiceLine { Description = "Software license", Quantity = 1m, UnitPrice = 2000m, RevenueCategory = "License" },
+            ],
+            TaxRate: 0.08m, IssueDate: new DateOnly(2026, 3, 31), DueDate: null, Memo: null);
+        Invoice draft = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/invoices", draftRequest))
+            .Content.ReadFromJsonAsync<Invoice>())!;
+
+        (await clerk.PostAsync($"/clients/{clientId}/invoices/{draft.Id}/issue", null)).EnsureSuccessStatusCode();
+
+        EntryResponse arEntry = Assert.Single((await clerk.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={draft.Id}"))!);
+        (await approver.PostAsync($"/clients/{clientId}/entries/{arEntry.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        // ONE entry, revenue split across the two accounts directly — no reclass entry exists.
+        EntryResponse entry = Assert.Single((await clerk.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={draft.Id}"))!);
+        Assert.Equal(9250m, entry.Lines.Single(l => l.AccountId == fixture.RevenueAccountId).Amount);          // consulting -> default
+        Assert.Equal(2000m, entry.Lines.Single(l => l.AccountId == fixture.LicenseRevenueAccountId).Amount);   // license -> 4100, natively
+        Assert.Equal(160m, entry.Lines.Single(l => l.AccountId == fixture.SalesTaxPayableAccountId).Amount);
+        Assert.Equal(11410m, entry.Lines.Single(l => l.AccountId == fixture.ReceivableAccountId).Amount);
+    }
+
+    [Fact]
     public async Task Issuing_then_a_separate_approver_books_the_AR_entry_under_SoD()
     {
         (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) =

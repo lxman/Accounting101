@@ -61,7 +61,7 @@ public sealed class DocumentInvoiceStore(IDocumentStore documents) : IInvoiceSto
         TaxRate = result.Body.TaxRate,
         Memo = result.Body.Memo,
         Lines = result.Body.Lines
-            .Select(l => new InvoiceLine { Description = l.Description, Quantity = l.Quantity, UnitPrice = l.UnitPrice, Taxable = l.Taxable })
+            .Select(l => new InvoiceLine { Description = l.Description, Quantity = l.Quantity, UnitPrice = l.UnitPrice, Taxable = l.Taxable, RevenueCategory = l.RevenueCategory })
             .ToList(),
     };
 }

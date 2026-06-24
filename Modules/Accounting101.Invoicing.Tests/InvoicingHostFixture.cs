@@ -26,6 +26,7 @@ public sealed class InvoicingHostFixture : WebApplicationFactory<Program>, IAsyn
     public string ControlDatabase { get; } = "control_" + Guid.NewGuid().ToString("N");
     public Guid ReceivableAccountId { get; } = Guid.NewGuid();
     public Guid RevenueAccountId { get; } = Guid.NewGuid();
+    public Guid LicenseRevenueAccountId { get; } = Guid.NewGuid();
     public Guid SalesTaxPayableAccountId { get; } = Guid.NewGuid();
 
     public async Task InitializeAsync()
@@ -54,6 +55,7 @@ public sealed class InvoicingHostFixture : WebApplicationFactory<Program>, IAsyn
         builder.UseSetting("Mongo:ControlDatabase", ControlDatabase);
         builder.UseSetting("Invoicing:Accounts:Receivable", ReceivableAccountId.ToString());
         builder.UseSetting("Invoicing:Accounts:Revenue", RevenueAccountId.ToString());
+        builder.UseSetting("Invoicing:Accounts:RevenueByCategory:License", LicenseRevenueAccountId.ToString());
         builder.UseSetting("Invoicing:Accounts:SalesTaxPayable", SalesTaxPayableAccountId.ToString());
 
         // Repoint the invoicing→ledger loopback client at this in-memory test server (no real socket).

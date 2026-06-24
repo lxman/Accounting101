@@ -13,6 +13,13 @@ public sealed record InvoiceLine
     /// <summary>Whether this line is subject to sales tax. Defaults to taxable.</summary>
     public bool Taxable { get; init; } = true;
 
+    /// <summary>
+    /// Semantic revenue classification for this line (e.g. "License"). The posting recipe resolves it
+    /// to a revenue account via the chart contract; <c>null</c> (or an unmapped category) credits the
+    /// default revenue account. Orthogonal to <see cref="Taxable"/> — taxability is not classification.
+    /// </summary>
+    public string? RevenueCategory { get; init; }
+
     /// <summary>Extended amount for the line. Money is <see cref="decimal"/>, never floating point.</summary>
     public decimal Amount => Quantity * UnitPrice;
 }

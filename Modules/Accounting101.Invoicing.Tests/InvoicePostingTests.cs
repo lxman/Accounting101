@@ -13,7 +13,7 @@ public sealed class InvoicePostingTests
     private static readonly InvoicePostingAccounts Accounts = new()
     {
         ReceivableAccountId = Guid.NewGuid(),
-        RevenueAccountId = Guid.NewGuid(),
+        DefaultRevenueAccountId = Guid.NewGuid(),
         SalesTaxPayableAccountId = Guid.NewGuid(),
     };
 
@@ -56,8 +56,77 @@ public sealed class InvoicePostingTests
         Assert.Equal(137m, ar.Amount);
         Assert.Equal(customer, ar.Dimensions!["Customer"]);      // A/R tagged so the subledger ties out
 
-        Assert.Equal(130m, entry.Lines.Single(l => l.AccountId == Accounts.RevenueAccountId).Amount);
+        Assert.Equal(130m, entry.Lines.Single(l => l.AccountId == Accounts.DefaultRevenueAccountId).Amount);
         Assert.Equal(7m, entry.Lines.Single(l => l.AccountId == Accounts.SalesTaxPayableAccountId).Amount);
+    }
+
+    [Fact]
+    public void Lines_split_revenue_across_their_mapped_accounts()
+    {
+        Guid licenseRevenue = Guid.NewGuid();
+        InvoicePostingAccounts accounts = new()
+        {
+            ReceivableAccountId = Guid.NewGuid(),
+            DefaultRevenueAccountId = Guid.NewGuid(),
+            RevenueAccountsByCategory = new Dictionary<string, Guid> { ["License"] = licenseRevenue },
+            SalesTaxPayableAccountId = Guid.NewGuid(),
+        };
+
+        Invoice invoice = new()
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = Guid.NewGuid(),
+            Number = "INV-2001",
+            IssueDate = new DateOnly(2026, 3, 31),
+            TaxRate = 0.08m,
+            Lines =
+            [
+                new InvoiceLine { Description = "Consulting", Quantity = 1m, UnitPrice = 9250m, Taxable = false },      // default revenue
+                new InvoiceLine { Description = "Software license", Quantity = 1m, UnitPrice = 2000m, RevenueCategory = "License" }, // mapped, taxable
+            ],
+        };
+
+        // Subtotal 11250, taxable base 2000, tax 160.00, total 11410.
+        PostEntryRequest entry = InvoicePosting.Compose(invoice, accounts);
+
+        Assert.Equal(0m, entry.Lines.Sum(SignedEffect));                                                       // balances by construction
+        Assert.Equal(9250m, entry.Lines.Single(l => l.AccountId == accounts.DefaultRevenueAccountId).Amount);  // consulting -> default
+        Assert.Equal(2000m, entry.Lines.Single(l => l.AccountId == licenseRevenue).Amount);                    // license -> mapped account
+        Assert.Equal(160m, entry.Lines.Single(l => l.AccountId == accounts.SalesTaxPayableAccountId).Amount);  // tax untouched by the split
+        Assert.Equal(11410m, entry.Lines.Single(l => l.AccountId == accounts.ReceivableAccountId).Amount);     // A/R = total
+    }
+
+    [Fact]
+    public void An_unmapped_category_folds_into_the_default_revenue_account()
+    {
+        InvoicePostingAccounts accounts = new()
+        {
+            ReceivableAccountId = Guid.NewGuid(),
+            DefaultRevenueAccountId = Guid.NewGuid(),
+            RevenueAccountsByCategory = new Dictionary<string, Guid> { ["License"] = Guid.NewGuid() },
+            SalesTaxPayableAccountId = Guid.NewGuid(),
+        };
+
+        Invoice invoice = new()
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = Guid.NewGuid(),
+            Number = "INV-2002",
+            IssueDate = new DateOnly(2026, 3, 31),
+            TaxRate = 0m,
+            Lines =
+            [
+                new InvoiceLine { Description = "Consulting", Quantity = 1m, UnitPrice = 400m, Taxable = false },
+                new InvoiceLine { Description = "Training", Quantity = 1m, UnitPrice = 100m, Taxable = false, RevenueCategory = "Training" }, // category not in the map
+            ],
+        };
+
+        PostEntryRequest entry = InvoicePosting.Compose(invoice, accounts);
+
+        // Both lines resolve to the default account → one revenue credit of 500, no license line.
+        Assert.Equal(500m, entry.Lines.Single(l => l.AccountId == accounts.DefaultRevenueAccountId).Amount);
+        Assert.Equal(2, entry.Lines.Count); // A/R + one revenue credit (tax-exempt)
+        Assert.Equal(0m, entry.Lines.Sum(SignedEffect));
     }
 
     [Fact]

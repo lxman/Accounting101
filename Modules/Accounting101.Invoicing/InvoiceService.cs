@@ -36,7 +36,7 @@ public sealed class InvoiceService(
 
         InvoiceBody body = new(
             customerId, issueDate, dueDate, taxRate, memo,
-            lines.Select(l => new LineBody(l.Description, l.Quantity, l.UnitPrice, l.Taxable)).ToList());
+            lines.Select(l => new LineBody(l.Description, l.Quantity, l.UnitPrice, l.Taxable, l.RevenueCategory)).ToList());
 
         return await invoices.CreateDraftAsync(clientId, body, cancellationToken);
     }

@@ -20,8 +20,27 @@ public sealed class ConfiguredInvoiceAccountsProviderTests
         InvoicePostingAccounts accounts = await new ConfiguredInvoiceAccountsProvider(config).GetAsync(Guid.NewGuid());
 
         Assert.Equal(ar, accounts.ReceivableAccountId);
-        Assert.Equal(rev, accounts.RevenueAccountId);
+        Assert.Equal(rev, accounts.DefaultRevenueAccountId);
         Assert.Equal(tax, accounts.SalesTaxPayableAccountId);
+        Assert.Empty(accounts.RevenueAccountsByCategory);   // no category section configured → empty map
+    }
+
+    [Fact]
+    public async Task Reads_the_revenue_category_map_from_configuration()
+    {
+        Guid ar = Guid.NewGuid(), rev = Guid.NewGuid(), tax = Guid.NewGuid(), license = Guid.NewGuid();
+        IConfiguration config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Invoicing:Accounts:Receivable"] = ar.ToString(),
+            ["Invoicing:Accounts:Revenue"] = rev.ToString(),
+            ["Invoicing:Accounts:SalesTaxPayable"] = tax.ToString(),
+            ["Invoicing:Accounts:RevenueByCategory:License"] = license.ToString(),
+        }).Build();
+
+        InvoicePostingAccounts accounts = await new ConfiguredInvoiceAccountsProvider(config).GetAsync(Guid.NewGuid());
+
+        Assert.Equal(license, accounts.RevenueAccountsByCategory["License"]);
+        Assert.Single(accounts.RevenueAccountsByCategory);
     }
 
     [Fact]

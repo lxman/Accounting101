@@ -13,7 +13,7 @@ public sealed class InvoiceServiceTests
     private static readonly InvoicePostingAccounts Accounts = new()
     {
         ReceivableAccountId = Guid.NewGuid(),
-        RevenueAccountId = Guid.NewGuid(),
+        DefaultRevenueAccountId = Guid.NewGuid(),
         SalesTaxPayableAccountId = Guid.NewGuid(),
     };
 

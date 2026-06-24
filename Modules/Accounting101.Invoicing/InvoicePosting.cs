@@ -26,10 +26,18 @@ public static class InvoicePosting
         [
             new(accounts.ReceivableAccountId, "Debit", invoice.Total,
                 Dimensions: new Dictionary<string, Guid> { [CustomerDimension] = invoice.CustomerId }),
-            new(accounts.RevenueAccountId, "Credit", invoice.Subtotal),
         ];
 
-        // Only split out tax when there is any — a tax-exempt invoice is a clean two-line entry.
+        // Credit revenue per resolved account: each line's category maps to an account (a null or
+        // unmapped category folds into the default), and lines sharing an account collapse into one
+        // credit. Grouping by exact line-sum keeps the credits summing to the subtotal with no rounding
+        // residue. Ordered by account id so the entry is deterministic.
+        lines.AddRange(invoice.Lines
+            .GroupBy(line => ResolveRevenueAccount(line, accounts))
+            .OrderBy(group => group.Key)
+            .Select(group => new PostLineRequest(group.Key, "Credit", group.Sum(line => line.Amount))));
+
+        // Only split out tax when there is any — a tax-exempt invoice carries no tax line.
         if (invoice.Tax != 0m)
             lines.Add(new(accounts.SalesTaxPayableAccountId, "Credit", invoice.Tax));
 
@@ -42,4 +50,10 @@ public static class InvoicePosting
             SourceRef: invoice.Id,
             SourceType: SourceType);
     }
+
+    /// <summary>Resolve a line's revenue account: its mapped category, or the default for a null/unmapped category.</summary>
+    private static Guid ResolveRevenueAccount(InvoiceLine line, InvoicePostingAccounts accounts) =>
+        line.RevenueCategory is { } category && accounts.RevenueAccountsByCategory.TryGetValue(category, out Guid account)
+            ? account
+            : accounts.DefaultRevenueAccountId;
 }

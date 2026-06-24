@@ -13,7 +13,8 @@ public sealed class ConfiguredInvoiceAccountsProvider(IConfiguration configurati
         Task.FromResult(new InvoicePostingAccounts
         {
             ReceivableAccountId = Read("Invoicing:Accounts:Receivable"),
-            RevenueAccountId = Read("Invoicing:Accounts:Revenue"),
+            DefaultRevenueAccountId = Read("Invoicing:Accounts:Revenue"),
+            RevenueAccountsByCategory = ReadCategoryMap("Invoicing:Accounts:RevenueByCategory"),
             SalesTaxPayableAccountId = Read("Invoicing:Accounts:SalesTaxPayable"),
         });
 
@@ -21,4 +22,14 @@ public sealed class ConfiguredInvoiceAccountsProvider(IConfiguration configurati
         Guid.TryParse(configuration[key], out Guid id)
             ? id
             : throw new InvalidOperationException($"Invoicing posting account '{key}' is not configured.");
+
+    /// <summary>Bind a category → account-id section. Absent section yields an empty map; a malformed
+    /// value fails loud, the same as a required account.</summary>
+    private IReadOnlyDictionary<string, Guid> ReadCategoryMap(string sectionKey) =>
+        configuration.GetSection(sectionKey).GetChildren().ToDictionary(
+            child => child.Key,
+            child => Guid.TryParse(child.Value, out Guid id)
+                ? id
+                : throw new InvalidOperationException(
+                    $"Invoicing revenue category '{child.Key}' has a malformed account id '{child.Value}'."));
 }
