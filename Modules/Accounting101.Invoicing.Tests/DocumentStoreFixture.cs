@@ -48,6 +48,8 @@ public sealed class DocumentStoreFixture : IAsyncLifetime
         ModuleManifest manifest = new ModuleManifestBuilder()
             .Reference("customers")
             .Evidentiary("invoices", "Customer")
+            .Evidentiary("payments", "Customer")
+            .Evidentiary("credit-applications", "Customer")
             .Build();
 
         Store = new ScopedDocumentStore(

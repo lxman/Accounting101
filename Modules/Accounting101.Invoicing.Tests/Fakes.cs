@@ -118,3 +118,47 @@ internal sealed class FixedAccountsProvider(InvoicePostingAccounts accounts) : I
     public Task<InvoicePostingAccounts> GetAsync(Guid clientId, CancellationToken cancellationToken = default) =>
         Task.FromResult(accounts);
 }
+
+internal sealed class InMemoryPaymentStore : IPaymentStore
+{
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, Guid), Payment> _payments = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, Guid), CreditApplication> _credits = new();
+
+    public Task<Payment> RecordPaymentAsync(Guid clientId, PaymentBody body, CancellationToken ct = default)
+    {
+        Payment p = new()
+        {
+            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date, Amount = body.Amount,
+            Method = body.Method, Allocations = body.Allocations, Voided = false,
+        };
+        _payments[(clientId, p.Id)] = p;
+        return Task.FromResult(p);
+    }
+
+    public Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, CreditApplicationBody body, CancellationToken ct = default)
+    {
+        CreditApplication c = new()
+        {
+            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date,
+            Allocations = body.Allocations, Voided = false,
+        };
+        _credits[(clientId, c.Id)] = c;
+        return Task.FromResult(c);
+    }
+
+    public Task VoidAsync(Guid clientId, Guid documentId, CancellationToken ct = default)
+    {
+        if (_payments.TryGetValue((clientId, documentId), out Payment? p))
+            _payments[(clientId, documentId)] = p with { Voided = true };
+        return Task.CompletedTask;
+    }
+
+    public Task<Payment?> GetPaymentAsync(Guid clientId, Guid paymentId, CancellationToken ct = default) =>
+        Task.FromResult(_payments.GetValueOrDefault((clientId, paymentId)));
+
+    public Task<IReadOnlyList<Payment>> GetPaymentsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<Payment>>(_payments.Where(kv => kv.Key.Item1 == clientId && kv.Value.CustomerId == customerId).Select(kv => kv.Value).ToList());
+
+    public Task<IReadOnlyList<CreditApplication>> GetCreditApplicationsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<CreditApplication>>(_credits.Where(kv => kv.Key.Item1 == clientId && kv.Value.CustomerId == customerId).Select(kv => kv.Value).ToList());
+}
