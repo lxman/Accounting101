@@ -61,4 +61,25 @@ public sealed class PaymentPostingTests
         Assert.Equal(500m, entry.Lines.Single(l => l.AccountId == Accounts.CustomerCreditsAccountId).Amount);
         Assert.DoesNotContain(entry.Lines, l => l.AccountId == Accounts.ReceivableAccountId);
     }
+
+    [Fact]
+    public void Credit_application_moves_customer_credits_to_ar()
+    {
+        Guid customer = Guid.NewGuid();
+        CreditApplicationBody body = new(customer, new DateOnly(2026, 4, 1),
+            [new Allocation(Guid.NewGuid(), 120m), new Allocation(Guid.NewGuid(), 80m)]);
+
+        PostEntryRequest entry = PaymentPosting.ComposeCreditApplication(Guid.NewGuid(), body, Accounts);
+
+        Assert.Equal(0m, entry.Lines.Sum(Signed));
+        PostLineRequest debit = entry.Lines.Single(l => l.AccountId == Accounts.CustomerCreditsAccountId);
+        PostLineRequest credit = entry.Lines.Single(l => l.AccountId == Accounts.ReceivableAccountId);
+        Assert.Equal("Debit", debit.Direction);
+        Assert.Equal(200m, debit.Amount);
+        Assert.Equal("Credit", credit.Direction);
+        Assert.Equal(200m, credit.Amount);
+        Assert.Equal(customer, debit.Dimensions!["Customer"]);
+        Assert.Equal(customer, credit.Dimensions!["Customer"]);
+        Assert.Equal("CreditApplication", entry.SourceType);
+    }
 }

@@ -29,4 +29,23 @@ public static class PaymentPosting
             Id: null, EffectiveDate: body.Date, Reference: null, Memo: null,
             Lines: lines, SourceRef: paymentId, SourceType: PaymentSourceType);
     }
+
+    public static PostEntryRequest ComposeCreditApplication(Guid id, CreditApplicationBody body, PaymentPostingAccounts accounts)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        ArgumentNullException.ThrowIfNull(accounts);
+
+        decimal applied = body.Allocations.Sum(a => a.Amount);
+        Dictionary<string, Guid> dim = new() { [CustomerDimension] = body.CustomerId };
+
+        List<PostLineRequest> lines =
+        [
+            new(accounts.CustomerCreditsAccountId, "Debit", applied, Dimensions: dim),
+            new(accounts.ReceivableAccountId, "Credit", applied, Dimensions: dim),
+        ];
+
+        return new PostEntryRequest(
+            Id: null, EffectiveDate: body.Date, Reference: null, Memo: null,
+            Lines: lines, SourceRef: id, SourceType: CreditApplicationSourceType);
+    }
 }
