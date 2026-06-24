@@ -64,6 +64,15 @@ public sealed class InvoicingHostFixture : WebApplicationFactory<Program>, IAsyn
 
     public ControlStore Control() => new(Mongo.GetDatabase(ControlDatabase));
 
+    /// <summary>Mint an authenticated HttpClient for the given user.</summary>
+    public HttpClient ClientFor(Guid userId, string name)
+    {
+        HttpClient http = CreateClient();
+        string token = DevToken.Encode(new DevTokenPayload(userId, name, []));
+        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(DevTokenDefaults.Scheme, token);
+        return http;
+    }
+
     /// <summary>Register a client + a Controller member, returning an HttpClient authed as that member.</summary>
     public async Task<(Guid ClientId, HttpClient Http)> SeedClientAsync()
     {
@@ -75,10 +84,34 @@ public sealed class InvoicingHostFixture : WebApplicationFactory<Program>, IAsyn
             Id = clientId, Name = "Acme", DatabaseName = "client_" + clientId.ToString("N"),
         });
         await control.AddMembershipAsync(userId, clientId, LedgerRole.Controller);
+        return (clientId, ClientFor(userId, "Acme Controller"));
+    }
 
-        HttpClient http = CreateClient();
-        string token = DevToken.Encode(new DevTokenPayload(userId, "Acme Controller", []));
-        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(DevTokenDefaults.Scheme, token);
-        return (clientId, http);
+    /// <summary>
+    /// Register a SoD-ON client with three members: a Controller (chart setup only), a Clerk (issues),
+    /// and an Approver (approves/voids). Returns the client id and authed HttpClients for the Clerk
+    /// and Approver; use a separate Controller client for chart setup via <see cref="SeedClientAsync"/>
+    /// or drive it through the returned controller client directly.
+    /// </summary>
+    public async Task<(Guid ClientId, HttpClient ControllerHttp, HttpClient ClerkHttp, HttpClient ApproverHttp)>
+        SeedSodClientAsync()
+    {
+        Guid clientId = Guid.NewGuid();
+        Guid controllerUserId = Guid.NewGuid();
+        Guid clerkUserId = Guid.NewGuid();
+        Guid approverUserId = Guid.NewGuid();
+        ControlStore control = Control();
+        await control.RegisterClientAsync(new ClientRegistration
+        {
+            Id = clientId, Name = "Acme SoD", DatabaseName = "client_" + clientId.ToString("N"),
+            RequireSegregationOfDuties = true,
+        });
+        await control.AddMembershipAsync(controllerUserId, clientId, LedgerRole.Controller);
+        await control.AddMembershipAsync(clerkUserId, clientId, LedgerRole.Clerk);
+        await control.AddMembershipAsync(approverUserId, clientId, LedgerRole.Approver);
+        return (clientId,
+            ClientFor(controllerUserId, "Acme Controller"),
+            ClientFor(clerkUserId, "Acme Clerk"),
+            ClientFor(approverUserId, "Acme Approver"));
     }
 }
