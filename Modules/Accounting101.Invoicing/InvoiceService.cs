@@ -41,7 +41,8 @@ public sealed class InvoiceService(
     }
 
     /// <summary>
-    /// Issue a draft: finalize it (assigns the number), then compose, post, and approve its A/R entry.
+    /// Issue a draft: finalize it (assigns the number), then compose and post its A/R entry.
+    /// The entry lands PendingApproval — approval is the client's normal maker-checker flow (SoD).
     /// The total-must-be-positive check runs before finalize, since finalize cannot be undone.
     /// </summary>
     public async Task<Invoice> IssueAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default)
@@ -56,15 +57,16 @@ public sealed class InvoiceService(
 
         InvoicePostingAccounts postingAccounts = await accounts.GetAsync(clientId, cancellationToken);
         PostEntryRequest entry = InvoicePosting.Compose(issued, postingAccounts);
-        PostEntryResponse posted = await ledger.PostAsync(clientId, entry, cancellationToken);
-        await ledger.ApproveAsync(clientId, posted.Id, cancellationToken);
+        await ledger.PostAsync(clientId, entry, cancellationToken);   // lands PendingApproval; approval is the client's normal flow
 
         return issued;
     }
 
     /// <summary>
-    /// Void an issued invoice: find the entry it produced (by source back-link), reverse and approve that,
-    /// then void the document. Correct the books before marking the source.
+    /// Void an issued invoice: find the entry it produced (by source back-link), then branch on its state.
+    /// If the entry is on the books (Posted) → reverse it (reversal lands PendingApproval; no auto-approve).
+    /// If the entry is still pending (PendingApproval) → withdraw it via VoidAsync (nothing was on the books).
+    /// Then void the document. Correct the books before marking the source.
     /// </summary>
     public async Task<Invoice> VoidAsync(
         Guid clientId, Guid invoiceId, string? reason = null, CancellationToken cancellationToken = default)
@@ -74,12 +76,20 @@ public sealed class InvoiceService(
             throw new InvalidOperationException($"Only an issued invoice can be voided; {invoiceId} is {invoice.Status}.");
 
         IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, invoiceId, cancellationToken);
-        EntryResponse issueEntry = spawned.FirstOrDefault(e => e is { Status: "Active", Posting: "Posted", ReversalOf: null })
-            ?? throw new InvalidOperationException($"No posted entry found for invoice {invoice.Number} to reverse.");
+        EntryResponse issueEntry = spawned.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null })
+            ?? throw new InvalidOperationException($"No entry found for invoice {invoice.Number} to void.");
 
-        EntryResponse reversal = await ledger.ReverseAsync(
-            clientId, issueEntry.Id, new ReverseRequest(invoice.IssueDate, reason ?? $"Voided invoice {invoice.Number}"), cancellationToken);
-        await ledger.ApproveAsync(clientId, reversal.Id, cancellationToken);
+        if (issueEntry.Posting == "Posted")
+        {
+            // On the books: reverse it. The reversal lands PendingApproval — the GL correction awaits approval.
+            await ledger.ReverseAsync(
+                clientId, issueEntry.Id, new ReverseRequest(invoice.IssueDate, reason ?? $"Voided invoice {invoice.Number}"), cancellationToken);
+        }
+        else
+        {
+            // Never approved onto the books: nothing to reverse — withdraw the pending entry.
+            await ledger.VoidAsync(clientId, issueEntry.Id, new VoidRequest(reason ?? $"Voided invoice {invoice.Number}"), cancellationToken);
+        }
 
         await invoices.VoidAsync(clientId, invoiceId, cancellationToken);
         return await RequireAsync(clientId, invoiceId, cancellationToken);

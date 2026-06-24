@@ -3,9 +3,10 @@ using Accounting101.Ledger.Contracts;
 namespace Accounting101.Invoicing.Tests;
 
 /// <summary>
-/// The invoice lifecycle against in-memory fakes: issuing a draft finalizes it (assigning a number),
-/// posts and approves the composed A/R entry; voiding reverses that entry by its source back-link; and
-/// the status guards hold. Number and status are derived from the (faked) store's lifecycle.
+/// The invoice lifecycle against in-memory fakes: issuing a draft finalizes it (assigning a number)
+/// and posts the A/R entry (PendingApproval — never auto-approved); voiding branches on whether the
+/// entry is already on the books (reverse, stays pending) or still pending (withdraw via VoidAsync).
+/// Status guards hold. Number and status are derived from the (faked) store's lifecycle.
 /// </summary>
 public sealed class InvoiceServiceTests
 {
@@ -56,25 +57,65 @@ public sealed class InvoiceServiceTests
         Assert.Equal(107m, ar.Amount);
         Assert.Equal(customer.Id, ar.Dimensions!["Customer"]);
 
-        IReadOnlyList<EntryResponse> onBooks = await h.Ledger.GetEntriesBySourceRefAsync(client, draft.Id);
-        Assert.Equal("Posted", Assert.Single(onBooks).Posting);
+        // Maker-checker: the entry is posted but NOT auto-approved — a separate approver books it.
+        IReadOnlyList<EntryResponse> entries = await h.Ledger.GetEntriesBySourceRefAsync(client, draft.Id);
+        Assert.Equal("PendingApproval", Assert.Single(entries).Posting);
     }
 
     [Fact]
-    public async Task Voiding_an_issued_invoice_reverses_its_entry()
+    public async Task Issuing_posts_the_AR_entry_pending_approval_and_does_not_approve_it()
     {
         Harness h = NewHarness();
         var client = Guid.NewGuid();
         Customer customer = await h.Service.CreateCustomerAsync(client, "Acme");
         Invoice draft = await h.Service.DraftAsync(client, customer.Id, OneLine(100m), taxRate: 0m, new DateOnly(2026, 3, 31));
-        await h.Service.IssueAsync(client, draft.Id);
 
-        Invoice voided = await h.Service.VoidAsync(client, draft.Id, "duplicate");
+        Invoice issued = await h.Service.IssueAsync(client, draft.Id);
 
-        Assert.Equal(InvoiceStatus.Void, voided.Status);
-        IReadOnlyList<EntryResponse> entries = await h.Ledger.GetEntriesBySourceRefAsync(client, draft.Id);
-        Assert.Equal(2, entries.Count);
-        Assert.Contains(entries, e => e.ReversalOf is not null);
+        IReadOnlyList<EntryResponse> entries = await h.Ledger.GetEntriesBySourceRefAsync(client, issued.Id);
+        EntryResponse arEntry = Assert.Single(entries);
+        Assert.Equal("Active", arEntry.Status);
+        Assert.Equal("PendingApproval", arEntry.Posting);       // headline change: module does NOT self-approve
+        Assert.Equal(InvoiceStatus.Issued, issued.Status);
+    }
+
+    [Fact]
+    public async Task Voiding_an_approved_invoice_reverses_its_entry_without_approving_the_reversal()
+    {
+        Harness h = NewHarness();
+        var client = Guid.NewGuid();
+        Customer customer = await h.Service.CreateCustomerAsync(client, "Acme");
+        Invoice draft = await h.Service.DraftAsync(client, customer.Id, OneLine(100m), taxRate: 0m, new DateOnly(2026, 3, 31));
+        Invoice issued = await h.Service.IssueAsync(client, draft.Id);
+        // A separate approver puts the entry on the books — this is the normal flow after Issue.
+        IReadOnlyList<EntryResponse> afterIssue = await h.Ledger.GetEntriesBySourceRefAsync(client, issued.Id);
+        await h.Ledger.ApproveAsync(client, afterIssue.Single().Id);
+
+        await h.Service.VoidAsync(client, issued.Id, "duplicate");
+
+        IReadOnlyList<EntryResponse> entries = await h.Ledger.GetEntriesBySourceRefAsync(client, issued.Id);
+        Assert.Contains(entries, e => e.ReversalOf is not null);    // a reversal entry was created
+        Assert.All(
+            entries.Where(e => e.ReversalOf is not null),
+            r => Assert.Equal("PendingApproval", r.Posting));        // reversal is NOT auto-approved
+        Assert.Equal(InvoiceStatus.Void, (await h.Service.GetAsync(client, issued.Id))!.Status);
+    }
+
+    [Fact]
+    public async Task Voiding_an_invoice_whose_entry_is_still_pending_withdraws_that_entry()
+    {
+        Harness h = NewHarness();
+        var client = Guid.NewGuid();
+        Customer customer = await h.Service.CreateCustomerAsync(client, "Acme");
+        Invoice draft = await h.Service.DraftAsync(client, customer.Id, OneLine(100m), taxRate: 0m, new DateOnly(2026, 3, 31));
+        Invoice issued = await h.Service.IssueAsync(client, draft.Id);  // entry is pending, never approved
+
+        await h.Service.VoidAsync(client, issued.Id, "issued in error");
+
+        IReadOnlyList<EntryResponse> entries = await h.Ledger.GetEntriesBySourceRefAsync(client, issued.Id);
+        Assert.DoesNotContain(entries, e => e.ReversalOf is not null);  // nothing reversed (was never on the books)
+        Assert.Contains(entries, e => e.Status == "Voided");            // pending entry was withdrawn
+        Assert.Equal(InvoiceStatus.Void, (await h.Service.GetAsync(client, issued.Id))!.Status);
     }
 
     [Fact]
