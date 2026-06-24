@@ -62,6 +62,30 @@ public sealed class PaymentServiceTests
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => h.Service.RecordPaymentAsync(clientId, body));
     }
+
+    [Fact]
+    public async Task Invoice_view_reflects_a_partial_payment()
+    {
+        (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(100m);
+        await h.Service.RecordPaymentAsync(clientId, new PaymentBody(customerId, new DateOnly(2026, 3, 31), 40m, null, [new Allocation(invoice.Id, 40m)]));
+
+        InvoiceView? view = await h.Service.GetInvoiceViewAsync(clientId, invoice.Id);
+
+        Assert.NotNull(view);
+        Assert.Equal(60m, view!.OpenBalance);
+        Assert.Equal(SettlementStatus.PartiallyPaid, view.SettlementStatus);
+    }
+
+    [Fact]
+    public async Task Over_payment_raises_the_customer_credit_balance()
+    {
+        (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(100m);
+        await h.Service.RecordPaymentAsync(clientId, new PaymentBody(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice.Id, 100m)]));
+
+        Assert.Equal(50m, await h.Service.GetCustomerCreditBalanceAsync(clientId, customerId));
+        InvoiceView? view = await h.Service.GetInvoiceViewAsync(clientId, invoice.Id);
+        Assert.Equal(SettlementStatus.Paid, view!.SettlementStatus);
+    }
 }
 
 internal sealed class FixedPaymentAccountsProvider(PaymentPostingAccounts accounts) : IPaymentAccountsProvider

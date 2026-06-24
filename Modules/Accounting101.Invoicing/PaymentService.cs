@@ -47,6 +47,24 @@ public sealed class PaymentService(
         }
     }
 
+    public async Task<InvoiceView?> GetInvoiceViewAsync(Guid clientId, Guid invoiceId, CancellationToken ct = default)
+    {
+        Invoice? invoice = await invoices.GetAsync(clientId, invoiceId, ct);
+        if (invoice is null) return null;
+        decimal applied = await AppliedToInvoiceAsync(clientId, invoice.CustomerId, invoiceId, ct);
+        return new InvoiceView(invoice, Settlement.OpenBalance(invoice.Total, applied), Settlement.Status(invoice.Total, applied));
+    }
+
+    /// <summary>Unapplied customer credit = non-voided payment remainders minus non-voided credit applications.</summary>
+    public async Task<decimal> GetCustomerCreditBalanceAsync(Guid clientId, Guid customerId, CancellationToken ct = default)
+    {
+        IReadOnlyList<Payment> ps = await payments.GetPaymentsByCustomerAsync(clientId, customerId, ct);
+        IReadOnlyList<CreditApplication> cs = await payments.GetCreditApplicationsByCustomerAsync(clientId, customerId, ct);
+        decimal created = ps.Where(p => !p.Voided).Sum(p => p.Unapplied);
+        decimal spent = cs.Where(c => !c.Voided).Sum(c => c.Applied);
+        return created - spent;
+    }
+
     /// <summary>Total non-voided allocations (payments + credit applications) applied to one invoice.</summary>
     private async Task<decimal> AppliedToInvoiceAsync(Guid clientId, Guid customerId, Guid invoiceId, CancellationToken ct)
     {
