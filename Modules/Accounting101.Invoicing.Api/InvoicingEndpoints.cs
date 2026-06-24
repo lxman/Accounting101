@@ -15,6 +15,7 @@ public static class InvoicingEndpoints
         clients.MapPost("/invoices/{invoiceId:guid}/issue", IssueInvoice);
         clients.MapPost("/invoices/{invoiceId:guid}/void", VoidInvoice);
         clients.MapGet("/invoices/{invoiceId:guid}", GetInvoice);
+        clients.MapGet("/invoices", ListInvoices);
         clients.MapPost("/payments", RecordPayment);
         clients.MapPost("/payments/{paymentId:guid}/void", VoidPayment);
         clients.MapPost("/credit-applications", ApplyCredit);
@@ -77,6 +78,22 @@ public static class InvoicingEndpoints
     {
         InvoiceView? view = await payments.GetInvoiceViewAsync(clientId, invoiceId, cancellationToken);
         return view is null ? Results.NotFound() : Results.Ok(view);
+    }
+
+    private static async Task<IResult> ListInvoices(
+        Guid clientId, Guid customerId, string? settlement, PaymentService service, CancellationToken cancellationToken)
+    {
+        SettlementFilter? filter;
+        switch (settlement?.ToLowerInvariant())
+        {
+            case null or "": filter = null; break;
+            case "open": filter = SettlementFilter.Open; break;
+            case "paid": filter = SettlementFilter.Paid; break;
+            default: return Results.Problem($"Unknown settlement filter '{settlement}'.", statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        IReadOnlyList<InvoiceView> views = await service.ListInvoiceViewsAsync(clientId, customerId, filter, cancellationToken);
+        return Results.Ok(views);
     }
 
     private static async Task<IResult> RecordPayment(

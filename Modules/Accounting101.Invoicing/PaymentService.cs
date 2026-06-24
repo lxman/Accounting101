@@ -47,6 +47,32 @@ public sealed class PaymentService(
         }
     }
 
+    public async Task<IReadOnlyList<InvoiceView>> ListInvoiceViewsAsync(Guid clientId, Guid customerId, SettlementFilter? filter, CancellationToken ct = default)
+    {
+        IReadOnlyList<Invoice> customerInvoices = await invoices.GetByCustomerAsync(clientId, customerId, ct);
+        IReadOnlyList<Payment> ps = await payments.GetPaymentsByCustomerAsync(clientId, customerId, ct);
+        IReadOnlyList<CreditApplication> cs = await payments.GetCreditApplicationsByCustomerAsync(clientId, customerId, ct);
+
+        Dictionary<Guid, decimal> applied = new();
+        foreach (Allocation a in ps.Where(p => !p.Voided).SelectMany(p => p.Allocations)
+                     .Concat(cs.Where(c => !c.Voided).SelectMany(c => c.Allocations)))
+            applied[a.InvoiceId] = applied.GetValueOrDefault(a.InvoiceId) + a.Amount;
+
+        IEnumerable<InvoiceView> views = customerInvoices.Select(inv =>
+        {
+            decimal ap = applied.GetValueOrDefault(inv.Id);
+            return new InvoiceView(inv, Settlement.OpenBalance(inv.Total, ap), Settlement.Status(inv.Total, ap));
+        });
+
+        views = filter switch
+        {
+            SettlementFilter.Open => views.Where(v => v.SettlementStatus != SettlementStatus.Paid),
+            SettlementFilter.Paid => views.Where(v => v.SettlementStatus == SettlementStatus.Paid),
+            _ => views,
+        };
+        return views.ToList();
+    }
+
     public async Task<InvoiceView?> GetInvoiceViewAsync(Guid clientId, Guid invoiceId, CancellationToken ct = default)
     {
         Invoice? invoice = await invoices.GetAsync(clientId, invoiceId, ct);

@@ -127,6 +127,25 @@ public sealed class PaymentServiceTests
         Assert.Equal(100m, (await h.Service.GetInvoiceViewAsync(clientId, invoice.Id))!.OpenBalance);
         Assert.Equal(SettlementStatus.Open, (await h.Service.GetInvoiceViewAsync(clientId, invoice.Id))!.SettlementStatus);
     }
+
+    [Fact]
+    public async Task Lists_customer_invoices_filtered_by_settlement()
+    {
+        (Harness h, Guid clientId, Guid customerId, Invoice first) = await SetupWithIssuedInvoiceAsync(100m);
+        // Pay the first invoice in full -> Paid.
+        await h.Service.RecordPaymentAsync(clientId, new PaymentBody(customerId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(first.Id, 100m)]));
+        // A second, unpaid invoice -> Open.
+        Invoice d2 = await h.Invoices.CreateDraftAsync(clientId, new InvoiceBody(customerId, new DateOnly(2026, 4, 1), null, 0m, null, [new LineBody("More", 1m, 100m, false)]));
+        Invoice second = await h.Invoices.FinalizeAsync(clientId, d2.Id);
+
+        IReadOnlyList<InvoiceView> open = await h.Service.ListInvoiceViewsAsync(clientId, customerId, SettlementFilter.Open);
+        IReadOnlyList<InvoiceView> paid = await h.Service.ListInvoiceViewsAsync(clientId, customerId, SettlementFilter.Paid);
+        IReadOnlyList<InvoiceView> all = await h.Service.ListInvoiceViewsAsync(clientId, customerId, null);
+
+        Assert.Equal(second.Id, Assert.Single(open).Invoice.Id);
+        Assert.Equal(first.Id, Assert.Single(paid).Invoice.Id);
+        Assert.Equal(2, all.Count);
+    }
 }
 
 internal sealed class FixedPaymentAccountsProvider(PaymentPostingAccounts accounts) : IPaymentAccountsProvider
