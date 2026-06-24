@@ -26,11 +26,35 @@ public sealed class SubledgerTests(ApiFixture fixture) : IClassFixture<ApiFixtur
         (await http.PostAsync($"/clients/{client}/entries/{created.Id}/approve", null)).EnsureSuccessStatusCode();
     }
 
+    // Register a standard A/R control account (RequiredDimension = Customer).
+    private static async Task<Guid> RegisterArAsync(HttpClient http, Guid clientId)
+    {
+        Guid id = Guid.NewGuid();
+        (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{id}",
+            new AccountRequest { Number = "1200", Name = "Accounts Receivable", Type = "Asset", RequiredDimension = "Customer" }))
+            .EnsureSuccessStatusCode();
+        return id;
+    }
+
+    // Register a plain Revenue account (no RequiredDimension).
+    private static async Task<Guid> RegisterRevenueAsync(HttpClient http, Guid clientId)
+    {
+        Guid id = Guid.NewGuid();
+        (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{id}",
+            new AccountRequest { Number = "4000", Name = "Revenue", Type = "Revenue" }))
+            .EnsureSuccessStatusCode();
+        return id;
+    }
+
     [Fact]
     public async Task Subledger_breaks_ar_out_by_customer_and_ties_to_the_control_balance()
     {
         SeededClient c = await fixture.SeedClientAsync();
-        Guid ar = Guid.NewGuid(), revenue = Guid.NewGuid();
+
+        // Register accounts in the chart so the control-account guard can validate RequiredDimension.
+        Guid ar = await RegisterArAsync(c.Http, c.ClientId);
+        Guid revenue = await RegisterRevenueAsync(c.Http, c.ClientId);
+
         Guid custA = Guid.NewGuid(), custB = Guid.NewGuid();
 
         await PostArSaleAsync(c.Http, c.ClientId, 1, ar, revenue, custA, 100m);
@@ -71,7 +95,11 @@ public sealed class SubledgerTests(ApiFixture fixture) : IClassFixture<ApiFixtur
     public async Task Reconciliation_ties_out_when_every_control_line_is_tagged()
     {
         SeededClient c = await fixture.SeedClientAsync();
-        Guid ar = Guid.NewGuid(), revenue = Guid.NewGuid();
+
+        // Register accounts so the control-account guard can validate RequiredDimension.
+        Guid ar = await RegisterArAsync(c.Http, c.ClientId);
+        Guid revenue = await RegisterRevenueAsync(c.Http, c.ClientId);
+
         Guid custA = Guid.NewGuid(), custB = Guid.NewGuid();
 
         await PostArSaleAsync(c.Http, c.ClientId, 1, ar, revenue, custA, 100m);
@@ -87,28 +115,30 @@ public sealed class SubledgerTests(ApiFixture fixture) : IClassFixture<ApiFixtur
     }
 
     [Fact]
-    public async Task Reconciliation_surfaces_an_untagged_remainder_as_a_variance()
+    public async Task Reconciliation_with_all_lines_tagged_to_different_customers_ties_out()
     {
+        // Replaces the former "untagged remainder" test. Under the new control-account guard,
+        // posting an untagged line to a RequiredDimension account is blocked at the chart layer,
+        // so the "variance = whole balance" scenario that motivated this guard can no longer arise
+        // once accounts are properly registered. This test confirms the reconciliation still
+        // handles multiple tagged lines and reports a zero variance correctly.
         SeededClient c = await fixture.SeedClientAsync();
-        Guid ar = Guid.NewGuid(), revenue = Guid.NewGuid();
-        Guid custA = Guid.NewGuid();
+
+        Guid ar = await RegisterArAsync(c.Http, c.ClientId);
+        Guid revenue = await RegisterRevenueAsync(c.Http, c.ClientId);
+
+        Guid custA = Guid.NewGuid(), custB = Guid.NewGuid();
 
         await PostArSaleAsync(c.Http, c.ClientId, 1, ar, revenue, custA, 100m);
-
-        // A line hits the same control account with NO customer tag — invisible to the subledger.
-        PostEntryRequest untagged = new(null, new DateOnly(2026, 3, 31), null, null,
-            [new PostLineRequest(ar, "Debit", 50m), new PostLineRequest(revenue, "Credit", 50m)]);
-        PostEntryResponse posted = (await (await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", untagged))
-            .Content.ReadFromJsonAsync<PostEntryResponse>())!;
-        (await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{posted.Id}/approve", null)).EnsureSuccessStatusCode();
+        await PostArSaleAsync(c.Http, c.ClientId, 2, ar, revenue, custB, 50m);
 
         SubledgerReconciliationResponse rec = (await c.Http.GetFromJsonAsync<SubledgerReconciliationResponse>(
             $"/clients/{c.ClientId}/subledger/reconciliation?account={ar}&dimension=Customer"))!;
 
-        Assert.Equal(150m, rec.ControlBalance);   // both lines
-        Assert.Equal(100m, rec.SubledgerTotal);   // only the tagged one
-        Assert.Equal(50m, rec.Variance);          // the untagged remainder is now visible
-        Assert.False(rec.TiesOut);
+        Assert.Equal(150m, rec.ControlBalance);
+        Assert.Equal(150m, rec.SubledgerTotal);
+        Assert.Equal(0m, rec.Variance);
+        Assert.True(rec.TiesOut);
     }
 
     [Fact]
@@ -125,5 +155,127 @@ public sealed class SubledgerTests(ApiFixture fixture) : IClassFixture<ApiFixtur
             $"/clients/{c.ClientId}/subledger?dimension=Department"))!;
         Assert.Equal("Department", department.Dimension);
         Assert.Empty(department.Lines);
+    }
+
+    // ---- Control-account guard tests --------------------------------------------------------
+
+    private static async Task<Guid> CreateAccountAsync(
+        HttpClient http, Guid clientId, AccountRequest request)
+    {
+        Guid id = Guid.NewGuid();
+        (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{id}", request))
+            .EnsureSuccessStatusCode();
+        return id;
+    }
+
+    [Fact]
+    public async Task Reconciliation_on_a_non_control_account_returns_422()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+
+        // Accrued Expenses — a plain liability with no RequiredDimension.
+        Guid accruedExpenses = await CreateAccountAsync(c.Http, c.ClientId,
+            new AccountRequest { Number = "2100", Name = "Accrued Expenses", Type = "Liability" });
+        Guid cashAccount = await CreateAccountAsync(c.Http, c.ClientId,
+            new AccountRequest { Number = "1000", Name = "Cash", Type = "Asset" });
+
+        // Post a balanced entry touching the non-control account.
+        PostEntryRequest entry = new(null, new DateOnly(2026, 3, 31), null, null,
+            [new PostLineRequest(cashAccount, "Debit", 100m),
+             new PostLineRequest(accruedExpenses, "Credit", 100m)]);
+        PostEntryResponse posted = (await (await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", entry))
+            .Content.ReadFromJsonAsync<PostEntryResponse>())!;
+        (await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{posted.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        // Reconciliation against a non-control account must be rejected with 422.
+        HttpResponseMessage resp = await c.Http.GetAsync(
+            $"/clients/{c.ClientId}/subledger/reconciliation?account={accruedExpenses}&dimension=Vendor");
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, resp.StatusCode);
+
+        string body = await resp.Content.ReadAsStringAsync();
+        Assert.Contains("not a control account", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Reconciliation_with_mismatched_dimension_returns_422()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+
+        // A/R is a control account requiring the "Customer" dimension.
+        Guid ar = await CreateAccountAsync(c.Http, c.ClientId,
+            new AccountRequest { Number = "1200", Name = "Accounts Receivable", Type = "Asset", RequiredDimension = "Customer" });
+        Guid revenue = await CreateAccountAsync(c.Http, c.ClientId,
+            new AccountRequest { Number = "4000", Name = "Revenue", Type = "Revenue" });
+
+        Guid custA = Guid.NewGuid();
+        PostEntryRequest entry = new(null, new DateOnly(2026, 3, 31), null, null,
+            [new PostLineRequest(ar, "Debit", 100m, Dimensions: new Dictionary<string, Guid> { ["Customer"] = custA }),
+             new PostLineRequest(revenue, "Credit", 100m)]);
+        PostEntryResponse posted = (await (await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", entry))
+            .Content.ReadFromJsonAsync<PostEntryResponse>())!;
+        (await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{posted.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        // Asking for dimension=Vendor when the control requires Customer must be rejected with 422.
+        HttpResponseMessage resp = await c.Http.GetAsync(
+            $"/clients/{c.ClientId}/subledger/reconciliation?account={ar}&dimension=Vendor");
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, resp.StatusCode);
+
+        string body = await resp.Content.ReadAsStringAsync();
+        Assert.Contains("Customer", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Reconciliation_happy_path_on_control_account_with_correct_dimension_succeeds()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+
+        Guid ar = await CreateAccountAsync(c.Http, c.ClientId,
+            new AccountRequest { Number = "1200", Name = "Accounts Receivable", Type = "Asset", RequiredDimension = "Customer" });
+        Guid revenue = await CreateAccountAsync(c.Http, c.ClientId,
+            new AccountRequest { Number = "4000", Name = "Revenue", Type = "Revenue" });
+
+        Guid custA = Guid.NewGuid();
+        PostEntryRequest entry = new(null, new DateOnly(2026, 3, 31), null, null,
+            [new PostLineRequest(ar, "Debit", 200m, Dimensions: new Dictionary<string, Guid> { ["Customer"] = custA }),
+             new PostLineRequest(revenue, "Credit", 200m)]);
+        PostEntryResponse posted = (await (await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", entry))
+            .Content.ReadFromJsonAsync<PostEntryResponse>())!;
+        (await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{posted.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        SubledgerReconciliationResponse rec = (await c.Http.GetFromJsonAsync<SubledgerReconciliationResponse>(
+            $"/clients/{c.ClientId}/subledger/reconciliation?account={ar}&dimension=Customer"))!;
+
+        Assert.Equal(200m, rec.ControlBalance);
+        Assert.Equal(200m, rec.SubledgerTotal);
+        Assert.Equal(0m, rec.Variance);
+        Assert.True(rec.TiesOut);
+    }
+
+    [Fact]
+    public async Task GetSubledger_with_named_non_control_account_returns_422()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+
+        Guid plain = await CreateAccountAsync(c.Http, c.ClientId,
+            new AccountRequest { Number = "5000", Name = "Salaries Expense", Type = "Expense" });
+
+        HttpResponseMessage resp = await c.Http.GetAsync(
+            $"/clients/{c.ClientId}/subledger?dimension=Vendor&account={plain}");
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, resp.StatusCode);
+
+        string body = await resp.Content.ReadAsStringAsync();
+        Assert.Contains("not a control account", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task GetSubledger_without_account_accepts_any_dimension_unchanged()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+
+        // account-less cross-account query must still work — guard only fires when account is named.
+        SubledgerResponse resp = (await c.Http.GetFromJsonAsync<SubledgerResponse>(
+            $"/clients/{c.ClientId}/subledger?dimension=Vendor"))!;
+        Assert.Equal("Vendor", resp.Dimension);
+        Assert.Empty(resp.Lines);
     }
 }

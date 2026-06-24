@@ -337,6 +337,21 @@ public static class LedgerEndpoints
         if (string.IsNullOrWhiteSpace(dimension))
             return Unprocessable("A subledger requires a 'dimension' type (e.g. Customer, Vendor, Employee).");
 
+        // When an account is named, validate it is a control account requiring this exact dimension.
+        // A null account is a legitimate cross-account query and bypasses this check.
+        if (account is { } namedAccountId)
+        {
+            Account? namedAccount = await ctx.Ledger.Accounts.GetAsync(namedAccountId, cancellationToken);
+            if (namedAccount is null || namedAccount.ClientId != clientId)
+                return Results.NotFound();
+            if (string.IsNullOrWhiteSpace(namedAccount.RequiredDimension))
+                return Unprocessable(
+                    $"Account {namedAccountId} is not a control account requiring a dimension; subledger reconciliation does not apply. Use the account balance or journal instead.");
+            if (!string.Equals(namedAccount.RequiredDimension, dimension, StringComparison.Ordinal))
+                return Unprocessable(
+                    $"Account {namedAccountId} requires the '{namedAccount.RequiredDimension}' dimension, not '{dimension}'.");
+        }
+
         IReadOnlyList<SubledgerBalance> balances =
             await ctx.Ledger.Journal.AggregateSubledgerAsync(clientId, dimension, account, asOf, cancellationToken);
 
@@ -357,6 +372,19 @@ public static class LedgerEndpoints
             return Unprocessable("Reconciliation requires an 'account' — the control account to tie out.");
         if (string.IsNullOrWhiteSpace(dimension))
             return Unprocessable("Reconciliation requires a 'dimension' type.");
+
+        // Validate the account exists and is a control account requiring the requested dimension.
+        // Reconciliation on a plain account is meaningless — nothing is tagged, so the variance
+        // would equal the whole balance, which is misleading rather than useful.
+        Account? controlAccount = await ctx.Ledger.Accounts.GetAsync(accountId, cancellationToken);
+        if (controlAccount is null || controlAccount.ClientId != clientId)
+            return Results.NotFound();
+        if (string.IsNullOrWhiteSpace(controlAccount.RequiredDimension))
+            return Unprocessable(
+                $"Account {accountId} is not a control account requiring a dimension; subledger reconciliation does not apply. Use the account balance or journal instead.");
+        if (!string.Equals(controlAccount.RequiredDimension, dimension, StringComparison.Ordinal))
+            return Unprocessable(
+                $"Account {accountId} requires the '{controlAccount.RequiredDimension}' dimension, not '{dimension}'.");
 
         // Both sides folded the same way: the control balance includes every line on the account; the
         // subledger only the lines carrying the dimension. Their difference is the untagged remainder.
