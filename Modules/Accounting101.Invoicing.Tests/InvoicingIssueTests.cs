@@ -52,8 +52,12 @@ public sealed class InvoicingIssueTests(InvoicingHostFixture fixture) : IClassFi
         Invoice draft = (await draftResponse.Content.ReadFromJsonAsync<Invoice>())!;
         Assert.Equal(InvoiceStatus.Draft, draft.Status);
 
-        Invoice issued = (await (await clerk.PostAsync($"/clients/{clientId}/invoices/{draft.Id}/issue", null))
-            .Content.ReadFromJsonAsync<Invoice>())!;
+        HttpResponseMessage issueResponse = await clerk.PostAsync($"/clients/{clientId}/invoices/{draft.Id}/issue", null);
+        string issueBody = await issueResponse.Content.ReadAsStringAsync();
+        Assert.Contains("\"Issued\"", issueBody, StringComparison.OrdinalIgnoreCase);
+
+        Invoice issued = System.Text.Json.JsonSerializer.Deserialize<Invoice>(issueBody,
+            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
         Assert.Equal(InvoiceStatus.Issued, issued.Status);
         Assert.NotNull(issued.Number);
 
