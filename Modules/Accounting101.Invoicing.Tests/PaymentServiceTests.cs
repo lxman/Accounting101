@@ -146,6 +146,22 @@ public sealed class PaymentServiceTests
         Assert.Equal(first.Id, Assert.Single(paid).Invoice.Id);
         Assert.Equal(2, all.Count);
     }
+
+    [Fact]
+    public async Task Voided_invoice_does_not_appear_in_list_views()
+    {
+        // Arrange: issue an invoice then void it.
+        (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(100m);
+        await h.Invoices.VoidAsync(clientId, invoice.Id);
+
+        // Act: query both the all-invoices list and the open-settlement filter.
+        IReadOnlyList<InvoiceView> all  = await h.Service.ListInvoiceViewsAsync(clientId, customerId, null);
+        IReadOnlyList<InvoiceView> open = await h.Service.ListInvoiceViewsAsync(clientId, customerId, SettlementFilter.Open);
+
+        // Assert: a voided invoice is not a settleable receivable — it must not appear in either view.
+        Assert.Empty(all);
+        Assert.Empty(open);
+    }
 }
 
 internal sealed class FixedPaymentAccountsProvider(PaymentPostingAccounts accounts) : IPaymentAccountsProvider

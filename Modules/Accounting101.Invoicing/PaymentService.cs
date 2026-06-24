@@ -58,11 +58,13 @@ public sealed class PaymentService(
                      .Concat(cs.Where(c => !c.Voided).SelectMany(c => c.Allocations)))
             applied[a.InvoiceId] = applied.GetValueOrDefault(a.InvoiceId) + a.Amount;
 
-        IEnumerable<InvoiceView> views = customerInvoices.Select(inv =>
-        {
-            decimal ap = applied.GetValueOrDefault(inv.Id);
-            return new InvoiceView(inv, Settlement.OpenBalance(inv.Total, ap), Settlement.Status(inv.Total, ap));
-        });
+        IEnumerable<InvoiceView> views = customerInvoices
+            .Where(inv => inv.Status != InvoiceStatus.Void)
+            .Select(inv =>
+            {
+                decimal ap = applied.GetValueOrDefault(inv.Id);
+                return new InvoiceView(inv, Settlement.OpenBalance(inv.Total, ap), Settlement.Status(inv.Total, ap));
+            });
 
         views = filter switch
         {

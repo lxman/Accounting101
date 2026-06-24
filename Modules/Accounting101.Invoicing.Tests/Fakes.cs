@@ -109,7 +109,7 @@ internal sealed class InMemoryInvoiceStore : IInvoiceStore
 
     public Task<IReadOnlyList<Invoice>> GetByCustomerAsync(Guid clientId, Guid customerId, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<Invoice>>(
-            _store.Where(kv => kv.Key.Item1 == clientId && kv.Value.CustomerId == customerId && kv.Value.Status != InvoiceStatus.Void)
+            _store.Where(kv => kv.Key.Item1 == clientId && kv.Value.CustomerId == customerId)
                 .Select(kv => kv.Value).ToList());
 }
 
