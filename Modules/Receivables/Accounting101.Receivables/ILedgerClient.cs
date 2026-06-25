@@ -23,6 +23,14 @@ public interface ILedgerClient
     /// </summary>
     Task<EntryResponse> VoidAsync(Guid clientId, Guid entryId, VoidRequest request, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Dry-run the would-be post without writing anything. Returns on a clean validation; throws
+    /// <see cref="LedgerClientException"/> with the engine's status and reason on any rejection (closed
+    /// period, chart violation, unbalanced entry). Lets callers catch a bad date or account before
+    /// committing the document, so the document is never finalized against an entry the engine would refuse.
+    /// </summary>
+    Task ValidateAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default);
+
     /// <summary>Every entry the engine has tied to a source document — how the module finds the entry an invoice produced.</summary>
     Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default);
 }
