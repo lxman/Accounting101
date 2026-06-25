@@ -1,6 +1,8 @@
 using Accounting101.Invoicing;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Hosting;
+using Accounting101.Ledger.Contracts;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Accounting101.Invoicing.Api;
 
@@ -21,9 +23,9 @@ public static class InvoicingServiceExtensions
             manifest.Evidentiary("credit-applications", "Customer");
         });
 
-        services.AddScoped<ICustomerStore, DocumentCustomerStore>();
-        services.AddScoped<IInvoiceStore, DocumentInvoiceStore>();
-        services.AddScoped<IPaymentStore, DocumentPaymentStore>();
+        services.AddScoped<ICustomerStore>(sp => new DocumentCustomerStore(sp.GetRequiredKeyedService<IDocumentStore>("invoicing")));
+        services.AddScoped<IInvoiceStore>(sp => new DocumentInvoiceStore(sp.GetRequiredKeyedService<IDocumentStore>("invoicing")));
+        services.AddScoped<IPaymentStore>(sp => new DocumentPaymentStore(sp.GetRequiredKeyedService<IDocumentStore>("invoicing")));
         services.AddScoped<InvoiceService>();
         services.AddScoped<PaymentService>();
         services.AddSingleton<IInvoiceAccountsProvider, ConfiguredInvoiceAccountsProvider>();

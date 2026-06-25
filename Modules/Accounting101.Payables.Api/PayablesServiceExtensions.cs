@@ -1,6 +1,8 @@
 using Accounting101.Payables;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Hosting;
+using Accounting101.Ledger.Contracts;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Accounting101.Payables.Api;
 
@@ -19,9 +21,9 @@ public static class PayablesServiceExtensions
             manifest.Evidentiary("vendor-credit-applications", "Vendor");
         });
 
-        services.AddScoped<IVendorStore, DocumentVendorStore>();
-        services.AddScoped<IBillStore, DocumentBillStore>();
-        services.AddScoped<IBillPaymentStore, DocumentBillPaymentStore>();
+        services.AddScoped<IVendorStore>(sp => new DocumentVendorStore(sp.GetRequiredKeyedService<IDocumentStore>("payables")));
+        services.AddScoped<IBillStore>(sp => new DocumentBillStore(sp.GetRequiredKeyedService<IDocumentStore>("payables")));
+        services.AddScoped<IBillPaymentStore>(sp => new DocumentBillPaymentStore(sp.GetRequiredKeyedService<IDocumentStore>("payables")));
         services.AddScoped<BillService>();
         services.AddScoped<BillPaymentService>();
         services.AddSingleton<IBillAccountsProvider, ConfiguredBillAccountsProvider>();
