@@ -4,6 +4,125 @@ using MongoDB.Driver;
 
 namespace Accounting101.Ledger.Mongo.Tests;
 
+// ── Head-maintenance tests ────────────────────────────────────────────────────
+// These three tests verify the audit-head feature added in Task 1.
+// They call AppendAsync directly so sequence counts are exact.
+
+public sealed class AuditHeadTests(MongoFixture fixture) : IClassFixture<MongoFixture>
+{
+    private static Actor User() => new()
+    {
+        UserId = Guid.NewGuid(),
+        Name = "tester",
+        Claims = [new Claim("role", "tester")],
+    };
+
+    private (MongoAuditLog audit, IMongoCollection<AuditHeadDocument> head) NewAudit()
+    {
+        string auditCollection = "audit_head_" + Guid.NewGuid().ToString("N");
+        MongoAuditLog audit = new(fixture.Database, auditCollection);
+        IMongoCollection<AuditHeadDocument> head = fixture.Database.GetCollection<AuditHeadDocument>("audit-head");
+        return (audit, head);
+    }
+
+    private Task AppendOne(MongoAuditLog audit, Guid clientId, IClientSessionHandle? session = null) =>
+        audit.AppendAsync(
+            clientId,
+            entryId: Guid.NewGuid(),
+            entryVersion: 1,
+            action: AuditAction.Created,
+            actor: User(),
+            reason: null,
+            at: DateTimeOffset.UtcNow,
+            session: session);
+
+    [Fact]
+    public async Task Append_advances_the_head_to_the_latest_record()
+    {
+        (MongoAuditLog audit, IMongoCollection<AuditHeadDocument> head) = NewAudit();
+        var clientId = Guid.NewGuid();
+
+        await AppendOne(audit, clientId);
+        await AppendOne(audit, clientId);
+        await AppendOne(audit, clientId);
+
+        AuditHeadDocument? doc = await head.Find(h => h.ClientId == clientId).FirstOrDefaultAsync();
+        Assert.NotNull(doc);
+        Assert.Equal(3, doc.Sequence);
+
+        // Hash must match the 3rd record's hash
+        IReadOnlyList<AuditRecordDocument> trail = await audit.GetForClientAsync(clientId);
+        Assert.Equal(3, trail.Count);
+        Assert.Equal(trail[2].Hash, doc.Hash);
+    }
+
+    [Fact]
+    public async Task Head_does_not_regress_on_a_stale_update()
+    {
+        (MongoAuditLog audit, IMongoCollection<AuditHeadDocument> head) = NewAudit();
+        var clientId = Guid.NewGuid();
+
+        // Append 3 records normally — head should be at sequence 3
+        await AppendOne(audit, clientId);
+        await AppendOne(audit, clientId);
+        await AppendOne(audit, clientId);
+
+        AuditHeadDocument? before = await head.Find(h => h.ClientId == clientId).FirstOrDefaultAsync();
+        Assert.NotNull(before);
+        Assert.Equal(3, before.Sequence);
+
+        // Directly invoke AdvanceHeadAsync with a stale (lower) sequence — must not regress
+        await audit.AdvanceHeadAsync(clientId, sequence: 1, hash: "stale-hash");
+
+        AuditHeadDocument? after = await head.Find(h => h.ClientId == clientId).FirstOrDefaultAsync();
+        Assert.NotNull(after);
+        Assert.Equal(3, after.Sequence);                     // still at 3
+        Assert.Equal(before.Hash, after.Hash);               // hash unchanged
+    }
+
+    [Fact]
+    public async Task Append_and_head_commit_together_in_a_transaction()
+    {
+        (MongoAuditLog audit, IMongoCollection<AuditHeadDocument> head) = NewAudit();
+        var clientId = Guid.NewGuid();
+
+        // ── Part A: commit ─────────────────────────────────────────────────
+        using (IClientSessionHandle session = await fixture.Database.Client.StartSessionAsync())
+        {
+            session.StartTransaction();
+            await AppendOne(audit, clientId, session);
+            await session.CommitTransactionAsync();
+        }
+
+        IReadOnlyList<AuditRecordDocument> records = await audit.GetForClientAsync(clientId);
+        Assert.Single(records);
+        AuditHeadDocument? committed = await head.Find(h => h.ClientId == clientId).FirstOrDefaultAsync();
+        Assert.NotNull(committed);
+        Assert.Equal(1, committed.Sequence);
+
+        // ── Part B: abort — neither the record NOR the head must advance ──
+        long seqBefore = committed.Sequence;
+        string hashBefore = committed.Hash;
+
+        using (IClientSessionHandle session = await fixture.Database.Client.StartSessionAsync())
+        {
+            session.StartTransaction();
+            await AppendOne(audit, clientId, session);
+            await session.AbortTransactionAsync();
+        }
+
+        IReadOnlyList<AuditRecordDocument> recordsAfterAbort = await audit.GetForClientAsync(clientId);
+        Assert.Single(recordsAfterAbort);                    // record rolled back
+
+        AuditHeadDocument? headAfterAbort = await head.Find(h => h.ClientId == clientId).FirstOrDefaultAsync();
+        Assert.NotNull(headAfterAbort);
+        Assert.Equal(seqBefore, headAfterAbort.Sequence);    // head rolled back too
+        Assert.Equal(hashBefore, headAfterAbort.Hash);
+    }
+}
+
+// ── Existing AuditLogTests ────────────────────────────────────────────────────
+
 public sealed class AuditLogTests(MongoFixture fixture) : IClassFixture<MongoFixture>
 {
     private static AuditStamp Stamp() => new()

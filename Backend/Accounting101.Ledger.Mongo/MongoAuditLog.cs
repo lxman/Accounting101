@@ -14,6 +14,7 @@ namespace Accounting101.Ledger.Mongo;
 public sealed class MongoAuditLog
 {
     private readonly IMongoCollection<AuditRecordDocument> _audit;
+    private readonly IMongoCollection<AuditHeadDocument> _head;
 
     static MongoAuditLog() => LedgerMongoBootstrap.RegisterOnce();
 
@@ -21,6 +22,7 @@ public sealed class MongoAuditLog
     {
         ArgumentNullException.ThrowIfNull(database);
         _audit = database.GetCollection<AuditRecordDocument>(collectionName);
+        _head = database.GetCollection<AuditHeadDocument>("audit-head");
     }
 
     private const int MaxAppendAttempts = 64;
@@ -71,6 +73,8 @@ public sealed class MongoAuditLog
                     await _audit.InsertOneAsync(record, cancellationToken: cancellationToken);
                 else
                     await _audit.InsertOneAsync(session, record, cancellationToken: cancellationToken);
+
+                await AdvanceHeadAsync(clientId, record.Sequence, record.Hash, session, cancellationToken);
                 return;
             }
             catch (MongoWriteException ex)
@@ -80,6 +84,59 @@ public sealed class MongoAuditLog
                 // Inside a transaction the conflict propagates instead, so the transaction re-runs the whole op.
             }
         }
+    }
+
+    /// <summary>
+    /// Monotonically advances the per-client chain-head to (<paramref name="sequence"/>, <paramref name="hash"/>).
+    /// The guarded upsert only matches when the stored sequence is strictly less than the new value,
+    /// so the head never regresses. When no match is found and an upsert insert collides on the unique
+    /// <c>_id = ClientId</c> key (meaning a concurrent writer already advanced the head to ≥ sequence),
+    /// the DuplicateKey is caught and treated as a safe no-op.
+    /// </summary>
+    public async Task AdvanceHeadAsync(
+        Guid clientId,
+        long sequence,
+        string hash,
+        IClientSessionHandle? session = null,
+        CancellationToken cancellationToken = default)
+    {
+        FilterDefinition<AuditHeadDocument> filter = Builders<AuditHeadDocument>.Filter.And(
+            Builders<AuditHeadDocument>.Filter.Eq(h => h.ClientId, clientId),
+            Builders<AuditHeadDocument>.Filter.Lt(h => h.Sequence, sequence));
+
+        UpdateDefinition<AuditHeadDocument> update = Builders<AuditHeadDocument>.Update
+            .SetOnInsert(h => h.ClientId, clientId)
+            .Set(h => h.Sequence, sequence)
+            .Set(h => h.Hash, hash);
+
+        UpdateOptions opts = new() { IsUpsert = true };
+
+        try
+        {
+            if (session is null)
+                await _head.UpdateOneAsync(filter, update, opts, cancellationToken);
+            else
+                await _head.UpdateOneAsync(session, filter, update, opts, cancellationToken);
+        }
+        catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
+        {
+            // The head is already at or beyond `sequence` — the monotonic invariant holds; no-op.
+        }
+    }
+
+    /// <summary>
+    /// Returns the current chain-head for <paramref name="clientId"/>, or <c>null</c> if no records
+    /// have been appended yet. Task 2 uses this in VerifyAsync to detect tail truncation.
+    /// </summary>
+    public async Task<AuditHeadDocument?> FindHeadAsync(
+        Guid clientId,
+        IClientSessionHandle? session = null,
+        CancellationToken cancellationToken = default)
+    {
+        IFindFluent<AuditHeadDocument, AuditHeadDocument> find = session is null
+            ? _head.Find(h => h.ClientId == clientId)
+            : _head.Find(session, h => h.ClientId == clientId);
+        return await find.FirstOrDefaultAsync(cancellationToken);
     }
 
     private async Task<AuditRecordDocument?> FindLatestAsync(Guid clientId, IClientSessionHandle? session, CancellationToken cancellationToken)
