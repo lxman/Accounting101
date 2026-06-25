@@ -42,9 +42,10 @@ public sealed class InvoiceService(
     }
 
     /// <summary>
-    /// Issue a draft: finalize it (assigns the number), then compose and post its A/R entry.
+    /// Issue a draft: validate the would-be A/R post first (pre-flight), then finalize (assigns the number),
+    /// recompose with the assigned number, and post. Pre-flighting means a rejected date or chart violation
+    /// throws <see cref="LedgerClientException"/> BEFORE finalize, so the document stays Draft — no orphan.
     /// The entry lands PendingApproval — approval is the client's normal maker-checker flow (SoD).
-    /// The total-must-be-positive check runs before finalize, since finalize cannot be undone.
     /// </summary>
     public async Task<Invoice> IssueAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default)
     {
@@ -54,9 +55,17 @@ public sealed class InvoiceService(
         if (draft.Total <= 0m)
             throw new InvalidOperationException($"Invoice {invoiceId} must total more than zero to be issued.");
 
+        // Resolve accounts and pre-flight against the draft (Number is null → Reference is null, which validation ignores).
+        // If the engine would reject (closed period, chart violation, unbalanced entry), this throws LedgerClientException
+        // and the document remains a Draft — finalize has not run, so there is no orphan.
+        InvoicePostingAccounts postingAccounts = await accounts.GetAsync(clientId, cancellationToken);
+        PostEntryRequest preflight = InvoicePosting.Compose(draft, postingAccounts);
+        await ledger.ValidateAsync(clientId, preflight, cancellationToken);
+
+        // Validation passed — it is safe to commit the document.
         Invoice issued = await invoices.FinalizeAsync(clientId, invoiceId, cancellationToken);
 
-        InvoicePostingAccounts postingAccounts = await accounts.GetAsync(clientId, cancellationToken);
+        // Recompose with the now-assigned invoice number so the posted entry carries it in Reference.
         PostEntryRequest entry = InvoicePosting.Compose(issued, postingAccounts);
         await ledger.PostAsync(clientId, entry, cancellationToken);   // lands PendingApproval; approval is the client's normal flow
 

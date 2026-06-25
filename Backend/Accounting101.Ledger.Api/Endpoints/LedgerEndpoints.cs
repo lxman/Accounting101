@@ -28,6 +28,7 @@ public static class LedgerEndpoints
 
         // Commands
         clients.MapPost("/entries", PostEntry);
+        clients.MapPost("/entries/validate", ValidateEntry);
         clients.MapPost("/entries/{entryId:guid}/approve", ApproveEntry);
         clients.MapPost("/entries/{entryId:guid}/void", VoidEntry);
         clients.MapPost("/entries/{originalId:guid}/revise", ReviseEntry);
@@ -63,24 +64,14 @@ public static class LedgerEndpoints
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Post, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
-        JournalEntry entry;
-        try
-        {
-            entry = MapEntry(clientId, request, ctx.Actor);
-        }
-        catch (Exception ex) when (ex is ArgumentException or UnbalancedEntryException)
-        {
-            return Unprocessable(ex.Message);
-        }
-
-        if (await ChartViolationsAsync(ctx.Ledger.Accounts, clientId, entry.Lines, cancellationToken) is { } violation)
-            return violation;
+        (IResult? rejection, JournalEntry? entry) = await ValidateForPostAsync(clientId, request, ctx, cancellationToken);
+        if (rejection is not null) return rejection;
 
         try
         {
-            await ctx.Ledger.Service.PostAsync(entry, ctx.Actor, cancellationToken);
+            await ctx.Ledger.Service.PostAsync(entry!, ctx.Actor, cancellationToken);
         }
-        catch (InvalidOperationException ex) // closed-period freeze
+        catch (InvalidOperationException ex) // closed-period freeze (authoritative transactional-time guard)
         {
             return Conflict(ex.Message);
         }
@@ -90,8 +81,63 @@ public static class LedgerEndpoints
         }
 
         return Results.Created(
-            $"/clients/{clientId}/entries/{entry.Id}",
+            $"/clients/{clientId}/entries/{entry!.Id}",
             new PostEntryResponse(entry.Id, entry.Status.ToString(), entry.Posting.ToString()));
+    }
+
+    /// <summary>
+    /// Side-effect-free dry run: runs the same pre-write validation as <see cref="PostEntry"/> and
+    /// writes nothing. Returns <c>200 {valid:true}</c> when the entry would post, or the same
+    /// 409/422 ProblemDetails a real post returns — byte-for-byte identical, guarded by the shared
+    /// <see cref="ValidateForPostAsync"/> routine.
+    /// </summary>
+    private static async Task<IResult> ValidateEntry(
+        Guid clientId, PostEntryRequest request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Post, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        (IResult? rejection, _) = await ValidateForPostAsync(clientId, request, ctx, cancellationToken);
+        return rejection ?? Results.Ok(new EntryValidationResponse(true));
+    }
+
+    /// <summary>
+    /// The single pre-write validation routine shared by <see cref="PostEntry"/> and
+    /// <see cref="ValidateEntry"/>. Performs, in order:
+    /// <list type="number">
+    ///   <item>Map + balance check (<see cref="MapEntry"/> → <see cref="UnbalancedEntryException"/> → 422).</item>
+    ///   <item>Chart validity (<see cref="ChartViolationsAsync"/> — account exists, postable, required dimension present).</item>
+    ///   <item>Period freeze (<see cref="LedgerService.EnsureOpenForPostAsync"/> → 409 on a closed period).</item>
+    /// </list>
+    /// Returns either a rejection result or the mapped entry ready to write. Never writes anything itself.
+    /// </summary>
+    private static async Task<(IResult? Rejection, JournalEntry? Entry)> ValidateForPostAsync(
+        Guid clientId, PostEntryRequest request, LedgerContext ctx, CancellationToken ct)
+    {
+        // ctx.Failed was checked by the caller before dispatching here, so Actor and Ledger are non-null.
+        JournalEntry entry;
+        try
+        {
+            entry = MapEntry(clientId, request, ctx.Actor!);
+        }
+        catch (Exception ex) when (ex is ArgumentException or UnbalancedEntryException)
+        {
+            return (Unprocessable(ex.Message), null);
+        }
+
+        if (await ChartViolationsAsync(ctx.Ledger!.Accounts, clientId, entry.Lines, ct) is { } violation)
+            return (violation, null);
+
+        try
+        {
+            await ctx.Ledger!.Service.EnsureOpenForPostAsync(clientId, entry.EffectiveDate, ct);
+        }
+        catch (InvalidOperationException ex) // closed-period freeze
+        {
+            return (Conflict(ex.Message), null);
+        }
+
+        return (null, entry);
     }
 
     private static async Task<IResult> ApproveEntry(

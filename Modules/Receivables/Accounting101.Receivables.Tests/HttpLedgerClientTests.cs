@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Accounting101.Receivables;
 using Accounting101.Receivables.Api;
 using Accounting101.Ledger.Contracts;
 using Microsoft.AspNetCore.Http;
@@ -56,6 +57,31 @@ public sealed class HttpLedgerClientTests
     }
 
     [Fact]
+    public async Task Post_throws_a_typed_ledger_exception_carrying_the_engine_status_and_reason()
+    {
+        CapturingHandler handler = new()
+        {
+            Response = new HttpResponseMessage(HttpStatusCode.Conflict)
+            {
+                // The engine returns ProblemDetails; the reason lives in `detail`.
+                Content = JsonContent.Create(new { title = "Conflict", status = 409, detail = "Period is closed through 2024-03-31." }),
+            },
+        };
+        HttpClient http = new(handler) { BaseAddress = new Uri("http://engine.local") };
+        HttpLedgerClient client = new(http, ContextWith("DevToken abc"));
+
+        PostEntryRequest entry = new(
+            Id: null, EffectiveDate: new DateOnly(2024, 3, 31), Reference: "INV-1", Memo: null,
+            Lines: [new PostLineRequest(Guid.NewGuid(), "Debit", 100m)]);
+
+        LedgerClientException ex = await Assert.ThrowsAsync<LedgerClientException>(
+            () => client.PostAsync(Guid.NewGuid(), entry));
+
+        Assert.Equal(409, ex.StatusCode);
+        Assert.Contains("closed", ex.Reason, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task GetEntriesBySourceRef_builds_the_source_ref_query()
     {
         CapturingHandler handler = new()
@@ -94,5 +120,53 @@ public sealed class HttpLedgerClientTests
         Assert.Equal(HttpMethod.Post, handler.Last!.Method);
         Assert.Equal($"http://engine.local/clients/{clientId}/entries/{entryId}/void", handler.Last.RequestUri!.ToString());
         Assert.Equal("DevToken abc", handler.Last.Headers.GetValues("Authorization").Single());
+    }
+
+    [Fact]
+    public async Task Validate_returns_without_throwing_on_200_and_targets_the_validate_endpoint()
+    {
+        Guid clientId = Guid.NewGuid();
+        CapturingHandler handler = new()
+        {
+            Response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new { valid = true }),
+            },
+        };
+        HttpClient http = new(handler) { BaseAddress = new Uri("http://engine.local") };
+        HttpLedgerClient client = new(http, ContextWith("DevToken abc"));
+
+        PostEntryRequest entry = new(
+            Id: null, EffectiveDate: new DateOnly(2026, 3, 31), Reference: null, Memo: null,
+            Lines: [new PostLineRequest(Guid.NewGuid(), "Debit", 100m)]);
+
+        await client.ValidateAsync(clientId, entry);
+
+        Assert.Equal(HttpMethod.Post, handler.Last!.Method);
+        Assert.Equal($"http://engine.local/clients/{clientId}/entries/validate", handler.Last.RequestUri!.ToString());
+    }
+
+    [Fact]
+    public async Task Validate_throws_LedgerClientException_with_status_and_reason_on_409_problem_details()
+    {
+        CapturingHandler handler = new()
+        {
+            Response = new HttpResponseMessage(HttpStatusCode.Conflict)
+            {
+                Content = JsonContent.Create(new { title = "Conflict", status = 409, detail = "Period is closed through 2024-03-31." }),
+            },
+        };
+        HttpClient http = new(handler) { BaseAddress = new Uri("http://engine.local") };
+        HttpLedgerClient client = new(http, ContextWith("DevToken abc"));
+
+        PostEntryRequest entry = new(
+            Id: null, EffectiveDate: new DateOnly(2024, 3, 31), Reference: null, Memo: null,
+            Lines: [new PostLineRequest(Guid.NewGuid(), "Debit", 100m)]);
+
+        LedgerClientException ex = await Assert.ThrowsAsync<LedgerClientException>(
+            () => client.ValidateAsync(Guid.NewGuid(), entry));
+
+        Assert.Equal(409, ex.StatusCode);
+        Assert.Contains("closed", ex.Reason, StringComparison.OrdinalIgnoreCase);
     }
 }

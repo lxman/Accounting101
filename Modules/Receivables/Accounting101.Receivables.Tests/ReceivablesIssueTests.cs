@@ -71,6 +71,58 @@ public sealed class ReceivablesIssueTests(ReceivablesHostFixture fixture) : ICla
     }
 
     [Fact]
+    public async Task Issuing_into_a_closed_period_is_rejected_before_finalize_no_orphan()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) =
+            await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId);
+
+        Customer customer = (await (await clerk.PostAsJsonAsync(
+                $"/clients/{clientId}/customers", new CreateCustomerRequest("Closed Co", null)))
+            .Content.ReadFromJsonAsync<Customer>())!;
+
+        // The controller closes March; the clerk then mistakenly dates an invoice inside the closed period
+        // (exactly the month-10 sim failure: a stale example date). Drafting is fine — it touches no ledger.
+        var closed = new DateOnly(2024, 3, 31);
+        (await controller.PostAsJsonAsync($"/clients/{clientId}/periods/close", new { asOf = closed }))
+            .EnsureSuccessStatusCode();
+
+        DraftInvoiceRequest closedDraftRequest = new(
+            customer.Id,
+            [new InvoiceLine { Description = "Consulting", Quantity = 1m, UnitPrice = 100m }],
+            TaxRate: 0m, IssueDate: closed, DueDate: null, Memo: null);
+        Invoice closedDraft = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/invoices", closedDraftRequest))
+            .Content.ReadFromJsonAsync<Invoice>())!;
+
+        // Issuing into the closed period: the pre-flight must catch it before finalize runs.
+        // The engine refuses (409); the module surfaces the real reason, not a 500.
+        HttpResponseMessage issue = await clerk.PostAsync($"/clients/{clientId}/invoices/{closedDraft.Id}/issue", null);
+
+        Assert.Equal(HttpStatusCode.Conflict, issue.StatusCode);
+        string body = await issue.Content.ReadAsStringAsync();
+        Assert.Contains("closed", body, StringComparison.OrdinalIgnoreCase);
+
+        // The invoice must still be Draft — pre-flight ran before finalize, so there is no orphan.
+        InvoiceView? readBack = (await clerk.GetFromJsonAsync<InvoiceView>($"/clients/{clientId}/invoices/{closedDraft.Id}"));
+        Assert.NotNull(readBack);
+        Assert.Equal(InvoiceStatus.Draft, readBack.Invoice.Status);
+
+        // Fix-and-retry: draft a fresh invoice with an open date and confirm the full issue flow succeeds.
+        DraftInvoiceRequest openDraftRequest = new(
+            customer.Id,
+            [new InvoiceLine { Description = "Consulting", Quantity = 1m, UnitPrice = 100m }],
+            TaxRate: 0m, IssueDate: new DateOnly(2026, 3, 31), DueDate: null, Memo: null);
+        Invoice openDraft = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/invoices", openDraftRequest))
+            .Content.ReadFromJsonAsync<Invoice>())!;
+
+        HttpResponseMessage retryIssue = await clerk.PostAsync($"/clients/{clientId}/invoices/{openDraft.Id}/issue", null);
+        Assert.Equal(HttpStatusCode.OK, retryIssue.StatusCode);
+        Invoice retried = (await retryIssue.Content.ReadFromJsonAsync<Invoice>())!;
+        Assert.Equal(InvoiceStatus.Issued, retried.Status);
+        Assert.NotNull(retried.Number);
+    }
+
+    [Fact]
     public async Task Issuing_then_a_separate_approver_books_the_AR_entry_under_SoD()
     {
         (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) =
