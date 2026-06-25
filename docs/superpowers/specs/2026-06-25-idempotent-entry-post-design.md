@@ -54,14 +54,14 @@ catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCateg
 
 On a DuplicateKey, given the request's `clientId` and supplied `Id`:
 
-| Existing entry for `Id`? | Belongs to this client? | Financial content matches? | Result |
+| Existing entry for `Id` (in this client's store)? | Belongs to this client? | Financial content matches? | Result |
 |---|---|---|---|
 | no | — | — | `409` sequence-number collision (real conflict, unchanged) |
 | yes | **no** (different client) | — | `409` "an entry with this id already exists" — **never return another client's entry** |
 | yes | yes | **yes** | `200` idempotent replay → return the existing entry |
 | yes | yes | **no** | `422` "id reused with different content" |
 
-The cross-client check is mandatory: `_id` uniqueness is global, so a client could (maliciously or accidentally) supply a `Guid` another client already used. The idempotent path must verify `existing.ClientId == clientId` before returning anything.
+**Tenancy correction (verified during implementation):** Accounting101 uses a **per-tenant database** — each client's journal lives in its own MongoDB database, so `_id` uniqueness is **per-client, not global**, and a cross-client `_id` collision *cannot structurally occur* (client B inserting a `Guid` that client A used just creates B's own entry in B's database — no DuplicateKey). The "different client → 409" row above is therefore unreachable in this architecture. The `existing.ClientId == clientId` check is **still retained as defense-in-depth** — it is the one guard standing between a future shared-store refactor and a cross-tenant leak, so it must not be removed as "dead code." Accordingly the cross-client *test* proves **tenant isolation** (B's replay resolves to B's own entry, never A's) rather than a 409 the architecture prevents.
 
 ### `GetEntryAsync` on the service
 

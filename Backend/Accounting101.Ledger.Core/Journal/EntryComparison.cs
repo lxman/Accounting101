@@ -19,6 +19,9 @@ public static class EntryComparison
         if (!string.Equals(a.SourceType, b.SourceType, StringComparison.Ordinal)) return false;
         if (a.Lines.Count != b.Lines.Count) return false;
 
+        // Lines are compared in order, by design: a genuine retry re-sends the identical line array, so
+        // order is stable. Reordering the same lines is treated as different content (a 422 on replay),
+        // which is the safe choice — do not relax to a multiset without a deliberate decision.
         for (int i = 0; i < a.Lines.Count; i++)
         {
             Line la = a.Lines[i], lb = b.Lines[i];
