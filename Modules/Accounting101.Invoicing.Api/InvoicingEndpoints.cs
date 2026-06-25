@@ -15,6 +15,11 @@ public static class InvoicingEndpoints
         clients.MapPost("/invoices/{invoiceId:guid}/issue", IssueInvoice);
         clients.MapPost("/invoices/{invoiceId:guid}/void", VoidInvoice);
         clients.MapGet("/invoices/{invoiceId:guid}", GetInvoice);
+        clients.MapGet("/invoices", ListInvoices);
+        clients.MapPost("/payments", RecordPayment);
+        clients.MapPost("/payments/{paymentId:guid}/void", VoidPayment);
+        clients.MapPost("/credit-applications", ApplyCredit);
+        clients.MapGet("/customers/{customerId:guid}/credit-balance", GetCreditBalance);
     }
 
     private static async Task<IResult> CreateCustomer(
@@ -69,9 +74,77 @@ public static class InvoicingEndpoints
     }
 
     private static async Task<IResult> GetInvoice(
-        Guid clientId, Guid invoiceId, InvoiceService service, CancellationToken cancellationToken)
+        Guid clientId, Guid invoiceId, PaymentService payments, CancellationToken cancellationToken)
     {
-        Invoice? invoice = await service.GetAsync(clientId, invoiceId, cancellationToken);
-        return invoice is null ? Results.NotFound() : Results.Ok(invoice);
+        InvoiceView? view = await payments.GetInvoiceViewAsync(clientId, invoiceId, cancellationToken);
+        return view is null ? Results.NotFound() : Results.Ok(view);
+    }
+
+    private static async Task<IResult> ListInvoices(
+        Guid clientId, Guid customerId, string? settlement, PaymentService service, CancellationToken cancellationToken)
+    {
+        SettlementFilter? filter;
+        switch (settlement?.ToLowerInvariant())
+        {
+            case null or "": filter = null; break;
+            case "open": filter = SettlementFilter.Open; break;
+            case "paid": filter = SettlementFilter.Paid; break;
+            default: return Results.Problem($"Unknown settlement filter '{settlement}'.", statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        IReadOnlyList<InvoiceView> views = await service.ListInvoiceViewsAsync(clientId, customerId, filter, cancellationToken);
+        return Results.Ok(views);
+    }
+
+    private static async Task<IResult> RecordPayment(
+        Guid clientId, RecordPaymentRequest request, PaymentService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            Payment recorded = await service.RecordPaymentAsync(clientId,
+                new PaymentBody(request.CustomerId, request.Date, request.Amount, request.Method, request.Allocations),
+                cancellationToken);
+            return Results.Created($"/clients/{clientId}/payments/{recorded.Id}", recorded);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+    }
+
+    private static async Task<IResult> VoidPayment(
+        Guid clientId, Guid paymentId, VoidInvoiceRequest? request, PaymentService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            Payment voided = await service.VoidPaymentAsync(clientId, paymentId, request?.Reason, cancellationToken);
+            return Results.Ok(voided);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+    }
+
+    private static async Task<IResult> ApplyCredit(
+        Guid clientId, CreditApplicationRequest request, PaymentService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            CreditApplication applied = await service.RecordCreditApplicationAsync(clientId,
+                new CreditApplicationBody(request.CustomerId, request.Date, request.Allocations), cancellationToken);
+            return Results.Created($"/clients/{clientId}/credit-applications/{applied.Id}", applied);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+    }
+
+    private static async Task<IResult> GetCreditBalance(
+        Guid clientId, Guid customerId, PaymentService service, CancellationToken cancellationToken)
+    {
+        decimal balance = await service.GetCustomerCreditBalanceAsync(clientId, customerId, cancellationToken);
+        return Results.Ok(new { customerId, creditBalance = balance });
     }
 }

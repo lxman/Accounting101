@@ -12,3 +12,11 @@ public sealed record DraftInvoiceRequest(
 
 /// <summary>Void an issued invoice, with an optional reason.</summary>
 public sealed record VoidInvoiceRequest(string? Reason);
+
+/// <summary>Record a customer payment with its allocations across invoices.</summary>
+public sealed record RecordPaymentRequest(
+    Guid CustomerId, DateOnly Date, decimal Amount, string? Method, IReadOnlyList<Allocation> Allocations);
+
+/// <summary>Apply a customer's existing credit to invoices.</summary>
+public sealed record CreditApplicationRequest(
+    Guid CustomerId, DateOnly Date, IReadOnlyList<Allocation> Allocations);

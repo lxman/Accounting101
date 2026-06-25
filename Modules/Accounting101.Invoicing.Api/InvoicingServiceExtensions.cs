@@ -17,12 +17,17 @@ public static class InvoicingServiceExtensions
         {
             manifest.Reference("customers");
             manifest.Evidentiary("invoices", "Customer");
+            manifest.Evidentiary("payments", "Customer");
+            manifest.Evidentiary("credit-applications", "Customer");
         });
 
         services.AddScoped<ICustomerStore, DocumentCustomerStore>();
         services.AddScoped<IInvoiceStore, DocumentInvoiceStore>();
+        services.AddScoped<IPaymentStore, DocumentPaymentStore>();
         services.AddScoped<InvoiceService>();
+        services.AddScoped<PaymentService>();
         services.AddSingleton<IInvoiceAccountsProvider, ConfiguredInvoiceAccountsProvider>();
+        services.AddSingleton<IPaymentAccountsProvider, ConfiguredPaymentAccountsProvider>();
 
         services.AddHttpClient<ILedgerClient, HttpLedgerClient>(client =>
             client.BaseAddress = new Uri(configuration["Engine:BaseAddress"] ?? "http://localhost"));

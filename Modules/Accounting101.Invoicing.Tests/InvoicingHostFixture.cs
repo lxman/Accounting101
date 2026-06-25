@@ -28,6 +28,8 @@ public sealed class InvoicingHostFixture : WebApplicationFactory<Program>, IAsyn
     public Guid RevenueAccountId { get; } = Guid.NewGuid();
     public Guid LicenseRevenueAccountId { get; } = Guid.NewGuid();
     public Guid SalesTaxPayableAccountId { get; } = Guid.NewGuid();
+    public Guid CashAccountId { get; } = Guid.NewGuid();
+    public Guid CustomerCreditsAccountId { get; } = Guid.NewGuid();
 
     public async Task InitializeAsync()
     {
@@ -57,6 +59,8 @@ public sealed class InvoicingHostFixture : WebApplicationFactory<Program>, IAsyn
         builder.UseSetting("Invoicing:Accounts:Revenue", RevenueAccountId.ToString());
         builder.UseSetting("Invoicing:Accounts:RevenueByCategory:License", LicenseRevenueAccountId.ToString());
         builder.UseSetting("Invoicing:Accounts:SalesTaxPayable", SalesTaxPayableAccountId.ToString());
+        builder.UseSetting("Invoicing:Accounts:Cash", CashAccountId.ToString());
+        builder.UseSetting("Invoicing:Accounts:CustomerCredits", CustomerCreditsAccountId.ToString());
 
         // Repoint the invoicing→ledger loopback client at this in-memory test server (no real socket).
         builder.ConfigureTestServices(services =>
