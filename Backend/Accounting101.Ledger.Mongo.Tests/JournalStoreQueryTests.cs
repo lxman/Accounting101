@@ -72,6 +72,75 @@ public sealed class JournalStoreQueryTests(MongoFixture fixture) : IClassFixture
     }
 
     [Fact]
+    public async Task GetByReference_returns_only_matching_reference()
+    {
+        // Arrange: three entries — two with Reference "R1", one with "R2".
+        // A second client also has a "R1" entry (must not leak across clients).
+        MongoJournalStore journal = new(fixture.Database, "jq_ref_" + Guid.NewGuid().ToString("N"));
+        Guid otherClient = Guid.NewGuid();
+
+        JournalEntryBuilder b1 = new(Guid.NewGuid(), ClientId, 1, new DateOnly(2024, 1, 1), DateTimeOffset.UnixEpoch, Stamp());
+        b1.Reference = "R1";
+        JournalEntry e1 = b1.Debit(Guid.NewGuid(), 100m).Credit(Guid.NewGuid(), 100m).Build();
+
+        JournalEntryBuilder b2 = new(Guid.NewGuid(), ClientId, 2, new DateOnly(2024, 1, 2), DateTimeOffset.UnixEpoch, Stamp());
+        b2.Reference = "R1";
+        JournalEntry e2 = b2.Debit(Guid.NewGuid(), 100m).Credit(Guid.NewGuid(), 100m).Build();
+
+        JournalEntryBuilder b3 = new(Guid.NewGuid(), ClientId, 3, new DateOnly(2024, 1, 3), DateTimeOffset.UnixEpoch, Stamp());
+        b3.Reference = "R2";
+        JournalEntry e3 = b3.Debit(Guid.NewGuid(), 100m).Credit(Guid.NewGuid(), 100m).Build();
+
+        JournalEntryBuilder b4 = new(Guid.NewGuid(), otherClient, 1, new DateOnly(2024, 1, 1), DateTimeOffset.UnixEpoch, Stamp());
+        b4.Reference = "R1";
+        JournalEntry e4 = b4.Debit(Guid.NewGuid(), 100m).Credit(Guid.NewGuid(), 100m).Build();
+
+        using IClientSessionHandle session = await Client.StartSessionAsync();
+        await journal.AppendAsync(e1, session);
+        await journal.AppendAsync(e2, session);
+        await journal.AppendAsync(e3, session);
+        await journal.AppendAsync(e4, session);
+
+        // Act
+        IReadOnlyList<JournalEntry> r1Results = await journal.GetByReferenceAsync(ClientId, "R1", CancellationToken.None);
+        IReadOnlyList<JournalEntry> rxResults = await journal.GetByReferenceAsync(ClientId, "RX", CancellationToken.None);
+
+        // Assert: "R1" returns the two matching entries in sequence order; "RX" returns empty
+        Assert.Equal(new[] { e1.Id, e2.Id }, r1Results.Select(e => e.Id).ToArray());
+        Assert.Empty(rxResults);
+    }
+
+    [Fact]
+    public async Task GetByPosting_returns_only_that_posting_state_paged()
+    {
+        // Arrange: seed 3 PendingApproval entries and 2 Posted entries.
+        MongoJournalStore journal = new(fixture.Database, "jq_post_" + Guid.NewGuid().ToString("N"));
+
+        JournalEntry p1 = MakePending(new DateOnly(2024, 1, 1), 1);
+        JournalEntry p2 = MakePending(new DateOnly(2024, 1, 2), 2);
+        JournalEntry p3 = MakePending(new DateOnly(2024, 1, 3), 3);
+        JournalEntry posted1 = MakePosted(new DateOnly(2024, 1, 4), 4);
+        JournalEntry posted2 = MakePosted(new DateOnly(2024, 1, 5), 5);
+
+        using IClientSessionHandle session = await Client.StartSessionAsync();
+        await journal.AppendAsync(p1, session);
+        await journal.AppendAsync(p2, session);
+        await journal.AppendAsync(p3, session);
+        await journal.AppendAsync(posted1, session);
+        await journal.AppendAsync(posted2, session);
+
+        // Act
+        IReadOnlyList<JournalEntry> pending = await journal.GetByPostingAsync(
+            ClientId, PostingState.PendingApproval, 0, 200, CancellationToken.None);
+        IReadOnlyList<JournalEntry> posted = await journal.GetByPostingAsync(
+            ClientId, PostingState.Posted, 0, 200, CancellationToken.None);
+
+        // Assert: only the pending entries returned for PendingApproval, sequence-ordered
+        Assert.Equal(new[] { p1.Id, p2.Id, p3.Id }, pending.Select(e => e.Id).ToArray());
+        Assert.Equal(new[] { posted1.Id, posted2.Id }, posted.Select(e => e.Id).ToArray());
+    }
+
+    [Fact]
     public async Task TouchJournal_does_not_consume_a_sequence_number()
     {
         MongoSequenceStore sequences = new(fixture.Database, "sq_touch_" + Guid.NewGuid().ToString("N"));

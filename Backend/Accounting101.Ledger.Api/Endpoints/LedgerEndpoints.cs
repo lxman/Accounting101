@@ -368,25 +368,65 @@ public static class LedgerEndpoints
     // ---- Queries ----------------------------------------------------------------------------
 
     private static async Task<IResult> ListEntries(
-        Guid clientId, Guid? account, Guid? sourceRef, string? dimension, Guid? value, int? skip, int? limit,
+        Guid clientId, Guid? account, Guid? sourceRef, string? dimension, Guid? value,
+        string? posting, string? reference,
+        int? skip, int? limit,
         LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
-        // Filters are mutually exclusive; precedence is sourceRef, then dimension, then account, then all.
-        // The unfiltered list is paged with a default cap so it can't load the whole journal by accident.
+        // Validate posting FIRST — an unrecognised value is always a 400, never silently ignored.
+        PostingState? postingState = ParsePosting(posting, out IResult? badPosting);
+        if (badPosting is not null) return badPosting;
+
+        // Base-query precedence: reference → sourceRef → dimension → account → posting-only → unfiltered.
+        // The unfiltered and posting-only branches are paged; the others return all matching entries.
         IReadOnlyList<JournalEntry> entries;
-        if (sourceRef is { } source)
+        bool postingHandledByQuery = false;
+        if (!string.IsNullOrWhiteSpace(reference))
+            entries = await ctx.Ledger.Journal.GetByReferenceAsync(clientId, reference, cancellationToken);
+        else if (sourceRef is { } source)
             entries = await ctx.Ledger.Journal.GetBySourceRefAsync(clientId, source, cancellationToken);
         else if (!string.IsNullOrWhiteSpace(dimension) && value is { } dimValue)
             entries = await ctx.Ledger.Journal.GetTouchingDimensionAsync(clientId, dimension, dimValue, cancellationToken);
         else if (account is { } accountId)
             entries = await ctx.Ledger.Journal.GetTouchingAccountAsync(clientId, accountId, cancellationToken);
+        else if (postingState is { } ps)
+        {
+            entries = await ctx.Ledger.Journal.GetByPostingAsync(clientId, ps, Page(skip), PageLimit(limit), cancellationToken);
+            postingHandledByQuery = true;
+        }
         else
             entries = await ctx.Ledger.Journal.GetByClientAsync(clientId, Page(skip), PageLimit(limit), cancellationToken);
 
+        // When postingState was provided but the base query was not the posting-only branch, refine in-memory.
+        if (postingState is { } refine && !postingHandledByQuery)
+            entries = entries.Where(e => e.Posting == refine).ToList();
+
         return Results.Ok(entries.Select(ToEntryResponse).ToList());
+    }
+
+    /// <summary>
+    /// Parses the optional <paramref name="raw"/> posting filter.
+    /// Returns a non-null <paramref name="error"/> when the value is present but not a recognised
+    /// <see cref="PostingState"/> name; returns a null PostingState when <paramref name="raw"/> is absent.
+    /// </summary>
+    private static PostingState? ParsePosting(string? raw, out IResult? error)
+    {
+        if (raw is null)
+        {
+            error = null;
+            return null;
+        }
+        if (Enum.TryParse<PostingState>(raw, ignoreCase: true, out PostingState parsed) &&
+            parsed is PostingState.PendingApproval or PostingState.Posted)
+        {
+            error = null;
+            return parsed;
+        }
+        error = Results.Problem("posting must be 'PendingApproval' or 'Posted'.", statusCode: 400);
+        return null;
     }
 
     /// <summary>Page offset, never negative.</summary>
