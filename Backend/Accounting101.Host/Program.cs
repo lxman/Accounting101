@@ -19,6 +19,7 @@ app.UseAuthorization();
 app.MapLedgerEndpoints();
 app.MapAdminEndpoints();
 app.MapInvoicingEndpoints();
+app.MapPayablesEndpoints();
 
 app.Run();
 
