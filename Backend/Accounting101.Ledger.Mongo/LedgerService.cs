@@ -270,7 +270,17 @@ public sealed class LedgerService
             memo: "Opening balances");
 
         await PostAsync(opening, actor, cancellationToken);
-        return await ApproveAsync(opening.Id, actor, cancellationToken);
+        JournalEntry approved = await ApproveAsync(opening.Id, actor, cancellationToken);
+
+        // Pre-inception is a closed period: seed the freeze one day before the opening date so any post
+        // dated before the client started is rejected by the same closed-period guard as a normal close.
+        // Seeded after the opening entry is approved, so the opening entry (dated asOf) is never blocked
+        // by its own freeze. Opening balances are empty — no prior activity to carry in.
+        await _checkpoints.SaveAsync(
+            clientId, asOf.AddDays(-1), new Dictionary<Guid, decimal>(),
+            actor.UserId, DateTimeOffset.UtcNow, session: null, cancellationToken);
+
+        return approved;
     }
 
     /// <summary>
