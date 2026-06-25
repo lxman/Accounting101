@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The receivables module: an upstream consumer of the ledger engine. It composes balanced journal
+       entries (as the wire contract) and will post them to the engine over HTTP. It depends only on the
+       contract shape, never on the engine internals. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Backend\Accounting101.Ledger.Contracts\Accounting101.Ledger.Contracts.csproj" />
+    <ProjectReference Include="..\..\Shared\Accounting101.Settlement\Accounting101.Settlement.csproj" />
+  </ItemGroup>
+
+</Project>
