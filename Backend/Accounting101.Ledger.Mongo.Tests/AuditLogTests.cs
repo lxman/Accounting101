@@ -365,4 +365,58 @@ public sealed class AuditLogTests(MongoFixture fixture) : IClassFixture<MongoFix
         // No records, no head -> true
         Assert.True(await audit.VerifyAsync(client));
     }
+
+    /// <summary>
+    /// This test exists to keep the hash-linkage guarantee pinned independently of the contiguity check.
+    /// After a middle record is deleted and the survivors' Sequence values are renumbered to stay contiguous
+    /// (1..N-1), the contiguity check passes but the PreviousHash linkage is broken — VerifyAsync must still
+    /// return false. Without this test a future refactor that weakens the hash check could silently regress.
+    /// </summary>
+    [Fact]
+    public async Task Mid_deletion_is_detected_by_hash_linkage_even_when_contiguous()
+    {
+        (LedgerService service, MongoAuditLog audit, string auditCollection) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        // 1. Append >=3 records (seq 1..3) so there is a genuine middle record.
+        JournalEntry e1 = Entry(client, 1, a, b, 10m);
+        await service.PostAsync(e1, User());
+        await service.ApproveAsync(e1.Id, User());
+        JournalEntry e2 = Entry(client, 2, a, b, 20m);
+        await service.PostAsync(e2, User());
+
+        Assert.True(await audit.VerifyAsync(client));
+
+        IMongoCollection<AuditRecordDocument> raw = fixture.Database.GetCollection<AuditRecordDocument>(auditCollection);
+
+        // 2. Delete the genuine middle record (seq 2, leaving seq 1 and seq 3).
+        List<AuditRecordDocument> all = await raw.Find(r => r.ClientId == client).SortBy(r => r.Sequence).ToListAsync();
+        Assert.True(all.Count >= 3, $"Expected >=3 audit records but found {all.Count}.");
+        AuditRecordDocument middle = all[1]; // seq 2
+        await raw.DeleteOneAsync(r => r.Id == middle.Id);
+
+        // 3. Renumber the surviving later records so the chain stays CONTIGUOUS (1..N-1).
+        //    This defeats the contiguity / sequence-gap check, leaving ONLY the PreviousHash
+        //    linkage / hash-recompute check to catch the tamper.
+        List<AuditRecordDocument> survivors = await raw.Find(r => r.ClientId == client)
+            .SortBy(r => r.Sequence)
+            .ToListAsync();
+        long newSeq = 1;
+        foreach (AuditRecordDocument survivor in survivors)
+        {
+            if (survivor.Sequence != newSeq)
+            {
+                await raw.UpdateOneAsync(
+                    r => r.Id == survivor.Id,
+                    Builders<AuditRecordDocument>.Update.Set(r => r.Sequence, newSeq));
+            }
+            newSeq++;
+        }
+
+        // 4. The chain is now contiguous (1..N-1) but the PreviousHash chain is broken.
+        //    VerifyAsync must detect the tamper via hash linkage and return false.
+        Assert.False(await audit.VerifyAsync(client));
+    }
 }

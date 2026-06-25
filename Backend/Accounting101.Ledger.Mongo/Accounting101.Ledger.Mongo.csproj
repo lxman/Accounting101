@@ -14,4 +14,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Accounting101.Ledger.Mongo.Tests" />
+  </ItemGroup>
+
 </Project>

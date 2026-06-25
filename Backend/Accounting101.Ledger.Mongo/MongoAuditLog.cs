@@ -93,7 +93,7 @@ public sealed class MongoAuditLog
     /// <c>_id = ClientId</c> key (meaning a concurrent writer already advanced the head to ≥ sequence),
     /// the DuplicateKey is caught and treated as a safe no-op.
     /// </summary>
-    public async Task AdvanceHeadAsync(
+    internal async Task AdvanceHeadAsync(
         Guid clientId,
         long sequence,
         string hash,
@@ -121,6 +121,9 @@ public sealed class MongoAuditLog
         catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
         {
             // The head is already at or beyond `sequence` — the monotonic invariant holds; no-op.
+            // In a transaction the single-advance-per-append invariant means this insert-collision branch
+            // is not reached on the normal path. If a future change advances the head twice per transaction,
+            // a DuplicateKey here would abort the transaction (not a silent no-op).
         }
     }
 
@@ -128,7 +131,7 @@ public sealed class MongoAuditLog
     /// Returns the current chain-head for <paramref name="clientId"/>, or <c>null</c> if no records
     /// have been appended yet. Task 2 uses this in VerifyAsync to detect tail truncation.
     /// </summary>
-    public async Task<AuditHeadDocument?> FindHeadAsync(
+    internal async Task<AuditHeadDocument?> FindHeadAsync(
         Guid clientId,
         IClientSessionHandle? session = null,
         CancellationToken cancellationToken = default)
