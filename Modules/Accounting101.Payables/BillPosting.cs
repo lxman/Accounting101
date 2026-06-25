@@ -1,4 +1,5 @@
 using Accounting101.Ledger.Contracts;
+using Accounting101.Settlement;
 
 namespace Accounting101.Payables;
 
@@ -31,5 +32,45 @@ public static class BillPosting
         return new PostEntryRequest(
             Id: null, EffectiveDate: bill.BillDate, Reference: bill.Number, Memo: bill.Memo,
             Lines: lines, SourceRef: bill.Id, SourceType: BillSourceType);
+    }
+
+    public static PostEntryRequest ComposeBillPayment(Guid paymentId, BillPaymentBody body, BillPaymentPostingAccounts accounts)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        ArgumentNullException.ThrowIfNull(accounts);
+
+        decimal allocated = body.Allocations.Sum(a => a.Amount);
+        decimal remainder = body.Amount - allocated;
+        Dictionary<string, Guid> dim = new() { [VendorDimension] = body.VendorId };
+
+        List<PostLineRequest> lines = [];
+        if (allocated != 0m)
+            lines.Add(new(accounts.PayableAccountId, "Debit", allocated, Dimensions: dim));
+        if (remainder != 0m)
+            lines.Add(new(accounts.VendorCreditsAccountId, "Debit", remainder, Dimensions: dim));
+        lines.Add(new(accounts.CashAccountId, "Credit", body.Amount));
+
+        return new PostEntryRequest(
+            Id: null, EffectiveDate: body.Date, Reference: null, Memo: null,
+            Lines: lines, SourceRef: paymentId, SourceType: BillPaymentSourceType);
+    }
+
+    public static PostEntryRequest ComposeVendorCreditApplication(Guid id, VendorCreditApplicationBody body, BillPaymentPostingAccounts accounts)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        ArgumentNullException.ThrowIfNull(accounts);
+
+        decimal applied = body.Allocations.Sum(a => a.Amount);
+        Dictionary<string, Guid> dim = new() { [VendorDimension] = body.VendorId };
+
+        List<PostLineRequest> lines =
+        [
+            new(accounts.PayableAccountId, "Debit", applied, Dimensions: dim),
+            new(accounts.VendorCreditsAccountId, "Credit", applied, Dimensions: dim),
+        ];
+
+        return new PostEntryRequest(
+            Id: null, EffectiveDate: body.Date, Reference: null, Memo: null,
+            Lines: lines, SourceRef: id, SourceType: VendorCreditApplicationSourceType);
     }
 }
