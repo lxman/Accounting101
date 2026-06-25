@@ -10,15 +10,19 @@
     <Project Path="Backend/Accounting101.Ledger.Mongo.Tests/Accounting101.Ledger.Mongo.Tests.csproj" />
     <Project Path="Backend/Accounting101.Ledger.Mongo/Accounting101.Ledger.Mongo.csproj" />
   </Folder>
-  <Folder Name="/Modules/">
-    <Project Path="Modules/Accounting101.Invoicing/Accounting101.Invoicing.csproj" />
-    <Project Path="Modules/Accounting101.Invoicing.Api/Accounting101.Invoicing.Api.csproj" />
-    <Project Path="Modules/Accounting101.Invoicing.Tests/Accounting101.Invoicing.Tests.csproj" />
-    <Project Path="Modules/Accounting101.Payables/Accounting101.Payables.csproj" />
-    <Project Path="Modules/Accounting101.Payables.Api/Accounting101.Payables.Api.csproj" />
-    <Project Path="Modules/Accounting101.Payables.Tests/Accounting101.Payables.Tests.csproj" />
-    <Project Path="Modules/Accounting101.Settlement/Accounting101.Settlement.csproj" />
-    <Project Path="Modules/Accounting101.Settlement.Tests/Accounting101.Settlement.Tests.csproj" />
+  <Folder Name="/Modules/Shared/">
+    <Project Path="Modules/Shared/Accounting101.Settlement/Accounting101.Settlement.csproj" />
+    <Project Path="Modules/Shared/Accounting101.Settlement.Tests/Accounting101.Settlement.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Modules/Receivables/">
+    <Project Path="Modules/Receivables/Accounting101.Receivables/Accounting101.Receivables.csproj" />
+    <Project Path="Modules/Receivables/Accounting101.Receivables.Api/Accounting101.Receivables.Api.csproj" />
+    <Project Path="Modules/Receivables/Accounting101.Receivables.Tests/Accounting101.Receivables.Tests.csproj" />
+  </Folder>
+  <Folder Name="/Modules/Payables/">
+    <Project Path="Modules/Payables/Accounting101.Payables/Accounting101.Payables.csproj" />
+    <Project Path="Modules/Payables/Accounting101.Payables.Api/Accounting101.Payables.Api.csproj" />
+    <Project Path="Modules/Payables/Accounting101.Payables.Tests/Accounting101.Payables.Tests.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path="UI/README.md" />
