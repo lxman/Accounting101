@@ -417,13 +417,21 @@ public sealed class LedgerService
         Amount = Math.Abs(signedEffect),
     };
 
-    private async Task EnsureOpenAsync(Guid clientId, DateOnly effectiveDate, CancellationToken cancellationToken)
+    /// <summary>
+    /// Throws <see cref="InvalidOperationException"/> when <paramref name="effectiveDate"/> falls in a
+    /// closed period. Called by both the real <see cref="PostAsync"/> (authoritative transactional-time
+    /// guard) and the side-effect-free validation dry-run, so the freeze rule cannot diverge.
+    /// </summary>
+    public async Task EnsureOpenForPostAsync(Guid clientId, DateOnly effectiveDate, CancellationToken cancellationToken)
     {
         DateOnly? closedThrough = await _checkpoints.GetClosedThroughAsync(clientId, cancellationToken);
         if (closedThrough is { } through && effectiveDate <= through)
             throw new InvalidOperationException(
                 $"Period is closed through {through:yyyy-MM-dd}; entry dated {effectiveDate:yyyy-MM-dd} is in a closed period.");
     }
+
+    private Task EnsureOpenAsync(Guid clientId, DateOnly effectiveDate, CancellationToken cancellationToken) =>
+        EnsureOpenForPostAsync(clientId, effectiveDate, cancellationToken);
 
     private async Task<JournalEntry> RequireAsync(Guid entryId, CancellationToken cancellationToken) =>
         await _journal.GetAsync(entryId, cancellationToken)
