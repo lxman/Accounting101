@@ -1,3 +1,5 @@
+using Accounting101.Settlement;
+
 namespace Accounting101.Invoicing;
 
 /// <summary>A recorded customer payment. Voided is derived from the document lifecycle.</summary>

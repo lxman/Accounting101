@@ -1,3 +1,5 @@
+using Accounting101.Settlement;
+
 namespace Accounting101.Invoicing;
 
 /// <summary>An invoice plus its derived settlement facet — what a read endpoint returns.</summary>

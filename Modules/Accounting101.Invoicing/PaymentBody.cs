@@ -1,3 +1,5 @@
+using Accounting101.Settlement;
+
 namespace Accounting101.Invoicing;
 
 /// <summary>Stored body of a payment — cash received from a customer, with its allocations across invoices.

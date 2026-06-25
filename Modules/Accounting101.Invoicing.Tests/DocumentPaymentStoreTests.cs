@@ -1,4 +1,5 @@
 using Accounting101.Invoicing;
+using Accounting101.Settlement;
 
 namespace Accounting101.Invoicing.Tests;
 

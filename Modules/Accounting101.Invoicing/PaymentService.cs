@@ -1,4 +1,5 @@
 using Accounting101.Ledger.Contracts;
+using Accounting101.Settlement;
 
 namespace Accounting101.Invoicing;
 
@@ -34,16 +35,16 @@ public sealed class PaymentService(
     {
         foreach (Allocation a in allocations)
         {
-            Invoice invoice = await invoices.GetAsync(clientId, a.InvoiceId, ct)
-                ?? throw new InvalidOperationException($"Invoice {a.InvoiceId} does not exist.");
+            Invoice invoice = await invoices.GetAsync(clientId, a.TargetId, ct)
+                ?? throw new InvalidOperationException($"Invoice {a.TargetId} does not exist.");
             if (invoice.Status == InvoiceStatus.Void)
-                throw new InvalidOperationException($"Invoice {a.InvoiceId} is voided.");
+                throw new InvalidOperationException($"Invoice {a.TargetId} is voided.");
             if (invoice.CustomerId != customerId)
-                throw new InvalidOperationException($"Invoice {a.InvoiceId} belongs to a different customer.");
+                throw new InvalidOperationException($"Invoice {a.TargetId} belongs to a different customer.");
 
-            decimal alreadyApplied = await AppliedToInvoiceAsync(clientId, customerId, a.InvoiceId, ct);
+            decimal alreadyApplied = await AppliedToInvoiceAsync(clientId, customerId, a.TargetId, ct);
             if (alreadyApplied + a.Amount > invoice.Total)
-                throw new InvalidOperationException($"Allocation to invoice {a.InvoiceId} exceeds its open balance.");
+                throw new InvalidOperationException($"Allocation to invoice {a.TargetId} exceeds its open balance.");
         }
     }
 
@@ -56,14 +57,14 @@ public sealed class PaymentService(
         Dictionary<Guid, decimal> applied = new();
         foreach (Allocation a in ps.Where(p => !p.Voided).SelectMany(p => p.Allocations)
                      .Concat(cs.Where(c => !c.Voided).SelectMany(c => c.Allocations)))
-            applied[a.InvoiceId] = applied.GetValueOrDefault(a.InvoiceId) + a.Amount;
+            applied[a.TargetId] = applied.GetValueOrDefault(a.TargetId) + a.Amount;
 
         IEnumerable<InvoiceView> views = customerInvoices
             .Where(inv => inv.Status != InvoiceStatus.Void)
             .Select(inv =>
             {
                 decimal ap = applied.GetValueOrDefault(inv.Id);
-                return new InvoiceView(inv, Settlement.OpenBalance(inv.Total, ap), Settlement.Status(inv.Total, ap));
+                return new InvoiceView(inv, Accounting101.Settlement.Settlement.OpenBalance(inv.Total, ap), Accounting101.Settlement.Settlement.Status(inv.Total, ap));
             });
 
         views = filter switch
@@ -80,7 +81,7 @@ public sealed class PaymentService(
         Invoice? invoice = await invoices.GetAsync(clientId, invoiceId, ct);
         if (invoice is null) return null;
         decimal applied = await AppliedToInvoiceAsync(clientId, invoice.CustomerId, invoiceId, ct);
-        return new InvoiceView(invoice, Settlement.OpenBalance(invoice.Total, applied), Settlement.Status(invoice.Total, applied));
+        return new InvoiceView(invoice, Accounting101.Settlement.Settlement.OpenBalance(invoice.Total, applied), Accounting101.Settlement.Settlement.Status(invoice.Total, applied));
     }
 
     /// <summary>Unapplied customer credit = non-voided payment remainders minus non-voided credit applications.</summary>
@@ -138,8 +139,8 @@ public sealed class PaymentService(
     {
         IReadOnlyList<Payment> ps = await payments.GetPaymentsByCustomerAsync(clientId, customerId, ct);
         IReadOnlyList<CreditApplication> cs = await payments.GetCreditApplicationsByCustomerAsync(clientId, customerId, ct);
-        decimal fromPayments = ps.Where(p => !p.Voided).SelectMany(p => p.Allocations).Where(x => x.InvoiceId == invoiceId).Sum(x => x.Amount);
-        decimal fromCredits = cs.Where(c => !c.Voided).SelectMany(c => c.Allocations).Where(x => x.InvoiceId == invoiceId).Sum(x => x.Amount);
+        decimal fromPayments = ps.Where(p => !p.Voided).SelectMany(p => p.Allocations).Where(x => x.TargetId == invoiceId).Sum(x => x.Amount);
+        decimal fromCredits = cs.Where(c => !c.Voided).SelectMany(c => c.Allocations).Where(x => x.TargetId == invoiceId).Sum(x => x.Amount);
         return fromPayments + fromCredits;
     }
 }

@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using Accounting101.Invoicing;
 using Accounting101.Invoicing.Api;
 using Accounting101.Ledger.Contracts;
+using Accounting101.Settlement;
 
 namespace Accounting101.Invoicing.Tests;
 

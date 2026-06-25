@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Backend\Accounting101.Ledger.Contracts\Accounting101.Ledger.Contracts.csproj" />
+    <ProjectReference Include="..\Accounting101.Settlement\Accounting101.Settlement.csproj" />
   </ItemGroup>
 
 </Project>
