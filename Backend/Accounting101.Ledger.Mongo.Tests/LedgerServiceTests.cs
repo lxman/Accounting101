@@ -141,6 +141,42 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
         Assert.Equal(5001, (await store.GetAsync(next.Id))!.SequenceNumber);
     }
 
+    private static JournalEntry EntryDated(Guid clientId, DateOnly date, Guid debit, Guid credit, decimal amount) =>
+        JournalEntry.Create(
+            id: Guid.NewGuid(),
+            clientId: clientId,
+            sequenceNumber: 0,
+            effectiveDate: date,
+            postedAt: DateTimeOffset.UnixEpoch,
+            type: EntryType.Standard,
+            audit: Stamp(),
+            lines:
+            [
+                new Line { Id = Guid.NewGuid(), AccountId = debit, Direction = Direction.Debit, Amount = amount },
+                new Line { Id = Guid.NewGuid(), AccountId = credit, Direction = Direction.Credit, Amount = amount },
+            ]);
+
+    [Fact]
+    public async Task Post_into_a_closed_period_is_rejected()
+    {
+        // Arrange: open a client, close through 2024-06-30.
+        (LedgerService service, _, _, _, _) = NewLedger();
+        Guid client = Guid.NewGuid();
+        Guid cash = Guid.NewGuid();
+        Guid revenue = Guid.NewGuid();
+        Actor actor = User();
+
+        await service.CloseAsync(client, new DateOnly(2024, 6, 30), actor);
+
+        // Act + Assert: posting an entry dated 2024-06-15 throws InvalidOperationException mentioning "closed".
+        InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.PostAsync(
+                EntryDated(client, new DateOnly(2024, 6, 15), cash, revenue, 10m),
+                actor,
+                CancellationToken.None));
+        Assert.Contains("closed", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
     [Fact]
     public async Task A_revision_has_no_effect_until_approved_then_it_swaps()
     {

@@ -66,12 +66,13 @@ public sealed class LedgerService
     {
         ArgumentNullException.ThrowIfNull(entry);
         ArgumentNullException.ThrowIfNull(actor);
-        await EnsureOpenAsync(entry.ClientId, entry.EffectiveDate, cancellationToken);
+        await EnsureOpenAsync(entry.ClientId, entry.EffectiveDate, cancellationToken); // fast-fail (unchanged)
 
         DateTimeOffset now = DateTimeOffset.UtcNow;
         await InTransactionAsync(async session =>
         {
-            JournalEntry posted = await AppendSequencedAsync(entry, session, cancellationToken);
+            await EnsureOpenForPostAsync(entry.ClientId, entry.EffectiveDate, session, cancellationToken); // authoritative, via session
+            JournalEntry posted = await AppendSequencedAsync(entry, session, cancellationToken); // $inc journal:{clientId} = the fence
             await _audit.AppendAsync(posted.ClientId, posted.Id, posted.Version, AuditAction.Created, actor, null, now, session, cancellationToken);
         }, cancellationToken);
     }
@@ -425,6 +426,20 @@ public sealed class LedgerService
     public async Task EnsureOpenForPostAsync(Guid clientId, DateOnly effectiveDate, CancellationToken cancellationToken)
     {
         DateOnly? closedThrough = await _checkpoints.GetClosedThroughAsync(clientId, cancellationToken);
+        if (closedThrough is { } through && effectiveDate <= through)
+            throw new InvalidOperationException(
+                $"Period is closed through {through:yyyy-MM-dd}; entry dated {effectiveDate:yyyy-MM-dd} is in a closed period.");
+    }
+
+    /// <summary>
+    /// Freeze guard read through <paramref name="session"/> — the authoritative in-transaction check. After a
+    /// write-conflict retry (against a concurrent close), this re-reads the now-current freeze on a fresh
+    /// snapshot, so a back-dated mutation cannot slip into a period the close just froze.
+    /// </summary>
+    public async Task EnsureOpenForPostAsync(
+        Guid clientId, DateOnly effectiveDate, IClientSessionHandle session, CancellationToken cancellationToken)
+    {
+        DateOnly? closedThrough = await _checkpoints.GetClosedThroughAsync(clientId, session, cancellationToken);
         if (closedThrough is { } through && effectiveDate <= through)
             throw new InvalidOperationException(
                 $"Period is closed through {through:yyyy-MM-dd}; entry dated {effectiveDate:yyyy-MM-dd} is in a closed period.");
