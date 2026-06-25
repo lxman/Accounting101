@@ -62,4 +62,18 @@ public sealed class MongoSequenceStore
         UpdateDefinition<BsonDocument> raise = Builders<BsonDocument>.Update.Max("seq", atLeast);
         return _counters.UpdateOneAsync(session, filter, raise, new UpdateOptions { IsUpsert = true }, cancellationToken);
     }
+
+    /// <summary>
+    /// Touch the per-client journal counter document WITHOUT consuming a sequence number — bumps a separate
+    /// <c>guard</c> field. The period close calls this inside its transaction so it write-conflicts with any
+    /// concurrent post (which <c>$inc</c>s <c>seq</c> on the same document): one side retries onto a fresh
+    /// snapshot. Reuses the document posts already serialize on, so it adds no new contention point.
+    /// </summary>
+    public Task TouchJournalAsync(Guid clientId, IClientSessionHandle session, CancellationToken cancellationToken = default) =>
+        _counters.UpdateOneAsync(
+            session,
+            Builders<BsonDocument>.Filter.Eq("_id", "journal:" + clientId),
+            Builders<BsonDocument>.Update.Inc("guard", 1L),
+            new UpdateOptions { IsUpsert = true },
+            cancellationToken);
 }

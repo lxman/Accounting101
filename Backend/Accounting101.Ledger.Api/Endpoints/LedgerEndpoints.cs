@@ -262,6 +262,18 @@ public static class LedgerEndpoints
             IReadOnlyDictionary<Guid, decimal> balances = await ctx.Ledger.Service.CloseAsync(clientId, request.AsOf, ctx.Actor, cancellationToken);
             return Results.Ok(new CloseResponse(request.AsOf, ToAccountBalances(balances)));
         }
+        catch (PeriodCloseBlockedException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status409Conflict,
+                extensions: new Dictionary<string, object?>
+                {
+                    ["blockers"] = ex.Blockers
+                        .Select(b => new PendingEntryRef(b.Id, b.Reference, b.EffectiveDate, b.Type.ToString()))
+                        .ToList(),
+                });
+        }
         catch (InvalidOperationException ex) // already closed through >= AsOf
         {
             return Conflict(ex.Message);
@@ -600,6 +612,18 @@ public static class LedgerEndpoints
             JournalEntry? closing = await ctx.Ledger.Service.CloseYearAsync(
                 clientId, request.FiscalYearEnd, ctx.Actor, chart, cancellationToken);
             return Results.Ok(new CloseYearResponse(closing is null ? null : ToEntryResponse(closing)));
+        }
+        catch (PeriodCloseBlockedException ex)
+        {
+            return Results.Problem(
+                detail: ex.Message,
+                statusCode: StatusCodes.Status409Conflict,
+                extensions: new Dictionary<string, object?>
+                {
+                    ["blockers"] = ex.Blockers
+                        .Select(b => new PendingEntryRef(b.Id, b.Reference, b.EffectiveDate, b.Type.ToString()))
+                        .ToList(),
+                });
         }
         catch (InvalidOperationException ex) // already closed, or no retained-earnings account configured
         {
