@@ -158,6 +158,48 @@ public sealed class MongoJournalStore
         return docs.Select(d => d.ToDomain()).ToList();
     }
 
+    /// <summary>
+    /// Every entry for <paramref name="clientId"/> with <see cref="JournalEntry.Reference"/> exactly equal
+    /// to <paramref name="reference"/>, in sequence order. Returns an empty list when no entry carries that
+    /// reference — callers may rely on the honest-empty guarantee. Must not return entries belonging to other
+    /// clients even when they share the same reference string.
+    /// </summary>
+    public async Task<IReadOnlyList<JournalEntry>> GetByReferenceAsync(
+        Guid clientId, string reference, CancellationToken cancellationToken = default)
+    {
+        FilterDefinitionBuilder<JournalEntryDocument> f = Builders<JournalEntryDocument>.Filter;
+        FilterDefinition<JournalEntryDocument> filter = f.And(
+            f.Eq(e => e.ClientId, clientId),
+            f.Eq(e => e.Reference, reference));
+        List<JournalEntryDocument> docs = await _entries
+            .Find(filter)
+            .SortBy(e => e.SequenceNumber)
+            .ToListAsync(cancellationToken);
+        return docs.Select(d => d.ToDomain()).ToList();
+    }
+
+    /// <summary>
+    /// Entries for <paramref name="clientId"/> whose posting state matches <paramref name="posting"/>,
+    /// paged via <paramref name="skip"/>/<paramref name="limit"/>, in sequence order. Served by the
+    /// <c>client_status_posting</c> index. <paramref name="limit"/> &lt;= 0 means no limit.
+    /// </summary>
+    public async Task<IReadOnlyList<JournalEntry>> GetByPostingAsync(
+        Guid clientId, PostingState posting, int skip, int limit,
+        CancellationToken cancellationToken = default)
+    {
+        FilterDefinitionBuilder<JournalEntryDocument> f = Builders<JournalEntryDocument>.Filter;
+        FilterDefinition<JournalEntryDocument> filter = f.And(
+            f.Eq(e => e.ClientId, clientId),
+            f.Eq("Posting", posting.ToString()));
+        List<JournalEntryDocument> docs = await _entries
+            .Find(filter)
+            .SortBy(e => e.SequenceNumber)
+            .Skip(skip > 0 ? skip : null)
+            .Limit(limit > 0 ? limit : null)
+            .ToListAsync(cancellationToken);
+        return docs.Select(d => d.ToDomain()).ToList();
+    }
+
     /// <summary>Creates the indexes the prototype's read paths rely on. Idempotent.</summary>
     public Task EnsureIndexesAsync(CancellationToken cancellationToken = default)
     {
