@@ -71,6 +71,39 @@ public sealed class ReceivablesIssueTests(ReceivablesHostFixture fixture) : ICla
     }
 
     [Fact]
+    public async Task Issuing_into_a_closed_period_surfaces_the_engine_conflict_not_a_500()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) =
+            await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId);
+
+        Customer customer = (await (await clerk.PostAsJsonAsync(
+                $"/clients/{clientId}/customers", new CreateCustomerRequest("Closed Co", null)))
+            .Content.ReadFromJsonAsync<Customer>())!;
+
+        // The controller closes March; the clerk then mistakenly dates an invoice inside the closed period
+        // (exactly the month-10 sim failure: a stale example date). Drafting is fine — it touches no ledger.
+        var closed = new DateOnly(2024, 3, 31);
+        (await controller.PostAsJsonAsync($"/clients/{clientId}/periods/close", new { asOf = closed }))
+            .EnsureSuccessStatusCode();
+
+        DraftInvoiceRequest draftRequest = new(
+            customer.Id,
+            [new InvoiceLine { Description = "Consulting", Quantity = 1m, UnitPrice = 100m }],
+            TaxRate: 0m, IssueDate: closed, DueDate: null, Memo: null);
+        Invoice draft = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/invoices", draftRequest))
+            .Content.ReadFromJsonAsync<Invoice>())!;
+
+        // Issuing posts into the closed period; the engine refuses (409). The module must surface that
+        // reason, not bury it as an opaque 500 the way it did in the sim.
+        HttpResponseMessage issue = await clerk.PostAsync($"/clients/{clientId}/invoices/{draft.Id}/issue", null);
+
+        Assert.Equal(HttpStatusCode.Conflict, issue.StatusCode);
+        string body = await issue.Content.ReadAsStringAsync();
+        Assert.Contains("closed", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task Issuing_then_a_separate_approver_books_the_AR_entry_under_SoD()
     {
         (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) =

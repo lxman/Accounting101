@@ -58,6 +58,10 @@ public static class ReceivablesEndpoints
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
         }
+        catch (LedgerClientException ex) // the engine refused the post (e.g. closed period, unbalanced) — relay its real reason, not a 500
+        {
+            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
+        }
     }
 
     private static async Task<IResult> VoidInvoice(
