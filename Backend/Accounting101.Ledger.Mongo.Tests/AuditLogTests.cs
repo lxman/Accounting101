@@ -235,4 +235,134 @@ public sealed class AuditLogTests(MongoFixture fixture) : IClassFixture<MongoFix
 
         Assert.False(await audit.VerifyAsync(client));
     }
+
+    [Fact]
+    public async Task Tail_truncation_is_detected()
+    {
+        (LedgerService service, MongoAuditLog audit, string auditCollection) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        // Append 3 records
+        JournalEntry e1 = Entry(client, 1, a, b, 10m);
+        await service.PostAsync(e1, User());
+        await service.ApproveAsync(e1.Id, User());
+        JournalEntry e2 = Entry(client, 2, a, b, 20m);
+        await service.PostAsync(e2, User());
+
+        Assert.True(await audit.VerifyAsync(client));
+
+        // Delete the newest record directly (tail truncation) - head doc is left intact
+        IMongoCollection<AuditRecordDocument> raw = fixture.Database.GetCollection<AuditRecordDocument>(auditCollection);
+        AuditRecordDocument newest = await raw.Find(r => r.ClientId == client).SortByDescending(r => r.Sequence).FirstAsync();
+        await raw.DeleteOneAsync(r => r.Id == newest.Id);
+
+        Assert.False(await audit.VerifyAsync(client));
+
+        // Delete one more (two newest removed)
+        AuditRecordDocument newestAgain = await raw.Find(r => r.ClientId == client).SortByDescending(r => r.Sequence).FirstAsync();
+        await raw.DeleteOneAsync(r => r.Id == newestAgain.Id);
+
+        Assert.False(await audit.VerifyAsync(client));
+    }
+
+    [Fact]
+    public async Task Clean_chain_verifies_true()
+    {
+        (LedgerService service, MongoAuditLog audit, _) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        JournalEntry e1 = Entry(client, 1, a, b, 10m);
+        await service.PostAsync(e1, User());
+        await service.ApproveAsync(e1.Id, User());
+        JournalEntry e2 = Entry(client, 2, a, b, 20m);
+        await service.PostAsync(e2, User());
+
+        Assert.True(await audit.VerifyAsync(client));
+    }
+
+    [Fact]
+    public async Task Mid_deletion_is_detected()
+    {
+        (LedgerService service, MongoAuditLog audit, string auditCollection) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        JournalEntry e1 = Entry(client, 1, a, b, 10m);
+        await service.PostAsync(e1, User());
+        await service.ApproveAsync(e1.Id, User());
+        JournalEntry e2 = Entry(client, 2, a, b, 20m);
+        await service.PostAsync(e2, User());
+
+        Assert.True(await audit.VerifyAsync(client));
+
+        // Delete a middle record
+        IMongoCollection<AuditRecordDocument> raw = fixture.Database.GetCollection<AuditRecordDocument>(auditCollection);
+        List<AuditRecordDocument> all = await raw.Find(r => r.ClientId == client).SortBy(r => r.Sequence).ToListAsync();
+        // Delete the second record (index 1), keeping first and last
+        await raw.DeleteOneAsync(r => r.Id == all[1].Id);
+
+        Assert.False(await audit.VerifyAsync(client));
+    }
+
+    [Fact]
+    public async Task First_record_deletion_is_detected()
+    {
+        (LedgerService service, MongoAuditLog audit, string auditCollection) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        JournalEntry e1 = Entry(client, 1, a, b, 10m);
+        await service.PostAsync(e1, User());
+        await service.ApproveAsync(e1.Id, User());
+        JournalEntry e2 = Entry(client, 2, a, b, 20m);
+        await service.PostAsync(e2, User());
+
+        IMongoCollection<AuditRecordDocument> raw = fixture.Database.GetCollection<AuditRecordDocument>(auditCollection);
+        AuditRecordDocument first = await raw.Find(r => r.ClientId == client).SortBy(r => r.Sequence).FirstAsync();
+        await raw.DeleteOneAsync(r => r.Id == first.Id);
+
+        Assert.False(await audit.VerifyAsync(client));
+    }
+
+    [Fact]
+    public async Task Sequence_gap_is_detected()
+    {
+        (LedgerService service, MongoAuditLog audit, string auditCollection) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        JournalEntry e1 = Entry(client, 1, a, b, 10m);
+        await service.PostAsync(e1, User());
+        await service.ApproveAsync(e1.Id, User());
+        JournalEntry e2 = Entry(client, 2, a, b, 20m);
+        await service.PostAsync(e2, User());
+
+        Assert.True(await audit.VerifyAsync(client));
+
+        // Perturb a record's Sequence to create a gap (e.g., change record with Sequence=2 to Sequence=99)
+        IMongoCollection<AuditRecordDocument> raw = fixture.Database.GetCollection<AuditRecordDocument>(auditCollection);
+        AuditRecordDocument last = await raw.Find(r => r.ClientId == client).SortByDescending(r => r.Sequence).FirstAsync();
+        await raw.UpdateOneAsync(
+            r => r.Id == last.Id,
+            Builders<AuditRecordDocument>.Update.Set(r => r.Sequence, 99L));
+
+        Assert.False(await audit.VerifyAsync(client));
+    }
+
+    [Fact]
+    public async Task Empty_chain_with_no_head_verifies_true()
+    {
+        (_, MongoAuditLog audit, _) = NewLedger();
+        var client = Guid.NewGuid();
+
+        // No records, no head -> true
+        Assert.True(await audit.VerifyAsync(client));
+    }
 }

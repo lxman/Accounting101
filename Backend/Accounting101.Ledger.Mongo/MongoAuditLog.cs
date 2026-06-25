@@ -185,6 +185,7 @@ public sealed class MongoAuditLog
     /// <summary>
     /// Verify the client's chain: every record must link to its predecessor and its stored
     /// hash must recompute. Any after-the-fact edit (even by a DBA) breaks this.
+    /// Also reconciles the walked chain against the guarded head to detect tail truncation.
     /// </summary>
     public async Task<bool> VerifyAsync(Guid clientId, CancellationToken cancellationToken = default)
     {
@@ -194,15 +195,25 @@ public sealed class MongoAuditLog
             .ToListAsync(cancellationToken);
 
         var previousHash = string.Empty;
+        long expectedSeq = 1;
         foreach (AuditRecordDocument record in records)
         {
-            if (record.PreviousHash != previousHash || record.Hash != ComputeHash(record))
+            if (record.Sequence != expectedSeq || record.PreviousHash != previousHash || record.Hash != ComputeHash(record))
                 return false;
 
             previousHash = record.Hash;
+            expectedSeq++;
         }
 
-        return true;
+        // Reconcile the walked chain against the guarded head.
+        AuditHeadDocument? head = await FindHeadAsync(clientId, cancellationToken: cancellationToken);
+
+        if (records.Count == 0)
+            return head is null || head.Sequence == 0;
+
+        return head is not null
+            && head.Sequence == records[^1].Sequence
+            && head.Hash == records[^1].Hash;
     }
 
     private static ActorSnapshot ToSnapshot(Actor actor) => new()
