@@ -456,6 +456,17 @@ public sealed class LedgerService
                 $"Period is closed through {through:yyyy-MM-dd}; entry dated {effectiveDate:yyyy-MM-dd} is in a closed period.");
     }
 
+    /// <summary>
+    /// The entry with <paramref name="entryId"/> IFF it belongs to <paramref name="clientId"/>; otherwise null.
+    /// Client-scoped so an idempotent-post resolution can never surface another client's entry on a global
+    /// id collision.
+    /// </summary>
+    public async Task<JournalEntry?> GetEntryAsync(Guid clientId, Guid entryId, CancellationToken cancellationToken = default)
+    {
+        JournalEntry? entry = await _journal.GetAsync(entryId, cancellationToken);
+        return entry is not null && entry.ClientId == clientId ? entry : null;
+    }
+
     private Task EnsureOpenAsync(Guid clientId, DateOnly effectiveDate, CancellationToken cancellationToken) =>
         EnsureOpenForPostAsync(clientId, effectiveDate, cancellationToken);
 
