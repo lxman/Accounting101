@@ -29,11 +29,16 @@ public sealed class PeriodCloseApiTests(ApiFixture fixture) : IClassFixture<ApiF
 
         HttpResponseMessage posted = await c.Http.PostAsJsonAsync(
             $"/clients/{c.ClientId}/entries",
-            new PostEntryRequest(null, new DateOnly(2024, 6, 30), null, null,
-            [
-                new PostLineRequest(cash, "Debit", 100m),
-                new PostLineRequest(revenue, "Credit", 100m),
-            ]));
+            new PostEntryRequest(
+                Id: null,
+                EffectiveDate: new DateOnly(2024, 6, 30),
+                Reference: null,
+                Memo: null,
+                Lines:
+                [
+                    new PostLineRequest(cash, "Debit", 100m),
+                    new PostLineRequest(revenue, "Credit", 100m),
+                ]));
         posted.EnsureSuccessStatusCode();
         // Deliberately NOT approving — entry stays Pending.
 

@@ -204,6 +204,50 @@ public sealed class ConcurrencyTests(MongoFixture fixture) : IClassFixture<Mongo
     }
 
     /// <summary>
+    /// Same race as <see cref="Concurrent_close_and_backdated_post_never_strand_and_never_post_into_a_frozen_period"/>
+    /// but the <c>journal:{clientId}</c> counter document is pre-seeded before the race begins, so the
+    /// UPDATE (existing-document) path of the sequence store is exercised instead of the INSERT path.
+    /// The pre-seed entry is dated in a FUTURE (open) month so it does not itself block the close.
+    /// </summary>
+    [Fact]
+    public async Task Concurrent_close_and_backdated_post_never_strand_with_preseeded_counter()
+    {
+        for (int i = 0; i < 20; i++)
+        {
+            // Fresh client per iteration so iterations are independent.
+            Guid clientId = await NewOpenClientAsync();
+            DateOnly asOf = new(2024, 6, 30);
+
+            // Pre-seed the journal counter by posting AND approving an out-of-period entry (future month).
+            // This ensures journal:{clientId} already exists as an UPDATE target before the race.
+            JournalEntry seedEntry = EntryDated(clientId, new DateOnly(2024, 8, 1)); // future — won't block close
+            await Service.PostAsync(seedEntry, Actor, CancellationToken.None);
+            await Service.ApproveAsync(seedEntry.Id, Actor, CancellationToken.None);
+
+            // Now race CloseAsync against a back-dated in-period PostAsync — same as the sister test.
+            Task close = Service.CloseAsync(clientId, asOf, Actor, CancellationToken.None);
+            Task post  = Service.PostAsync(EntryDated(clientId, asOf), Actor, CancellationToken.None); // pending, in-period
+
+            Exception? closeEx = await Record.ExceptionAsync(() => close);
+            Exception? postEx  = await Record.ExceptionAsync(() => post);
+
+            bool closed = closeEx is null;
+            if (closed)
+            {
+                // Close won: the post MUST have been rejected (period frozen) — no entry in the closed period.
+                Assert.IsType<InvalidOperationException>(postEx);
+                Assert.Contains("closed", postEx!.Message, StringComparison.OrdinalIgnoreCase);
+            }
+            else
+            {
+                // Close lost: it MUST be the pending-block (it saw the entry), never any other failure.
+                Assert.IsType<PeriodCloseBlockedException>(closeEx);
+                Assert.Null(postEx); // the post committed; close correctly refused to strand it
+            }
+        }
+    }
+
+    /// <summary>
     /// Race VoidAsync against CloseAsync for an already-posted entry dated in the closing period,
     /// across 20 iterations. The only safety invariant that must hold is:
     /// <b>a void must never be applied to an already-frozen-period entry</b>.

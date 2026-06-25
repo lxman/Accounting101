@@ -201,7 +201,7 @@ public sealed class PeriodCloseTests(MongoFixture fixture) : IClassFixture<Mongo
         // Now close succeeds; the approved entry is on the books.
         IReadOnlyDictionary<Guid, decimal> snapshot =
             await service.CloseAsync(client, new DateOnly(2024, 6, 30), User(), CancellationToken.None);
-        Assert.True(snapshot.ContainsKey(a) || snapshot.ContainsKey(b));
+        Assert.True(snapshot.ContainsKey(a) && snapshot.ContainsKey(b));
     }
 
     [Fact]
