@@ -4,6 +4,125 @@ using MongoDB.Driver;
 
 namespace Accounting101.Ledger.Mongo.Tests;
 
+// ── Head-maintenance tests ────────────────────────────────────────────────────
+// These three tests verify the audit-head feature added in Task 1.
+// They call AppendAsync directly so sequence counts are exact.
+
+public sealed class AuditHeadTests(MongoFixture fixture) : IClassFixture<MongoFixture>
+{
+    private static Actor User() => new()
+    {
+        UserId = Guid.NewGuid(),
+        Name = "tester",
+        Claims = [new Claim("role", "tester")],
+    };
+
+    private (MongoAuditLog audit, IMongoCollection<AuditHeadDocument> head) NewAudit()
+    {
+        string auditCollection = "audit_head_" + Guid.NewGuid().ToString("N");
+        MongoAuditLog audit = new(fixture.Database, auditCollection);
+        IMongoCollection<AuditHeadDocument> head = fixture.Database.GetCollection<AuditHeadDocument>("audit-head");
+        return (audit, head);
+    }
+
+    private Task AppendOne(MongoAuditLog audit, Guid clientId, IClientSessionHandle? session = null) =>
+        audit.AppendAsync(
+            clientId,
+            entryId: Guid.NewGuid(),
+            entryVersion: 1,
+            action: AuditAction.Created,
+            actor: User(),
+            reason: null,
+            at: DateTimeOffset.UtcNow,
+            session: session);
+
+    [Fact]
+    public async Task Append_advances_the_head_to_the_latest_record()
+    {
+        (MongoAuditLog audit, IMongoCollection<AuditHeadDocument> head) = NewAudit();
+        var clientId = Guid.NewGuid();
+
+        await AppendOne(audit, clientId);
+        await AppendOne(audit, clientId);
+        await AppendOne(audit, clientId);
+
+        AuditHeadDocument? doc = await head.Find(h => h.ClientId == clientId).FirstOrDefaultAsync();
+        Assert.NotNull(doc);
+        Assert.Equal(3, doc.Sequence);
+
+        // Hash must match the 3rd record's hash
+        IReadOnlyList<AuditRecordDocument> trail = await audit.GetForClientAsync(clientId);
+        Assert.Equal(3, trail.Count);
+        Assert.Equal(trail[2].Hash, doc.Hash);
+    }
+
+    [Fact]
+    public async Task Head_does_not_regress_on_a_stale_update()
+    {
+        (MongoAuditLog audit, IMongoCollection<AuditHeadDocument> head) = NewAudit();
+        var clientId = Guid.NewGuid();
+
+        // Append 3 records normally — head should be at sequence 3
+        await AppendOne(audit, clientId);
+        await AppendOne(audit, clientId);
+        await AppendOne(audit, clientId);
+
+        AuditHeadDocument? before = await head.Find(h => h.ClientId == clientId).FirstOrDefaultAsync();
+        Assert.NotNull(before);
+        Assert.Equal(3, before.Sequence);
+
+        // Directly invoke AdvanceHeadAsync with a stale (lower) sequence — must not regress
+        await audit.AdvanceHeadAsync(clientId, sequence: 1, hash: "stale-hash");
+
+        AuditHeadDocument? after = await head.Find(h => h.ClientId == clientId).FirstOrDefaultAsync();
+        Assert.NotNull(after);
+        Assert.Equal(3, after.Sequence);                     // still at 3
+        Assert.Equal(before.Hash, after.Hash);               // hash unchanged
+    }
+
+    [Fact]
+    public async Task Append_and_head_commit_together_in_a_transaction()
+    {
+        (MongoAuditLog audit, IMongoCollection<AuditHeadDocument> head) = NewAudit();
+        var clientId = Guid.NewGuid();
+
+        // ── Part A: commit ─────────────────────────────────────────────────
+        using (IClientSessionHandle session = await fixture.Database.Client.StartSessionAsync())
+        {
+            session.StartTransaction();
+            await AppendOne(audit, clientId, session);
+            await session.CommitTransactionAsync();
+        }
+
+        IReadOnlyList<AuditRecordDocument> records = await audit.GetForClientAsync(clientId);
+        Assert.Single(records);
+        AuditHeadDocument? committed = await head.Find(h => h.ClientId == clientId).FirstOrDefaultAsync();
+        Assert.NotNull(committed);
+        Assert.Equal(1, committed.Sequence);
+
+        // ── Part B: abort — neither the record NOR the head must advance ──
+        long seqBefore = committed.Sequence;
+        string hashBefore = committed.Hash;
+
+        using (IClientSessionHandle session = await fixture.Database.Client.StartSessionAsync())
+        {
+            session.StartTransaction();
+            await AppendOne(audit, clientId, session);
+            await session.AbortTransactionAsync();
+        }
+
+        IReadOnlyList<AuditRecordDocument> recordsAfterAbort = await audit.GetForClientAsync(clientId);
+        Assert.Single(recordsAfterAbort);                    // record rolled back
+
+        AuditHeadDocument? headAfterAbort = await head.Find(h => h.ClientId == clientId).FirstOrDefaultAsync();
+        Assert.NotNull(headAfterAbort);
+        Assert.Equal(seqBefore, headAfterAbort.Sequence);    // head rolled back too
+        Assert.Equal(hashBefore, headAfterAbort.Hash);
+    }
+}
+
+// ── Existing AuditLogTests ────────────────────────────────────────────────────
+
 public sealed class AuditLogTests(MongoFixture fixture) : IClassFixture<MongoFixture>
 {
     private static AuditStamp Stamp() => new()
@@ -114,6 +233,190 @@ public sealed class AuditLogTests(MongoFixture fixture) : IClassFixture<MongoFix
             r => r.Id == first.Id,
             Builders<AuditRecordDocument>.Update.Set(r => r.Reason, "tampered"));
 
+        Assert.False(await audit.VerifyAsync(client));
+    }
+
+    [Fact]
+    public async Task Tail_truncation_is_detected()
+    {
+        (LedgerService service, MongoAuditLog audit, string auditCollection) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        // Append 3 records
+        JournalEntry e1 = Entry(client, 1, a, b, 10m);
+        await service.PostAsync(e1, User());
+        await service.ApproveAsync(e1.Id, User());
+        JournalEntry e2 = Entry(client, 2, a, b, 20m);
+        await service.PostAsync(e2, User());
+
+        Assert.True(await audit.VerifyAsync(client));
+
+        // Delete the newest record directly (tail truncation) - head doc is left intact
+        IMongoCollection<AuditRecordDocument> raw = fixture.Database.GetCollection<AuditRecordDocument>(auditCollection);
+        AuditRecordDocument newest = await raw.Find(r => r.ClientId == client).SortByDescending(r => r.Sequence).FirstAsync();
+        await raw.DeleteOneAsync(r => r.Id == newest.Id);
+
+        Assert.False(await audit.VerifyAsync(client));
+
+        // Delete one more (two newest removed)
+        AuditRecordDocument newestAgain = await raw.Find(r => r.ClientId == client).SortByDescending(r => r.Sequence).FirstAsync();
+        await raw.DeleteOneAsync(r => r.Id == newestAgain.Id);
+
+        Assert.False(await audit.VerifyAsync(client));
+    }
+
+    [Fact]
+    public async Task Clean_chain_verifies_true()
+    {
+        (LedgerService service, MongoAuditLog audit, _) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        JournalEntry e1 = Entry(client, 1, a, b, 10m);
+        await service.PostAsync(e1, User());
+        await service.ApproveAsync(e1.Id, User());
+        JournalEntry e2 = Entry(client, 2, a, b, 20m);
+        await service.PostAsync(e2, User());
+
+        Assert.True(await audit.VerifyAsync(client));
+    }
+
+    [Fact]
+    public async Task Mid_deletion_is_detected()
+    {
+        (LedgerService service, MongoAuditLog audit, string auditCollection) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        JournalEntry e1 = Entry(client, 1, a, b, 10m);
+        await service.PostAsync(e1, User());
+        await service.ApproveAsync(e1.Id, User());
+        JournalEntry e2 = Entry(client, 2, a, b, 20m);
+        await service.PostAsync(e2, User());
+
+        Assert.True(await audit.VerifyAsync(client));
+
+        // Delete a middle record
+        IMongoCollection<AuditRecordDocument> raw = fixture.Database.GetCollection<AuditRecordDocument>(auditCollection);
+        List<AuditRecordDocument> all = await raw.Find(r => r.ClientId == client).SortBy(r => r.Sequence).ToListAsync();
+        // Delete the second record (index 1), keeping first and last
+        await raw.DeleteOneAsync(r => r.Id == all[1].Id);
+
+        Assert.False(await audit.VerifyAsync(client));
+    }
+
+    [Fact]
+    public async Task First_record_deletion_is_detected()
+    {
+        (LedgerService service, MongoAuditLog audit, string auditCollection) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        JournalEntry e1 = Entry(client, 1, a, b, 10m);
+        await service.PostAsync(e1, User());
+        await service.ApproveAsync(e1.Id, User());
+        JournalEntry e2 = Entry(client, 2, a, b, 20m);
+        await service.PostAsync(e2, User());
+
+        IMongoCollection<AuditRecordDocument> raw = fixture.Database.GetCollection<AuditRecordDocument>(auditCollection);
+        AuditRecordDocument first = await raw.Find(r => r.ClientId == client).SortBy(r => r.Sequence).FirstAsync();
+        await raw.DeleteOneAsync(r => r.Id == first.Id);
+
+        Assert.False(await audit.VerifyAsync(client));
+    }
+
+    [Fact]
+    public async Task Sequence_gap_is_detected()
+    {
+        (LedgerService service, MongoAuditLog audit, string auditCollection) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        JournalEntry e1 = Entry(client, 1, a, b, 10m);
+        await service.PostAsync(e1, User());
+        await service.ApproveAsync(e1.Id, User());
+        JournalEntry e2 = Entry(client, 2, a, b, 20m);
+        await service.PostAsync(e2, User());
+
+        Assert.True(await audit.VerifyAsync(client));
+
+        // Perturb a record's Sequence to create a gap (e.g., change record with Sequence=2 to Sequence=99)
+        IMongoCollection<AuditRecordDocument> raw = fixture.Database.GetCollection<AuditRecordDocument>(auditCollection);
+        AuditRecordDocument last = await raw.Find(r => r.ClientId == client).SortByDescending(r => r.Sequence).FirstAsync();
+        await raw.UpdateOneAsync(
+            r => r.Id == last.Id,
+            Builders<AuditRecordDocument>.Update.Set(r => r.Sequence, 99L));
+
+        Assert.False(await audit.VerifyAsync(client));
+    }
+
+    [Fact]
+    public async Task Empty_chain_with_no_head_verifies_true()
+    {
+        (_, MongoAuditLog audit, _) = NewLedger();
+        var client = Guid.NewGuid();
+
+        // No records, no head -> true
+        Assert.True(await audit.VerifyAsync(client));
+    }
+
+    /// <summary>
+    /// This test exists to keep the hash-linkage guarantee pinned independently of the contiguity check.
+    /// After a middle record is deleted and the survivors' Sequence values are renumbered to stay contiguous
+    /// (1..N-1), the contiguity check passes but the PreviousHash linkage is broken — VerifyAsync must still
+    /// return false. Without this test a future refactor that weakens the hash check could silently regress.
+    /// </summary>
+    [Fact]
+    public async Task Mid_deletion_is_detected_by_hash_linkage_even_when_contiguous()
+    {
+        (LedgerService service, MongoAuditLog audit, string auditCollection) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        // 1. Append >=3 records (seq 1..3) so there is a genuine middle record.
+        JournalEntry e1 = Entry(client, 1, a, b, 10m);
+        await service.PostAsync(e1, User());
+        await service.ApproveAsync(e1.Id, User());
+        JournalEntry e2 = Entry(client, 2, a, b, 20m);
+        await service.PostAsync(e2, User());
+
+        Assert.True(await audit.VerifyAsync(client));
+
+        IMongoCollection<AuditRecordDocument> raw = fixture.Database.GetCollection<AuditRecordDocument>(auditCollection);
+
+        // 2. Delete the genuine middle record (seq 2, leaving seq 1 and seq 3).
+        List<AuditRecordDocument> all = await raw.Find(r => r.ClientId == client).SortBy(r => r.Sequence).ToListAsync();
+        Assert.True(all.Count >= 3, $"Expected >=3 audit records but found {all.Count}.");
+        AuditRecordDocument middle = all[1]; // seq 2
+        await raw.DeleteOneAsync(r => r.Id == middle.Id);
+
+        // 3. Renumber the surviving later records so the chain stays CONTIGUOUS (1..N-1).
+        //    This defeats the contiguity / sequence-gap check, leaving ONLY the PreviousHash
+        //    linkage / hash-recompute check to catch the tamper.
+        List<AuditRecordDocument> survivors = await raw.Find(r => r.ClientId == client)
+            .SortBy(r => r.Sequence)
+            .ToListAsync();
+        long newSeq = 1;
+        foreach (AuditRecordDocument survivor in survivors)
+        {
+            if (survivor.Sequence != newSeq)
+            {
+                await raw.UpdateOneAsync(
+                    r => r.Id == survivor.Id,
+                    Builders<AuditRecordDocument>.Update.Set(r => r.Sequence, newSeq));
+            }
+            newSeq++;
+        }
+
+        // 4. The chain is now contiguous (1..N-1) but the PreviousHash chain is broken.
+        //    VerifyAsync must detect the tamper via hash linkage and return false.
         Assert.False(await audit.VerifyAsync(client));
     }
 }
