@@ -26,8 +26,11 @@ public static class PayablesServiceExtensions
         services.AddScoped<BillPaymentService>();
         services.AddSingleton<IBillAccountsProvider, ConfiguredBillAccountsProvider>();
 
-        services.AddHttpClient<ILedgerClient, HttpLedgerClient>(client =>
-            client.BaseAddress = new Uri(configuration["Engine:BaseAddress"] ?? "http://localhost"));
+        // Use an explicit name to avoid a short-name collision with Accounting101.Invoicing.ILedgerClient
+        // (both are named "ILedgerClient" by the factory when using the type-only overload).
+        services.AddHttpClient("PayablesLedgerClient", client =>
+                client.BaseAddress = new Uri(configuration["Engine:BaseAddress"] ?? "http://localhost"))
+            .AddTypedClient<ILedgerClient, HttpLedgerClient>();
 
         return services;
     }
