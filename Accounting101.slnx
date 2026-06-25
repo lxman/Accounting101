@@ -14,6 +14,9 @@
     <Project Path="Modules/Accounting101.Invoicing/Accounting101.Invoicing.csproj" />
     <Project Path="Modules/Accounting101.Invoicing.Api/Accounting101.Invoicing.Api.csproj" />
     <Project Path="Modules/Accounting101.Invoicing.Tests/Accounting101.Invoicing.Tests.csproj" />
+    <Project Path="Modules/Accounting101.Payables/Accounting101.Payables.csproj" />
+    <Project Path="Modules/Accounting101.Payables.Api/Accounting101.Payables.Api.csproj" />
+    <Project Path="Modules/Accounting101.Payables.Tests/Accounting101.Payables.Tests.csproj" />
     <Project Path="Modules/Accounting101.Settlement/Accounting101.Settlement.csproj" />
     <Project Path="Modules/Accounting101.Settlement.Tests/Accounting101.Settlement.Tests.csproj" />
   </Folder>
