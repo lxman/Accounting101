@@ -46,7 +46,8 @@ public class EntryComparisonTests
         Guid? sourceRef = null,
         EntryType type = EntryType.Standard,
         string? reference = null,
-        string? memo = null) =>
+        string? memo = null,
+        string? sourceType = null) =>
         JournalEntry.Create(
             id: Guid.NewGuid(),
             clientId: DefaultClientId,
@@ -58,7 +59,8 @@ public class EntryComparisonTests
             lines: lines ?? Pair(Acct1, Acct2, 100m),
             sourceRef: sourceRef ?? DefaultSourceRef,
             reference: reference,
-            memo: memo);
+            memo: memo,
+            sourceType: sourceType);
 
     [Fact]
     public void Identical_entries_match()
@@ -122,5 +124,14 @@ public class EntryComparisonTests
         JournalEntry pending = Build(lines: Pair(Acct1, Acct2, 100m));
         JournalEntry posted = pending.Approve(SomeUserId);
         Assert.True(EntryComparison.SameFinancialContent(pending, posted));
+    }
+
+    [Fact]
+    public void Differing_source_type_does_not_match()
+    {
+        Guid sharedRef = Guid.NewGuid();
+        JournalEntry a = Build(sourceRef: sharedRef, sourceType: "Invoice");
+        JournalEntry b = Build(sourceRef: sharedRef, sourceType: "Bill");
+        Assert.False(EntryComparison.SameFinancialContent(a, b));
     }
 }

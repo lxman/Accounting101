@@ -151,9 +151,11 @@ public sealed class IdempotentPostTests(ApiFixture fixture) : IClassFixture<ApiF
         Guid debit = Guid.NewGuid(), credit = Guid.NewGuid();
         PostEntryRequest body = BalancedEntryNoId("2024-06-30", debit, credit);
 
-        await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", body);
-        await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", body);
+        HttpResponseMessage first = await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", body);
+        HttpResponseMessage second = await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", body);
 
+        Assert.Equal(HttpStatusCode.Created, first.StatusCode);  // first post must succeed
+        Assert.Equal(HttpStatusCode.Created, second.StatusCode); // second post also Created (no dedup without an id)
         Assert.Equal(2, await CountEntries(c.Http, c.ClientId)); // opt-out preserved: no dedup without an id
     }
 
