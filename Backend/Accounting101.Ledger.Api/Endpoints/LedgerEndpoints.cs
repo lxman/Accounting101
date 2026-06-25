@@ -64,6 +64,29 @@ public static class LedgerEndpoints
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Post, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
+        // Fast idempotent-replay path: if the caller supplied an id and that entry already exists for this
+        // client, short-circuit before freeze validation. The replay performs no write — no sequence $inc,
+        // no transaction — so it is freeze-safe (a re-POST after period close returns the existing entry,
+        // not a 409), and approval-safe (returns the entry in its current lifecycle state).
+        if (request.Id is { } earlyId
+            && await ctx.Ledger!.Service.GetEntryAsync(clientId, earlyId, cancellationToken) is { } earlyExisting)
+        {
+            JournalEntry earlyMapped;
+            try
+            {
+                earlyMapped = MapEntry(clientId, request, ctx.Actor!);
+            }
+            catch (Exception ex) when (ex is ArgumentException or UnbalancedEntryException)
+            {
+                return Unprocessable(ex.Message);
+            }
+
+            if (EntryComparison.SameFinancialContent(earlyExisting, earlyMapped))
+                return Results.Ok(new PostEntryResponse(earlyExisting.Id, earlyExisting.Status.ToString(), earlyExisting.Posting.ToString()));
+
+            return Unprocessable("An entry with this id already exists with different content.");
+        }
+
         (IResult? rejection, JournalEntry? entry) = await ValidateForPostAsync(clientId, request, ctx, cancellationToken);
         if (rejection is not null) return rejection;
 
@@ -77,6 +100,20 @@ public static class LedgerEndpoints
         }
         catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
         {
+            // Idempotency is opt-in and caller-declared: only an explicit, caller-supplied id can collide on _id.
+            if (request.Id is { } suppliedId
+                && await ctx.Ledger!.Service.GetEntryAsync(clientId, suppliedId, cancellationToken) is { } existing)
+            {
+                // Same client + same financial content => idempotent replay of the same operation.
+                if (EntryComparison.SameFinancialContent(existing, entry!))
+                    return Results.Ok(new PostEntryResponse(existing.Id, existing.Status.ToString(), existing.Posting.ToString()));
+
+                // Same id, different content => the caller reused an operation id for a different entry.
+                return Unprocessable("An entry with this id already exists with different content.");
+            }
+
+            // No entry for this id under this client => a real conflict (sequence-number collision, or an id
+            // already used by a different client). Do not leak the other entry.
             return Conflict("An entry with this id or sequence number already exists.");
         }
 
