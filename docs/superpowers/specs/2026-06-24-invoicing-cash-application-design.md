@@ -54,8 +54,11 @@ regardless of which document funded them.
   **separate axis** from the existing `Draft | Issued | Void` lifecycle (mirroring the engine's
   `status` vs `posting` split). An issued invoice is `Issued × {Open|PartiallyPaid|Paid}`. `Paid` is not
   added to `InvoiceStatus`.
-- **Customer credit balance** = the engine subledger balance of the Customer Credits account for that
-  customer. No separate balance store.
+- **Customer credit balance** = derived from the customer's documents — `Σ non-voided payment remainders
+  − Σ non-voided credit applications`. No separate balance store. This equals the engine subledger balance
+  of the Customer-dimensioned Customer Credits account (the end-to-end test asserts the two tie out), but
+  the module computes it from its own documents rather than querying the subledger, mirroring how invoice
+  open balances are derived; the credit-availability check trusts that same document-derived figure.
 
 ### Ledger effects
 
