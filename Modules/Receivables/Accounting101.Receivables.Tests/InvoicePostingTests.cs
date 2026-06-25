@@ -149,4 +149,24 @@ public sealed class InvoicePostingTests
         Assert.Equal(0m, entry.Lines.Sum(SignedEffect));
         Assert.Equal(500m, entry.Lines.Single(l => l.AccountId == Accounts.ReceivableAccountId).Amount);
     }
+
+    [Fact]
+    public void Compose_sets_a_deterministic_id_from_source()
+    {
+        Invoice invoice = new()
+        {
+            Id = Guid.NewGuid(),
+            CustomerId = Guid.NewGuid(),
+            Number = "INV-9001",
+            IssueDate = new DateOnly(2026, 6, 1),
+            TaxRate = 0m,
+            Lines = [new InvoiceLine { Description = "Services", Quantity = 1m, UnitPrice = 100m }],
+        };
+
+        PostEntryRequest a = InvoicePosting.Compose(invoice, Accounts);
+        PostEntryRequest b = InvoicePosting.Compose(invoice, Accounts);
+
+        Assert.Equal(EntryIdentity.ForSource(InvoicePosting.SourceType, invoice.Id), a.Id);
+        Assert.Equal(a.Id, b.Id); // stable across re-composes
+    }
 }

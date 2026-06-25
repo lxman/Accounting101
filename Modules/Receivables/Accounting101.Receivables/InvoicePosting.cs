@@ -42,7 +42,7 @@ public static class InvoicePosting
             lines.Add(new(accounts.SalesTaxPayableAccountId, "Credit", invoice.Tax));
 
         return new PostEntryRequest(
-            Id: null,
+            Id: EntryIdentity.ForSource(SourceType, invoice.Id),
             EffectiveDate: invoice.IssueDate,
             Reference: invoice.Number,
             Memo: invoice.Memo,
