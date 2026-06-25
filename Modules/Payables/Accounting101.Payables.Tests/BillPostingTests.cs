@@ -1,5 +1,5 @@
-using Accounting101.Payables;
 using Accounting101.Ledger.Contracts;
+using Accounting101.Payables;
 using Accounting101.Settlement;
 
 namespace Accounting101.Payables.Tests;
@@ -107,5 +107,60 @@ public sealed class BillPostingTests
         Assert.Equal(vendor, ap.Dimensions!["Vendor"]);
         Assert.Equal(vendor, credits.Dimensions!["Vendor"]);
         Assert.Equal("VendorCreditApplication", entry.SourceType);
+    }
+
+    [Fact]
+    public void ComposeBill_sets_a_deterministic_id_from_source()
+    {
+        Guid rent = Guid.NewGuid();
+        BillPostingAccounts accounts = new() { PayableAccountId = Guid.NewGuid() };
+        Bill bill = new()
+        {
+            Id = Guid.NewGuid(), VendorId = Guid.NewGuid(), Number = "BILL-D1", BillDate = new DateOnly(2026, 6, 1),
+            Status = BillStatus.Entered,
+            Lines = [new BillLine { Description = "Rent", Amount = 1000m, ExpenseAccountId = rent }],
+        };
+
+        PostEntryRequest a = BillPosting.ComposeBill(bill, accounts);
+        PostEntryRequest b = BillPosting.ComposeBill(bill, accounts);
+
+        Assert.Equal(EntryIdentity.ForSource(BillPosting.BillSourceType, bill.Id), a.Id);
+        Assert.Equal(a.Id, b.Id);
+    }
+
+    [Fact]
+    public void ComposeBillPayment_sets_a_deterministic_id_from_source()
+    {
+        Guid paymentId = Guid.NewGuid();
+        Guid vendor = Guid.NewGuid();
+        BillPaymentPostingAccounts accounts = new()
+        {
+            PayableAccountId = Guid.NewGuid(), CashAccountId = Guid.NewGuid(), VendorCreditsAccountId = Guid.NewGuid(),
+        };
+        BillPaymentBody body = new(vendor, new DateOnly(2026, 6, 1), 200m, "check", [new Allocation(Guid.NewGuid(), 200m)]);
+
+        PostEntryRequest a = BillPosting.ComposeBillPayment(paymentId, body, accounts);
+        PostEntryRequest b = BillPosting.ComposeBillPayment(paymentId, body, accounts);
+
+        Assert.Equal(EntryIdentity.ForSource(BillPosting.BillPaymentSourceType, paymentId), a.Id);
+        Assert.Equal(a.Id, b.Id);
+    }
+
+    [Fact]
+    public void ComposeVendorCreditApplication_sets_a_deterministic_id_from_source()
+    {
+        Guid id = Guid.NewGuid();
+        Guid vendor = Guid.NewGuid();
+        BillPaymentPostingAccounts accounts = new()
+        {
+            PayableAccountId = Guid.NewGuid(), CashAccountId = Guid.NewGuid(), VendorCreditsAccountId = Guid.NewGuid(),
+        };
+        VendorCreditApplicationBody body = new(vendor, new DateOnly(2026, 6, 1), [new Allocation(Guid.NewGuid(), 75m)]);
+
+        PostEntryRequest a = BillPosting.ComposeVendorCreditApplication(id, body, accounts);
+        PostEntryRequest b = BillPosting.ComposeVendorCreditApplication(id, body, accounts);
+
+        Assert.Equal(EntryIdentity.ForSource(BillPosting.VendorCreditApplicationSourceType, id), a.Id);
+        Assert.Equal(a.Id, b.Id);
     }
 }

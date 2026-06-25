@@ -30,7 +30,7 @@ public static class BillPosting
             Dimensions: new Dictionary<string, Guid> { [VendorDimension] = bill.VendorId }));
 
         return new PostEntryRequest(
-            Id: null, EffectiveDate: bill.BillDate, Reference: bill.Number, Memo: bill.Memo,
+            Id: EntryIdentity.ForSource(BillSourceType, bill.Id), EffectiveDate: bill.BillDate, Reference: bill.Number, Memo: bill.Memo,
             Lines: lines, SourceRef: bill.Id, SourceType: BillSourceType);
     }
 
@@ -51,7 +51,7 @@ public static class BillPosting
         lines.Add(new(accounts.CashAccountId, "Credit", body.Amount));
 
         return new PostEntryRequest(
-            Id: null, EffectiveDate: body.Date, Reference: null, Memo: null,
+            Id: EntryIdentity.ForSource(BillPaymentSourceType, paymentId), EffectiveDate: body.Date, Reference: null, Memo: null,
             Lines: lines, SourceRef: paymentId, SourceType: BillPaymentSourceType);
     }
 
@@ -70,7 +70,7 @@ public static class BillPosting
         ];
 
         return new PostEntryRequest(
-            Id: null, EffectiveDate: body.Date, Reference: null, Memo: null,
+            Id: EntryIdentity.ForSource(VendorCreditApplicationSourceType, id), EffectiveDate: body.Date, Reference: null, Memo: null,
             Lines: lines, SourceRef: id, SourceType: VendorCreditApplicationSourceType);
     }
 }
