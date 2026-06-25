@@ -216,15 +216,19 @@ what to fix, mirroring how `/entries/validate` surfaces a rejection reason.
 
 ## Resolution path (no new capability needed)
 
-Because the gate refuses the close, the period stays open, so both existing remedies work on each blocker:
+Because the gate refuses the close, the period stays open, so each blocker is resolvable with existing
+operations:
 
-- **Approve it** — `POST /entries/{id}/approve`. `EnsureOpenForPostAsync` passes (period still open); the
+- **Book it** — `POST /entries/{id}/approve`. `EnsureOpenForPostAsync` passes (period still open); the
   entry goes on the books. Then re-close.
-- **Void it** — `POST /entries/{id}/void`. Same guard passes; `VoidAsync` marks a not-yet-posted entry
-  `Voided` without touching the projection. Then re-close.
+- **Discard it** — the engine has **no direct reject-pending path** (`VoidAsync` requires the entry to be
+  `Posted`), so discarding a still-pending blocker is **approve-then-void**: `POST /entries/{id}/approve`
+  (books it), then `POST /entries/{id}/void` (reverses it off the books). Both calls pass the freeze guard
+  while the period is open. Then re-close. The brief entry-on-then-off the books is auditable; a future
+  `RejectAsync` for pending entries would make this one step (out of scope here).
 
 The controller chooses per entry; nothing new to build. (Contrast the stranded-after-close state, where
-*neither* works — which is the whole reason to gate.)
+*neither* approve nor void works — which is the whole reason to gate.)
 
 ## Data flow (clean close vs. blocked close)
 
