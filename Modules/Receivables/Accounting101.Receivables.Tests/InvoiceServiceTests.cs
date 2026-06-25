@@ -119,6 +119,26 @@ public sealed class InvoiceServiceTests
     }
 
     [Fact]
+    public async Task Issuing_into_a_closed_period_throws_LedgerClientException_and_leaves_invoice_draft()
+    {
+        Harness h = NewHarness();
+        // Wire the fake to reject — simulates a closed-period 409 from the engine.
+        h.Ledger.OnValidate = _ => throw new LedgerClientException(409, "Period is closed through 2024-09-30.");
+
+        var client = Guid.NewGuid();
+        Customer customer = await h.Service.CreateCustomerAsync(client, "Acme");
+        Invoice draft = await h.Service.DraftAsync(client, customer.Id, OneLine(100m), taxRate: 0m, new DateOnly(2024, 3, 31));
+
+        // IssueAsync must throw; the document must stay Draft; nothing must be posted.
+        await Assert.ThrowsAsync<LedgerClientException>(() => h.Service.IssueAsync(client, draft.Id));
+
+        Invoice? readBack = await h.Service.GetAsync(client, draft.Id);
+        Assert.NotNull(readBack);
+        Assert.Equal(InvoiceStatus.Draft, readBack.Status);   // still a draft — never finalized
+        Assert.Empty(h.Ledger.Posted);                        // nothing reached the ledger
+    }
+
+    [Fact]
     public async Task A_non_draft_invoice_cannot_be_issued()
     {
         Harness h = NewHarness();
