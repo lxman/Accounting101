@@ -70,6 +70,16 @@ public sealed class MongoCheckpointStore
         return checkpoint is null ? null : DateOnly.ParseExact(checkpoint.AsOf, DateFormat, CultureInfo.InvariantCulture);
     }
 
+    /// <summary>The client's close date read through <paramref name="session"/> (the transactional snapshot).</summary>
+    public async Task<DateOnly?> GetClosedThroughAsync(Guid clientId, IClientSessionHandle session, CancellationToken cancellationToken = default)
+    {
+        CheckpointDocument? checkpoint = await _checkpoints
+            .Find(session, c => c.ClientId == clientId)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return checkpoint is null ? null : DateOnly.ParseExact(checkpoint.AsOf, DateFormat, CultureInfo.InvariantCulture);
+    }
+
     /// <summary>The checkpoint's balances — the opening balance for the open period.</summary>
     public async Task<IReadOnlyDictionary<Guid, decimal>> GetOpeningBalancesAsync(Guid clientId, CancellationToken cancellationToken = default)
     {

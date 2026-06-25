@@ -183,6 +183,25 @@ public sealed class MongoJournalStore
     }
 
     /// <summary>
+    /// Active, PendingApproval entries dated on or before <paramref name="asOf"/> — exactly the entries a
+    /// close through asOf would strand. Read through the session so the close's gate runs on the same
+    /// transactional snapshot as its freeze write. Empty when the period is clean to close.
+    /// </summary>
+    public async Task<IReadOnlyList<JournalEntry>> GetPendingThroughAsync(
+        Guid clientId, DateOnly asOf, IClientSessionHandle session, CancellationToken cancellationToken = default)
+    {
+        FilterDefinitionBuilder<JournalEntryDocument> f = Builders<JournalEntryDocument>.Filter;
+        FilterDefinition<JournalEntryDocument> filter = f.And(
+            f.Eq(e => e.ClientId, clientId),
+            f.Eq("Status", nameof(LifecycleStatus.Active)),
+            f.Eq("Posting", nameof(PostingState.PendingApproval)),
+            f.Lte("EffectiveDate", Iso(asOf)));   // reuse the same date encoding AggregateBalances uses
+
+        List<JournalEntryDocument> docs = await _entries.Find(session, filter).ToListAsync(cancellationToken);
+        return docs.Select(d => d.ToDomain()).ToList();
+    }
+
+    /// <summary>
     /// Server-side trial balance: folds the journal in MongoDB via aggregation,
     /// applying the same on-the-books gate as <see cref="LedgerReplay"/> (Active +
     /// Posted) and the same debit-positive signed-effect (Debit => +Amount,
@@ -197,7 +216,20 @@ public sealed class MongoJournalStore
         if (asOf is { } asOfDate)
             match.Add("EffectiveDate", new BsonDocument("$lte", Iso(asOfDate)));
 
-        return FoldAsync(match, cancellationToken);
+        return FoldAsync(match, null, cancellationToken);
+    }
+
+    /// <summary>
+    /// Session-aware overload of <see cref="AggregateBalancesAsync(Guid,DateOnly?,CancellationToken)"/> —
+    /// reads the balance fold through <paramref name="session"/> so a period close can snapshot balances on
+    /// the same transactional snapshot as its fence write.
+    /// </summary>
+    public Task<IReadOnlyDictionary<Guid, decimal>> AggregateBalancesAsync(
+        Guid clientId, DateOnly? asOf, IClientSessionHandle session, CancellationToken cancellationToken = default)
+    {
+        BsonDocument match = OnBooks(clientId);
+        if (asOf is { } asOfDate) match.Add("EffectiveDate", new BsonDocument("$lte", Iso(asOfDate)));
+        return FoldAsync(match, session, cancellationToken);
     }
 
     /// <summary>
@@ -216,7 +248,7 @@ public sealed class MongoJournalStore
         match.Add("EffectiveDate", new BsonDocument { { "$gte", Iso(from) }, { "$lte", Iso(to) } });
         match.Add("Type", new BsonDocument("$ne", nameof(EntryType.Closing)));
 
-        return FoldAsync(match, cancellationToken);
+        return FoldAsync(match, null, cancellationToken);
     }
 
     /// <summary>
@@ -284,10 +316,11 @@ public sealed class MongoJournalStore
     /// <summary>
     /// Unwind the matched entries' lines and sum the debit-positive signed effect per account
     /// (Debit => +Amount, Credit => -Amount). The caller supplies the <c>$match</c> stage; everything
-    /// downstream is identical for a full trial balance and a windowed activity fold.
+    /// downstream is identical for a full trial balance and a windowed activity fold. When
+    /// <paramref name="session"/> is non-null the aggregation runs inside that transaction's snapshot.
     /// </summary>
     private async Task<IReadOnlyDictionary<Guid, decimal>> FoldAsync(
-        BsonDocument match, CancellationToken cancellationToken)
+        BsonDocument match, IClientSessionHandle? session, CancellationToken cancellationToken)
     {
         BsonDocument[] pipeline =
         [
@@ -300,8 +333,9 @@ public sealed class MongoJournalStore
             }),
         ];
 
-        IAsyncCursor<BsonDocument> cursor =
-            await _entries.AggregateAsync<BsonDocument>(pipeline, cancellationToken: cancellationToken);
+        IAsyncCursor<BsonDocument> cursor = session is null
+            ? await _entries.AggregateAsync<BsonDocument>(pipeline, cancellationToken: cancellationToken)
+            : await _entries.AggregateAsync<BsonDocument>(session, pipeline, cancellationToken: cancellationToken);
         List<BsonDocument> results = await cursor.ToListAsync(cancellationToken);
 
         Dictionary<Guid, decimal> balances = new(results.Count);
