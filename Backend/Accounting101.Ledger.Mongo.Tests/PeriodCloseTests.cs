@@ -1,3 +1,4 @@
+using Accounting101.Ledger.Core.Accounts;
 using Accounting101.Ledger.Core.Journal;
 
 namespace Accounting101.Ledger.Mongo.Tests;
@@ -112,5 +113,164 @@ public sealed class PeriodCloseTests(MongoFixture fixture) : IClassFixture<Mongo
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.CloseAsync(client, new DateOnly(2026, 2, 28), User()));
 
         await service.CloseAsync(client, new DateOnly(2026, 4, 30), User()); // a later period — fine
+    }
+
+    // ── Pending-gate tests (Task 3) ──────────────────────────────────────────
+
+    [Fact]
+    public async Task Close_is_blocked_by_an_in_period_pending_entry_and_does_not_freeze()
+    {
+        (LedgerService service, _, _, _, _) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        // Post (but do NOT approve) an entry dated 2024-06-30.
+        await service.PostAsync(Entry(client, 1, new DateOnly(2024, 6, 30), a, b, 50m), User());
+
+        PeriodCloseBlockedException ex = await Assert.ThrowsAsync<PeriodCloseBlockedException>(
+            () => service.CloseAsync(client, new DateOnly(2024, 6, 30), User(), CancellationToken.None));
+        Assert.Contains(ex.Blockers, bl => bl.EffectiveDate == new DateOnly(2024, 6, 30));
+
+        // Not frozen: a fresh in-period post still succeeds (period stayed open).
+        await service.PostAsync(Entry(client, 2, new DateOnly(2024, 6, 20), a, b, 10m), User());
+    }
+
+    [Fact]
+    public async Task Close_succeeds_when_only_pending_entry_is_in_a_future_period()
+    {
+        (LedgerService service, _, _, _, _) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        // Pending entry dated 2024-07-10; closing through 2024-06-30 must succeed.
+        await service.PostAsync(Entry(client, 1, new DateOnly(2024, 7, 10), a, b, 25m), User());
+
+        await service.CloseAsync(client, new DateOnly(2024, 6, 30), User(), CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Close_succeeds_when_all_in_period_entries_are_posted()
+    {
+        (LedgerService service, _, _, _, _) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        // Post and approve an entry — it is now Posted, not PendingApproval.
+        await PostApproveAsync(service, Entry(client, 1, new DateOnly(2024, 6, 15), a, b, 100m));
+
+        await service.CloseAsync(client, new DateOnly(2024, 6, 30), User(), CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Voided_or_superseded_in_period_entry_does_not_block_close()
+    {
+        (LedgerService service, _, _, _, _) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        // Post and approve so we can void it (only approved entries can be voided).
+        JournalEntry posted = await PostApproveAsync(service, Entry(client, 1, new DateOnly(2024, 6, 15), a, b, 200m));
+        await service.VoidAsync(posted.Id, User());
+
+        // Voided entry must not block the close.
+        await service.CloseAsync(client, new DateOnly(2024, 6, 30), User(), CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Blocked_close_is_resolved_by_approving_the_blocker_then_reclosing()
+    {
+        (LedgerService service, _, _, _, _) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        JournalEntry pending = Entry(client, 1, new DateOnly(2024, 6, 30), a, b, 75m);
+        await service.PostAsync(pending, User());
+
+        // First close attempt must throw.
+        await Assert.ThrowsAsync<PeriodCloseBlockedException>(
+            () => service.CloseAsync(client, new DateOnly(2024, 6, 30), User(), CancellationToken.None));
+
+        // Approve the blocker — period is still open, so this is legal.
+        await service.ApproveAsync(pending.Id, User());
+
+        // Now close succeeds; the approved entry is on the books.
+        IReadOnlyDictionary<Guid, decimal> snapshot =
+            await service.CloseAsync(client, new DateOnly(2024, 6, 30), User(), CancellationToken.None);
+        Assert.True(snapshot.ContainsKey(a) || snapshot.ContainsKey(b));
+    }
+
+    [Fact]
+    public async Task Blocked_close_is_resolved_by_voiding_the_blocker_then_reclosing()
+    {
+        (LedgerService service, _, _, _, _) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+
+        JournalEntry pending = Entry(client, 1, new DateOnly(2024, 6, 30), a, b, 75m);
+        await service.PostAsync(pending, User());
+
+        // First close attempt must throw.
+        await Assert.ThrowsAsync<PeriodCloseBlockedException>(
+            () => service.CloseAsync(client, new DateOnly(2024, 6, 30), User(), CancellationToken.None));
+
+        // Approve then void (VoidAsync requires the entry to be Posted first).
+        await service.ApproveAsync(pending.Id, User());
+        await service.VoidAsync(pending.Id, User());
+
+        // Close must now succeed; the voided entry is excluded from the snapshot.
+        await service.CloseAsync(client, new DateOnly(2024, 6, 30), User(), CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task Year_end_close_is_blocked_by_an_unrelated_in_period_pending_entry()
+    {
+        (LedgerService service, _, _, _, _) = NewLedger();
+        var client = Guid.NewGuid();
+        var a = Guid.NewGuid();
+        var b = Guid.NewGuid();
+        var retained = Guid.NewGuid();
+
+        // Post but don't approve an entry dated inside the fiscal year.
+        await service.PostAsync(Entry(client, 1, new DateOnly(2024, 6, 30), a, b, 50m), User());
+
+        ChartOfAccounts chart = new(
+        [
+            new Account
+            {
+                Id = a,
+                ClientId = client,
+                Number = "4000",
+                Name = "Revenue",
+                Type = AccountType.Revenue,
+                IsRetainedEarnings = false,
+            },
+            new Account
+            {
+                Id = b,
+                ClientId = client,
+                Number = "5000",
+                Name = "Expense",
+                Type = AccountType.Expense,
+                IsRetainedEarnings = false,
+            },
+            new Account
+            {
+                Id = retained,
+                ClientId = client,
+                Number = "3900",
+                Name = "Retained Earnings",
+                Type = AccountType.Equity,
+                IsRetainedEarnings = true,
+            },
+        ]);
+
+        await Assert.ThrowsAsync<PeriodCloseBlockedException>(
+            () => service.CloseYearAsync(client, new DateOnly(2024, 12, 31), User(), chart, CancellationToken.None));
     }
 }

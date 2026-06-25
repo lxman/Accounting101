@@ -281,15 +281,26 @@ public sealed class LedgerService
     public async Task<IReadOnlyDictionary<Guid, decimal>> CloseAsync(Guid clientId, DateOnly asOf, Actor actor, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(actor);
-        DateOnly? closedThrough = await _checkpoints.GetClosedThroughAsync(clientId, cancellationToken);
-        if (closedThrough is { } through && asOf <= through)
-            throw new InvalidOperationException($"Period is already closed through {through:yyyy-MM-dd}.");
-
-        IReadOnlyDictionary<Guid, decimal> balances = await _journal.AggregateBalancesAsync(clientId, asOf, cancellationToken);
-
         DateTimeOffset now = DateTimeOffset.UtcNow;
+        IReadOnlyDictionary<Guid, decimal> balances = new Dictionary<Guid, decimal>();
+
         await InTransactionAsync(async session =>
         {
+            // already-closed guard (via session)
+            DateOnly? through = await _checkpoints.GetClosedThroughAsync(clientId, session, cancellationToken);
+            if (through is { } t && asOf <= t)
+                throw new InvalidOperationException($"Period is already closed through {t:yyyy-MM-dd}.");
+
+            // pending-blocker gate (via session)
+            IReadOnlyList<JournalEntry> blockers = await _journal.GetPendingThroughAsync(clientId, asOf, session, cancellationToken);
+            if (blockers.Count > 0)
+                throw new PeriodCloseBlockedException(blockers);
+
+            // fence: write-conflict against any concurrent post on journal:{clientId}
+            await _sequences.TouchJournalAsync(clientId, session, cancellationToken);
+
+            // snapshot opening balances (via session) and freeze
+            balances = await _journal.AggregateBalancesAsync(clientId, asOf, session, cancellationToken);
             await _checkpoints.SaveAsync(clientId, asOf, balances, actor.UserId, now, session, cancellationToken);
             await _audit.AppendAsync(clientId, null, 0, AuditAction.PeriodClosed, actor, $"closed through {asOf:yyyy-MM-dd}", now, session, cancellationToken);
         }, cancellationToken);
