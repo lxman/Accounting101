@@ -87,7 +87,6 @@ public sealed class LedgerService
     {
         ArgumentNullException.ThrowIfNull(actor);
         JournalEntry entry = await RequireAsync(entryId, cancellationToken);
-        await EnsureOpenAsync(entry.ClientId, entry.EffectiveDate, cancellationToken);
 
         // A revision only takes effect on approval. Verify the original is still revisable before
         // mutating anything, so we never half-apply a correction.
@@ -105,6 +104,8 @@ public sealed class LedgerService
 
         await InTransactionAsync(async session =>
         {
+            await EnsureOpenForPostAsync(approved.ClientId, approved.EffectiveDate, session, cancellationToken); // authoritative in-transaction freeze check
+            await _sequences.TouchJournalAsync(approved.ClientId, session, cancellationToken); // fence (approve appends no entry)
             await _journal.ReplaceAsync(approved, session, cancellationToken);
             await _projection.ApplyAsync(approved, session, cancellationToken);
             await _audit.AppendAsync(approved.ClientId, approved.Id, approved.Version, AuditAction.Approved, actor, null, now, session, cancellationToken);
@@ -126,13 +127,14 @@ public sealed class LedgerService
     {
         ArgumentNullException.ThrowIfNull(actor);
         JournalEntry entry = await RequireAsync(entryId, cancellationToken);
-        await EnsureOpenAsync(entry.ClientId, entry.EffectiveDate, cancellationToken);
 
         JournalEntry voided = entry.Void();
         DateTimeOffset now = DateTimeOffset.UtcNow;
 
         await InTransactionAsync(async session =>
         {
+            await EnsureOpenForPostAsync(voided.ClientId, voided.EffectiveDate, session, cancellationToken); // authoritative in-transaction freeze check
+            await _sequences.TouchJournalAsync(voided.ClientId, session, cancellationToken); // fence (void appends no entry)
             await _journal.ReplaceAsync(voided, session, cancellationToken);
             await _projection.ReverseAsync(entry, session, cancellationToken); // pre-flip entry: reverses iff it was on the books
             await _audit.AppendAsync(voided.ClientId, voided.Id, voided.Version, AuditAction.Voided, actor, reason, now, session, cancellationToken);
@@ -162,16 +164,15 @@ public sealed class LedgerService
             throw new InvalidOperationException(
                 $"Only an {LifecycleStatus.Active} entry can be revised; entry {originalId} is {original.Status}.");
 
-        await EnsureOpenAsync(original.ClientId, original.EffectiveDate, cancellationToken);
-        await EnsureOpenAsync(replacement.ClientId, replacement.EffectiveDate, cancellationToken);
-
         // Record the proposal only. The original is untouched and the projection unchanged until
         // approval — see ApproveAsync, which performs the atomic swap.
         DateTimeOffset now = DateTimeOffset.UtcNow;
         JournalEntry recorded = replacement;
         await InTransactionAsync(async session =>
         {
-            recorded = await AppendSequencedAsync(replacement, session, cancellationToken);
+            await EnsureOpenForPostAsync(original.ClientId, original.EffectiveDate, session, cancellationToken); // authoritative in-transaction freeze check (original's date)
+            await EnsureOpenForPostAsync(replacement.ClientId, replacement.EffectiveDate, session, cancellationToken); // authoritative in-transaction freeze check (replacement's date)
+            recorded = await AppendSequencedAsync(replacement, session, cancellationToken); // $inc journal:{clientId} = already fenced
             await _audit.AppendAsync(recorded.ClientId, recorded.Id, recorded.Version, AuditAction.Created, actor, reason, now, session, cancellationToken);
         }, cancellationToken);
 
@@ -200,9 +201,6 @@ public sealed class LedgerService
         IReadOnlyList<JournalEntry> existing = await _journal.GetByReversalOfAsync(original.ClientId, originalId, cancellationToken);
         if (existing.Any(r => r.Status == LifecycleStatus.Active))
             throw new InvalidOperationException($"Entry {originalId} has already been reversed.");
-
-        // The reversal lands in an open period; the original may be in a closed one — that is the point.
-        await EnsureOpenAsync(original.ClientId, reversalDate, cancellationToken);
 
         List<Line> reversedLines = original.Lines
             .Select(line => new Line
@@ -235,7 +233,9 @@ public sealed class LedgerService
         DateTimeOffset now = DateTimeOffset.UtcNow;
         await InTransactionAsync(async session =>
         {
-            recorded = await AppendSequencedAsync(reversal, session, cancellationToken);
+            // The reversal lands in an open period; the original may be in a closed one — that is the point.
+            await EnsureOpenForPostAsync(reversal.ClientId, reversalDate, session, cancellationToken); // authoritative in-transaction freeze check
+            recorded = await AppendSequencedAsync(reversal, session, cancellationToken); // $inc journal:{clientId} = already fenced
             await _audit.AppendAsync(recorded.ClientId, recorded.Id, recorded.Version, AuditAction.Created, actor, reason, now, session, cancellationToken);
             // Also record the reversal against the ORIGINAL's timeline (an append, so it is freeze-safe and
             // never mutates the frozen entry), so "what happened to this entry" shows it was reversed.

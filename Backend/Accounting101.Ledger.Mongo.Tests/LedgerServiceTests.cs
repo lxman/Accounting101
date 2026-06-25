@@ -178,6 +178,55 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
     }
 
     [Fact]
+    public async Task Approve_into_a_closed_period_is_rejected()
+    {
+        (LedgerService service, _, _, MongoCheckpointStore checkpoints, _) = NewLedger();
+        Guid client = Guid.NewGuid();
+        Guid cash = Guid.NewGuid();
+        Guid revenue = Guid.NewGuid();
+        Actor actor = User();
+
+        // Post an entry dated 2024-06-15 — it remains pending.
+        JournalEntry entry = EntryDated(client, new DateOnly(2024, 6, 15), cash, revenue, 10m);
+        await service.PostAsync(entry, actor);
+
+        // Directly write a checkpoint through 2024-06-30, bypassing the pending-blocker gate.
+        // This simulates a period that was closed before this pending entry existed (e.g., a
+        // back-office correction scenario) and is the only way to produce the "pending entry in a
+        // closed period" state without a concurrent-close race.
+        await checkpoints.SaveAsync(client, new DateOnly(2024, 6, 30), new Dictionary<Guid, decimal>(),
+            actor.UserId, DateTimeOffset.UtcNow);
+
+        // Approving an entry whose effective date falls in a closed period must be rejected.
+        InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.ApproveAsync(entry.Id, actor, CancellationToken.None));
+        Assert.Contains("closed", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Void_into_a_closed_period_is_rejected()
+    {
+        (LedgerService service, _, _, _, _) = NewLedger();
+        Guid client = Guid.NewGuid();
+        Guid cash = Guid.NewGuid();
+        Guid revenue = Guid.NewGuid();
+        Actor actor = User();
+
+        // Post and approve an entry dated in the period we are about to close.
+        JournalEntry entry = EntryDated(client, new DateOnly(2024, 6, 15), cash, revenue, 10m);
+        await service.PostAsync(entry, actor);
+        await service.ApproveAsync(entry.Id, actor);
+
+        // Close the period that contains the entry's effective date.
+        await service.CloseAsync(client, new DateOnly(2024, 6, 30), actor);
+
+        // Voiding an entry whose effective date falls in a closed period must be rejected.
+        InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.VoidAsync(entry.Id, actor, cancellationToken: CancellationToken.None));
+        Assert.Contains("closed", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task A_revision_has_no_effect_until_approved_then_it_swaps()
     {
         (LedgerService service, MongoJournalStore store, MongoBalanceProjection projection, _, _) = NewLedger();
