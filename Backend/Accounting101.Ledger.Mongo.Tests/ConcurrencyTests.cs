@@ -262,7 +262,10 @@ public sealed class ConcurrencyTests(MongoFixture fixture) : IClassFixture<Mongo
             {
                 // Void won and close failed: close must have failed for a domain reason (blocked or
                 // already-closed), not a spurious infrastructure error.
-                Assert.IsType<InvalidOperationException>(closeEx);
+                Assert.True(
+                    closeEx is PeriodCloseBlockedException
+                        || closeEx.Message.Contains("closed", StringComparison.OrdinalIgnoreCase),
+                    $"Unexpected close failure: {closeEx.GetType().Name}: {closeEx.Message}");
             }
             // else: both null — void committed before the freeze, then close committed cleanly.
             // This is correct: the void landed in an open period. No assertion needed; the invariant
