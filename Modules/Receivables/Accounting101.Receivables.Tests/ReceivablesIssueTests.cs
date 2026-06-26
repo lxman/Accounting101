@@ -130,11 +130,12 @@ public sealed class ReceivablesIssueTests(ReceivablesHostFixture fixture) : ICla
         (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) =
             await fixture.SeedSodClientAsync();
 
-        // Chart setup must run as the Controller — the Clerk has Post/Revise but not ManageAccounts.
+        // Chart setup must run as the Controller — the Clerk holds only Read and lacks ManageAccounts.
         await SetUpChartAsync(controller, clientId);
 
         // Clerk creates the customer + drafts + issues.
-        // The receivables endpoints forward the caller's token; the loopback ledger call runs as the Clerk.
+        // The receivables endpoints forward the caller's token; the engine entry is authorized via the
+        // module credential (not the user's Post — the Clerk no longer holds it) and the Clerk is the actor.
         Customer customer = (await (await clerk.PostAsJsonAsync(
                 $"/clients/{clientId}/customers", new CreateCustomerRequest("Beta LLC", null)))
             .Content.ReadFromJsonAsync<Customer>())!;
