@@ -169,4 +169,46 @@ public sealed class HttpLedgerClientTests
         Assert.Equal(409, ex.StatusCode);
         Assert.Contains("closed", ex.Reason, StringComparison.OrdinalIgnoreCase);
     }
+
+    /// <summary>
+    /// When the engine returns a ValidationProblemDetails 422 with an <c>errors</c> map (field-level
+    /// messages), <see cref="HttpLedgerClient"/> must surface the field text — not just the generic
+    /// <c>detail</c> summary — so callers can relay the actual cause.
+    /// </summary>
+    [Fact]
+    public async Task Validate_throws_LedgerClientException_with_field_level_text_on_422_validation_problem()
+    {
+        // This is the exact shape emitted by the engine after Task 1: a ValidationProblemDetails whose
+        // `errors` map contains per-field messages.  The `detail` is only the bland summary.
+        var body = new
+        {
+            title = "One or more validation errors occurred.",
+            status = 422,
+            detail = "One or more fields are invalid.",
+            errors = new Dictionary<string, string[]>
+            {
+                ["lines[0].accountId"] = ["Account 1200 \"A/R\" requires a Customer dimension on the posting line."],
+            },
+        };
+
+        CapturingHandler handler = new()
+        {
+            Response = new HttpResponseMessage((HttpStatusCode)422) { Content = JsonContent.Create(body) },
+        };
+        HttpClient http = new(handler) { BaseAddress = new Uri("http://engine.local") };
+        HttpLedgerClient client = new(http, ContextWith("DevToken abc"));
+
+        PostEntryRequest entry = new(
+            Id: null, EffectiveDate: new DateOnly(2026, 3, 31), Reference: null, Memo: null,
+            Lines: [new PostLineRequest(Guid.NewGuid(), "Debit", 100m)]);
+
+        LedgerClientException ex = await Assert.ThrowsAsync<LedgerClientException>(
+            () => client.ValidateAsync(Guid.NewGuid(), entry));
+
+        Assert.Equal(422, ex.StatusCode);
+        // Must contain the field identifier and the account number, NOT just the generic summary.
+        Assert.Contains("lines[0].accountId", ex.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("1200", ex.Reason);
+        Assert.DoesNotContain("One or more fields are invalid", ex.Reason);
+    }
 }

@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Accounting101.Receivables;
 using Accounting101.Ledger.Contracts;
@@ -77,7 +78,13 @@ public sealed class HttpLedgerClient(HttpClient http, IHttpContextAccessor conte
         throw new LedgerClientException((int)response.StatusCode, ReasonFrom(body, response));
     }
 
-    /// <summary>Pull the ProblemDetails <c>detail</c> if the body is one; otherwise the raw body, or the status.</summary>
+    /// <summary>
+    /// Pull the best available reason from the response body.
+    /// Priority: (1) <c>errors</c> map from ValidationProblemDetails (field-level messages flattened to
+    /// <c>"field: msg; field: msg"</c>), (2) ProblemDetails <c>detail</c>, (3) raw body, (4) status phrase.
+    /// The <c>errors</c> branch only fires when that property is a non-empty JSON object — plain
+    /// ProblemDetails (409 freeze, etc.) that carry only <c>detail</c> are unaffected.
+    /// </summary>
     private static string ReasonFrom(string body, HttpResponseMessage response)
     {
         if (!string.IsNullOrWhiteSpace(body))
@@ -85,12 +92,38 @@ public sealed class HttpLedgerClient(HttpClient http, IHttpContextAccessor conte
             try
             {
                 using JsonDocument doc = JsonDocument.Parse(body);
-                if (doc.RootElement.ValueKind == JsonValueKind.Object
-                    && doc.RootElement.TryGetProperty("detail", out JsonElement detail)
-                    && detail.ValueKind == JsonValueKind.String
-                    && detail.GetString() is { Length: > 0 } text)
+                JsonElement root = doc.RootElement;
+                if (root.ValueKind == JsonValueKind.Object)
                 {
-                    return text;
+                    // ValidationProblemDetails: flatten the `errors` map when present and non-empty.
+                    if (root.TryGetProperty("errors", out JsonElement errors)
+                        && errors.ValueKind == JsonValueKind.Object)
+                    {
+                        StringBuilder sb = new();
+                        foreach (JsonProperty prop in errors.EnumerateObject())
+                        {
+                            if (sb.Length > 0) sb.Append("; ");
+                            sb.Append(prop.Name).Append(": ");
+                            if (prop.Value.ValueKind == JsonValueKind.Array)
+                            {
+                                sb.Append(string.Join(", ", prop.Value.EnumerateArray()
+                                    .Select(m => m.GetString() ?? string.Empty)));
+                            }
+                            else
+                            {
+                                sb.Append(prop.Value.GetRawText().Trim('"'));
+                            }
+                        }
+                        if (sb.Length > 0) return sb.ToString();
+                    }
+
+                    // Plain ProblemDetails: use the `detail` field.
+                    if (root.TryGetProperty("detail", out JsonElement detail)
+                        && detail.ValueKind == JsonValueKind.String
+                        && detail.GetString() is { Length: > 0 } text)
+                    {
+                        return text;
+                    }
                 }
             }
             catch (JsonException) { /* not JSON — relay the raw body */ }
