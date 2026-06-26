@@ -390,6 +390,73 @@ public sealed class PaymentServiceTests
 
         Assert.Equal(40m, await service.GetCustomerCreditBalanceAsync(clientId, customer));
     }
+
+    // ── Posted→Reverse void branch coverage ─────────────────────────────────
+
+    [Fact]
+    public async Task Void_posted_write_off_triggers_reversal()
+    {
+        // Arrange: record write-off → approve its entry → flip to Posted branch.
+        (PaymentService service, FakeLedgerClient ledger, Guid clientId, Guid customer, Guid invoice) =
+            await SetupIssuedInvoiceAsync(total: 250m);
+        WriteOff wo = await service.RecordWriteOffAsync(clientId,
+            new WriteOffBody(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 250m)], null));
+        IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, wo.Id);
+        EntryResponse active = entries.Single(e => e.Status == "Active" && e.ReversalOf == null);
+        await ledger.ApproveAsync(clientId, active.Id); // flip to Posted
+
+        // Act: void the write-off — must take the Posted→ReverseAsync branch.
+        int reversalsBefore = ledger.ReversalCount;
+        await service.VoidWriteOffAsync(clientId, wo.Id, "keyed in error");
+
+        // Assert: ReverseAsync was called (not VoidAsync), and the open balance is restored.
+        Assert.Equal(reversalsBefore + 1, ledger.ReversalCount);
+        Assert.Equal(250m, (await service.GetInvoiceViewAsync(clientId, invoice))!.OpenBalance);
+    }
+
+    [Fact]
+    public async Task Void_posted_credit_note_triggers_reversal()
+    {
+        // Arrange: record credit note → approve its entry → flip to Posted branch.
+        (PaymentService service, FakeLedgerClient ledger, Guid clientId, Guid customer, Guid invoice) =
+            await SetupIssuedInvoiceAsync(total: 100m);
+        CreditNote cn = await service.RecordCreditNoteAsync(clientId,
+            new CreditNoteBody(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 40m)], null));
+        IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, cn.Id);
+        EntryResponse active = entries.Single(e => e.Status == "Active" && e.ReversalOf == null);
+        await ledger.ApproveAsync(clientId, active.Id); // flip to Posted
+
+        // Act: void the credit note — must take the Posted→ReverseAsync branch.
+        int reversalsBefore = ledger.ReversalCount;
+        await service.VoidCreditNoteAsync(clientId, cn.Id, "issued in error");
+
+        // Assert: ReverseAsync was called (not VoidAsync), and the open balance is restored.
+        Assert.Equal(reversalsBefore + 1, ledger.ReversalCount);
+        Assert.Equal(100m, (await service.GetInvoiceViewAsync(clientId, invoice))!.OpenBalance);
+    }
+
+    [Fact]
+    public async Task Void_posted_refund_triggers_reversal()
+    {
+        // Arrange: overpay to create credit, record refund, approve its entry → flip to Posted branch.
+        (PaymentService service, FakeLedgerClient ledger, Guid clientId, Guid customer, Guid invoice) =
+            await SetupIssuedInvoiceAsync(total: 100m);
+        await service.RecordPaymentAsync(clientId,
+            new PaymentBody(customer, new DateOnly(2026, 3, 1), 140m, "wire", [new Allocation(invoice, 100m)]));
+        Refund refund = await service.RecordRefundAsync(clientId,
+            new RefundBody(customer, new DateOnly(2026, 3, 2), 40m, null));
+        IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, refund.Id);
+        EntryResponse active = entries.Single(e => e.Status == "Active" && e.ReversalOf == null);
+        await ledger.ApproveAsync(clientId, active.Id); // flip to Posted
+
+        // Act: void the refund — must take the Posted→ReverseAsync branch.
+        int reversalsBefore = ledger.ReversalCount;
+        await service.VoidRefundAsync(clientId, refund.Id, "reissued");
+
+        // Assert: ReverseAsync was called (not VoidAsync), and the credit balance is restored.
+        Assert.Equal(reversalsBefore + 1, ledger.ReversalCount);
+        Assert.Equal(40m, await service.GetCustomerCreditBalanceAsync(clientId, customer));
+    }
 }
 
 internal sealed class FixedPaymentAccountsProvider(PaymentPostingAccounts accounts) : IPaymentAccountsProvider

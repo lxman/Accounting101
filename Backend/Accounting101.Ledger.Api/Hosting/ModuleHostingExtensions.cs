@@ -73,7 +73,6 @@ public static class ModuleHostingExtensions
         ModuleManifest manifest = builder.Build();
 
         services.AddModule(identity, name); // base overload: authenticator + control-DB registration
-        services.AddSingleton(manifest);
 
         // Keyed by module key so multiple modules can co-exist in one host: each module's stores resolve
         // the document store keyed to THEIR identity + manifest, instead of a single shared registration

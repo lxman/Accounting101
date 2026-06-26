@@ -17,6 +17,9 @@ internal sealed class FakeLedgerClient : ILedgerClient
     /// <summary>The most recently posted entry, or null if nothing has posted yet.</summary>
     public PostEntryRequest? LastPosted { get; private set; }
 
+    /// <summary>Number of times <see cref="ReverseAsync"/> has been called — used by Posted→Reverse branch tests.</summary>
+    public int ReversalCount { get; private set; }
+
     /// <summary>
     /// Optional hook: tests set this to drive the validation outcome. When null (the default), validation
     /// succeeds silently. Set to a delegate that throws <see cref="LedgerClientException"/> to simulate a
@@ -48,6 +51,7 @@ internal sealed class FakeLedgerClient : ILedgerClient
 
     public Task<EntryResponse> ReverseAsync(Guid clientId, Guid entryId, ReverseRequest request, CancellationToken cancellationToken = default)
     {
+        ReversalCount++;
         EntryResponse original = _entries[entryId];
         var id = Guid.NewGuid();
         EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "PendingApproval", reversalOf: entryId);

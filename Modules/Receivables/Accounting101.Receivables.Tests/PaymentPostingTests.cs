@@ -122,7 +122,10 @@ public sealed class PaymentPostingTests
         PostEntryRequest entry = PaymentPosting.ComposeCreditNote(Guid.NewGuid(), body, acc);
 
         Assert.Equal("CreditNote", entry.SourceType);
-        Assert.Equal(acc.SalesReturnsAccountId, entry.Lines.Single(l => l.Direction == "Debit").AccountId);
+        PostLineRequest debit = entry.Lines.Single(l => l.Direction == "Debit");
+        Assert.Equal(acc.SalesReturnsAccountId, debit.AccountId);
+        Assert.Equal(40m, debit.Amount);
+        Assert.Null(debit.Dimensions);                                   // Sales Returns debit carries no Customer dim
         PostLineRequest credit = entry.Lines.Single(l => l.Direction == "Credit");
         Assert.Equal(acc.ReceivableAccountId, credit.AccountId);
         Assert.Equal(customer, credit.Dimensions!["Customer"]);

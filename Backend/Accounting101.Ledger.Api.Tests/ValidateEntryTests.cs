@@ -183,6 +183,11 @@ public sealed class ValidateEntryTests(ApiFixture fixture) : IClassFixture<ApiFi
 
         PostEntryRequest body = BalancedEntry(Guid.NewGuid(), Guid.NewGuid());
 
+        // The seeded client has an empty chart of accounts, so chart validation short-circuits and
+        // returns valid:true even for random-GUID account IDs — the engine only validates accounts
+        // that are actually in the chart.
+        int before = await EntryCountAsync(approverHttp, c.ClientId);
+
         // Build a validate request with module headers.
         HttpRequestMessage req = new(HttpMethod.Post, $"/clients/{c.ClientId}/entries/validate");
         req.Headers.Add("X-Module-Key", moduleKey);
@@ -194,6 +199,9 @@ public sealed class ValidateEntryTests(ApiFixture fixture) : IClassFixture<ApiFi
         EntryValidationResponse? result = await resp.Content.ReadFromJsonAsync<EntryValidationResponse>();
         Assert.NotNull(result);
         Assert.True(result!.Valid);
+
+        int after = await EntryCountAsync(approverHttp, c.ClientId);
+        Assert.Equal(before, after); // validate writes nothing
     }
 
     /// <summary>
