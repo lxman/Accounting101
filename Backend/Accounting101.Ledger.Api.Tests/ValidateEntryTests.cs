@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Accounting101.Ledger.Api.Control;
 using Accounting101.Ledger.Contracts;
 using Microsoft.AspNetCore.Mvc;
 
@@ -150,6 +151,49 @@ public sealed class ValidateEntryTests(ApiFixture fixture) : IClassFixture<ApiFi
 
         int after = await EntryCountAsync(c.Http, c.ClientId);
         Assert.Equal(before, after); // nothing written
+    }
+
+    /// <summary>
+    /// (f) Module credential authorizes validate — an Approver (no Post permission) can call
+    /// <c>POST /entries/validate</c> when a registered + enabled module credential is supplied.
+    /// Mirrors <see cref="ModulePostingTests.Module_credential_allows_approver_to_post_and_stamps_ViaModule"/>
+    /// but hits the validate endpoint and asserts 200 {valid:true}.
+    /// </summary>
+    [Fact]
+    public async Task Module_credential_authorizes_validate_for_user_without_Post_permission()
+    {
+        const string moduleKey = "receivables";
+        const string moduleSecret = "rcv-secret-01";
+
+        SeededClient c = await fixture.SeedClientAsync("ModuleValidateTest");
+
+        // Add an Approver who does NOT hold Post permission.
+        Guid approverId = Guid.NewGuid();
+        await fixture.Control().AddMembershipAsync(approverId, c.ClientId, LedgerRole.Approver);
+        HttpClient approverHttp = fixture.ClientFor(approverId, "Approver");
+
+        // Register the module.
+        await fixture.Control().RegisterModuleAsync(new ModuleRegistration
+        {
+            Key = moduleKey,
+            Name = "Receivables",
+            Enabled = true,
+            Secret = moduleSecret,
+        });
+
+        PostEntryRequest body = BalancedEntry(Guid.NewGuid(), Guid.NewGuid());
+
+        // Build a validate request with module headers.
+        HttpRequestMessage req = new(HttpMethod.Post, $"/clients/{c.ClientId}/entries/validate");
+        req.Headers.Add("X-Module-Key", moduleKey);
+        req.Headers.Add("X-Module-Secret", moduleSecret);
+        req.Content = JsonContent.Create(body);
+        HttpResponseMessage resp = await approverHttp.SendAsync(req);
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        EntryValidationResponse? result = await resp.Content.ReadFromJsonAsync<EntryValidationResponse>();
+        Assert.NotNull(result);
+        Assert.True(result!.Valid);
     }
 
     /// <summary>
