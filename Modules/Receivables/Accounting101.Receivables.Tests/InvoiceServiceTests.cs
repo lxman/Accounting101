@@ -50,7 +50,7 @@ public sealed class InvoiceServiceTests
         Assert.NotNull(issued.Number);                          // finalize assigned one
 
         PostEntryRequest entry = Assert.Single(h.Ledger.Posted);
-        Assert.Equal(draft.Id, entry.SourceRef);
+        Assert.Equal(issued.Id, entry.SourceRef);
         Assert.Equal("Invoice", entry.SourceType);
         Assert.Equal(issued.Number, entry.Reference);           // the entry carries the invoice number
         PostLineRequest ar = entry.Lines.Single(l => l.AccountId == Accounts.ReceivableAccountId);
@@ -58,7 +58,7 @@ public sealed class InvoiceServiceTests
         Assert.Equal(customer.Id, ar.Dimensions!["Customer"]);
 
         // Maker-checker: the entry is posted but NOT auto-approved — a separate approver books it.
-        IReadOnlyList<EntryResponse> entries = await h.Ledger.GetEntriesBySourceRefAsync(client, draft.Id);
+        IReadOnlyList<EntryResponse> entries = await h.Ledger.GetEntriesBySourceRefAsync(client, issued.Id);
         Assert.Equal("PendingApproval", Assert.Single(entries).Posting);
     }
 

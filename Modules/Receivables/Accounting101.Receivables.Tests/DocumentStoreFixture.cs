@@ -47,6 +47,7 @@ public sealed class DocumentStoreFixture : IAsyncLifetime
 
         ModuleManifest manifest = new ModuleManifestBuilder()
             .Reference("customers")
+            .Plain("invoice-drafts")                 // drafts are scratch, freely edited/discarded
             .Evidentiary("invoices", "Customer")
             .Evidentiary("payments", "Customer")
             .Evidentiary("credit-applications", "Customer")

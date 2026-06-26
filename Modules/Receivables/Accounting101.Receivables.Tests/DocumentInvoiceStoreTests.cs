@@ -16,13 +16,13 @@ public sealed class DocumentInvoiceStoreTests(DocumentStoreFixture fixture) : IC
         Assert.Equal(InvoiceStatus.Draft, draftA.Status);
         Assert.Null(draftA.Number);                                  // a draft has no number
 
-        Invoice issuedA = await store.FinalizeAsync(fixture.ClientId, draftA.Id);
+        Invoice issuedA = await store.PromoteDraftAsync(fixture.ClientId, draftA.Id);
         Assert.Equal(InvoiceStatus.Issued, issuedA.Status);
         Assert.NotNull(issuedA.Number);
         Assert.StartsWith("INV-", issuedA.Number);
 
         Invoice draftB = await store.CreateDraftAsync(fixture.ClientId, Body(customer));
-        Invoice issuedB = await store.FinalizeAsync(fixture.ClientId, draftB.Id);
+        Invoice issuedB = await store.PromoteDraftAsync(fixture.ClientId, draftB.Id);
 
         Assert.Equal(Seq(issuedA.Number!) + 1, Seq(issuedB.Number!)); // gapless: consecutive, order-independent
 
@@ -35,14 +35,15 @@ public sealed class DocumentInvoiceStoreTests(DocumentStoreFixture fixture) : IC
         DocumentInvoiceStore store = new(fixture.Store);
         Guid customer = Guid.NewGuid();
         Invoice draft = await store.CreateDraftAsync(fixture.ClientId, Body(customer));
-        await store.FinalizeAsync(fixture.ClientId, draft.Id);
+        Invoice issued = await store.PromoteDraftAsync(fixture.ClientId, draft.Id);
 
-        Assert.Equal(InvoiceStatus.Issued, (await store.GetAsync(fixture.ClientId, draft.Id))!.Status);
+        // The issued invoice has a new id; look it up by that id.
+        Assert.Equal(InvoiceStatus.Issued, (await store.GetAsync(fixture.ClientId, issued.Id))!.Status);
         Assert.Single(await store.GetByCustomerAsync(fixture.ClientId, customer));
 
-        await store.VoidAsync(fixture.ClientId, draft.Id);
+        await store.VoidAsync(fixture.ClientId, issued.Id);
 
-        Assert.Equal(InvoiceStatus.Void, (await store.GetAsync(fixture.ClientId, draft.Id))!.Status); // still gettable by id
-        Assert.Empty(await store.GetByCustomerAsync(fixture.ClientId, customer));                      // hidden from query
+        Assert.Equal(InvoiceStatus.Void, (await store.GetAsync(fixture.ClientId, issued.Id))!.Status); // still gettable by id
+        Assert.Empty(await store.GetByCustomerAsync(fixture.ClientId, customer));                       // hidden from query
     }
 }

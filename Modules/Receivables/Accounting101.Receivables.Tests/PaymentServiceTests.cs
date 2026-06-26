@@ -21,7 +21,7 @@ public sealed class PaymentServiceTests
         Invoice draft = await invoices.CreateDraftAsync(clientId, new InvoiceBody(
             customerId, new DateOnly(2026, 3, 1), null, 0m, null,
             [new LineBody("Services", 1m, invoiceTotal, false)]));
-        Invoice issued = await invoices.FinalizeAsync(clientId, draft.Id);
+        Invoice issued = await invoices.PromoteDraftAsync(clientId, draft.Id);
 
         FakeLedgerClient ledger = new();
         InMemoryPaymentStore payments = new();
@@ -96,7 +96,7 @@ public sealed class PaymentServiceTests
         await h.Service.RecordPaymentAsync(clientId, new PaymentBody(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(first.Id, 100m)]));
         // A second issued invoice to apply credit against.
         Invoice draft2 = await h.Invoices.CreateDraftAsync(clientId, new InvoiceBody(customerId, new DateOnly(2026, 4, 1), null, 0m, null, [new LineBody("More", 1m, 100m, false)]));
-        Invoice second = await h.Invoices.FinalizeAsync(clientId, draft2.Id);
+        Invoice second = await h.Invoices.PromoteDraftAsync(clientId, draft2.Id);
 
         CreditApplication applied = await h.Service.RecordCreditApplicationAsync(clientId,
             new CreditApplicationBody(customerId, new DateOnly(2026, 4, 2), [new Allocation(second.Id, 50m)]));
@@ -137,7 +137,7 @@ public sealed class PaymentServiceTests
         await h.Service.RecordPaymentAsync(clientId, new PaymentBody(customerId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(first.Id, 100m)]));
         // A second, unpaid invoice -> Open.
         Invoice d2 = await h.Invoices.CreateDraftAsync(clientId, new InvoiceBody(customerId, new DateOnly(2026, 4, 1), null, 0m, null, [new LineBody("More", 1m, 100m, false)]));
-        Invoice second = await h.Invoices.FinalizeAsync(clientId, d2.Id);
+        Invoice second = await h.Invoices.PromoteDraftAsync(clientId, d2.Id);
 
         IReadOnlyList<InvoiceView> open = await h.Service.ListInvoiceViewsAsync(clientId, customerId, SettlementFilter.Open);
         IReadOnlyList<InvoiceView> paid = await h.Service.ListInvoiceViewsAsync(clientId, customerId, SettlementFilter.Paid);

@@ -3,27 +3,55 @@ using Accounting101.Ledger.Contracts;
 namespace Accounting101.Receivables;
 
 /// <summary>
-/// Persists invoices through the engine's document store as <em>evidentiary</em> data: a draft is created
-/// mutable, finalized (issued) into an append-only numbered document, and voided. Number and status are
-/// derived from the engine's envelope, never stored. The module owns no database connection.
+/// Persists invoices through the engine's document store using a two-tier split:
+/// <list type="bullet">
+///   <item><b>invoice-drafts</b> (plain) — freely editable and discardable scratch copies; never part of the
+///   evidentiary record.</item>
+///   <item><b>invoices</b> (evidentiary) — append-only numbered documents; entered only on issue (via
+///   <see cref="PromoteDraftAsync"/>). Number and status are derived from the engine envelope, never stored.</item>
+/// </list>
+/// The module owns no database connection; the engine's <see cref="IDocumentStore"/> is the only dependency.
 /// </summary>
 public sealed class DocumentInvoiceStore(IDocumentStore documents) : IInvoiceStore
 {
-    private const string Collection = "invoices";
+    private const string Drafts = "invoice-drafts";   // plain
+    private const string Collection = "invoices";      // evidentiary
 
     public async Task<Invoice> CreateDraftAsync(Guid clientId, InvoiceBody body, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        Guid id = await documents.CreateAsync(clientId, Collection, body, Tags(body.CustomerId), cancellationToken);
-        DocumentResult<InvoiceBody>? result = await documents.GetAsync<InvoiceBody>(clientId, Collection, id, cancellationToken);
-        return Map(result!);
+        Guid id = Guid.NewGuid();
+        await documents.PutAsync(clientId, Drafts, id, body, Tags(body.CustomerId), cancellationToken);
+        DocumentResult<InvoiceBody>? r = await documents.GetAsync<InvoiceBody>(clientId, Drafts, id, cancellationToken);
+        return Map(r!);
     }
 
-    public async Task<Invoice> FinalizeAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default)
+    public async Task<Invoice> UpdateDraftAsync(Guid clientId, Guid invoiceId, InvoiceBody body, CancellationToken cancellationToken = default)
     {
-        await documents.FinalizeAsync(clientId, Collection, invoiceId, cancellationToken);
-        DocumentResult<InvoiceBody>? result = await documents.GetAsync<InvoiceBody>(clientId, Collection, invoiceId, cancellationToken);
-        return Map(result!);
+        ArgumentNullException.ThrowIfNull(body);
+        if (await documents.GetAsync<InvoiceBody>(clientId, Drafts, invoiceId, cancellationToken) is null)
+            throw new InvalidOperationException($"Invoice {invoiceId} is not an editable draft.");
+        await documents.PutAsync(clientId, Drafts, invoiceId, body, Tags(body.CustomerId), cancellationToken);
+        DocumentResult<InvoiceBody>? r = await documents.GetAsync<InvoiceBody>(clientId, Drafts, invoiceId, cancellationToken);
+        return Map(r!);
+    }
+
+    public async Task DiscardDraftAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default)
+    {
+        if (await documents.GetAsync<InvoiceBody>(clientId, Drafts, invoiceId, cancellationToken) is null)
+            throw new InvalidOperationException($"Invoice {invoiceId} is not a discardable draft.");
+        await documents.DeleteAsync(clientId, Drafts, invoiceId, cancellationToken);
+    }
+
+    public async Task<Invoice> PromoteDraftAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default)
+    {
+        DocumentResult<InvoiceBody>? draft = await documents.GetAsync<InvoiceBody>(clientId, Drafts, invoiceId, cancellationToken)
+            ?? throw new InvalidOperationException($"Invoice {invoiceId} is not a draft awaiting issue.");
+        Guid issuedId = await documents.CreateAsync(clientId, Collection, draft.Body, Tags(draft.Body.CustomerId), cancellationToken);
+        await documents.FinalizeAsync(clientId, Collection, issuedId, cancellationToken);
+        await documents.DeleteAsync(clientId, Drafts, invoiceId, cancellationToken);
+        DocumentResult<InvoiceBody>? issued = await documents.GetAsync<InvoiceBody>(clientId, Collection, issuedId, cancellationToken);
+        return Map(issued!);
     }
 
     public Task VoidAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default) =>
@@ -31,15 +59,17 @@ public sealed class DocumentInvoiceStore(IDocumentStore documents) : IInvoiceSto
 
     public async Task<Invoice?> GetAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default)
     {
-        DocumentResult<InvoiceBody>? result = await documents.GetAsync<InvoiceBody>(clientId, Collection, invoiceId, cancellationToken);
-        return result is null ? null : Map(result);
+        DocumentResult<InvoiceBody>? draft = await documents.GetAsync<InvoiceBody>(clientId, Drafts, invoiceId, cancellationToken);
+        if (draft is not null) return Map(draft);
+        DocumentResult<InvoiceBody>? issued = await documents.GetAsync<InvoiceBody>(clientId, Collection, invoiceId, cancellationToken);
+        return issued is null ? null : Map(issued);
     }
 
     public async Task<IReadOnlyList<Invoice>> GetByCustomerAsync(Guid clientId, Guid customerId, CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<DocumentResult<InvoiceBody>> results =
-            await documents.QueryAsync<InvoiceBody>(clientId, Collection, Tags(customerId), cancellationToken);
-        return results.Select(Map).ToList();
+        IReadOnlyList<DocumentResult<InvoiceBody>> drafts = await documents.QueryAsync<InvoiceBody>(clientId, Drafts, Tags(customerId), cancellationToken);
+        IReadOnlyList<DocumentResult<InvoiceBody>> issued = await documents.QueryAsync<InvoiceBody>(clientId, Collection, Tags(customerId), cancellationToken);
+        return drafts.Concat(issued).Select(Map).ToList();
     }
 
     private static Dictionary<string, string> Tags(Guid customerId) => new() { ["Customer"] = customerId.ToString() };
@@ -55,7 +85,7 @@ public sealed class DocumentInvoiceStore(IDocumentStore documents) : IInvoiceSto
         {
             DocumentLifecycle.Finalized => InvoiceStatus.Issued,
             DocumentLifecycle.Voided or DocumentLifecycle.Superseded => InvoiceStatus.Void,
-            // a pre-finalize invoice is Active (and any other non-issued/voided state) — it reads as Draft
+            // a plain draft or any non-finalized/voided state — reads as Draft
             _ => InvoiceStatus.Draft,
         },
         TaxRate = result.Body.TaxRate,
