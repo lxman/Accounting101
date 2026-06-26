@@ -57,7 +57,7 @@ public sealed class StrictBindingTests(ApiFixture fixture) : IClassFixture<ApiFi
 
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
         string text = await resp.Content.ReadAsStringAsync();
-        Assert.Contains("date", text, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("'date'", text, StringComparison.OrdinalIgnoreCase); // STJ names the field as property 'date'
     }
 
     [Fact]
