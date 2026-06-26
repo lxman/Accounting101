@@ -1,6 +1,5 @@
 using System.Net.Http.Json;
 using Accounting101.Ledger.Contracts;
-using Accounting101.Receivables;
 using Accounting101.Receivables.Api;
 using Accounting101.Settlement;
 

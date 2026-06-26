@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using Accounting101.Receivables;
 using Accounting101.Ledger.Contracts;
 
 namespace Accounting101.Receivables.Tests;
@@ -184,11 +183,11 @@ internal sealed class FixedAccountsProvider(InvoicePostingAccounts accounts) : I
 
 internal sealed class InMemoryPaymentStore : IPaymentStore
 {
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, Guid), Payment> _payments = new();
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, Guid), CreditApplication> _credits = new();
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, Guid), WriteOff> _writeOffs = new();
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, Guid), CreditNote> _creditNotes = new();
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, Guid), Refund> _refunds = new();
+    private readonly ConcurrentDictionary<(Guid, Guid), Payment> _payments = new();
+    private readonly ConcurrentDictionary<(Guid, Guid), CreditApplication> _credits = new();
+    private readonly ConcurrentDictionary<(Guid, Guid), WriteOff> _writeOffs = new();
+    private readonly ConcurrentDictionary<(Guid, Guid), CreditNote> _creditNotes = new();
+    private readonly ConcurrentDictionary<(Guid, Guid), Refund> _refunds = new();
 
     public Task<Payment> RecordPaymentAsync(Guid clientId, PaymentBody body, CancellationToken ct = default)
     {

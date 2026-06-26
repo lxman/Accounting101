@@ -1,8 +1,6 @@
 using System.Net.Http.Json;
 using Accounting101.Ledger.Api.Auth;
-using Accounting101.Payables;
 using Accounting101.Ledger.Contracts;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Accounting101.Payables.Api;
 

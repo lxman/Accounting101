@@ -1,5 +1,4 @@
 using Accounting101.Ledger.Mongo;
-using Microsoft.AspNetCore.Http;
 
 namespace Accounting101.Ledger.Api.Auth;
 

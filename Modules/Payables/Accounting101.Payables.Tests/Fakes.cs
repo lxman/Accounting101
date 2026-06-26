@@ -1,7 +1,5 @@
 using System.Collections.Concurrent;
 using Accounting101.Ledger.Contracts;
-using Accounting101.Payables;
-using Accounting101.Settlement;
 
 namespace Accounting101.Payables.Tests;
 

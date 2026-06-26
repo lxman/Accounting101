@@ -1,4 +1,3 @@
-using Accounting101.Banking.Cash;
 using Accounting101.Ledger.Contracts;
 
 namespace Accounting101.Banking.Cash.Tests;

@@ -4,9 +4,7 @@ using Accounting101.Ledger.Api.Control;
 using Accounting101.Ledger.Api.Documents;
 using Accounting101.Ledger.Api.Tenancy;
 using Accounting101.Ledger.Contracts;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Hosting;
 
 namespace Accounting101.Ledger.Api.Hosting;
 

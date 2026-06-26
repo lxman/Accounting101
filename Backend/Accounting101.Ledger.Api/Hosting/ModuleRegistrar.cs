@@ -1,5 +1,4 @@
 using Accounting101.Ledger.Api.Control;
-using Microsoft.Extensions.Hosting;
 
 namespace Accounting101.Ledger.Api.Hosting;
 

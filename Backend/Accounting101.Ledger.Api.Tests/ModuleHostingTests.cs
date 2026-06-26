@@ -2,7 +2,6 @@ using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Control;
 using Accounting101.Ledger.Api.Hosting;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Accounting101.Ledger.Api.Tests;
 

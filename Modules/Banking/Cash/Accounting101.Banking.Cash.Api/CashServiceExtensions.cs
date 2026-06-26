@@ -1,8 +1,6 @@
-using Accounting101.Banking.Cash;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Hosting;
 using Accounting101.Ledger.Contracts;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Accounting101.Banking.Cash.Api;
 

@@ -1,6 +1,5 @@
 using System.Net;
 using System.Net.Http.Json;
-using Accounting101.Banking.Cash;
 using Accounting101.Banking.Cash.Api;
 using Accounting101.Ledger.Contracts;
 using Accounting101.Payables;
@@ -88,7 +87,7 @@ public sealed class CashE2eTests(CashHostFixture fixture) : IClassFixture<CashHo
         // Void withdraws the pending entry — driven by the approver (SoD: Void permission).
         HttpResponseMessage voided = await approver.PostAsJsonAsync(
             $"/clients/{clientId}/cash-disbursements/{disbursement.Id}/void",
-            new Banking.Cash.Api.VoidReasonRequest("entered in error"));
+            new Api.VoidReasonRequest("entered in error"));
         voided.EnsureSuccessStatusCode();
         CashDisbursement voidedDoc = (await voided.Content.ReadFromJsonAsync<CashDisbursement>())!;
         Assert.Equal(CashDisbursementStatus.Void, voidedDoc.Status);
@@ -145,7 +144,7 @@ public sealed class CashE2eTests(CashHostFixture fixture) : IClassFixture<CashHo
         // Void — driven by the approver (SoD: Void permission).
         HttpResponseMessage voided = await approver.PostAsJsonAsync(
             $"/clients/{clientId}/cash-deposits/{deposit.Id}/void",
-            new Banking.Cash.Api.VoidReasonRequest("entered in error"));
+            new Api.VoidReasonRequest("entered in error"));
         voided.EnsureSuccessStatusCode();
         CashDeposit voidedDoc = (await voided.Content.ReadFromJsonAsync<CashDeposit>())!;
         Assert.Equal(CashDepositStatus.Void, voidedDoc.Status);

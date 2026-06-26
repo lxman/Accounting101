@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using Accounting101.Ledger.Api.Auth;
-using Accounting101.Receivables;
 using Accounting101.Receivables.Api;
 using Accounting101.Ledger.Contracts;
 using Microsoft.AspNetCore.Http;

@@ -1,5 +1,3 @@
-using Accounting101.Banking.Cash;
-
 namespace Accounting101.Banking.Cash.Api;
 
 /// <summary>Supplies the cash posting account from configuration

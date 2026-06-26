@@ -1,5 +1,3 @@
-using Accounting101.Payroll;
-
 namespace Accounting101.Payroll.Api;
 
 /// <summary>The payroll HTTP surface: payroll-run and tax-remittance lifecycle under /clients/{clientId}.

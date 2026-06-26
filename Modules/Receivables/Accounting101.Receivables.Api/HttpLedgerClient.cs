@@ -2,9 +2,7 @@ using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Accounting101.Ledger.Api.Auth;
-using Accounting101.Receivables;
 using Accounting101.Ledger.Contracts;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Accounting101.Receivables.Api;
 

@@ -3,7 +3,6 @@ using System.Net.Http.Json;
 using Accounting101.Ledger.Contracts;
 using Accounting101.Payables;
 using Accounting101.Payables.Api;
-using Accounting101.Payroll;
 using Accounting101.Payroll.Api;
 
 namespace Accounting101.Payroll.Tests;
@@ -97,7 +96,7 @@ public sealed class PayrollE2eTests(PayrollHostFixture fixture) : IClassFixture<
         // which under SoD belongs to the Approver, not the Clerk — the module forwards the caller's
         // token, so the void must be driven by the approver.
         HttpResponseMessage voided = await approver.PostAsJsonAsync(
-            $"/clients/{clientId}/payroll-runs/{run.Id}/void", new Payroll.Api.VoidReasonRequest("entered in error"));
+            $"/clients/{clientId}/payroll-runs/{run.Id}/void", new Api.VoidReasonRequest("entered in error"));
         voided.EnsureSuccessStatusCode();
         PayrollRun voidedRun = (await voided.Content.ReadFromJsonAsync<PayrollRun>())!;
         Assert.Equal(PayrollRunStatus.Void, voidedRun.Status);

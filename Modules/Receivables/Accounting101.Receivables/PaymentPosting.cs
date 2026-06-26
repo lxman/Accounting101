@@ -1,5 +1,4 @@
 using Accounting101.Ledger.Contracts;
-using Accounting101.Settlement;
 
 namespace Accounting101.Receivables;
 

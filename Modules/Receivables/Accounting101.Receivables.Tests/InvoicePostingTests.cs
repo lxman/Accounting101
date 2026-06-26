@@ -1,4 +1,3 @@
-using Accounting101.Receivables;
 using Accounting101.Ledger.Contracts;
 
 namespace Accounting101.Receivables.Tests;

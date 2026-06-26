@@ -1,5 +1,3 @@
-using Accounting101.Settlement;
-
 namespace Accounting101.Settlement.Tests;
 
 public sealed class SettlementTests
@@ -11,8 +9,8 @@ public sealed class SettlementTests
     [InlineData(100, 120, -20, SettlementStatus.Paid)]
     public void Derives_open_balance_and_status(decimal total, decimal applied, decimal expectedOpen, SettlementStatus expectedStatus)
     {
-        Assert.Equal(expectedOpen, Accounting101.Settlement.Settlement.OpenBalance(total, applied));
-        Assert.Equal(expectedStatus, Accounting101.Settlement.Settlement.Status(total, applied));
+        Assert.Equal(expectedOpen, Settlement.OpenBalance(total, applied));
+        Assert.Equal(expectedStatus, Settlement.Status(total, applied));
     }
 
     [Fact]

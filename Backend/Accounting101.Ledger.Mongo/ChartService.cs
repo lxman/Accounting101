@@ -1,6 +1,5 @@
 using System.Globalization;
 using Accounting101.Ledger.Core.Accounts;
-using Accounting101.Ledger.Core.Journal;
 using MongoDB.Driver;
 
 namespace Accounting101.Ledger.Mongo;

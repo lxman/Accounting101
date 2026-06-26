@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Accounting101.Ledger.Contracts;
-using Microsoft.AspNetCore.Mvc;
 
 namespace Accounting101.Ledger.Api.Tests;
 

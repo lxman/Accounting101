@@ -1,5 +1,3 @@
-using Accounting101.Ledger.Contracts;
-
 namespace Accounting101.Ledger.Contracts.Tests;
 
 public class EntryIdentityTests

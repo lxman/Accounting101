@@ -1,5 +1,3 @@
-using Accounting101.Payables;
-
 namespace Accounting101.Payables.Api;
 
 /// <summary>Supplies the payables posting accounts from configuration

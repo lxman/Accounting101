@@ -1,5 +1,3 @@
-using Accounting101.Payroll;
-
 namespace Accounting101.Payroll.Api;
 
 /// <summary>Supplies the five payroll posting accounts from configuration

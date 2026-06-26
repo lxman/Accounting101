@@ -2,7 +2,6 @@ using System.Net.Http.Headers;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Control;
 using EphemeralMongo;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using MongoDB.Driver;
 

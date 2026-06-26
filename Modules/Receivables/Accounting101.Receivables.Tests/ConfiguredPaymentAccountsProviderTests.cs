@@ -1,4 +1,3 @@
-using Accounting101.Receivables;
 using Accounting101.Receivables.Api;
 using Microsoft.Extensions.Configuration;
 

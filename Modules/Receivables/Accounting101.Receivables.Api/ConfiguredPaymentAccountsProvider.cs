@@ -1,6 +1,3 @@
-using Accounting101.Receivables;
-using Microsoft.Extensions.Configuration;
-
 namespace Accounting101.Receivables.Api;
 
 /// <summary>Supplies the chart accounts the payment recipes post to, from configuration

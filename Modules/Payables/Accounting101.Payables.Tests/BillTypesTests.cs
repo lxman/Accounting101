@@ -1,5 +1,3 @@
-using Accounting101.Payables;
-
 namespace Accounting101.Payables.Tests;
 
 public sealed class BillTypesTests

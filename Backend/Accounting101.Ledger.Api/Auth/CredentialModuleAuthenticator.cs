@@ -1,7 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
 using Accounting101.Ledger.Api.Control;
-using Microsoft.AspNetCore.Http;
 
 namespace Accounting101.Ledger.Api.Auth;
 

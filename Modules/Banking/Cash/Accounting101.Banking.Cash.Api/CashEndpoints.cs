@@ -1,5 +1,3 @@
-using Accounting101.Banking.Cash;
-
 namespace Accounting101.Banking.Cash.Api;
 
 /// <summary>The cash HTTP surface: disbursement and deposit lifecycle under /clients/{clientId}.

@@ -1,8 +1,6 @@
 using System.Net.Http.Headers;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Control;
-using Accounting101.Payables;
-using Accounting101.Payables.Api;
 using EphemeralMongo;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;

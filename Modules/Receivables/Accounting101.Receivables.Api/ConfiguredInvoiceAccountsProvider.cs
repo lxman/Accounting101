@@ -1,5 +1,3 @@
-using Accounting101.Receivables;
-
 namespace Accounting101.Receivables.Api;
 
 /// <summary>
