@@ -11,4 +11,11 @@ public sealed record AuditStamp
     public required DateTimeOffset CreatedAt { get; init; }
     public Guid? PostedBy { get; init; }
     public Guid? ApprovedBy { get; init; }
+
+    /// <summary>
+    /// The key of the module that originated this entry (e.g. "payables"), or null for a raw
+    /// accountant entry. Populated only when the posting came through a module credential path;
+    /// never set by the user directly.
+    /// </summary>
+    public string? ViaModule { get; init; }
 }

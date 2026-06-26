@@ -18,4 +18,12 @@ public sealed class ModuleRegistration
 
     /// <summary>When false, the module is known but barred — every call it makes is denied.</summary>
     public bool Enabled { get; set; }
+
+    /// <summary>
+    /// The per-module shared secret used by the credential-verifying authenticator. Generated at
+    /// host wiring time (32 cryptographically random bytes, Base64URL-encoded); the module holds
+    /// its copy in-process via <see cref="Accounting101.Ledger.Api.Auth.ModuleCredential"/>.
+    /// Never logged or surfaced to end users.
+    /// </summary>
+    public string Secret { get; set; } = string.Empty;
 }

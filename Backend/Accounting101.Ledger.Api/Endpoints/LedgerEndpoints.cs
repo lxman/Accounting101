@@ -59,9 +59,10 @@ public static class LedgerEndpoints
     // ---- Commands ---------------------------------------------------------------------------
 
     private static async Task<IResult> PostEntry(
-        Guid clientId, PostEntryRequest request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+        Guid clientId, PostEntryRequest request, LedgerGateway gateway, IModuleAuthenticator moduleAuth,
+        ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Post, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveForPostAsync(user, clientId, moduleAuth, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         // Fast idempotent-replay path: if the caller supplied an id and that entry already exists for this
@@ -71,7 +72,7 @@ public static class LedgerEndpoints
         if (request.Id is { } earlyId
             && await ctx.Ledger!.Service.GetEntryAsync(clientId, earlyId, cancellationToken) is { } earlyExisting)
         {
-            if (!TryMapEntry(clientId, request, ctx.Actor!, out JournalEntry? earlyMapped, out Dictionary<string, string[]> earlyErrors))
+            if (!TryMapEntry(clientId, request, ctx.Actor!, ctx.ViaModule, out JournalEntry? earlyMapped, out Dictionary<string, string[]> earlyErrors))
                 return ValidationProblem(earlyErrors);
 
             if (EntryComparison.SameFinancialContent(earlyExisting, earlyMapped!))
@@ -145,7 +146,7 @@ public static class LedgerEndpoints
         Guid clientId, PostEntryRequest request, LedgerContext ctx, CancellationToken ct)
     {
         // ctx.Failed was checked by the caller before dispatching here, so Actor and Ledger are non-null.
-        if (!TryMapEntry(clientId, request, ctx.Actor!, out JournalEntry? entry, out Dictionary<string, string[]> parseErrors))
+        if (!TryMapEntry(clientId, request, ctx.Actor!, ctx.ViaModule, out JournalEntry? entry, out Dictionary<string, string[]> parseErrors))
             return (ValidationProblem(parseErrors), null);
 
         Dictionary<string, string[]> chartErrors = await ChartFieldViolationsAsync(ctx.Ledger!.Accounts, clientId, entry!.Lines, ct);
@@ -717,7 +718,7 @@ public static class LedgerEndpoints
         e.Lines.Count, e.Supersedes, e.SupersededBy, e.ReversalOf, e.ReversedBy,
         e.Lines.Select(l => new EntryLineResponse(
             l.AccountId, l.Direction.ToString(), l.Amount, l.Dimensions, l.LineMemo)).ToList(),
-        e.SourceRef, e.SourceType, e.Reference, e.Memo);
+        e.SourceRef, e.SourceType, e.Reference, e.Memo, e.Audit.ViaModule);
 
     private static AccountResponse ToAccountResponse(Account a) => new(
         a.Id, a.Number, a.Name, a.Type.ToString(), a.ParentId, a.Postable,
@@ -803,6 +804,7 @@ public static class LedgerEndpoints
         Guid clientId,
         PostEntryRequest request,
         Actor actor,
+        string? viaModule,
         out JournalEntry? entry,
         out Dictionary<string, string[]> errors)
     {
@@ -871,7 +873,7 @@ public static class LedgerEndpoints
                 effectiveDate: request.EffectiveDate,
                 postedAt: DateTimeOffset.UtcNow,
                 type: entryType,
-                audit: new AuditStamp { CreatedBy = actor.UserId, CreatedAt = DateTimeOffset.UtcNow },
+                audit: new AuditStamp { CreatedBy = actor.UserId, CreatedAt = DateTimeOffset.UtcNow, ViaModule = viaModule },
                 lines: lines,
                 sourceRef: request.SourceRef,
                 sourceType: request.SourceType,

@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Control;
 using Accounting101.Ledger.Api.Documents;
@@ -20,9 +21,38 @@ public static class ModuleHostingExtensions
     {
         ArgumentNullException.ThrowIfNull(identity);
 
+        // Generate a cryptographically random per-module secret: 32 bytes → Base64URL (no padding).
+        // This value rides in the control DB; the in-process copy is the ModuleCredential below.
+        string secret = Base64UrlEncode(RandomNumberGenerator.GetBytes(32));
+        ModuleCredential credential = new(identity.Key, secret);
+
         services.AddSingleton(identity);
-        services.AddSingleton<IModuleAuthenticator>(new HostStampedModuleAuthenticator(identity));
-        services.AddSingleton(new ModuleRegistration { Key = identity.Key, Name = name, Enabled = true });
+
+        // In-process path (document store): keyed so it coexists with the credential authenticator.
+        // Resolved by key ("host-stamped") wherever the in-process identity is required directly;
+        // does not interfere with the default IModuleAuthenticator resolution below.
+        services.AddKeyedSingleton<IModuleAuthenticator>(
+            "host-stamped",
+            (_, _) => new HostStampedModuleAuthenticator(identity));
+
+        // HTTP posting path: the credential-verifying authenticator is the default IModuleAuthenticator.
+        // Scoped so it can access the per-request IHttpContextAccessor. TryAdd so the first registered
+        // module's credential authenticator wins — all modules share the same request-pipeline authenticator
+        // since it looks the module up by key from the request header, not from DI registration order.
+        services.TryAddScoped<IModuleAuthenticator, CredentialModuleAuthenticator>();
+
+        // The module's in-process credential: keyed by the module's own key so multiple modules can
+        // coexist in one host without last-wins collision. Resolved via [FromKeyedServices(key)] or
+        // GetRequiredKeyedService<ModuleCredential>(key) in each module's own HttpLedgerClient.
+        services.AddKeyedSingleton<ModuleCredential>(identity.Key, credential);
+
+        services.AddSingleton(new ModuleRegistration
+        {
+            Key = identity.Key,
+            Name = name,
+            Enabled = true,
+            Secret = secret,
+        });
 
         // One registrar regardless of how many modules install themselves — it upserts every
         // contributed ModuleRegistration on startup. TryAddEnumerable dedupes by implementation type.
@@ -59,4 +89,7 @@ public static class ModuleHostingExtensions
 
         return services;
     }
+
+    private static string Base64UrlEncode(byte[] bytes) =>
+        Convert.ToBase64String(bytes).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 }
