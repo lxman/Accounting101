@@ -123,9 +123,10 @@ public static class LedgerEndpoints
     /// <see cref="ValidateForPostAsync"/> routine.
     /// </summary>
     private static async Task<IResult> ValidateEntry(
-        Guid clientId, PostEntryRequest request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+        Guid clientId, PostEntryRequest request, LedgerGateway gateway, IModuleAuthenticator moduleAuth,
+        ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Post, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveForPostAsync(user, clientId, moduleAuth, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         (IResult? rejection, _) = await ValidateForPostAsync(clientId, request, ctx, cancellationToken);
