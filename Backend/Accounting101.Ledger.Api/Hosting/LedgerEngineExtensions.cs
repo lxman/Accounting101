@@ -5,6 +5,7 @@ using Accounting101.Ledger.Api.Tenancy;
 using Accounting101.Ledger.Mongo.Serialization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using MongoDB.Driver;
 
 namespace Accounting101.Ledger.Api.Hosting;
@@ -38,6 +39,13 @@ public static class LedgerEngineExtensions
         services.AddHttpContextAccessor();
         services.AddSingleton<ICurrentActor, HttpContextCurrentActor>();
         services.AddSingleton<ModuleAccess>();
+
+        // Default credential authenticator: reads X-Module-Key + X-Module-Secret from the request and
+        // verifies them against the control DB. Returns null when the headers are absent or the secret
+        // does not match — which keeps the raw posting path working for hosts that never call AddModule.
+        // AddModule also calls TryAddScoped<CredentialModuleAuthenticator> but TryAdd is idempotent, so
+        // either registration order is safe.
+        services.TryAddScoped<IModuleAuthenticator, CredentialModuleAuthenticator>();
 
         // Identity is IdP-agnostic: a dev-token scheme now; the claims → Actor mapping is ours and stable.
         services.AddSingleton<IActorFactory, ClaimsActorFactory>();
