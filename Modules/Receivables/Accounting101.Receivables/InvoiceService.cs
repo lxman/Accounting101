@@ -105,6 +105,35 @@ public sealed class InvoiceService(
         return await RequireAsync(clientId, invoiceId, cancellationToken);
     }
 
+    /// <summary>
+    /// Edit a draft invoice: re-validate (customer must exist, at least one line), build a new body, and
+    /// replace the draft in the store. Throws <see cref="InvalidOperationException"/> if the id is not a
+    /// draft (the store guard carries the user-facing message).
+    /// </summary>
+    public async Task<Invoice> EditDraftAsync(
+        Guid clientId, Guid invoiceId, Guid customerId, IReadOnlyList<InvoiceLine> lines, decimal taxRate,
+        DateOnly issueDate, DateOnly? dueDate = null, string? memo = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(lines);
+        if (await customers.GetAsync(clientId, customerId, cancellationToken) is null)
+            throw new InvalidOperationException($"Customer {customerId} does not exist.");
+        if (lines.Count == 0)
+            throw new InvalidOperationException("An invoice needs at least one line.");
+
+        InvoiceBody body = new(
+            customerId, issueDate, dueDate, taxRate, memo,
+            lines.Select(l => new LineBody(l.Description, l.Quantity, l.UnitPrice, l.Taxable, l.RevenueCategory)).ToList());
+
+        return await invoices.UpdateDraftAsync(clientId, invoiceId, body, cancellationToken);
+    }
+
+    /// <summary>
+    /// Discard a draft invoice. Throws <see cref="InvalidOperationException"/> if the id is not a draft —
+    /// use <see cref="VoidAsync"/> to cancel an issued invoice instead.
+    /// </summary>
+    public Task DiscardDraftAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default) =>
+        invoices.DiscardDraftAsync(clientId, invoiceId, cancellationToken);
+
     /// <summary>Fetch an invoice (number/status derived from the engine envelope), or null if not found.</summary>
     public Task<Invoice?> GetAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default) =>
         invoices.GetAsync(clientId, invoiceId, cancellationToken);
