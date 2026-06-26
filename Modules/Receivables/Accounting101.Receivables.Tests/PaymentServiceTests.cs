@@ -9,6 +9,7 @@ public sealed class PaymentServiceTests
     private static readonly PaymentPostingAccounts Accounts = new()
     {
         ReceivableAccountId = Guid.NewGuid(), CashAccountId = Guid.NewGuid(), CustomerCreditsAccountId = Guid.NewGuid(),
+        BadDebtExpenseAccountId = Guid.NewGuid(), SalesReturnsAccountId = Guid.NewGuid(),
     };
 
     private sealed record Harness(PaymentService Service, FakeLedgerClient Ledger, InMemoryInvoiceStore Invoices, InMemoryPaymentStore Payments);

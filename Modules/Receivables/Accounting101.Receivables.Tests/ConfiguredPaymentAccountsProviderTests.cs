@@ -7,14 +7,17 @@ namespace Accounting101.Receivables.Tests;
 public sealed class ConfiguredPaymentAccountsProviderTests
 {
     [Fact]
-    public async Task Reads_the_three_payment_accounts_from_configuration()
+    public async Task Reads_the_five_payment_accounts_from_configuration()
     {
-        Guid ar = Guid.NewGuid(), cash = Guid.NewGuid(), credits = Guid.NewGuid();
+        Guid ar = Guid.NewGuid(), cash = Guid.NewGuid(), credits = Guid.NewGuid(),
+             badDebt = Guid.NewGuid(), salesReturns = Guid.NewGuid();
         IConfiguration config = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Receivables:Accounts:Receivable"] = ar.ToString(),
             ["Receivables:Accounts:Cash"] = cash.ToString(),
             ["Receivables:Accounts:CustomerCredits"] = credits.ToString(),
+            ["Receivables:Accounts:BadDebtExpense"] = badDebt.ToString(),
+            ["Receivables:Accounts:SalesReturns"] = salesReturns.ToString(),
         }).Build();
 
         PaymentPostingAccounts accounts = await new ConfiguredPaymentAccountsProvider(config).GetAsync(Guid.NewGuid());
@@ -22,6 +25,8 @@ public sealed class ConfiguredPaymentAccountsProviderTests
         Assert.Equal(ar, accounts.ReceivableAccountId);
         Assert.Equal(cash, accounts.CashAccountId);
         Assert.Equal(credits, accounts.CustomerCreditsAccountId);
+        Assert.Equal(badDebt, accounts.BadDebtExpenseAccountId);
+        Assert.Equal(salesReturns, accounts.SalesReturnsAccountId);
     }
 
     [Fact]

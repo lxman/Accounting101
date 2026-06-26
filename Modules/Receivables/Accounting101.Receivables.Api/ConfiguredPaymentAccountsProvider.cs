@@ -13,6 +13,8 @@ public sealed class ConfiguredPaymentAccountsProvider(IConfiguration configurati
             ReceivableAccountId = Read("Receivables:Accounts:Receivable"),
             CashAccountId = Read("Receivables:Accounts:Cash"),
             CustomerCreditsAccountId = Read("Receivables:Accounts:CustomerCredits"),
+            BadDebtExpenseAccountId = Read("Receivables:Accounts:BadDebtExpense"),
+            SalesReturnsAccountId = Read("Receivables:Accounts:SalesReturns"),
         });
 
     private Guid Read(string key) =>
