@@ -53,10 +53,15 @@ public sealed class PaymentService(
         IReadOnlyList<Invoice> customerInvoices = await invoices.GetByCustomerAsync(clientId, customerId, ct);
         IReadOnlyList<Payment> ps = await payments.GetPaymentsByCustomerAsync(clientId, customerId, ct);
         IReadOnlyList<CreditApplication> cs = await payments.GetCreditApplicationsByCustomerAsync(clientId, customerId, ct);
+        IReadOnlyList<WriteOff> ws = await payments.GetWriteOffsByCustomerAsync(clientId, customerId, ct);
+        IReadOnlyList<CreditNote> ns = await payments.GetCreditNotesByCustomerAsync(clientId, customerId, ct);
 
         Dictionary<Guid, decimal> applied = new();
         foreach (Allocation a in ps.Where(p => !p.Voided).SelectMany(p => p.Allocations)
                      .Concat(cs.Where(c => !c.Voided).SelectMany(c => c.Allocations)))
+            applied[a.TargetId] = applied.GetValueOrDefault(a.TargetId) + a.Amount;
+        foreach (Allocation a in ws.Where(w => !w.Voided).SelectMany(w => w.Allocations)
+                     .Concat(ns.Where(n => !n.Voided).SelectMany(n => n.Allocations)))
             applied[a.TargetId] = applied.GetValueOrDefault(a.TargetId) + a.Amount;
 
         IEnumerable<InvoiceView> views = customerInvoices
@@ -84,14 +89,16 @@ public sealed class PaymentService(
         return new InvoiceView(invoice, Accounting101.Settlement.Settlement.OpenBalance(invoice.Total, applied), Accounting101.Settlement.Settlement.Status(invoice.Total, applied));
     }
 
-    /// <summary>Unapplied customer credit = non-voided payment remainders minus non-voided credit applications.</summary>
+    /// <summary>Unapplied customer credit = non-voided payment remainders minus non-voided credit applications minus non-voided refunds.</summary>
     public async Task<decimal> GetCustomerCreditBalanceAsync(Guid clientId, Guid customerId, CancellationToken ct = default)
     {
         IReadOnlyList<Payment> ps = await payments.GetPaymentsByCustomerAsync(clientId, customerId, ct);
         IReadOnlyList<CreditApplication> cs = await payments.GetCreditApplicationsByCustomerAsync(clientId, customerId, ct);
+        IReadOnlyList<Refund> rs = await payments.GetRefundsByCustomerAsync(clientId, customerId, ct);
         decimal created = ps.Where(p => !p.Voided).Sum(p => p.Unapplied);
         decimal spent = cs.Where(c => !c.Voided).Sum(c => c.Applied);
-        return created - spent;
+        decimal refunded = rs.Where(r => !r.Voided).Sum(r => r.Amount);
+        return created - spent - refunded;
     }
 
     public async Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, CreditApplicationBody body, CancellationToken ct = default)
@@ -134,13 +141,102 @@ public sealed class PaymentService(
         return (await payments.GetPaymentAsync(clientId, paymentId, ct))!;
     }
 
-    /// <summary>Total non-voided allocations (payments + credit applications) applied to one invoice.</summary>
+    public async Task<WriteOff> RecordWriteOffAsync(Guid clientId, WriteOffBody body, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        if (body.Allocations.Count == 0 || body.Allocations.Any(a => a.Amount <= 0m))
+            throw new InvalidOperationException("A write-off needs positive allocations.");
+        await ValidateAllocationsAsync(clientId, body.CustomerId, body.Allocations, ct);
+        WriteOff recorded = await payments.RecordWriteOffAsync(clientId, body, ct);
+        PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
+        await ledger.PostAsync(clientId, PaymentPosting.ComposeWriteOff(recorded.Id, body, posting), ct);
+        return recorded;
+    }
+
+    public async Task<WriteOff> VoidWriteOffAsync(Guid clientId, Guid writeOffId, string? reason = null, CancellationToken ct = default)
+    {
+        WriteOff writeOff = await payments.GetWriteOffAsync(clientId, writeOffId, ct)
+            ?? throw new InvalidOperationException($"Write-off {writeOffId} not found.");
+        if (writeOff.Voided) throw new InvalidOperationException($"Write-off {writeOffId} is already voided.");
+        IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, writeOffId, ct);
+        EntryResponse entry = spawned.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null })
+            ?? throw new InvalidOperationException($"No entry found for write-off {writeOffId} to void.");
+        if (entry.Posting == "Posted")
+            await ledger.ReverseAsync(clientId, entry.Id, new ReverseRequest(writeOff.Date, reason ?? $"Voided write-off {writeOffId}"), ct);
+        else
+            await ledger.VoidAsync(clientId, entry.Id, new VoidRequest(reason ?? $"Voided write-off {writeOffId}"), ct);
+        await payments.VoidWriteOffAsync(clientId, writeOffId, ct);
+        return (await payments.GetWriteOffAsync(clientId, writeOffId, ct))!;
+    }
+
+    public async Task<CreditNote> RecordCreditNoteAsync(Guid clientId, CreditNoteBody body, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        if (body.Allocations.Count == 0 || body.Allocations.Any(a => a.Amount <= 0m))
+            throw new InvalidOperationException("A credit note needs positive allocations.");
+        await ValidateAllocationsAsync(clientId, body.CustomerId, body.Allocations, ct);
+        CreditNote recorded = await payments.RecordCreditNoteAsync(clientId, body, ct);
+        PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
+        await ledger.PostAsync(clientId, PaymentPosting.ComposeCreditNote(recorded.Id, body, posting), ct);
+        return recorded;
+    }
+
+    public async Task<CreditNote> VoidCreditNoteAsync(Guid clientId, Guid creditNoteId, string? reason = null, CancellationToken ct = default)
+    {
+        CreditNote creditNote = await payments.GetCreditNoteAsync(clientId, creditNoteId, ct)
+            ?? throw new InvalidOperationException($"Credit note {creditNoteId} not found.");
+        if (creditNote.Voided) throw new InvalidOperationException($"Credit note {creditNoteId} is already voided.");
+        IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, creditNoteId, ct);
+        EntryResponse entry = spawned.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null })
+            ?? throw new InvalidOperationException($"No entry found for credit note {creditNoteId} to void.");
+        if (entry.Posting == "Posted")
+            await ledger.ReverseAsync(clientId, entry.Id, new ReverseRequest(creditNote.Date, reason ?? $"Voided credit note {creditNoteId}"), ct);
+        else
+            await ledger.VoidAsync(clientId, entry.Id, new VoidRequest(reason ?? $"Voided credit note {creditNoteId}"), ct);
+        await payments.VoidCreditNoteAsync(clientId, creditNoteId, ct);
+        return (await payments.GetCreditNoteAsync(clientId, creditNoteId, ct))!;
+    }
+
+    public async Task<Refund> RecordRefundAsync(Guid clientId, RefundBody body, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        if (body.Amount <= 0m) throw new InvalidOperationException("A refund amount must be greater than zero.");
+        decimal available = await GetCustomerCreditBalanceAsync(clientId, body.CustomerId, ct);
+        if (body.Amount > available)
+            throw new InvalidOperationException($"Refund of {body.Amount} exceeds available credit {available}.");
+        Refund recorded = await payments.RecordRefundAsync(clientId, body, ct);
+        PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
+        await ledger.PostAsync(clientId, PaymentPosting.ComposeRefund(recorded.Id, body, posting), ct);
+        return recorded;
+    }
+
+    public async Task<Refund> VoidRefundAsync(Guid clientId, Guid refundId, string? reason = null, CancellationToken ct = default)
+    {
+        Refund refund = await payments.GetRefundAsync(clientId, refundId, ct)
+            ?? throw new InvalidOperationException($"Refund {refundId} not found.");
+        if (refund.Voided) throw new InvalidOperationException($"Refund {refundId} is already voided.");
+        IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, refundId, ct);
+        EntryResponse entry = spawned.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null })
+            ?? throw new InvalidOperationException($"No entry found for refund {refundId} to void.");
+        if (entry.Posting == "Posted")
+            await ledger.ReverseAsync(clientId, entry.Id, new ReverseRequest(refund.Date, reason ?? $"Voided refund {refundId}"), ct);
+        else
+            await ledger.VoidAsync(clientId, entry.Id, new VoidRequest(reason ?? $"Voided refund {refundId}"), ct);
+        await payments.VoidRefundAsync(clientId, refundId, ct);
+        return (await payments.GetRefundAsync(clientId, refundId, ct))!;
+    }
+
+    /// <summary>Total non-voided allocations (payments + credit applications + write-offs + credit notes) applied to one invoice.</summary>
     private async Task<decimal> AppliedToInvoiceAsync(Guid clientId, Guid customerId, Guid invoiceId, CancellationToken ct)
     {
         IReadOnlyList<Payment> ps = await payments.GetPaymentsByCustomerAsync(clientId, customerId, ct);
         IReadOnlyList<CreditApplication> cs = await payments.GetCreditApplicationsByCustomerAsync(clientId, customerId, ct);
+        IReadOnlyList<WriteOff> ws = await payments.GetWriteOffsByCustomerAsync(clientId, customerId, ct);
+        IReadOnlyList<CreditNote> ns = await payments.GetCreditNotesByCustomerAsync(clientId, customerId, ct);
         decimal fromPayments = ps.Where(p => !p.Voided).SelectMany(p => p.Allocations).Where(x => x.TargetId == invoiceId).Sum(x => x.Amount);
         decimal fromCredits = cs.Where(c => !c.Voided).SelectMany(c => c.Allocations).Where(x => x.TargetId == invoiceId).Sum(x => x.Amount);
-        return fromPayments + fromCredits;
+        decimal fromWriteOffs = ws.Where(w => !w.Voided).SelectMany(w => w.Allocations).Where(x => x.TargetId == invoiceId).Sum(x => x.Amount);
+        decimal fromCreditNotes = ns.Where(n => !n.Voided).SelectMany(n => n.Allocations).Where(x => x.TargetId == invoiceId).Sum(x => x.Amount);
+        return fromPayments + fromCredits + fromWriteOffs + fromCreditNotes;
     }
 }

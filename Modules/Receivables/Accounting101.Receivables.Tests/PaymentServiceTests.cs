@@ -9,6 +9,7 @@ public sealed class PaymentServiceTests
     private static readonly PaymentPostingAccounts Accounts = new()
     {
         ReceivableAccountId = Guid.NewGuid(), CashAccountId = Guid.NewGuid(), CustomerCreditsAccountId = Guid.NewGuid(),
+        BadDebtExpenseAccountId = Guid.NewGuid(), SalesReturnsAccountId = Guid.NewGuid(),
     };
 
     private sealed record Harness(PaymentService Service, FakeLedgerClient Ledger, InMemoryInvoiceStore Invoices, InMemoryPaymentStore Payments);
@@ -239,6 +240,156 @@ public sealed class PaymentServiceTests
         Assert.NotEqual(Guid.Empty, recorded.Id);
         InvoiceView? view = await h.Service.GetInvoiceViewAsync(clientId, invoice.Id);
         Assert.Equal(SettlementStatus.Paid, view!.SettlementStatus);
+    }
+
+    // ── write-off & credit-note dispositions ────────────────────────────────
+
+    /// <summary>Brief-style helper: returns the service plus the ids needed to exercise a disposition.</summary>
+    private static async Task<(PaymentService service, FakeLedgerClient ledger, Guid clientId, Guid customer, Guid invoice)>
+        SetupIssuedInvoiceAsync(decimal total)
+    {
+        (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(total);
+        return (h.Service, h.Ledger, clientId, customerId, invoice.Id);
+    }
+
+    [Fact]
+    public async Task WriteOff_settles_invoice_and_records_balanced_entry()
+    {
+        (PaymentService service, FakeLedgerClient ledger, Guid clientId, Guid customer, Guid invoice) =
+            await SetupIssuedInvoiceAsync(total: 250m);
+
+        WriteOff wo = await service.RecordWriteOffAsync(clientId,
+            new WriteOffBody(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 250m)], "uncollectible"));
+
+        InvoiceView view = (await service.GetInvoiceViewAsync(clientId, invoice))!;
+        Assert.Equal(0m, view.OpenBalance);
+        Assert.Equal(SettlementStatus.Paid, view.SettlementStatus);
+        PostEntryRequest entry = ledger.LastPosted!;
+        Assert.Equal("WriteOff", entry.SourceType);
+        Assert.Equal(wo.Id, entry.SourceRef);
+    }
+
+    [Fact]
+    public async Task CreditNote_reduces_open_balance()
+    {
+        (PaymentService service, _, Guid clientId, Guid customer, Guid invoice) =
+            await SetupIssuedInvoiceAsync(total: 100m);
+
+        await service.RecordCreditNoteAsync(clientId,
+            new CreditNoteBody(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 30m)], "partial return"));
+
+        InvoiceView view = (await service.GetInvoiceViewAsync(clientId, invoice))!;
+        Assert.Equal(70m, view.OpenBalance);
+        Assert.Equal(SettlementStatus.PartiallyPaid, view.SettlementStatus);
+    }
+
+    [Fact]
+    public async Task WriteOff_over_open_balance_is_rejected()
+    {
+        (PaymentService service, _, Guid clientId, Guid customer, Guid invoice) =
+            await SetupIssuedInvoiceAsync(total: 100m);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RecordWriteOffAsync(clientId,
+            new WriteOffBody(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 150m)], null)));
+    }
+
+    [Fact]
+    public async Task Void_write_off_restores_open_balance()
+    {
+        (PaymentService service, _, Guid clientId, Guid customer, Guid invoice) =
+            await SetupIssuedInvoiceAsync(total: 250m);
+        WriteOff wo = await service.RecordWriteOffAsync(clientId,
+            new WriteOffBody(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 250m)], null));
+
+        await service.VoidWriteOffAsync(clientId, wo.Id, "keyed in error");
+
+        InvoiceView view = (await service.GetInvoiceViewAsync(clientId, invoice))!;
+        Assert.Equal(250m, view.OpenBalance);
+        Assert.Equal(SettlementStatus.Open, view.SettlementStatus);
+    }
+
+    [Fact]
+    public async Task CreditNote_over_open_balance_is_rejected()
+    {
+        (PaymentService service, _, Guid clientId, Guid customer, Guid invoice) =
+            await SetupIssuedInvoiceAsync(total: 100m);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RecordCreditNoteAsync(clientId,
+            new CreditNoteBody(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 150m)], null)));
+    }
+
+    [Fact]
+    public async Task Void_credit_note_restores_open_balance()
+    {
+        (PaymentService service, _, Guid clientId, Guid customer, Guid invoice) =
+            await SetupIssuedInvoiceAsync(total: 100m);
+        CreditNote cn = await service.RecordCreditNoteAsync(clientId,
+            new CreditNoteBody(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 40m)], null));
+        Assert.Equal(60m, (await service.GetInvoiceViewAsync(clientId, invoice))!.OpenBalance);
+
+        await service.VoidCreditNoteAsync(clientId, cn.Id, "issued in error");
+
+        InvoiceView view = (await service.GetInvoiceViewAsync(clientId, invoice))!;
+        Assert.Equal(100m, view.OpenBalance);
+        Assert.Equal(SettlementStatus.Open, view.SettlementStatus);
+    }
+
+    [Fact]
+    public async Task WriteOff_to_another_customers_invoice_is_rejected()
+    {
+        (PaymentService service, _, Guid clientId, _, Guid invoice) =
+            await SetupIssuedInvoiceAsync(total: 100m);
+        Guid otherCustomer = Guid.NewGuid();
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.RecordWriteOffAsync(clientId,
+            new WriteOffBody(otherCustomer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 50m)], null)));
+    }
+
+    [Fact]
+    public async Task CreditNote_against_a_void_invoice_is_rejected()
+    {
+        (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(100m);
+        await h.Invoices.VoidAsync(clientId, invoice.Id);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => h.Service.RecordCreditNoteAsync(clientId,
+            new CreditNoteBody(customerId, new DateOnly(2026, 3, 1), [new Allocation(invoice.Id, 50m)], null)));
+    }
+
+    // ── customer refund disposition ──────────────────────────────────────────
+
+    [Fact]
+    public async Task Refund_draws_down_customer_credit_balance()
+    {
+        // Arrange: customer overpays a 100 invoice by 40 → 40 credit (reuse the overpayment setup).
+        (PaymentService service, FakeLedgerClient ledger, Guid clientId, Guid customer, Guid invoice) =
+            await SetupIssuedInvoiceAsync(total: 100m);
+        await service.RecordPaymentAsync(clientId,
+            new PaymentBody(customer, new DateOnly(2026, 3, 1), 140m, "wire", [new Allocation(invoice, 100m)]));
+        Assert.Equal(40m, await service.GetCustomerCreditBalanceAsync(clientId, customer));
+
+        Refund refund = await service.RecordRefundAsync(clientId, new RefundBody(customer, new DateOnly(2026, 3, 2), 40m, "returned"));
+
+        Assert.Equal(0m, await service.GetCustomerCreditBalanceAsync(clientId, customer));
+        Assert.Equal("Refund", ledger.LastPosted!.SourceType);
+        Assert.Equal(refund.Id, ledger.LastPosted!.SourceRef);
+    }
+
+    [Fact]
+    public async Task Refund_exceeding_available_credit_is_rejected()
+    {
+        (PaymentService service, _, Guid clientId, Guid customer, _) = await SetupIssuedInvoiceAsync(total: 100m);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.RecordRefundAsync(clientId, new RefundBody(customer, new DateOnly(2026, 3, 2), 25m, null)));  // no credit exists
+    }
+
+    [Fact]
+    public async Task Void_refund_restores_credit_balance()
+    {
+        (PaymentService service, _, Guid clientId, Guid customer, Guid invoice) = await SetupIssuedInvoiceAsync(total: 100m);
+        await service.RecordPaymentAsync(clientId,
+            new PaymentBody(customer, new DateOnly(2026, 3, 1), 140m, "wire", [new Allocation(invoice, 100m)]));
+        Refund refund = await service.RecordRefundAsync(clientId, new RefundBody(customer, new DateOnly(2026, 3, 2), 40m, null));
+        Assert.Equal(0m, await service.GetCustomerCreditBalanceAsync(clientId, customer));
+
+        await service.VoidRefundAsync(clientId, refund.Id, "reissued");
+
+        Assert.Equal(40m, await service.GetCustomerCreditBalanceAsync(clientId, customer));
     }
 }
 

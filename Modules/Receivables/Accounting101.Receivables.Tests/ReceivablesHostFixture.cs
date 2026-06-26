@@ -30,6 +30,8 @@ public sealed class ReceivablesHostFixture : WebApplicationFactory<Program>, IAs
     public Guid SalesTaxPayableAccountId { get; } = Guid.NewGuid();
     public Guid CashAccountId { get; } = Guid.NewGuid();
     public Guid CustomerCreditsAccountId { get; } = Guid.NewGuid();
+    public Guid BadDebtExpenseAccountId { get; } = Guid.NewGuid();
+    public Guid SalesReturnsAccountId { get; } = Guid.NewGuid();
 
     public async Task InitializeAsync()
     {
@@ -61,6 +63,8 @@ public sealed class ReceivablesHostFixture : WebApplicationFactory<Program>, IAs
         builder.UseSetting("Receivables:Accounts:SalesTaxPayable", SalesTaxPayableAccountId.ToString());
         builder.UseSetting("Receivables:Accounts:Cash", CashAccountId.ToString());
         builder.UseSetting("Receivables:Accounts:CustomerCredits", CustomerCreditsAccountId.ToString());
+        builder.UseSetting("Receivables:Accounts:BadDebtExpense", BadDebtExpenseAccountId.ToString());
+        builder.UseSetting("Receivables:Accounts:SalesReturns", SalesReturnsAccountId.ToString());
 
         // Repoint the receivables→ledger loopback client at this in-memory test server (no real socket).
         builder.ConfigureTestServices(services =>

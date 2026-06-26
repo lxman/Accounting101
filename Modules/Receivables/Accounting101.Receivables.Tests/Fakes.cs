@@ -15,6 +15,9 @@ internal sealed class FakeLedgerClient : ILedgerClient
 
     public IReadOnlyList<PostEntryRequest> Posted => _posted;
 
+    /// <summary>The most recently posted entry, or null if nothing has posted yet.</summary>
+    public PostEntryRequest? LastPosted { get; private set; }
+
     /// <summary>
     /// Optional hook: tests set this to drive the validation outcome. When null (the default), validation
     /// succeeds silently. Set to a delegate that throws <see cref="LedgerClientException"/> to simulate a
@@ -31,6 +34,7 @@ internal sealed class FakeLedgerClient : ILedgerClient
     public Task<PostEntryResponse> PostAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
     {
         _posted.Add(entry);
+        LastPosted = entry;
         var id = Guid.NewGuid();
         _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "PendingApproval", reversalOf: null);
         return Task.FromResult(new PostEntryResponse(id, "Active", "PendingApproval"));
@@ -182,6 +186,9 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
 {
     private readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, Guid), Payment> _payments = new();
     private readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, Guid), CreditApplication> _credits = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, Guid), WriteOff> _writeOffs = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, Guid), CreditNote> _creditNotes = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, Guid), Refund> _refunds = new();
 
     public Task<Payment> RecordPaymentAsync(Guid clientId, PaymentBody body, CancellationToken ct = default)
     {
@@ -220,4 +227,76 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
 
     public Task<IReadOnlyList<CreditApplication>> GetCreditApplicationsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<CreditApplication>>(_credits.Where(kv => kv.Key.Item1 == clientId && kv.Value.CustomerId == customerId).Select(kv => kv.Value).ToList());
+
+    public Task<WriteOff> RecordWriteOffAsync(Guid clientId, WriteOffBody body, CancellationToken ct = default)
+    {
+        WriteOff w = new()
+        {
+            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date,
+            Allocations = body.Allocations, Voided = false,
+        };
+        _writeOffs[(clientId, w.Id)] = w;
+        return Task.FromResult(w);
+    }
+
+    public Task<WriteOff?> GetWriteOffAsync(Guid clientId, Guid writeOffId, CancellationToken ct = default) =>
+        Task.FromResult(_writeOffs.GetValueOrDefault((clientId, writeOffId)));
+
+    public Task<IReadOnlyList<WriteOff>> GetWriteOffsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<WriteOff>>(_writeOffs.Where(kv => kv.Key.Item1 == clientId && kv.Value.CustomerId == customerId).Select(kv => kv.Value).ToList());
+
+    public Task VoidWriteOffAsync(Guid clientId, Guid writeOffId, CancellationToken ct = default)
+    {
+        if (_writeOffs.TryGetValue((clientId, writeOffId), out WriteOff? w))
+            _writeOffs[(clientId, writeOffId)] = w with { Voided = true };
+        return Task.CompletedTask;
+    }
+
+    public Task<CreditNote> RecordCreditNoteAsync(Guid clientId, CreditNoteBody body, CancellationToken ct = default)
+    {
+        CreditNote n = new()
+        {
+            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date,
+            Allocations = body.Allocations, Voided = false,
+        };
+        _creditNotes[(clientId, n.Id)] = n;
+        return Task.FromResult(n);
+    }
+
+    public Task<CreditNote?> GetCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default) =>
+        Task.FromResult(_creditNotes.GetValueOrDefault((clientId, creditNoteId)));
+
+    public Task<IReadOnlyList<CreditNote>> GetCreditNotesByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<CreditNote>>(_creditNotes.Where(kv => kv.Key.Item1 == clientId && kv.Value.CustomerId == customerId).Select(kv => kv.Value).ToList());
+
+    public Task VoidCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default)
+    {
+        if (_creditNotes.TryGetValue((clientId, creditNoteId), out CreditNote? n))
+            _creditNotes[(clientId, creditNoteId)] = n with { Voided = true };
+        return Task.CompletedTask;
+    }
+
+    public Task<Refund> RecordRefundAsync(Guid clientId, RefundBody body, CancellationToken ct = default)
+    {
+        Refund r = new()
+        {
+            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date,
+            Amount = body.Amount, Voided = false,
+        };
+        _refunds[(clientId, r.Id)] = r;
+        return Task.FromResult(r);
+    }
+
+    public Task<Refund?> GetRefundAsync(Guid clientId, Guid refundId, CancellationToken ct = default) =>
+        Task.FromResult(_refunds.GetValueOrDefault((clientId, refundId)));
+
+    public Task<IReadOnlyList<Refund>> GetRefundsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<Refund>>(_refunds.Where(kv => kv.Key.Item1 == clientId && kv.Value.CustomerId == customerId).Select(kv => kv.Value).ToList());
+
+    public Task VoidRefundAsync(Guid clientId, Guid refundId, CancellationToken ct = default)
+    {
+        if (_refunds.TryGetValue((clientId, refundId), out Refund? r))
+            _refunds[(clientId, refundId)] = r with { Voided = true };
+        return Task.CompletedTask;
+    }
 }

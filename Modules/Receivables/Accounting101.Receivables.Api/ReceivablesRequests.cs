@@ -21,3 +21,12 @@ public sealed record RecordPaymentRequest(
 /// <summary>Apply a customer's existing credit to invoices.</summary>
 public sealed record CreditApplicationRequest(
     Guid CustomerId, DateOnly Date, IReadOnlyList<Allocation> Allocations);
+
+/// <summary>Write off invoice balances to bad-debt expense.</summary>
+public sealed record WriteOffRequest(Guid CustomerId, DateOnly Date, IReadOnlyList<Allocation> Allocations, string? Memo);
+
+/// <summary>Issue a credit note against invoices (contra-revenue, no cash).</summary>
+public sealed record CreditNoteRequest(Guid CustomerId, DateOnly Date, IReadOnlyList<Allocation> Allocations, string? Memo);
+
+/// <summary>Refund a customer's unapplied credit as cash.</summary>
+public sealed record RefundRequest(Guid CustomerId, DateOnly Date, decimal Amount, string? Memo);
