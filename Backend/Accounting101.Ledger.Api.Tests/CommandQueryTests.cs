@@ -254,4 +254,41 @@ public sealed class CommandQueryTests(ApiFixture fixture) : IClassFixture<ApiFix
             $"/clients/{c.ClientId}/entries/{created.Id}"))!;
         Assert.Equal("Adjusting", read.Type);
     }
+
+    /// <summary>
+    /// Round-trip regression for the revise path: ReviseRequest.Type must be named "type" on the wire
+    /// (matching EntryResponse.Type). Before the rename the field was "entryType", so a caller who read
+    /// an Adjusting entry (saw "type") and revised it with "type" had the field silently dropped —
+    /// the replacement stored Standard instead of Adjusting.
+    /// </summary>
+    [Fact]
+    public async Task Revising_with_type_Adjusting_stores_Adjusting()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid a = Guid.NewGuid(), b = Guid.NewGuid();
+
+        // Post and approve an original Adjusting entry.
+        Guid originalId = await PostAndApproveAsync(c.Http, c.ClientId, 1, new DateOnly(2026, 3, 31), a, b, 100m);
+
+        // Revise with Type = "Adjusting" via the strongly-typed request (wire field is "type").
+        ReviseRequest revise = new(
+            Id: null, EffectiveDate: new DateOnly(2026, 3, 31),
+            Reference: null, Memo: null, Reason: "corrected to Adjusting",
+            Lines: [new PostLineRequest(a, "Debit", 100m), new PostLineRequest(b, "Credit", 100m)],
+            Type: "Adjusting");
+
+        HttpResponseMessage revised = await c.Http.PostAsJsonAsync(
+            $"/clients/{c.ClientId}/entries/{originalId}/revise", revise);
+        Assert.Equal(HttpStatusCode.Created, revised.StatusCode);
+        EntryResponse replacement = (await revised.Content.ReadFromJsonAsync<EntryResponse>())!;
+
+        // Approve the replacement so it is fully posted.
+        (await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{replacement.Id}/approve", null))
+            .EnsureSuccessStatusCode();
+
+        // The stored replacement entry must carry the Adjusting type.
+        EntryResponse stored = (await c.Http.GetFromJsonAsync<EntryResponse>(
+            $"/clients/{c.ClientId}/entries/{replacement.Id}"))!;
+        Assert.Equal("Adjusting", stored.Type);
+    }
 }
