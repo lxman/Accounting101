@@ -14,7 +14,7 @@ public sealed record ReviseRequest(
     IReadOnlyList<PostLineRequest> Lines,
     Guid? SourceRef = null,
     string? SourceType = null,
-    string? EntryType = null); // "Standard" (default) or "Adjusting"
+    string? Type = null); // "Standard" (default) or "Adjusting"; wire field is `type` (matches EntryResponse.Type)
 
 /// <summary>Close a period: snapshot on-the-books balances as of this date and freeze through it.</summary>
 public sealed record ClosePeriodRequest(DateOnly AsOf);
