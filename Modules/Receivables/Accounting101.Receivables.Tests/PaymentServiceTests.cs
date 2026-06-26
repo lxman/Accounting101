@@ -350,6 +350,47 @@ public sealed class PaymentServiceTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => h.Service.RecordCreditNoteAsync(clientId,
             new CreditNoteBody(customerId, new DateOnly(2026, 3, 1), [new Allocation(invoice.Id, 50m)], null)));
     }
+
+    // ── customer refund disposition ──────────────────────────────────────────
+
+    [Fact]
+    public async Task Refund_draws_down_customer_credit_balance()
+    {
+        // Arrange: customer overpays a 100 invoice by 40 → 40 credit (reuse the overpayment setup).
+        (PaymentService service, FakeLedgerClient ledger, Guid clientId, Guid customer, Guid invoice) =
+            await SetupIssuedInvoiceAsync(total: 100m);
+        await service.RecordPaymentAsync(clientId,
+            new PaymentBody(customer, new DateOnly(2026, 3, 1), 140m, "wire", [new Allocation(invoice, 100m)]));
+        Assert.Equal(40m, await service.GetCustomerCreditBalanceAsync(clientId, customer));
+
+        Refund refund = await service.RecordRefundAsync(clientId, new RefundBody(customer, new DateOnly(2026, 3, 2), 40m, "returned"));
+
+        Assert.Equal(0m, await service.GetCustomerCreditBalanceAsync(clientId, customer));
+        Assert.Equal("Refund", ledger.LastPosted!.SourceType);
+        Assert.Equal(refund.Id, ledger.LastPosted!.SourceRef);
+    }
+
+    [Fact]
+    public async Task Refund_exceeding_available_credit_is_rejected()
+    {
+        (PaymentService service, _, Guid clientId, Guid customer, _) = await SetupIssuedInvoiceAsync(total: 100m);
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.RecordRefundAsync(clientId, new RefundBody(customer, new DateOnly(2026, 3, 2), 25m, null)));  // no credit exists
+    }
+
+    [Fact]
+    public async Task Void_refund_restores_credit_balance()
+    {
+        (PaymentService service, _, Guid clientId, Guid customer, Guid invoice) = await SetupIssuedInvoiceAsync(total: 100m);
+        await service.RecordPaymentAsync(clientId,
+            new PaymentBody(customer, new DateOnly(2026, 3, 1), 140m, "wire", [new Allocation(invoice, 100m)]));
+        Refund refund = await service.RecordRefundAsync(clientId, new RefundBody(customer, new DateOnly(2026, 3, 2), 40m, null));
+        Assert.Equal(0m, await service.GetCustomerCreditBalanceAsync(clientId, customer));
+
+        await service.VoidRefundAsync(clientId, refund.Id, "reissued");
+
+        Assert.Equal(40m, await service.GetCustomerCreditBalanceAsync(clientId, customer));
+    }
 }
 
 internal sealed class FixedPaymentAccountsProvider(PaymentPostingAccounts accounts) : IPaymentAccountsProvider

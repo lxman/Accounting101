@@ -11,6 +11,7 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
     private const string CreditApplications = "credit-applications";
     private const string WriteOffs = "write-offs";
     private const string CreditNotes = "credit-notes";
+    private const string Refunds = "refunds";
 
     public async Task<Payment> RecordPaymentAsync(Guid clientId, PaymentBody body, CancellationToken ct = default)
     {
@@ -101,6 +102,30 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
     public Task VoidCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default) =>
         documents.VoidAsync(clientId, CreditNotes, creditNoteId, ct);
 
+    public async Task<Refund> RecordRefundAsync(Guid clientId, RefundBody body, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        Guid id = await documents.CreateAsync(clientId, Refunds, body, Tags(body.CustomerId), ct);
+        await documents.FinalizeAsync(clientId, Refunds, id, ct);
+        DocumentResult<RefundBody>? r = await documents.GetAsync<RefundBody>(clientId, Refunds, id, ct);
+        return MapRefund(r!);
+    }
+
+    public async Task<Refund?> GetRefundAsync(Guid clientId, Guid refundId, CancellationToken ct = default)
+    {
+        DocumentResult<RefundBody>? r = await documents.GetAsync<RefundBody>(clientId, Refunds, refundId, ct);
+        return r is null ? null : MapRefund(r);
+    }
+
+    public async Task<IReadOnlyList<Refund>> GetRefundsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default)
+    {
+        IReadOnlyList<DocumentResult<RefundBody>> rs = await documents.QueryAsync<RefundBody>(clientId, Refunds, Tags(customerId), ct);
+        return rs.Select(MapRefund).ToList();
+    }
+
+    public Task VoidRefundAsync(Guid clientId, Guid refundId, CancellationToken ct = default) =>
+        documents.VoidAsync(clientId, Refunds, refundId, ct);
+
     private static Dictionary<string, string> Tags(Guid customerId) => new() { ["Customer"] = customerId.ToString() };
 
     private static bool IsVoided(DocumentLifecycle state) =>
@@ -128,5 +153,11 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
     {
         Id = r.Id, CustomerId = r.Body.CustomerId, Date = r.Body.Date,
         Allocations = r.Body.Allocations, Voided = IsVoided(r.State),
+    };
+
+    private static Refund MapRefund(DocumentResult<RefundBody> r) => new()
+    {
+        Id = r.Id, CustomerId = r.Body.CustomerId, Date = r.Body.Date,
+        Amount = r.Body.Amount, Voided = IsVoided(r.State),
     };
 }

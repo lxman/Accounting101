@@ -188,6 +188,7 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
     private readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, Guid), CreditApplication> _credits = new();
     private readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, Guid), WriteOff> _writeOffs = new();
     private readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, Guid), CreditNote> _creditNotes = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<(Guid, Guid), Refund> _refunds = new();
 
     public Task<Payment> RecordPaymentAsync(Guid clientId, PaymentBody body, CancellationToken ct = default)
     {
@@ -272,6 +273,30 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
     {
         if (_creditNotes.TryGetValue((clientId, creditNoteId), out CreditNote? n))
             _creditNotes[(clientId, creditNoteId)] = n with { Voided = true };
+        return Task.CompletedTask;
+    }
+
+    public Task<Refund> RecordRefundAsync(Guid clientId, RefundBody body, CancellationToken ct = default)
+    {
+        Refund r = new()
+        {
+            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date,
+            Amount = body.Amount, Voided = false,
+        };
+        _refunds[(clientId, r.Id)] = r;
+        return Task.FromResult(r);
+    }
+
+    public Task<Refund?> GetRefundAsync(Guid clientId, Guid refundId, CancellationToken ct = default) =>
+        Task.FromResult(_refunds.GetValueOrDefault((clientId, refundId)));
+
+    public Task<IReadOnlyList<Refund>> GetRefundsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<Refund>>(_refunds.Where(kv => kv.Key.Item1 == clientId && kv.Value.CustomerId == customerId).Select(kv => kv.Value).ToList());
+
+    public Task VoidRefundAsync(Guid clientId, Guid refundId, CancellationToken ct = default)
+    {
+        if (_refunds.TryGetValue((clientId, refundId), out Refund? r))
+            _refunds[(clientId, refundId)] = r with { Voided = true };
         return Task.CompletedTask;
     }
 }

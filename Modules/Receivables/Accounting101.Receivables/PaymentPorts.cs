@@ -20,6 +20,11 @@ public interface IPaymentStore
     Task<CreditNote?> GetCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default);
     Task<IReadOnlyList<CreditNote>> GetCreditNotesByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default);
     Task VoidCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default);
+
+    Task<Refund> RecordRefundAsync(Guid clientId, RefundBody body, CancellationToken ct = default);
+    Task<Refund?> GetRefundAsync(Guid clientId, Guid refundId, CancellationToken ct = default);
+    Task<IReadOnlyList<Refund>> GetRefundsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default);
+    Task VoidRefundAsync(Guid clientId, Guid refundId, CancellationToken ct = default);
 }
 
 /// <summary>Resolves the chart accounts the payment recipes post to for a given client.</summary>
