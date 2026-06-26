@@ -128,14 +128,7 @@ public sealed class PaymentService(
         if (payment.Voided)
             throw new InvalidOperationException($"Payment {paymentId} is already voided.");
 
-        IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, paymentId, ct);
-        EntryResponse settlement = spawned.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null })
-            ?? throw new InvalidOperationException($"No entry found for payment {paymentId} to void.");
-
-        if (settlement.Posting == "Posted")
-            await ledger.ReverseAsync(clientId, settlement.Id, new ReverseRequest(payment.Date, reason ?? $"Voided payment {paymentId}"), ct);
-        else
-            await ledger.VoidAsync(clientId, settlement.Id, new VoidRequest(reason ?? $"Voided payment {paymentId}"), ct);
+        await VoidLedgerEntryAsync(clientId, paymentId, payment.Date, "payment", reason, ct);
 
         await payments.VoidAsync(clientId, paymentId, ct);
         return (await payments.GetPaymentAsync(clientId, paymentId, ct))!;
@@ -158,13 +151,9 @@ public sealed class PaymentService(
         WriteOff writeOff = await payments.GetWriteOffAsync(clientId, writeOffId, ct)
             ?? throw new InvalidOperationException($"Write-off {writeOffId} not found.");
         if (writeOff.Voided) throw new InvalidOperationException($"Write-off {writeOffId} is already voided.");
-        IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, writeOffId, ct);
-        EntryResponse entry = spawned.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null })
-            ?? throw new InvalidOperationException($"No entry found for write-off {writeOffId} to void.");
-        if (entry.Posting == "Posted")
-            await ledger.ReverseAsync(clientId, entry.Id, new ReverseRequest(writeOff.Date, reason ?? $"Voided write-off {writeOffId}"), ct);
-        else
-            await ledger.VoidAsync(clientId, entry.Id, new VoidRequest(reason ?? $"Voided write-off {writeOffId}"), ct);
+
+        await VoidLedgerEntryAsync(clientId, writeOffId, writeOff.Date, "write-off", reason, ct);
+
         await payments.VoidWriteOffAsync(clientId, writeOffId, ct);
         return (await payments.GetWriteOffAsync(clientId, writeOffId, ct))!;
     }
@@ -186,13 +175,9 @@ public sealed class PaymentService(
         CreditNote creditNote = await payments.GetCreditNoteAsync(clientId, creditNoteId, ct)
             ?? throw new InvalidOperationException($"Credit note {creditNoteId} not found.");
         if (creditNote.Voided) throw new InvalidOperationException($"Credit note {creditNoteId} is already voided.");
-        IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, creditNoteId, ct);
-        EntryResponse entry = spawned.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null })
-            ?? throw new InvalidOperationException($"No entry found for credit note {creditNoteId} to void.");
-        if (entry.Posting == "Posted")
-            await ledger.ReverseAsync(clientId, entry.Id, new ReverseRequest(creditNote.Date, reason ?? $"Voided credit note {creditNoteId}"), ct);
-        else
-            await ledger.VoidAsync(clientId, entry.Id, new VoidRequest(reason ?? $"Voided credit note {creditNoteId}"), ct);
+
+        await VoidLedgerEntryAsync(clientId, creditNoteId, creditNote.Date, "credit note", reason, ct);
+
         await payments.VoidCreditNoteAsync(clientId, creditNoteId, ct);
         return (await payments.GetCreditNoteAsync(clientId, creditNoteId, ct))!;
     }
@@ -215,15 +200,28 @@ public sealed class PaymentService(
         Refund refund = await payments.GetRefundAsync(clientId, refundId, ct)
             ?? throw new InvalidOperationException($"Refund {refundId} not found.");
         if (refund.Voided) throw new InvalidOperationException($"Refund {refundId} is already voided.");
-        IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, refundId, ct);
-        EntryResponse entry = spawned.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null })
-            ?? throw new InvalidOperationException($"No entry found for refund {refundId} to void.");
-        if (entry.Posting == "Posted")
-            await ledger.ReverseAsync(clientId, entry.Id, new ReverseRequest(refund.Date, reason ?? $"Voided refund {refundId}"), ct);
-        else
-            await ledger.VoidAsync(clientId, entry.Id, new VoidRequest(reason ?? $"Voided refund {refundId}"), ct);
+
+        await VoidLedgerEntryAsync(clientId, refundId, refund.Date, "refund", reason, ct);
+
         await payments.VoidRefundAsync(clientId, refundId, ct);
         return (await payments.GetRefundAsync(clientId, refundId, ct))!;
+    }
+
+    /// <summary>
+    /// Shared ledger-entry transition for all void operations: find the single Active, non-reversal entry
+    /// for <paramref name="sourceRef"/> and either reverse it (if already Posted) or void it (if pending).
+    /// </summary>
+    private async Task VoidLedgerEntryAsync(
+        Guid clientId, Guid sourceRef, DateOnly date, string label, string? reason, CancellationToken ct)
+    {
+        IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, sourceRef, ct);
+        EntryResponse entry = spawned.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null })
+            ?? throw new InvalidOperationException($"No entry found for {label} {sourceRef} to void.");
+
+        if (entry.Posting == "Posted")
+            await ledger.ReverseAsync(clientId, entry.Id, new ReverseRequest(date, reason ?? $"Voided {label} {sourceRef}"), ct);
+        else
+            await ledger.VoidAsync(clientId, entry.Id, new VoidRequest(reason ?? $"Voided {label} {sourceRef}"), ct);
     }
 
     /// <summary>Total non-voided allocations (payments + credit applications + write-offs + credit notes) applied to one invoice.</summary>
