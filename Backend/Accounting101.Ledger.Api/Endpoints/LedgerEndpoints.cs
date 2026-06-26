@@ -71,17 +71,10 @@ public static class LedgerEndpoints
         if (request.Id is { } earlyId
             && await ctx.Ledger!.Service.GetEntryAsync(clientId, earlyId, cancellationToken) is { } earlyExisting)
         {
-            JournalEntry earlyMapped;
-            try
-            {
-                earlyMapped = MapEntry(clientId, request, ctx.Actor!);
-            }
-            catch (Exception ex) when (ex is ArgumentException or UnbalancedEntryException)
-            {
-                return Unprocessable(ex.Message);
-            }
+            if (!TryMapEntry(clientId, request, ctx.Actor!, out JournalEntry? earlyMapped, out Dictionary<string, string[]> earlyErrors))
+                return ValidationProblem(earlyErrors);
 
-            if (EntryComparison.SameFinancialContent(earlyExisting, earlyMapped))
+            if (EntryComparison.SameFinancialContent(earlyExisting, earlyMapped!))
                 return Results.Ok(new PostEntryResponse(earlyExisting.Id, earlyExisting.Status.ToString(), earlyExisting.Posting.ToString()));
 
             return Unprocessable("An entry with this id already exists with different content.");
@@ -152,18 +145,12 @@ public static class LedgerEndpoints
         Guid clientId, PostEntryRequest request, LedgerContext ctx, CancellationToken ct)
     {
         // ctx.Failed was checked by the caller before dispatching here, so Actor and Ledger are non-null.
-        JournalEntry entry;
-        try
-        {
-            entry = MapEntry(clientId, request, ctx.Actor!);
-        }
-        catch (Exception ex) when (ex is ArgumentException or UnbalancedEntryException)
-        {
-            return (Unprocessable(ex.Message), null);
-        }
+        if (!TryMapEntry(clientId, request, ctx.Actor!, out JournalEntry? entry, out Dictionary<string, string[]> parseErrors))
+            return (ValidationProblem(parseErrors), null);
 
-        if (await ChartViolationsAsync(ctx.Ledger!.Accounts, clientId, entry.Lines, ct) is { } violation)
-            return (violation, null);
+        Dictionary<string, string[]> chartErrors = await ChartFieldViolationsAsync(ctx.Ledger!.Accounts, clientId, entry!.Lines, ct);
+        if (chartErrors.Count > 0)
+            return (ValidationProblem(chartErrors), null);
 
         try
         {
@@ -720,6 +707,10 @@ public static class LedgerEndpoints
     private static IResult Unprocessable(string detail) =>
         Results.Problem(detail, statusCode: StatusCodes.Status422UnprocessableEntity);
 
+    private static IResult ValidationProblem(IDictionary<string, string[]> errors) =>
+        Results.ValidationProblem(errors, detail: "One or more fields are invalid.",
+            statusCode: StatusCodes.Status422UnprocessableEntity);
+
     private static EntryResponse ToEntryResponse(JournalEntry e) => new(
         e.Id, e.SequenceNumber, e.EffectiveDate,
         e.Type.ToString(), e.Status.ToString(), e.Posting.ToString(),
@@ -800,6 +791,92 @@ public static class LedgerEndpoints
                 r.Actor.Name,
                 r.Actor.Claims.Select(c => new ClaimResponse(c.Type, c.Value)).ToList())))
         .ToList();
+
+    /// <summary>
+    /// Accumulates every field-level validation error across all lines rather than throwing on the
+    /// first bad value. Returns false (and populates <paramref name="errors"/>) when any line has
+    /// an invalid direction, the entry type is not postable, or the lines do not balance.
+    /// Callers that do not need per-field error accumulation (e.g. revise) should continue using
+    /// <see cref="MapEntry"/> directly.
+    /// </summary>
+    private static bool TryMapEntry(
+        Guid clientId,
+        PostEntryRequest request,
+        Actor actor,
+        out JournalEntry? entry,
+        out Dictionary<string, string[]> errors)
+    {
+        errors = [];
+
+        // Pass 1: parse directions; collect all bad ones before bailing.
+        List<Line> lines = [];
+        for (int i = 0; i < request.Lines.Count; i++)
+        {
+            PostLineRequest l = request.Lines[i];
+            string key = $"lines[{i}].direction";
+            if (string.IsNullOrEmpty(l.Direction))
+            {
+                errors[key] = ["A direction is required; expected 'Debit' or 'Credit'."];
+            }
+            else if (!Enum.TryParse<Direction>(l.Direction, ignoreCase: true, out Direction dir))
+            {
+                errors[key] = [$"'{l.Direction}' is not a valid direction; expected 'Debit' or 'Credit'."];
+            }
+            else
+            {
+                lines.Add(new Line
+                {
+                    Id = Guid.NewGuid(),
+                    AccountId = l.AccountId,
+                    Direction = dir,
+                    Amount = l.Amount,
+                    Dimensions = l.Dimensions ?? ReadOnlyDictionary<string, Guid>.Empty,
+                });
+            }
+        }
+
+        // Pass 2: parse entry type (capture rather than throw).
+        EntryType entryType = EntryType.Standard;
+        try
+        {
+            entryType = ParsePostableType(request.Type);
+        }
+        catch (ArgumentException ex)
+        {
+            errors["type"] = [ex.Message];
+        }
+
+        if (errors.Count > 0)
+        {
+            entry = null;
+            return false;
+        }
+
+        // Pass 3: balance check.
+        try
+        {
+            entry = JournalEntry.Create(
+                id: request.Id ?? Guid.NewGuid(),
+                clientId: clientId,
+                sequenceNumber: 0,
+                effectiveDate: request.EffectiveDate,
+                postedAt: DateTimeOffset.UtcNow,
+                type: entryType,
+                audit: new AuditStamp { CreatedBy = actor.UserId, CreatedAt = DateTimeOffset.UtcNow },
+                lines: lines,
+                sourceRef: request.SourceRef,
+                sourceType: request.SourceType,
+                reference: request.Reference,
+                memo: request.Memo);
+            return true;
+        }
+        catch (UnbalancedEntryException ex)
+        {
+            errors["balance"] = [$"The entry does not balance: debits minus credits = {ex.Imbalance}."];
+            entry = null;
+            return false;
+        }
+    }
 
     private static JournalEntry MapEntry(Guid clientId, PostEntryRequest request, Actor actor) =>
         JournalEntry.Create(
@@ -899,5 +976,48 @@ public static class LedgerEndpoints
         }
 
         return errors.Count == 0 ? null : Unprocessable(string.Join(" ", errors));
+    }
+
+    /// <summary>
+    /// Structured variant of <see cref="ChartViolationsAsync"/>: returns a
+    /// <c>Dictionary&lt;string,string[]&gt;</c> keyed <c>lines[{i}].accountId</c> for each line
+    /// that violates the chart. Returns an empty dictionary when the chart is unset or all lines
+    /// conform. Callers use <see cref="ValidationProblem(IDictionary{string,string[]})"/> on a
+    /// non-empty result.
+    /// </summary>
+    private static async Task<Dictionary<string, string[]>> ChartFieldViolationsAsync(
+        MongoAccountStore accounts, Guid clientId, IReadOnlyList<Line> lines, CancellationToken cancellationToken)
+    {
+        ChartOfAccounts chart = await accounts.GetChartAsync(clientId, cancellationToken);
+        if (chart.Accounts.Count == 0)
+            return [];
+
+        Dictionary<string, string[]> errors = [];
+        for (int i = 0; i < lines.Count; i++)
+        {
+            Line line = lines[i];
+            Account? account = chart.Find(line.AccountId);
+            List<string> lineErrors = [];
+
+            if (account is null)
+            {
+                lineErrors.Add($"Account {line.AccountId} is not in the chart of accounts.");
+            }
+            else
+            {
+                if (!account.Active)
+                    lineErrors.Add($"Account {account.Number} \"{account.Name}\" is inactive.");
+                else if (!account.Postable)
+                    lineErrors.Add($"Account {account.Number} \"{account.Name}\" is a summary account and cannot be posted to.");
+
+                if (account.RequiredDimension is { } dimension && !line.Dimensions.ContainsKey(dimension))
+                    lineErrors.Add($"Account {account.Number} \"{account.Name}\" requires a {dimension} on the posting line.");
+            }
+
+            if (lineErrors.Count > 0)
+                errors[$"lines[{i}].accountId"] = [.. lineErrors];
+        }
+
+        return errors;
     }
 }
