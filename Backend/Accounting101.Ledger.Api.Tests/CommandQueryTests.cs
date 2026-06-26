@@ -172,7 +172,7 @@ public sealed class CommandQueryTests(ApiFixture fixture) : IClassFixture<ApiFix
         Guid a = Guid.NewGuid(), b = Guid.NewGuid();
 
         PostEntryRequest adjusting = new(null, new DateOnly(2026, 3, 31), null, null,
-            [new PostLineRequest(a, "Debit", 10m), new PostLineRequest(b, "Credit", 10m)], EntryType: "Adjusting");
+            [new PostLineRequest(a, "Debit", 10m), new PostLineRequest(b, "Credit", 10m)], Type: "Adjusting");
         PostEntryResponse created = (await (await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", adjusting))
             .Content.ReadFromJsonAsync<PostEntryResponse>())!;
         EntryResponse read = (await c.Http.GetFromJsonAsync<EntryResponse>($"/clients/{c.ClientId}/entries/{created.Id}"))!;
@@ -180,7 +180,7 @@ public sealed class CommandQueryTests(ApiFixture fixture) : IClassFixture<ApiFix
 
         // Closing is engine-generated only — the post endpoint refuses it.
         PostEntryRequest closing = new(null, new DateOnly(2026, 3, 31), null, null,
-            [new PostLineRequest(a, "Debit", 10m), new PostLineRequest(b, "Credit", 10m)], EntryType: "Closing");
+            [new PostLineRequest(a, "Debit", 10m), new PostLineRequest(b, "Credit", 10m)], Type: "Closing");
         HttpResponseMessage refused = await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", closing);
         Assert.Equal(HttpStatusCode.UnprocessableEntity, refused.StatusCode);
     }
@@ -208,5 +208,50 @@ public sealed class CommandQueryTests(ApiFixture fixture) : IClassFixture<ApiFix
         SeededClient c = await fixture.SeedClientAsync();
         HttpResponseMessage approved = await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{Guid.NewGuid()}/approve", null);
         Assert.Equal(HttpStatusCode.NotFound, approved.StatusCode);
+    }
+
+    /// <summary>
+    /// Round-trip regression: the entry-type field on the request must be named "type" (matching
+    /// the GET response). Before the rename, the request field was "entryType", so a caller who
+    /// read an entry (saw "type") and posted it back with "type" had the field silently dropped
+    /// — the entry stored Standard instead of Adjusting. The raw JSON body here uses "type" on
+    /// the wire to prove the field is honoured end-to-end.
+    /// </summary>
+    [Fact]
+    public async Task Posting_with_type_Adjusting_stores_Adjusting()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid a = Guid.NewGuid(), b = Guid.NewGuid();
+
+        // Build the POST body with the entry-type field named "type" — what a caller naturally
+        // sends after reading a GET response. Before the rename this field was "entryType" on the
+        // request DTO, so "type" was silently dropped and the entry stored Standard.
+        string body = $$"""
+            {
+                "id": null,
+                "effectiveDate": "2026-03-31",
+                "reference": null,
+                "memo": null,
+                "lines": [
+                    { "accountId": "{{a}}", "direction": "Debit",  "amount": 50 },
+                    { "accountId": "{{b}}", "direction": "Credit", "amount": 50 }
+                ],
+                "type": "Adjusting"
+            }
+            """;
+
+        HttpResponseMessage postResp = await c.Http.PostAsync(
+            $"/clients/{c.ClientId}/entries",
+            new StringContent(body, System.Text.Encoding.UTF8, "application/json"));
+        postResp.EnsureSuccessStatusCode();
+        PostEntryResponse created = (await postResp.Content.ReadFromJsonAsync<PostEntryResponse>())!;
+
+        // Approve so the entry is fully posted.
+        (await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{created.Id}/approve", null))
+            .EnsureSuccessStatusCode();
+
+        EntryResponse read = (await c.Http.GetFromJsonAsync<EntryResponse>(
+            $"/clients/{c.ClientId}/entries/{created.Id}"))!;
+        Assert.Equal("Adjusting", read.Type);
     }
 }

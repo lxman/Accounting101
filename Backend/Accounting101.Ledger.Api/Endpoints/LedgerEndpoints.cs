@@ -808,7 +808,7 @@ public static class LedgerEndpoints
             sequenceNumber: 0, // engine-assigned at append
             effectiveDate: request.EffectiveDate,
             postedAt: DateTimeOffset.UtcNow,
-            type: ParsePostableType(request.EntryType),
+            type: ParsePostableType(request.Type),
             audit: new AuditStamp { CreatedBy = actor.UserId, CreatedAt = DateTimeOffset.UtcNow },
             lines: MapLines(request.Lines),
             sourceRef: request.SourceRef,

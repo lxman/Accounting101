@@ -14,7 +14,7 @@ public sealed record PostEntryRequest(
     IReadOnlyList<PostLineRequest> Lines,
     Guid? SourceRef = null,
     string? SourceType = null,
-    string? EntryType = null); // "Standard" (default) or "Adjusting"; other types are engine-generated
+    string? Type = null); // "Standard" (default) or "Adjusting"; other types are engine-generated
 
 /// <summary>
 /// One posting line: which account, debit or credit, a signed amount, and any subledger dimensions —
