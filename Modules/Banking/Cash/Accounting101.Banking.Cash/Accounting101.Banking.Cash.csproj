@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The cash module: composes cash disbursements and deposits into balanced journal entries.
+       Pure recipe — request in, wire DTO out — leaving sequencing, approval, and persistence
+       to the engine. Depends only on the contract shape, never on engine internals. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Backend\Accounting101.Ledger.Contracts\Accounting101.Ledger.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>
