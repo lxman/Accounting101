@@ -13,6 +13,8 @@ public static class ReceivablesEndpoints
 
         clients.MapPost("/customers", CreateCustomer);
         clients.MapPost("/invoices", DraftInvoice);
+        clients.MapPut("/invoices/{invoiceId:guid}", EditInvoice);
+        clients.MapDelete("/invoices/{invoiceId:guid}", DiscardInvoice);
         clients.MapPost("/invoices/{invoiceId:guid}/issue", IssueInvoice);
         clients.MapPost("/invoices/{invoiceId:guid}/void", VoidInvoice);
         clients.MapGet("/invoices/{invoiceId:guid}", GetInvoice);
@@ -43,6 +45,36 @@ public static class ReceivablesEndpoints
         catch (InvalidOperationException ex) // unknown customer, or no lines
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+    }
+
+    private static async Task<IResult> EditInvoice(
+        Guid clientId, Guid invoiceId, DraftInvoiceRequest request, InvoiceService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            Invoice updated = await service.EditDraftAsync(
+                clientId, invoiceId, request.CustomerId, request.Lines, request.TaxRate,
+                request.IssueDate, request.DueDate, request.Memo, cancellationToken);
+            return Results.Ok(updated);
+        }
+        catch (InvalidOperationException ex) // not an editable draft, unknown customer, or no lines
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+    }
+
+    private static async Task<IResult> DiscardInvoice(
+        Guid clientId, Guid invoiceId, InvoiceService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await service.DiscardDraftAsync(clientId, invoiceId, cancellationToken);
+            return Results.NoContent();
+        }
+        catch (InvalidOperationException ex) // not a discardable draft
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
         }
     }
 

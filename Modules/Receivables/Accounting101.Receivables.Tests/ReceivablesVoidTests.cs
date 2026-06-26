@@ -29,7 +29,7 @@ public sealed class ReceivablesVoidTests(ReceivablesHostFixture fixture) : IClas
             .EnsureSuccessStatusCode();
     }
 
-    /// <summary>Issue a draft invoice as the Clerk and return the draft id.</summary>
+    /// <summary>Issue a draft invoice as the Clerk and return the issued invoice (new id + number).</summary>
     private static async Task<Invoice> IssueAsync(HttpClient clerk, Guid clientId, Customer customer)
     {
         Invoice draft = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/invoices",
@@ -41,7 +41,7 @@ public sealed class ReceivablesVoidTests(ReceivablesHostFixture fixture) : IClas
         Invoice issued = (await (await clerk.PostAsync($"/clients/{clientId}/invoices/{draft.Id}/issue", null))
             .Content.ReadFromJsonAsync<Invoice>())!;
         Assert.Equal(InvoiceStatus.Issued, issued.Status);
-        return draft; // callers need the draft id (= the SourceRef) for entry lookup
+        return issued; // callers use the issued id for SourceRef lookup and void target
     }
 
     [Fact]
@@ -55,11 +55,11 @@ public sealed class ReceivablesVoidTests(ReceivablesHostFixture fixture) : IClas
                 $"/clients/{clientId}/customers", new CreateCustomerRequest("Gamma SoD", null)))
             .Content.ReadFromJsonAsync<Customer>())!;
 
-        Invoice draft = await IssueAsync(clerk, clientId, customer);
+        Invoice issued = await IssueAsync(clerk, clientId, customer);
 
         // Approve the A/R entry so it lands on the books (Posted).
         EntryResponse[] pending = (await clerk.GetFromJsonAsync<EntryResponse[]>(
-            $"/clients/{clientId}/entries?sourceRef={draft.Id}"))!;
+            $"/clients/{clientId}/entries?sourceRef={issued.Id}"))!;
         EntryResponse arEntry = Assert.Single(pending);
         Assert.Equal("PendingApproval", arEntry.Posting);
         (await approver.PostAsync($"/clients/{clientId}/entries/{arEntry.Id}/approve", null))
@@ -67,19 +67,19 @@ public sealed class ReceivablesVoidTests(ReceivablesHostFixture fixture) : IClas
 
         // Verify entry is now Posted.
         EntryResponse[] postedEntries = (await clerk.GetFromJsonAsync<EntryResponse[]>(
-            $"/clients/{clientId}/entries?sourceRef={draft.Id}"))!;
+            $"/clients/{clientId}/entries?sourceRef={issued.Id}"))!;
         Assert.Equal("Posted", Assert.Single(postedEntries).Posting);
 
         // Approver voids the invoice — the service reverses the posted entry; reversal lands PendingApproval.
         // The Approver's token is forwarded: it has Reverse permission, so the loopback call succeeds.
         Invoice voided = (await (await approver.PostAsJsonAsync(
-                $"/clients/{clientId}/invoices/{draft.Id}/void", new VoidInvoiceRequest("duplicate")))
+                $"/clients/{clientId}/invoices/{issued.Id}/void", new VoidInvoiceRequest("duplicate")))
             .Content.ReadFromJsonAsync<Invoice>())!;
         Assert.Equal(InvoiceStatus.Void, voided.Status);
 
         // Both the original entry and the reversal are returned by SourceRef (reversal inherits SourceRef).
         EntryResponse[] entries = (await clerk.GetFromJsonAsync<EntryResponse[]>(
-            $"/clients/{clientId}/entries?sourceRef={draft.Id}"))!;
+            $"/clients/{clientId}/entries?sourceRef={issued.Id}"))!;
         Assert.Equal(2, entries.Length);
         EntryResponse reversal = Assert.Single(entries, e => e.ReversalOf is not null);
         Assert.Equal("PendingApproval", reversal.Posting); // reversal awaits its own approval under SoD
@@ -106,11 +106,11 @@ public sealed class ReceivablesVoidTests(ReceivablesHostFixture fixture) : IClas
                 $"/clients/{clientId}/customers", new CreateCustomerRequest("Delta SoD", null)))
             .Content.ReadFromJsonAsync<Customer>())!;
 
-        Invoice draft = await IssueAsync(clerk, clientId, customer);
+        Invoice issued = await IssueAsync(clerk, clientId, customer);
 
         // The entry is PendingApproval — NOT yet on the books.
         EntryResponse[] beforeVoid = (await clerk.GetFromJsonAsync<EntryResponse[]>(
-            $"/clients/{clientId}/entries?sourceRef={draft.Id}"))!;
+            $"/clients/{clientId}/entries?sourceRef={issued.Id}"))!;
         EntryResponse arEntry = Assert.Single(beforeVoid);
         Assert.Equal("PendingApproval", arEntry.Posting);
 
@@ -118,13 +118,13 @@ public sealed class ReceivablesVoidTests(ReceivablesHostFixture fixture) : IClas
         // no reversal is created because nothing was ever on the books.
         // Approver has Void permission; the forwarded token is accepted by the ledger's VoidEntry endpoint.
         Invoice voided = (await (await approver.PostAsJsonAsync(
-                $"/clients/{clientId}/invoices/{draft.Id}/void", new VoidInvoiceRequest("cancelled")))
+                $"/clients/{clientId}/invoices/{issued.Id}/void", new VoidInvoiceRequest("cancelled")))
             .Content.ReadFromJsonAsync<Invoice>())!;
         Assert.Equal(InvoiceStatus.Void, voided.Status);
 
         // Still exactly one entry (the original, now Voided) — no reversal was created.
         EntryResponse[] afterVoid = (await clerk.GetFromJsonAsync<EntryResponse[]>(
-            $"/clients/{clientId}/entries?sourceRef={draft.Id}"))!;
+            $"/clients/{clientId}/entries?sourceRef={issued.Id}"))!;
         EntryResponse withdrawn = Assert.Single(afterVoid);
         Assert.Null(withdrawn.ReversalOf); // no reversal: the entry was withdrawn, not reversed
         Assert.Equal("Voided", withdrawn.Status);

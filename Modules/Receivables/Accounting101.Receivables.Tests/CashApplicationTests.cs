@@ -31,15 +31,16 @@ public sealed class CashApplicationTests(ReceivablesHostFixture fixture) : IClas
     private static async Task<Guid> IssueInvoiceAsync(
         HttpClient clerk, HttpClient approver, Guid clientId, Guid customerId, decimal amount)
     {
-        DraftInvoiceRequest draft = new(
+        DraftInvoiceRequest draftRequest = new(
             customerId,
             [new InvoiceLine { Description = "Services", Quantity = 1m, UnitPrice = amount, Taxable = false }],
             TaxRate: 0m, IssueDate: new DateOnly(2026, 3, 1), DueDate: null, Memo: null);
-        Invoice created = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/invoices", draft))
+        Invoice draft = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/invoices", draftRequest))
             .Content.ReadFromJsonAsync<Invoice>())!;
-        await clerk.PostAsync($"/clients/{clientId}/invoices/{created.Id}/issue", null);
-        await ApproveBySourceRefAsync(clerk, approver, clientId, created.Id);
-        return created.Id;
+        Invoice issued = (await (await clerk.PostAsync($"/clients/{clientId}/invoices/{draft.Id}/issue", null))
+            .Content.ReadFromJsonAsync<Invoice>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, issued.Id);
+        return issued.Id;
     }
 
     private static async Task ApproveBySourceRefAsync(

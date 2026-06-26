@@ -55,15 +55,17 @@ public sealed class ReceivablesIssueTests(ReceivablesHostFixture fixture) : ICla
         Invoice draft = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/invoices", draftRequest))
             .Content.ReadFromJsonAsync<Invoice>())!;
 
-        (await clerk.PostAsync($"/clients/{clientId}/invoices/{draft.Id}/issue", null)).EnsureSuccessStatusCode();
+        HttpResponseMessage issueResp = await clerk.PostAsync($"/clients/{clientId}/invoices/{draft.Id}/issue", null);
+        issueResp.EnsureSuccessStatusCode();
+        Invoice issued = (await issueResp.Content.ReadFromJsonAsync<Invoice>())!;
 
         EntryResponse arEntry = Assert.Single((await clerk.GetFromJsonAsync<EntryResponse[]>(
-            $"/clients/{clientId}/entries?sourceRef={draft.Id}"))!);
+            $"/clients/{clientId}/entries?sourceRef={issued.Id}"))!);
         (await approver.PostAsync($"/clients/{clientId}/entries/{arEntry.Id}/approve", null)).EnsureSuccessStatusCode();
 
         // ONE entry, revenue split across the two accounts directly — no reclass entry exists.
         EntryResponse entry = Assert.Single((await clerk.GetFromJsonAsync<EntryResponse[]>(
-            $"/clients/{clientId}/entries?sourceRef={draft.Id}"))!);
+            $"/clients/{clientId}/entries?sourceRef={issued.Id}"))!);
         Assert.Equal(9250m, entry.Lines.Single(l => l.AccountId == fixture.RevenueAccountId).Amount);          // consulting -> default
         Assert.Equal(2000m, entry.Lines.Single(l => l.AccountId == fixture.LicenseRevenueAccountId).Amount);   // license -> 4100, natively
         Assert.Equal(160m, entry.Lines.Single(l => l.AccountId == fixture.SalesTaxPayableAccountId).Amount);
@@ -157,7 +159,7 @@ public sealed class ReceivablesIssueTests(ReceivablesHostFixture fixture) : ICla
 
         // The A/R entry is PendingApproval — the Clerk issued but SoD prevents self-approve.
         EntryResponse[] pending = (await clerk.GetFromJsonAsync<EntryResponse[]>(
-            $"/clients/{clientId}/entries?sourceRef={draft.Id}"))!;
+            $"/clients/{clientId}/entries?sourceRef={issued.Id}"))!;
         EntryResponse arEntry = Assert.Single(pending);
         Assert.Equal("PendingApproval", arEntry.Posting);
 
@@ -167,7 +169,7 @@ public sealed class ReceivablesIssueTests(ReceivablesHostFixture fixture) : ICla
 
         // Now it's on the books: entry is Posted and the subledger ties out.
         EntryResponse[] posted = (await clerk.GetFromJsonAsync<EntryResponse[]>(
-            $"/clients/{clientId}/entries?sourceRef={draft.Id}"))!;
+            $"/clients/{clientId}/entries?sourceRef={issued.Id}"))!;
         EntryResponse postedEntry = Assert.Single(posted);
         Assert.Equal("Posted", postedEntry.Posting);
         EntryLineResponse ar = postedEntry.Lines.Single(l => l.AccountId == fixture.ReceivableAccountId);
