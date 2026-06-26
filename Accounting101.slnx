@@ -27,6 +27,7 @@
   </Folder>
   <Folder Name="/Modules/Payroll/">
     <Project Path="Modules/Payroll/Accounting101.Payroll/Accounting101.Payroll.csproj" />
+    <Project Path="Modules/Payroll/Accounting101.Payroll.Api/Accounting101.Payroll.Api.csproj" />
     <Project Path="Modules/Payroll/Accounting101.Payroll.Tests/Accounting101.Payroll.Tests.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
