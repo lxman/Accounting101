@@ -135,8 +135,8 @@ public static class LedgerEndpoints
     /// The single pre-write validation routine shared by <see cref="PostEntry"/> and
     /// <see cref="ValidateEntry"/>. Performs, in order:
     /// <list type="number">
-    ///   <item>Map + balance check (<see cref="MapEntry"/> → <see cref="UnbalancedEntryException"/> → 422).</item>
-    ///   <item>Chart validity (<see cref="ChartViolationsAsync"/> — account exists, postable, required dimension present).</item>
+    ///   <item>Map + balance check (<see cref="TryMapEntry"/> → <see cref="UnbalancedEntryException"/> → 422).</item>
+    ///   <item>Chart validity (<see cref="ChartFieldViolationsAsync"/> — account exists, postable, required dimension present).</item>
     ///   <item>Period freeze (<see cref="LedgerService.EnsureOpenForPostAsync"/> → 409 on a closed period).</item>
     /// </list>
     /// Returns either a rejection result or the mapped entry ready to write. Never writes anything itself.
@@ -808,6 +808,15 @@ public static class LedgerEndpoints
     {
         errors = [];
 
+        // Guard: null or fewer than two lines can't balance and would throw ArgumentException in Create.
+        // Reject early so the error lands in the structured errors map rather than becoming a 500.
+        if (request.Lines is null or { Count: < 2 })
+        {
+            errors["lines"] = ["A journal entry needs at least two lines."];
+            entry = null;
+            return false;
+        }
+
         // Pass 1: parse directions; collect all bad ones before bailing.
         List<Line> lines = [];
         for (int i = 0; i < request.Lines.Count; i++)
@@ -873,6 +882,12 @@ public static class LedgerEndpoints
         catch (UnbalancedEntryException ex)
         {
             errors["balance"] = [$"The entry does not balance: debits minus credits = {ex.Imbalance}."];
+            entry = null;
+            return false;
+        }
+        catch (ArgumentException) // too-few-lines (belt-and-suspenders: null/count guard above catches most)
+        {
+            errors["lines"] = ["A journal entry needs at least two lines."];
             entry = null;
             return false;
         }

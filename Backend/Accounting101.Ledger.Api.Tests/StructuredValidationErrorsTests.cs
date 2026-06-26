@@ -135,6 +135,9 @@ public sealed class StructuredValidationErrorsTests(ApiFixture fixture) : IClass
         Assert.Equal(HttpStatusCode.UnprocessableEntity, resp.StatusCode);
         Dictionary<string, string[]> errors = await ReadErrorsAsync(resp);
         Assert.True(errors.ContainsKey("type"), $"Expected key 'type' in: {string.Join(", ", errors.Keys)}");
+        string msg = string.Join(" ", errors["type"]);
+        Assert.Contains("Standard", msg, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Adjusting", msg, StringComparison.OrdinalIgnoreCase);
     }
 
     // ---- balance error -------------------------------------------------------------------------
@@ -156,9 +159,47 @@ public sealed class StructuredValidationErrorsTests(ApiFixture fixture) : IClass
         Assert.Equal(HttpStatusCode.UnprocessableEntity, resp.StatusCode);
         Dictionary<string, string[]> errors = await ReadErrorsAsync(resp);
         Assert.True(errors.ContainsKey("balance"), $"Expected key 'balance' in: {string.Join(", ", errors.Keys)}");
-        // Message should mention the imbalance
+        // Message should mention the phrase "debits minus credits" and the numeric imbalance
         string msg = string.Join(" ", errors["balance"]);
-        Assert.Contains("1", msg); // the 1.00 difference
+        Assert.Contains("debits minus credits", msg, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("1", msg); // the imbalance amount (decimal formats as "1")
+    }
+
+    // ---- too-few-lines errors (C1 fix) ---------------------------------------------------------
+
+    /// <summary>Posting a single line returns 422 with errors["lines"] containing "at least two lines".</summary>
+    [Fact]
+    public async Task One_line_entry_returns_422_with_lines_key()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+
+        HttpResponseMessage resp = await PostEntryAsync(c.Http, c.ClientId,
+            new PostEntryRequest(null, new DateOnly(2026, 3, 31), null, null,
+            [
+                new PostLineRequest(Guid.NewGuid(), "Debit", 100m),
+            ]));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, resp.StatusCode);
+        Dictionary<string, string[]> errors = await ReadErrorsAsync(resp);
+        Assert.True(errors.ContainsKey("lines"), $"Expected key 'lines' in: {string.Join(", ", errors.Keys)}");
+        string msg = string.Join(" ", errors["lines"]);
+        Assert.Contains("at least two lines", msg, StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Posting zero lines returns 422 with errors["lines"] containing "at least two lines".</summary>
+    [Fact]
+    public async Task Zero_line_entry_returns_422_with_lines_key()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+
+        HttpResponseMessage resp = await PostEntryAsync(c.Http, c.ClientId,
+            new PostEntryRequest(null, new DateOnly(2026, 3, 31), null, null, []));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, resp.StatusCode);
+        Dictionary<string, string[]> errors = await ReadErrorsAsync(resp);
+        Assert.True(errors.ContainsKey("lines"), $"Expected key 'lines' in: {string.Join(", ", errors.Keys)}");
+        string msg = string.Join(" ", errors["lines"]);
+        Assert.Contains("at least two lines", msg, StringComparison.OrdinalIgnoreCase);
     }
 
     // ---- chart violations (per-line keyed on lines[{i}].accountId) ----------------------------
