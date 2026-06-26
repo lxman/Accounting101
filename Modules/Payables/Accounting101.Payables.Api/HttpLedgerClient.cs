@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Payables;
 using Accounting101.Ledger.Contracts;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Accounting101.Payables.Api;
 
@@ -25,7 +26,10 @@ namespace Accounting101.Payables.Api;
 /// is not the originator of those lifecycle transitions.
 /// </para>
 /// </summary>
-public sealed class HttpLedgerClient(HttpClient http, IHttpContextAccessor context, ModuleCredential credential) : ILedgerClient
+public sealed class HttpLedgerClient(
+    HttpClient http,
+    IHttpContextAccessor context,
+    [FromKeyedServices("payables")] ModuleCredential credential) : ILedgerClient
 {
     public async Task<PostEntryResponse> PostAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
     {

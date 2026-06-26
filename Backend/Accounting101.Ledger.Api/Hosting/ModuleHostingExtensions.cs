@@ -41,9 +41,10 @@ public static class ModuleHostingExtensions
         // since it looks the module up by key from the request header, not from DI registration order.
         services.TryAddScoped<IModuleAuthenticator, CredentialModuleAuthenticator>();
 
-        // The module's in-process credential: injected into HttpLedgerClient (Task 4) so it can
-        // attach X-Module-Key / X-Module-Secret headers when posting to the engine over HTTP.
-        services.AddSingleton(credential);
+        // The module's in-process credential: keyed by the module's own key so multiple modules can
+        // coexist in one host without last-wins collision. Resolved via [FromKeyedServices(key)] or
+        // GetRequiredKeyedService<ModuleCredential>(key) in each module's own HttpLedgerClient.
+        services.AddKeyedSingleton<ModuleCredential>(identity.Key, credential);
 
         services.AddSingleton(new ModuleRegistration
         {
