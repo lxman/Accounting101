@@ -175,4 +175,53 @@ public sealed class MongoJournalStoreTests(MongoFixture fixture) : IClassFixture
         await Assert.ThrowsAsync<MongoWriteException>(() =>
             store.AppendAsync(Builder(clientId, 1).Debit(a, 20m).Credit(b, 20m).Build()));
     }
+
+    [Fact]
+    public async Task AuditStamp_ViaModule_round_trips_through_Mongo()
+    {
+        MongoJournalStore store = fixture.NewStore();
+        var clientId = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var ap = Guid.NewGuid();
+
+        // Build an entry whose stamp carries ViaModule = "payables"
+        var stamp = new AuditStamp
+        {
+            CreatedBy = Guid.NewGuid(),
+            CreatedAt = DateTimeOffset.UnixEpoch,
+            ViaModule = "payables",
+        };
+        JournalEntryBuilder builder = new(
+            id: Guid.NewGuid(),
+            clientId: clientId,
+            sequenceNumber: 1,
+            effectiveDate: new DateOnly(2026, 6, 26),
+            postedAt: DateTimeOffset.UnixEpoch,
+            audit: stamp);
+        JournalEntry entry = builder.Debit(cash, 50m).Credit(ap, 50m).Build();
+
+        await store.AppendAsync(entry);
+        JournalEntry? read = await store.GetAsync(entry.Id);
+
+        Assert.NotNull(read);
+        Assert.Equal("payables", read!.Audit.ViaModule);
+    }
+
+    [Fact]
+    public async Task AuditStamp_ViaModule_is_null_when_not_set()
+    {
+        MongoJournalStore store = fixture.NewStore();
+        var clientId = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
+
+        // Build an entry with no ViaModule (raw entry)
+        JournalEntry entry = Builder(clientId, 1).Debit(cash, 100m).Credit(revenue, 100m).Build();
+
+        await store.AppendAsync(entry);
+        JournalEntry? read = await store.GetAsync(entry.Id);
+
+        Assert.NotNull(read);
+        Assert.Null(read!.Audit.ViaModule);
+    }
 }

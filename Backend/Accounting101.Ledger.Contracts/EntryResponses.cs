@@ -18,7 +18,12 @@ public sealed record EntryResponse(
     Guid? SourceRef = null,
     string? SourceType = null,
     string? Reference = null,
-    string? Memo = null);
+    string? Memo = null,
+    /// <summary>
+    /// The module key that originated this entry (e.g. "payables"), or null for a raw accountant
+    /// entry. Mirrors <see cref="Accounting101.Ledger.Core.Journal.AuditStamp.ViaModule"/>.
+    /// </summary>
+    string? ViaModule = null);
 
 /// <summary>One posting line as read back: which account, side, amount, and any subledger dimensions.</summary>
 public sealed record EntryLineResponse(
