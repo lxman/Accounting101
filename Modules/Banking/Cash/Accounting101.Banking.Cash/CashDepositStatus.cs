@@ -1,0 +1,6 @@
+using System.Text.Json.Serialization;
+
+namespace Accounting101.Banking.Cash;
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum CashDepositStatus { Posted, Void }
