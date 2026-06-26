@@ -32,6 +32,7 @@
   </Folder>
   <Folder Name="/Modules/Banking/">
     <Project Path="Modules/Banking/Cash/Accounting101.Banking.Cash/Accounting101.Banking.Cash.csproj" />
+    <Project Path="Modules/Banking/Cash/Accounting101.Banking.Cash.Api/Accounting101.Banking.Cash.Api.csproj" />
     <Project Path="Modules/Banking/Cash/Accounting101.Banking.Cash.Tests/Accounting101.Banking.Cash.Tests.csproj" />
     <Project Path="Modules/Banking/Reconciliation/Accounting101.Banking.Reconciliation/Accounting101.Banking.Reconciliation.csproj" />
   </Folder>
