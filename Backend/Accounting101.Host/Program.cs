@@ -11,7 +11,41 @@ builder.Services.AddLedgerEngine(builder.Configuration);
 builder.Services.AddReceivables(builder.Configuration);
 builder.Services.AddPayables(builder.Configuration);
 
+// Reject any JSON body that contains fields not mapped to the target DTO. This catches typos like
+// "date" instead of "effectiveDate" early — before the value is silently dropped — and gives the
+// caller an actionable 400 that names the offending property.
+builder.Services.ConfigureHttpJsonOptions(o =>
+    o.SerializerOptions.UnmappedMemberHandling =
+        System.Text.Json.Serialization.JsonUnmappedMemberHandling.Disallow);
+
 WebApplication app = builder.Build();
+
+// Surface JsonException (thrown by the strict binding above) as a structured 400 response.
+// The exception message already names the offending property, so we forward it verbatim.
+app.Use(async (ctx, next) =>
+{
+    try { await next(); }
+    catch (BadHttpRequestException ex) when (ex.InnerException is System.Text.Json.JsonException je)
+    {
+        ctx.Response.StatusCode = StatusCodes.Status400BadRequest;
+        await ctx.Response.WriteAsJsonAsync(new Microsoft.AspNetCore.Mvc.ProblemDetails
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title  = "Invalid request body",
+            Detail = je.Message,
+        }, ctx.RequestAborted);
+    }
+    catch (System.Text.Json.JsonException je)
+    {
+        ctx.Response.StatusCode = StatusCodes.Status400BadRequest;
+        await ctx.Response.WriteAsJsonAsync(new Microsoft.AspNetCore.Mvc.ProblemDetails
+        {
+            Status = StatusCodes.Status400BadRequest,
+            Title  = "Invalid request body",
+            Detail = je.Message,
+        }, ctx.RequestAborted);
+    }
+});
 
 app.UseAuthentication();
 app.UseAuthorization();
