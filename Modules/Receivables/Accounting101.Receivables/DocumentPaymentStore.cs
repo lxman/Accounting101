@@ -9,6 +9,8 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
 {
     private const string Payments = "payments";
     private const string CreditApplications = "credit-applications";
+    private const string WriteOffs = "write-offs";
+    private const string CreditNotes = "credit-notes";
 
     public async Task<Payment> RecordPaymentAsync(Guid clientId, PaymentBody body, CancellationToken ct = default)
     {
@@ -51,6 +53,54 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
         return results.Select(MapCredit).ToList();
     }
 
+    public async Task<WriteOff> RecordWriteOffAsync(Guid clientId, WriteOffBody body, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        Guid id = await documents.CreateAsync(clientId, WriteOffs, body, Tags(body.CustomerId), ct);
+        await documents.FinalizeAsync(clientId, WriteOffs, id, ct);
+        DocumentResult<WriteOffBody>? r = await documents.GetAsync<WriteOffBody>(clientId, WriteOffs, id, ct);
+        return MapWriteOff(r!);
+    }
+
+    public async Task<WriteOff?> GetWriteOffAsync(Guid clientId, Guid writeOffId, CancellationToken ct = default)
+    {
+        DocumentResult<WriteOffBody>? r = await documents.GetAsync<WriteOffBody>(clientId, WriteOffs, writeOffId, ct);
+        return r is null ? null : MapWriteOff(r);
+    }
+
+    public async Task<IReadOnlyList<WriteOff>> GetWriteOffsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default)
+    {
+        IReadOnlyList<DocumentResult<WriteOffBody>> rs = await documents.QueryAsync<WriteOffBody>(clientId, WriteOffs, Tags(customerId), ct);
+        return rs.Select(MapWriteOff).ToList();
+    }
+
+    public Task VoidWriteOffAsync(Guid clientId, Guid writeOffId, CancellationToken ct = default) =>
+        documents.VoidAsync(clientId, WriteOffs, writeOffId, ct);
+
+    public async Task<CreditNote> RecordCreditNoteAsync(Guid clientId, CreditNoteBody body, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        Guid id = await documents.CreateAsync(clientId, CreditNotes, body, Tags(body.CustomerId), ct);
+        await documents.FinalizeAsync(clientId, CreditNotes, id, ct);
+        DocumentResult<CreditNoteBody>? r = await documents.GetAsync<CreditNoteBody>(clientId, CreditNotes, id, ct);
+        return MapCreditNote(r!);
+    }
+
+    public async Task<CreditNote?> GetCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default)
+    {
+        DocumentResult<CreditNoteBody>? r = await documents.GetAsync<CreditNoteBody>(clientId, CreditNotes, creditNoteId, ct);
+        return r is null ? null : MapCreditNote(r);
+    }
+
+    public async Task<IReadOnlyList<CreditNote>> GetCreditNotesByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default)
+    {
+        IReadOnlyList<DocumentResult<CreditNoteBody>> rs = await documents.QueryAsync<CreditNoteBody>(clientId, CreditNotes, Tags(customerId), ct);
+        return rs.Select(MapCreditNote).ToList();
+    }
+
+    public Task VoidCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default) =>
+        documents.VoidAsync(clientId, CreditNotes, creditNoteId, ct);
+
     private static Dictionary<string, string> Tags(Guid customerId) => new() { ["Customer"] = customerId.ToString() };
 
     private static bool IsVoided(DocumentLifecycle state) =>
@@ -63,6 +113,18 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
     };
 
     private static CreditApplication MapCredit(DocumentResult<CreditApplicationBody> r) => new()
+    {
+        Id = r.Id, CustomerId = r.Body.CustomerId, Date = r.Body.Date,
+        Allocations = r.Body.Allocations, Voided = IsVoided(r.State),
+    };
+
+    private static WriteOff MapWriteOff(DocumentResult<WriteOffBody> r) => new()
+    {
+        Id = r.Id, CustomerId = r.Body.CustomerId, Date = r.Body.Date,
+        Allocations = r.Body.Allocations, Voided = IsVoided(r.State),
+    };
+
+    private static CreditNote MapCreditNote(DocumentResult<CreditNoteBody> r) => new()
     {
         Id = r.Id, CustomerId = r.Body.CustomerId, Date = r.Body.Date,
         Allocations = r.Body.Allocations, Voided = IsVoided(r.State),
