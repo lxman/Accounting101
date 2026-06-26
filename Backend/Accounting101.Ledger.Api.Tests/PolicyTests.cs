@@ -80,14 +80,23 @@ public sealed class PolicyTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     // ---- Role permissions -------------------------------------------------------------------
 
     [Fact]
-    public async Task A_clerk_can_post_but_cannot_approve()
+    public async Task A_clerk_cannot_post_or_revise_raw_entries()
     {
         SeededClient c = await fixture.SeedClientAsync(role: LedgerRole.Clerk);
         Guid cash = Guid.NewGuid(), revenue = Guid.NewGuid();
-        Guid id = await PostAsync(c.Http, c.ClientId, cash, revenue, 100m); // post allowed
 
-        HttpResponseMessage approve = await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{id}/approve", null);
-        Assert.Equal(HttpStatusCode.Forbidden, approve.StatusCode);
+        // Raw post is denied — a clerk writes only through modules now.
+        HttpResponseMessage post = await c.Http.PostAsJsonAsync(
+            $"/clients/{c.ClientId}/entries", Entry(cash, revenue, 100m));
+        Assert.Equal(HttpStatusCode.Forbidden, post.StatusCode);
+
+        // Raw revise is denied too (the permission check precedes the entry lookup, so a
+        // nonexistent id still yields 403, not 404).
+        HttpResponseMessage revise = await c.Http.PostAsJsonAsync(
+            $"/clients/{c.ClientId}/entries/{Guid.NewGuid()}/revise",
+            new ReviseRequest(null, new DateOnly(2026, 4, 1), null, null, "x",
+                [new PostLineRequest(cash, "Debit", 100m), new PostLineRequest(revenue, "Credit", 100m)]));
+        Assert.Equal(HttpStatusCode.Forbidden, revise.StatusCode);
     }
 
     [Fact]
@@ -99,9 +108,9 @@ public sealed class PolicyTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         HttpResponseMessage post = await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", Entry(cash, revenue, 100m));
         Assert.Equal(HttpStatusCode.Forbidden, post.StatusCode);
 
-        // A clerk posts; the approver approves.
-        HttpClient clerk = await fixture.AddMemberAsync(c.ClientId, LedgerRole.Clerk);
-        Guid id = await PostAsync(clerk, c.ClientId, cash, revenue, 100m);
+        // A controller posts (clerks no longer post raw); the approver approves.
+        HttpClient poster = await fixture.AddMemberAsync(c.ClientId, LedgerRole.Controller);
+        Guid id = await PostAsync(poster, c.ClientId, cash, revenue, 100m);
         HttpResponseMessage approve = await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{id}/approve", null);
         Assert.Equal(HttpStatusCode.OK, approve.StatusCode);
     }

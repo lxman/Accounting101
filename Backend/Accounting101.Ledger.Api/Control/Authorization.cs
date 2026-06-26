@@ -42,7 +42,7 @@ public static class RolePermissions
     private static readonly Dictionary<LedgerRole, HashSet<Permission>> Map = new()
     {
         [LedgerRole.Auditor] = [Permission.Read],
-        [LedgerRole.Clerk] = [Permission.Read, Permission.Post, Permission.Revise],
+        [LedgerRole.Clerk] = [Permission.Read],
         [LedgerRole.Approver] = [Permission.Read, Permission.Approve, Permission.Void, Permission.Reverse],
         [LedgerRole.Controller] =
         [
