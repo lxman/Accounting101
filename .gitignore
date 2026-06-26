@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# superpowers SDD scratch (progress ledger, briefs, reports, review packages) — never committed
+.superpowers/
