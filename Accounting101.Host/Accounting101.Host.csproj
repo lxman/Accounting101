@@ -12,6 +12,7 @@
     <ProjectReference Include="..\Backend\Accounting101.Ledger.Api\Accounting101.Ledger.Api.csproj" />
     <ProjectReference Include="..\Modules\Receivables\Accounting101.Receivables.Api\Accounting101.Receivables.Api.csproj" />
     <ProjectReference Include="..\Modules\Payables\Accounting101.Payables.Api\Accounting101.Payables.Api.csproj" />
+    <ProjectReference Include="..\Modules\Payroll\Accounting101.Payroll.Api\Accounting101.Payroll.Api.csproj" />
   </ItemGroup>
 
 </Project>

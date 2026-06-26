@@ -2,6 +2,7 @@ using Accounting101.Receivables.Api;
 using Accounting101.Ledger.Api.Endpoints;
 using Accounting101.Ledger.Api.Hosting;
 using Accounting101.Payables.Api;
+using Accounting101.Payroll.Api;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +11,7 @@ WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 builder.Services.AddLedgerEngine(builder.Configuration);
 builder.Services.AddReceivables(builder.Configuration);
 builder.Services.AddPayables(builder.Configuration);
+builder.Services.AddPayroll(builder.Configuration);
 
 // Reject any JSON body that contains fields not mapped to the target DTO. This catches typos like
 // "date" instead of "effectiveDate" early — before the value is silently dropped — and gives the
@@ -54,6 +56,7 @@ app.MapLedgerEndpoints();
 app.MapAdminEndpoints();
 app.MapReceivablesEndpoints();
 app.MapPayablesEndpoints();
+app.MapPayrollEndpoints();
 
 app.Run();
 

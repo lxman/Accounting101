@@ -25,6 +25,11 @@
     <Project Path="Modules/Payables/Accounting101.Payables.Api/Accounting101.Payables.Api.csproj" />
     <Project Path="Modules/Payables/Accounting101.Payables.Tests/Accounting101.Payables.Tests.csproj" />
   </Folder>
+  <Folder Name="/Modules/Payroll/">
+    <Project Path="Modules/Payroll/Accounting101.Payroll/Accounting101.Payroll.csproj" />
+    <Project Path="Modules/Payroll/Accounting101.Payroll.Api/Accounting101.Payroll.Api.csproj" />
+    <Project Path="Modules/Payroll/Accounting101.Payroll.Tests/Accounting101.Payroll.Tests.csproj" />
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path="UI/README.md" />
   </Folder>
