@@ -8,24 +8,35 @@ public interface ICustomerStore
 }
 
 /// <summary>
-/// The module's invoice store — evidentiary data with a draft → issue → void lifecycle, backed by the
-/// engine's document store. The store owns number assignment (at finalize) and status derivation; the
-/// service orchestrates the ledger posting around it.
+/// The module's invoice store — two-tier storage: drafts in a plain "invoice-drafts" collection
+/// (freely editable and discardable), and issued invoices in the evidentiary "invoices" collection
+/// (append-only, numbered). Only PromoteDraftAsync crosses the tier boundary; only Issue/Void are
+/// part of the evidentiary record.
 /// </summary>
 public interface IInvoiceStore
 {
-    /// <summary>Create a draft invoice (no number, no ledger effect). Returns it with its assigned id.</summary>
+    /// <summary>Create a draft invoice in the plain collection (no number, no ledger effect). Returns it with its assigned id.</summary>
     Task<Invoice> CreateDraftAsync(Guid clientId, InvoiceBody body, CancellationToken cancellationToken = default);
 
-    /// <summary>Finalize (issue) a draft: assigns the gapless number, locks the document. Returns the issued invoice.</summary>
-    Task<Invoice> FinalizeAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default);
+    /// <summary>Replace a draft's body in the plain collection. Throws <see cref="InvalidOperationException"/> if the id is not a draft.</summary>
+    Task<Invoice> UpdateDraftAsync(Guid clientId, Guid invoiceId, InvoiceBody body, CancellationToken cancellationToken = default);
+
+    /// <summary>Delete a draft from the plain collection. Throws <see cref="InvalidOperationException"/> if the id is not a draft.</summary>
+    Task DiscardDraftAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Promote a draft: copy its body into the evidentiary "invoices" collection (assigning a gapless number),
+    /// finalize the issued document, and delete the plain draft. Returns the issued invoice with a NEW id.
+    /// </summary>
+    Task<Invoice> PromoteDraftAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default);
 
     /// <summary>Void an issued invoice (no successor).</summary>
     Task VoidAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default);
 
+    /// <summary>Reads from both tiers: checks the plain draft collection first, then the evidentiary collection.</summary>
     Task<Invoice?> GetAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default);
 
-    /// <summary>All of a customer's live invoices (drafts + issued; voided are hidden).</summary>
+    /// <summary>All of a customer's live invoices spanning both tiers (drafts + issued; voided are hidden).</summary>
     Task<IReadOnlyList<Invoice>> GetByCustomerAsync(Guid clientId, Guid customerId, CancellationToken cancellationToken = default);
 }
 

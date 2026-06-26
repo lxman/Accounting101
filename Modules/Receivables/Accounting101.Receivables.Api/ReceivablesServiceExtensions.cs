@@ -18,6 +18,7 @@ public static class ReceivablesServiceExtensions
         services.AddModule(new ModuleIdentity("receivables"), "Receivables", manifest =>
         {
             manifest.Reference("customers");
+            manifest.Plain("invoice-drafts");                 // drafts are scratch, freely edited/discarded
             manifest.Evidentiary("invoices", "Customer");
             manifest.Evidentiary("payments", "Customer");
             manifest.Evidentiary("credit-applications", "Customer");

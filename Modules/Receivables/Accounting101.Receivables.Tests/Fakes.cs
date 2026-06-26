@@ -82,7 +82,8 @@ internal sealed class InMemoryCustomerStore : ICustomerStore
 
 internal sealed class InMemoryInvoiceStore : IInvoiceStore
 {
-    private readonly ConcurrentDictionary<(Guid, Guid), Invoice> _store = new();
+    private readonly ConcurrentDictionary<(Guid, Guid), Invoice> _drafts = new();
+    private readonly ConcurrentDictionary<(Guid, Guid), Invoice> _issued = new();
     private int _next;
 
     public Task<Invoice> CreateDraftAsync(Guid clientId, InvoiceBody body, CancellationToken cancellationToken = default)
@@ -97,33 +98,78 @@ internal sealed class InMemoryInvoiceStore : IInvoiceStore
             Status = InvoiceStatus.Draft,
             TaxRate = body.TaxRate,
             Memo = body.Memo,
-            Lines = body.Lines.Select(l => new InvoiceLine { Description = l.Description, Quantity = l.Quantity, UnitPrice = l.UnitPrice, Taxable = l.Taxable }).ToList(),
+            Lines = body.Lines.Select(l => new InvoiceLine { Description = l.Description, Quantity = l.Quantity, UnitPrice = l.UnitPrice, Taxable = l.Taxable, RevenueCategory = l.RevenueCategory }).ToList(),
         };
-        _store[(clientId, draft.Id)] = draft;
+        _drafts[(clientId, draft.Id)] = draft;
         return Task.FromResult(draft);
     }
 
-    public Task<Invoice> FinalizeAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default)
+    public Task<Invoice> UpdateDraftAsync(Guid clientId, Guid invoiceId, InvoiceBody body, CancellationToken cancellationToken = default)
     {
-        Invoice draft = _store[(clientId, invoiceId)];
-        Invoice issued = draft with { Number = $"INV-{Interlocked.Increment(ref _next):D5}", Status = InvoiceStatus.Issued };
-        _store[(clientId, invoiceId)] = issued;
+        if (!_drafts.ContainsKey((clientId, invoiceId)))
+            throw new InvalidOperationException($"Invoice {invoiceId} is not an editable draft.");
+        Invoice updated = new()
+        {
+            Id = invoiceId,
+            CustomerId = body.CustomerId,
+            Number = null,
+            IssueDate = body.IssueDate,
+            DueDate = body.DueDate,
+            Status = InvoiceStatus.Draft,
+            TaxRate = body.TaxRate,
+            Memo = body.Memo,
+            Lines = body.Lines.Select(l => new InvoiceLine { Description = l.Description, Quantity = l.Quantity, UnitPrice = l.UnitPrice, Taxable = l.Taxable, RevenueCategory = l.RevenueCategory }).ToList(),
+        };
+        _drafts[(clientId, invoiceId)] = updated;
+        return Task.FromResult(updated);
+    }
+
+    public Task DiscardDraftAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default)
+    {
+        if (!_drafts.TryRemove((clientId, invoiceId), out _))
+            throw new InvalidOperationException($"Invoice {invoiceId} is not a discardable draft.");
+        return Task.CompletedTask;
+    }
+
+    public Task<Invoice> PromoteDraftAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default)
+    {
+        if (!_drafts.TryRemove((clientId, invoiceId), out Invoice? draft))
+            throw new InvalidOperationException($"Invoice {invoiceId} is not a draft awaiting issue.");
+        Guid issuedId = Guid.NewGuid();
+        Invoice issued = draft with
+        {
+            Id = issuedId,
+            Number = $"INV-{Interlocked.Increment(ref _next):D5}",
+            Status = InvoiceStatus.Issued,
+        };
+        _issued[(clientId, issuedId)] = issued;
         return Task.FromResult(issued);
     }
 
     public Task VoidAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default)
     {
-        _store[(clientId, invoiceId)] = _store[(clientId, invoiceId)] with { Status = InvoiceStatus.Void };
+        if (_issued.TryGetValue((clientId, invoiceId), out Invoice? inv))
+            _issued[(clientId, invoiceId)] = inv with { Status = InvoiceStatus.Void };
         return Task.CompletedTask;
     }
 
-    public Task<Invoice?> GetAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default) =>
-        Task.FromResult(_store.GetValueOrDefault((clientId, invoiceId)));
+    public Task<Invoice?> GetAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default)
+    {
+        if (_drafts.TryGetValue((clientId, invoiceId), out Invoice? draft))
+            return Task.FromResult<Invoice?>(draft);
+        return Task.FromResult(_issued.GetValueOrDefault((clientId, invoiceId)));
+    }
 
-    public Task<IReadOnlyList<Invoice>> GetByCustomerAsync(Guid clientId, Guid customerId, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<Invoice>>(
-            _store.Where(kv => kv.Key.Item1 == clientId && kv.Value.CustomerId == customerId)
-                .Select(kv => kv.Value).ToList());
+    public Task<IReadOnlyList<Invoice>> GetByCustomerAsync(Guid clientId, Guid customerId, CancellationToken cancellationToken = default)
+    {
+        IEnumerable<Invoice> drafts = _drafts
+            .Where(kv => kv.Key.Item1 == clientId && kv.Value.CustomerId == customerId)
+            .Select(kv => kv.Value);
+        IEnumerable<Invoice> issued = _issued
+            .Where(kv => kv.Key.Item1 == clientId && kv.Value.CustomerId == customerId)
+            .Select(kv => kv.Value);
+        return Task.FromResult<IReadOnlyList<Invoice>>(drafts.Concat(issued).ToList());
+    }
 }
 
 internal sealed class FixedAccountsProvider(InvoicePostingAccounts accounts) : IInvoiceAccountsProvider

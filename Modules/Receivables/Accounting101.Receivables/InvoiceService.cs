@@ -63,7 +63,7 @@ public sealed class InvoiceService(
         await ledger.ValidateAsync(clientId, preflight, cancellationToken);
 
         // Validation passed — it is safe to commit the document.
-        Invoice issued = await invoices.FinalizeAsync(clientId, invoiceId, cancellationToken);
+        Invoice issued = await invoices.PromoteDraftAsync(clientId, invoiceId, cancellationToken);
 
         // Recompose with the now-assigned invoice number so the posted entry carries it in Reference.
         PostEntryRequest entry = InvoicePosting.Compose(issued, postingAccounts);
