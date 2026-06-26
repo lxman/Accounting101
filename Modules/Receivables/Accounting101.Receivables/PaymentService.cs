@@ -37,8 +37,8 @@ public sealed class PaymentService(
         {
             Invoice invoice = await invoices.GetAsync(clientId, a.TargetId, ct)
                 ?? throw new InvalidOperationException($"Invoice {a.TargetId} does not exist.");
-            if (invoice.Status == InvoiceStatus.Void)
-                throw new InvalidOperationException($"Invoice {a.TargetId} is voided.");
+            if (invoice.Status != InvoiceStatus.Issued)
+                throw new InvalidOperationException($"Invoice {a.TargetId} is {invoice.Status} — only issued invoices can be paid.");
             if (invoice.CustomerId != customerId)
                 throw new InvalidOperationException($"Invoice {a.TargetId} belongs to a different customer.");
 
@@ -60,7 +60,7 @@ public sealed class PaymentService(
             applied[a.TargetId] = applied.GetValueOrDefault(a.TargetId) + a.Amount;
 
         IEnumerable<InvoiceView> views = customerInvoices
-            .Where(inv => inv.Status != InvoiceStatus.Void)
+            .Where(inv => inv.Status == InvoiceStatus.Issued)
             .Select(inv =>
             {
                 decimal ap = applied.GetValueOrDefault(inv.Id);

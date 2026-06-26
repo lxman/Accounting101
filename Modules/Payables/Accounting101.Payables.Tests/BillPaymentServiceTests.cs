@@ -163,4 +163,83 @@ public sealed class BillPaymentServiceTests
         Assert.Empty(all);
         Assert.Empty(open);
     }
+
+    // ── settlement-gating: only Entered bills are settleable ────────────────
+
+    [Fact]
+    public async Task Draft_bill_does_not_appear_in_list_views()
+    {
+        // Arrange: create a draft bill (never enter/finalize it).
+        Guid clientId = Guid.NewGuid();
+        Guid vendorId = Guid.NewGuid();
+        InMemoryBillStore billStore = new();
+        await billStore.CreateDraftAsync(clientId, new BillBody(
+            vendorId, new DateOnly(2026, 3, 1), null, null, null,
+            [new BillLineBody("Rent", 100m, Guid.NewGuid())]));
+
+        InMemoryBillPaymentStore paymentStore = new();
+        FakeLedgerClient ledger = new();
+        BillPaymentService service = new(paymentStore, billStore,
+            new FixedBillAccountsProvider(new BillPostingAccounts { PayableAccountId = PayAccounts.PayableAccountId }, PayAccounts), ledger);
+
+        // Act: query both the all-bills list and the open-settlement filter.
+        IReadOnlyList<BillView> all  = await service.ListBillViewsAsync(clientId, vendorId, null);
+        IReadOnlyList<BillView> open = await service.ListBillViewsAsync(clientId, vendorId, SettlementFilter.Open);
+
+        // Assert: a draft bill must not appear in either settlement view.
+        Assert.Empty(all);
+        Assert.Empty(open);
+    }
+
+    [Fact]
+    public async Task Allocating_payment_to_draft_bill_is_rejected_with_entered_message()
+    {
+        // Arrange: create a draft bill (never finalize it).
+        Guid clientId = Guid.NewGuid();
+        Guid vendorId = Guid.NewGuid();
+        InMemoryBillStore billStore = new();
+        Bill draft = await billStore.CreateDraftAsync(clientId, new BillBody(
+            vendorId, new DateOnly(2026, 3, 1), null, null, null,
+            [new BillLineBody("Rent", 100m, Guid.NewGuid())]));
+
+        InMemoryBillPaymentStore paymentStore = new();
+        FakeLedgerClient ledger = new();
+        BillPaymentService service = new(paymentStore, billStore,
+            new FixedBillAccountsProvider(new BillPostingAccounts { PayableAccountId = PayAccounts.PayableAccountId }, PayAccounts), ledger);
+
+        // Act & Assert: paying a draft bill must throw with a message mentioning "entered".
+        InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.RecordPaymentAsync(clientId,
+                new BillPaymentBody(vendorId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(draft.Id, 100m)])));
+        Assert.Contains("entered", ex.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Allocating_payment_to_void_bill_is_rejected()
+    {
+        // Arrange: enter then void.
+        (Harness h, Guid clientId, Guid vendorId, Bill bill) = await SetupWithEnteredBillAsync(100m);
+        await h.BillStore.VoidAsync(clientId, bill.Id);
+
+        // Act & Assert: paying a void bill must throw.
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            h.Payments.RecordPaymentAsync(clientId,
+                new BillPaymentBody(vendorId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(bill.Id, 100m)])));
+    }
+
+    [Fact]
+    public async Task Allocating_payment_to_entered_bill_succeeds()
+    {
+        // Arrange: the standard setup already enters the bill.
+        (Harness h, Guid clientId, Guid vendorId, Bill bill) = await SetupWithEnteredBillAsync(100m);
+
+        // Act: pay in full — must not throw.
+        BillPayment recorded = await h.Payments.RecordPaymentAsync(clientId,
+            new BillPaymentBody(vendorId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(bill.Id, 100m)]));
+
+        // Assert: payment recorded and settled.
+        Assert.NotEqual(Guid.Empty, recorded.Id);
+        BillView? view = await h.Payments.GetBillViewAsync(clientId, bill.Id);
+        Assert.Equal(SettlementStatus.Paid, view!.SettlementStatus);
+    }
 }

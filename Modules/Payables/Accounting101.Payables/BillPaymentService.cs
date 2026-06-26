@@ -98,7 +98,7 @@ public sealed class BillPaymentService(
             applied[a.TargetId] = applied.GetValueOrDefault(a.TargetId) + a.Amount;
 
         IEnumerable<BillView> views = vendorBills
-            .Where(bill => bill.Status != BillStatus.Void)
+            .Where(bill => bill.Status == BillStatus.Entered)
             .Select(bill =>
             {
                 decimal ap = applied.GetValueOrDefault(bill.Id);
@@ -120,8 +120,8 @@ public sealed class BillPaymentService(
         {
             Bill bill = await bills.GetAsync(clientId, a.TargetId, ct)
                 ?? throw new InvalidOperationException($"Bill {a.TargetId} does not exist.");
-            if (bill.Status == BillStatus.Void)
-                throw new InvalidOperationException($"Bill {a.TargetId} is voided.");
+            if (bill.Status != BillStatus.Entered)
+                throw new InvalidOperationException($"Bill {a.TargetId} is {bill.Status} — only entered bills can be paid.");
             if (bill.VendorId != vendorId)
                 throw new InvalidOperationException($"Bill {a.TargetId} belongs to a different vendor.");
 
