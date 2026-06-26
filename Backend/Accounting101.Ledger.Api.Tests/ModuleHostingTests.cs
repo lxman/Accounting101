@@ -13,13 +13,16 @@ namespace Accounting101.Ledger.Api.Tests;
 public sealed class ModuleHostingTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 {
     [Fact]
-    public void AddModule_stamps_an_in_process_authenticator_for_the_identity()
+    public async Task AddModule_stamps_an_in_process_authenticator_for_the_identity()
     {
         ServiceCollection services = new();
         services.AddModule(new ModuleIdentity("invoicing"), "Invoicing");
 
         using ServiceProvider provider = services.BuildServiceProvider();
-        ModuleIdentity? identity = provider.GetRequiredService<IModuleAuthenticator>().Authenticate();
+        // The host-stamped authenticator is registered under the "host-stamped" key; the default
+        // IModuleAuthenticator (credential-verifying, for the HTTP pipeline) is scoped separately.
+        IModuleAuthenticator stamped = provider.GetRequiredKeyedService<IModuleAuthenticator>("host-stamped");
+        ModuleIdentity? identity = await stamped.AuthenticateAsync();
         Assert.Equal(new ModuleIdentity("invoicing"), identity);
     }
 

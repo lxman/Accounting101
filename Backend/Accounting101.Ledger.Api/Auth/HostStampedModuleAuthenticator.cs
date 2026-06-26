@@ -9,5 +9,5 @@ namespace Accounting101.Ledger.Api.Auth;
 /// </summary>
 public sealed class HostStampedModuleAuthenticator(ModuleIdentity identity) : IModuleAuthenticator
 {
-    public ModuleIdentity? Authenticate() => identity;
+    public Task<ModuleIdentity?> AuthenticateAsync() => Task.FromResult<ModuleIdentity?>(identity);
 }

@@ -9,5 +9,5 @@ namespace Accounting101.Ledger.Api.Auth;
 /// </summary>
 public interface IModuleAuthenticator
 {
-    ModuleIdentity? Authenticate();
+    Task<ModuleIdentity?> AuthenticateAsync();
 }

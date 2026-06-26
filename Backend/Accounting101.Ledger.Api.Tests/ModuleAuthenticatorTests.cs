@@ -10,10 +10,10 @@ namespace Accounting101.Ledger.Api.Tests;
 public sealed class ModuleAuthenticatorTests
 {
     [Fact]
-    public void Host_stamped_authenticator_returns_the_stamped_identity()
+    public async Task Host_stamped_authenticator_returns_the_stamped_identity()
     {
         IModuleAuthenticator authenticator = new HostStampedModuleAuthenticator(new ModuleIdentity("invoicing"));
-        ModuleIdentity? identity = authenticator.Authenticate();
+        ModuleIdentity? identity = await authenticator.AuthenticateAsync();
         Assert.Equal(new ModuleIdentity("invoicing"), identity);
     }
 }
