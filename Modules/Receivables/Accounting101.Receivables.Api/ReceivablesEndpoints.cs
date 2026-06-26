@@ -23,6 +23,12 @@ public static class ReceivablesEndpoints
         clients.MapPost("/payments/{paymentId:guid}/void", VoidPayment);
         clients.MapPost("/credit-applications", ApplyCredit);
         clients.MapGet("/customers/{customerId:guid}/credit-balance", GetCreditBalance);
+        clients.MapPost("/write-offs", RecordWriteOff);
+        clients.MapPost("/write-offs/{writeOffId:guid}/void", VoidWriteOff);
+        clients.MapPost("/credit-notes", RecordCreditNote);
+        clients.MapPost("/credit-notes/{creditNoteId:guid}/void", VoidCreditNote);
+        clients.MapPost("/refunds", RecordRefund);
+        clients.MapPost("/refunds/{refundId:guid}/void", VoidRefund);
     }
 
     private static async Task<IResult> CreateCustomer(
@@ -183,5 +189,92 @@ public static class ReceivablesEndpoints
     {
         decimal balance = await service.GetCustomerCreditBalanceAsync(clientId, customerId, cancellationToken);
         return Results.Ok(new { customerId, creditBalance = balance });
+    }
+
+    private static async Task<IResult> RecordWriteOff(
+        Guid clientId, WriteOffRequest request, PaymentService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            WriteOff recorded = await service.RecordWriteOffAsync(clientId,
+                new WriteOffBody(request.CustomerId, request.Date, request.Allocations, request.Memo), cancellationToken);
+            return Results.Created($"/clients/{clientId}/write-offs/{recorded.Id}", recorded);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+    }
+
+    private static async Task<IResult> VoidWriteOff(
+        Guid clientId, Guid writeOffId, VoidInvoiceRequest? request, PaymentService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            WriteOff voided = await service.VoidWriteOffAsync(clientId, writeOffId, request?.Reason, cancellationToken);
+            return Results.Ok(voided);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+    }
+
+    private static async Task<IResult> RecordCreditNote(
+        Guid clientId, CreditNoteRequest request, PaymentService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            CreditNote recorded = await service.RecordCreditNoteAsync(clientId,
+                new CreditNoteBody(request.CustomerId, request.Date, request.Allocations, request.Memo), cancellationToken);
+            return Results.Created($"/clients/{clientId}/credit-notes/{recorded.Id}", recorded);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+    }
+
+    private static async Task<IResult> VoidCreditNote(
+        Guid clientId, Guid creditNoteId, VoidInvoiceRequest? request, PaymentService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            CreditNote voided = await service.VoidCreditNoteAsync(clientId, creditNoteId, request?.Reason, cancellationToken);
+            return Results.Ok(voided);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+    }
+
+    private static async Task<IResult> RecordRefund(
+        Guid clientId, RefundRequest request, PaymentService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            Refund recorded = await service.RecordRefundAsync(clientId,
+                new RefundBody(request.CustomerId, request.Date, request.Amount, request.Memo), cancellationToken);
+            return Results.Created($"/clients/{clientId}/refunds/{recorded.Id}", recorded);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+    }
+
+    private static async Task<IResult> VoidRefund(
+        Guid clientId, Guid refundId, VoidInvoiceRequest? request, PaymentService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            Refund voided = await service.VoidRefundAsync(clientId, refundId, request?.Reason, cancellationToken);
+            return Results.Ok(voided);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
     }
 }

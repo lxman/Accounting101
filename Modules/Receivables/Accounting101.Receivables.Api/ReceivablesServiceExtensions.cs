@@ -22,6 +22,9 @@ public static class ReceivablesServiceExtensions
             manifest.Evidentiary("invoices", "Customer");
             manifest.Evidentiary("payments", "Customer");
             manifest.Evidentiary("credit-applications", "Customer");
+            manifest.Evidentiary("write-offs", "Customer");
+            manifest.Evidentiary("credit-notes", "Customer");
+            manifest.Evidentiary("refunds", "Customer");
         });
 
         services.AddScoped<ICustomerStore>(sp => new DocumentCustomerStore(sp.GetRequiredKeyedService<IDocumentStore>("receivables")));
