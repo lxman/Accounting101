@@ -23,4 +23,9 @@ public sealed class ClientRegistration
     /// policy lives here in the control DB, not in the engine.
     /// </summary>
     public bool RequireSegregationOfDuties { get; set; }
+
+    /// <summary>The month (1-12) the client's fiscal year ends; the fiscal year ends on the LAST day of
+    /// that month. December (12) by default — a per-client policy, like SoD. Legacy registrations stored
+    /// before this field existed deserialize to 0; readers normalize via <see cref="FiscalYear.MonthOf"/>.</summary>
+    public int FiscalYearEndMonth { get; set; } = 12;
 }
