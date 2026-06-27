@@ -46,7 +46,7 @@ public static class AdminEndpoints
         return Results.Created(
             $"/admin/clients/{id}",
             new ClientRegistrationResponse(id, registration.Name, registration.DatabaseName,
-                registration.RequireSegregationOfDuties, registration.FiscalYearEndMonth));
+                registration.RequireSegregationOfDuties, FiscalYear.MonthOf(registration)));
     }
 
     private static async Task<IResult> ListClients(ControlStore control, CancellationToken cancellationToken)
