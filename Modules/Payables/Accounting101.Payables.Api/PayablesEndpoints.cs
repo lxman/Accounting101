@@ -83,8 +83,11 @@ public static class PayablesEndpoints
     }
 
     private static async Task<IResult> ListBills(
-        Guid clientId, Guid vendorId, string? settlement, BillPaymentService service, CancellationToken cancellationToken)
+        Guid clientId, Guid? vendorId, string? settlement, BillPaymentService service, CancellationToken cancellationToken)
     {
+        if (vendorId is null || vendorId == Guid.Empty)
+            return Results.Problem("vendorId query parameter is required.", statusCode: StatusCodes.Status400BadRequest);
+
         SettlementFilter? filter;
         switch (settlement?.ToLowerInvariant())
         {
@@ -94,7 +97,7 @@ public static class PayablesEndpoints
             default: return Results.Problem($"Unknown settlement filter '{settlement}'.", statusCode: StatusCodes.Status400BadRequest);
         }
 
-        IReadOnlyList<BillView> views = await service.ListBillViewsAsync(clientId, vendorId, filter, cancellationToken);
+        IReadOnlyList<BillView> views = await service.ListBillViewsAsync(clientId, vendorId.Value, filter, cancellationToken);
         return Results.Ok(views);
     }
 
