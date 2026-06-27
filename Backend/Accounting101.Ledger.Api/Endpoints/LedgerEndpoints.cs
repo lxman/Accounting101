@@ -278,10 +278,29 @@ public static class LedgerEndpoints
     }
 
     private static async Task<IResult> ClosePeriod(
-        Guid clientId, ClosePeriodRequest request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+        Guid clientId, ClosePeriodRequest request, LedgerGateway gateway, ControlStore control,
+        ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Close, cancellationToken);
         if (ctx.Failed) return ctx.Error;
+
+        // Fiscal-year-end guard (host policy, per client): the year-end is closed via close-year, which
+        // also posts the closing entry — a plain monthly close there would strand it.
+        ClientRegistration? client = await control.GetClientAsync(clientId, cancellationToken);
+        if (client is not null)
+        {
+            DateOnly fye = FiscalYear.EndDateFor(FiscalYear.MonthOf(client), request.AsOf.Year);
+            if (request.AsOf == fye)
+                return Results.Problem(
+                    detail: $"{request.AsOf:yyyy-MM-dd} is this client's fiscal year-end. Run the year-end close "
+                          + $"(POST /clients/{clientId}/periods/close-year) instead of a monthly close.",
+                    statusCode: StatusCodes.Status409Conflict,
+                    extensions: new Dictionary<string, object?>
+                    {
+                        ["useEndpoint"] = "periods/close-year",
+                        ["fiscalYearEnd"] = fye.ToString("yyyy-MM-dd"),
+                    });
+        }
 
         try
         {
@@ -667,10 +686,23 @@ public static class LedgerEndpoints
     }
 
     private static async Task<IResult> CloseYear(
-        Guid clientId, CloseYearRequest request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+        Guid clientId, CloseYearRequest request, LedgerGateway gateway, ControlStore control,
+        ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Close, cancellationToken);
         if (ctx.Failed) return ctx.Error;
+
+        // Symmetric fiscal-year-end guard: close-year closes the fiscal year — refuse any other date.
+        ClientRegistration? client = await control.GetClientAsync(clientId, cancellationToken);
+        if (client is not null)
+        {
+            DateOnly fye = FiscalYear.EndDateFor(FiscalYear.MonthOf(client), request.FiscalYearEnd.Year);
+            if (request.FiscalYearEnd != fye)
+                return Results.Problem(
+                    detail: $"{request.FiscalYearEnd:yyyy-MM-dd} is not this client's fiscal year-end ({fye:yyyy-MM-dd}). "
+                          + "close-year closes the fiscal year; use the monthly close for an ordinary period.",
+                    statusCode: StatusCodes.Status409Conflict);
+        }
 
         ChartOfAccounts chart = await ctx.Ledger.Accounts.GetChartAsync(clientId, cancellationToken);
         try
