@@ -1,70 +1,60 @@
-# Module List Pagination (+ includeVoided) — Design
+# UI-Ready Module List Endpoints (paging + total + filter + includeVoided) — Design
 
 **Date:** 2026-06-26
-**Status:** Spec for review
+**Status:** **DEFERRED** — its own slice, to be implemented **with or just ahead of the UI**. The ultimate consumer is a UI: a list view is expected to show a **total count**, support **jump-to-page**, and **filter** the list. Building a minimal bare-array `skip`/`limit` now and re-doing it for the UI would be wasted work, so the full UI-ready contract is captured here and picked up when the UI is scoped.
 
 ## Goal
 
-Module list endpoints currently return **all** documents (`IDocumentStore.QueryAsync` has no `skip`/`limit`), so a list grows unboundedly over time (e.g. 24 months of payroll runs / cash disbursements). Add **pagination** to the module list endpoints, mirroring the engine's existing `GET /entries` convention, with a caller-chosen sort order. Bundle the related fix that list queries **silently omit voided documents** behind an opt-in `includeVoided` flag.
+Make the module list endpoints **UI-ready**: bounded, ordered, **paged with a total count** (so a UI can render "Page 3 of 12" and jump to any page), **filterable**, and able to **include voided** documents on request. Today these endpoints return *all* documents (`IDocumentStore.QueryAsync` has no `skip`/`limit`), which is neither bounded nor UI-friendly.
 
-## Existing convention (mirror it)
+Scope covers the module list endpoints: Payroll (runs, remittances), Cash (disbursements, deposits), Receivables (invoice views), Payables (bill views) — and, for UI uniformity, the engine `GET /entries` list (see Consistency).
 
-The engine's `GET /entries` (`LedgerEndpoints.cs`) already paginates: query params `int? skip, int? limit`; `Page(skip)` = `skip` if `>0` else `0`; `PageLimit(limit)` = `Math.Clamp(limit ?? 200, 1, 1000)` (default **200**, cap **1000**); the response is a **bare array** (no total-count envelope). DB-level paging in the journal store. This slice reuses that convention verbatim, adding a `sort` order param (the engine entries list is fixed-ascending; module lists let the caller choose).
+## Response contract — an envelope (not a bare array)
 
-## The pivotal distinction — two list shapes
-
-The module list endpoints are NOT uniform:
-
-1. **Doc-dump lists** — return raw documents straight from the store: Payroll `ListRuns`/`ListRemittances` and Cash `ListDisbursements`/`ListDeposits`, all via `store.GetByClientAsync` → `QueryAsync`. These grow with time and are the high-value pagination target. They page at the **DB**.
-2. **Computed-view lists** — compute a settlement view over *all* a customer's/vendor's documents: Receivables `ListInvoiceViewsAsync` and Payables `ListBillViewsAsync`. The store query feeding them **must stay unbounded** (the view needs every doc to compute applied/open balance), so these page **in-memory on the final view list**, after the existing settlement filter.
-
-### The load-bearing guard
-`GetByCustomerAsync` / `GetByVendorAsync` are *also* consumed by the internal aggregations — `AppliedToInvoiceAsync`, `GetCustomerCreditBalanceAsync`, `ValidateAllocationsAsync` (Receivables) and the Payables equivalents. **Those must always receive ALL documents.** Pagination must never touch the aggregation queries — if a paged result reached an aggregation, it would silently sum only the first page and corrupt settlement math. **Pagination is applied only on the display paths.** This is the one thing the implementation must not get wrong; the test suite must assert an aggregation over >1 page still sees everything.
-
-## The change
-
-### 1. Shared layer — `IDocumentStore.QueryAsync` (`Backend/Accounting101.Ledger.Contracts` + `Backend/Accounting101.Ledger.Mongo/MongoDocumentStore.cs`)
-Add optional parameters, with defaults that reproduce today's behavior for every existing caller:
-```csharp
-Task<IReadOnlyList<DocumentResult<T>>> QueryAsync<T>(
-    Guid clientId, string collection, IReadOnlyDictionary<string, string> tagFilter,
-    int? skip = null, int? limit = null, bool descending = false, bool includeVoided = false,
-    CancellationToken cancellationToken = default);
+A UI needs the total to compute page count and a jump target. So paged lists return an envelope, not a bare array:
+```jsonc
+{ "items": [ ... ],   // this page
+  "total": 137,        // total matching the filter (across all pages)
+  "skip": 100,         // offset of this page
+  "limit": 50 }        // page size used
 ```
-- **Sort:** always sort by the envelope's `ModuleDocument.Sequence` (the monotonic per-collection number assigned at finalize — a stable, meaningful key). `descending` flips ascending↔descending. (Today `QueryAsync` has no explicit sort — adding a deterministic order is a latent-correctness improvement; aggregation callers are order-insensitive, so they're unaffected.)
-- **Paging:** when `limit` is non-null, apply `.Skip(skip ?? 0).Limit(Math.Clamp(limit.Value, 1, 1000))` at the Mongo `Find`. When `limit` is null → unbounded (current behavior; what aggregations use).
-- **includeVoided:** when `true`, drop the `Nin(State, HiddenStates)` clause so Voided/Superseded/Inactive documents are returned too. Default `false` = current behavior.
-- Any in-memory `IDocumentStore` fakes used by module tests get the same params.
+From `{total, skip, limit}` the UI derives everything: page count = `ceil(total/limit)`, current page = `skip/limit + 1`, `hasMore` = `skip + items.length < total`. **Jump-to-page** is the UI setting `skip = (targetPage − 1) × limit`. (This supersedes the earlier bare-array decision — bare arrays can't carry a total.)
 
-### 2. Doc-dump lists (Payroll, Cash) — page at the DB
-- `Payroll` store `GetByClientAsync` and `Cash` store `GetByClientAsync` gain `(int? skip, int? limit, bool descending, bool includeVoided)`, forwarded to `QueryAsync`.
-- `MapPayrollEndpoints` (`ListRuns`, `ListRemittances`) and `MapCashEndpoints` (`ListDisbursements`, `ListDeposits`) accept `?skip=&limit=&order=&includeVoided=` and pass them through. Use the engine's `Page`/`PageLimit` clamp helpers (or equivalents) so an unbounded scan can't be requested.
+- Params: `?skip=` (default 0), `?limit=` (default 50, clamped [1, 200] for a UI page; revisit the cap with the UI), `?order=asc|desc` (default desc = newest-first; invalid → 400).
+- `total` is a real count: a `CountAsync(clientId, collection, tagFilter, includeVoided)` seam on `IDocumentStore` (+ Mongo `CountDocuments`) for the doc-dump lists; **free** for the computed-view lists (they already materialize the full filtered list — total is its length before paging).
 
-### 3. Computed-view lists (Receivables, Payables) — page the result in-memory
-- `ListInvoiceViewsAsync` / `ListBillViewsAsync` gain `(int? skip, int? limit, bool descending)`. They compute + settlement-filter over **all** docs as today, then sort the **final view list** by the document's assigned **`Number`** (monotonic, carried on the `Invoice`/`Bill` in the view — the envelope `Sequence` isn't on the mapped view) and `Skip().Take(clampedLimit)`. The store call feeding them stays unbounded.
-- `includeVoided` is **out of scope** for these two: their visibility is already governed by the settlement filter (Issued/Entered only; voided excluded by design). Only the doc-dump lists get `includeVoided`.
-- `ListInvoices` / `ListBills` endpoints accept `?skip=&limit=&order=` (alongside the existing `settlement=` filter).
+## The two list shapes (unchanged technical core)
 
-### Parameters (final)
-- **All paged list endpoints:** `?skip=` (default 0), `?limit=` (default 200, clamped [1,1000]), `?order=asc|desc` (default **desc** = newest first; invalid value → 400).
-- **Doc-dump lists only (Payroll, Cash):** additionally `?includeVoided=true|false` (default false).
-- Response: bare JSON array (unchanged shape), now bounded + ordered.
+1. **Doc-dump lists** — raw documents from the store: Payroll `ListRuns`/`ListRemittances`, Cash `ListDisbursements`/`ListDeposits` (via `store.GetByClientAsync` → `QueryAsync`). Page + count at the **DB**.
+2. **Computed-view lists** — settlement views over *all* a customer's/vendor's docs: Receivables `ListInvoiceViewsAsync`, Payables `ListBillViewsAsync`. The feeding store query **stays unbounded** (it must compute over every doc); page + total are applied **in-memory on the final view list** after filtering, sorted by the document's assigned `Number`.
 
-## Out of scope
-- Total-count / `nextPage` envelope — the engine returns bare arrays; stay consistent. (A `hasMore`/count envelope can be a separate slice if a UI needs it.)
-- Cursor-based pagination — skip/limit matches the house style; fine at these volumes.
-- `includeVoided` on the computed-view (settlement) lists.
-- Pagination on the engine `GET /entries` — already paged.
+### The load-bearing guard (carry forward)
+`GetByCustomerAsync` / `GetByVendorAsync` are *also* consumed by the internal aggregations (`AppliedToInvoiceAsync`, `GetCustomerCreditBalanceAsync`, `ValidateAllocationsAsync`, and Payables equivalents), which need **all** documents. **Pagination must never touch the aggregation queries** — only the display paths page. A test must assert an aggregation over >1 page still sees everything. (Live precedent for why this matters: in month-6 of an early dog-food, the Accountant read only page 1 of `GET /entries` and falsely reported "0 remaining," closing a period with pending entries stranded. Bounded lists *must* expose total + a pending filter so a caller can't mistake page 1 for the whole set.)
 
-## Testing
-- **`MongoDocumentStore`:** `QueryAsync` with `limit` returns ≤ limit, `skip` offsets, `descending` reverses, sorted by `Sequence`; `includeVoided` surfaces Voided/Superseded docs that the default hides; default call (no params) is byte-equivalent to today (unbounded, voided hidden).
-- **Aggregation-safety (critical):** seed > one page of a customer's payments/bills, then assert `AppliedToInvoiceAsync` / `GetCustomerCreditBalanceAsync` / `ValidateAllocationsAsync` (and Payables equivalents) still sum across **all** of them — i.e. the aggregation path never paginates.
-- **Doc-dump endpoints (Payroll, Cash):** seed > limit documents; assert page 1 returns `limit`, `skip` advances, `order` flips first/last, `includeVoided=true` includes a voided run/disbursement that the default omits.
-- **Computed-view endpoints (Receivables, Payables):** seed > limit invoices/bills for a customer/vendor; assert the view list is paged + ordered and the settlement totals on each page are still correct (the underlying computation saw all docs).
-- Existing module list/aggregation tests stay green (defaults unchanged).
+## Filtering (the UI-ready addition — detail with the UI)
 
-## Global constraints
+A UI list filters. The exact filter surface depends on the UI's concrete needs and will be specified when the UI slice is scoped, but the expected shape per list:
+- **Invoices / Bills:** by customer/vendor (already there), settlement status (already there), **date range** (issue/bill date), and likely amount range.
+- **Payroll runs / remittances, Cash disbursements / deposits:** by **date range**, and `includeVoided`.
+- Filters are equality/range predicates pushed to the Mongo query (tags + body fields) for doc-dumps, or applied in-memory for computed views — same split as paging. The `total` reflects the filtered set.
+- `includeVoided` (default false) surfaces Voided/Superseded documents that the default `QueryAsync` hides — scoped to the doc-dump lists (the computed views' visibility is governed by their settlement filter).
+
+## Shared layer — `IDocumentStore`
+- `QueryAsync<T>` gains optional `int? skip, int? limit, bool descending, bool includeVoided` (defaults reproduce today's behavior: unbounded, sorted by `Sequence`, voided hidden). When `limit` is non-null, `.Sort(Sequence).Skip(skip ?? 0).Limit(clamp(limit))` at the Mongo `Find`.
+- New `CountAsync(clientId, collection, tagFilter, bool includeVoided)` → Mongo `CountDocumentsAsync` (for doc-dump totals).
+- In-memory `IDocumentStore` fakes get the same surface.
+
+## Consistency with the engine `/entries`
+For a UI, the engine `GET /entries` list wants the same treatment (total + envelope) — it's currently a bare array with `skip`/`limit` and no total. The UI-ready slice should **unify the envelope across the module lists AND `/entries`**, which also means updating the **sim reconciler** (it pages `/entries` and parses a bare array) and the engine entry tests. This is the larger part of the slice's surface and the reason it's its own slice rather than polish.
+
+## Out of scope (even for the future slice, unless the UI needs it)
+- Cursor-based pagination — offset/total is fine at these volumes and is what jump-to-page needs.
+- Full-text search — equality/range filters only.
+
+## Why deferred
+Done minimally now (bare `skip`/`limit`, no total) it would be redone for the UI. The total-count envelope, jump-to-page, filtering, and the `/entries` unification only make sense against concrete UI requirements. The hard technical core (two list shapes; the aggregation-never-pages guard; `Sequence` sort; `includeVoided`; `QueryAsync` backward-compatible defaults) is settled here so the future slice starts from a real design.
+
+## Global constraints (when implemented)
 - .NET 10; build 0 warnings; commit per task; TDD; EphemeralMongo.
-- Backward-compatible: `QueryAsync`'s new params default to today's behavior; every existing caller compiles and behaves identically.
-- Mirror the engine's `Page`/`PageLimit` clamp (default 200, cap 1000) and bare-array response.
+- Backward-compatible `QueryAsync`/store defaults — every existing caller unchanged.
 - Commit trailer (verbatim): `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`.
