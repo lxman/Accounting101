@@ -25,6 +25,9 @@ public static class AdminEndpoints
     private static async Task<IResult> CreateClient(
         CreateClientRequest request, ControlStore control, CancellationToken cancellationToken)
     {
+        if (request.FiscalYearEndMonth is < 1 or > 12)
+            return Results.Problem("FiscalYearEndMonth must be between 1 and 12.", statusCode: StatusCodes.Status400BadRequest);
+
         Guid id = Guid.NewGuid();
         string database = string.IsNullOrWhiteSpace(request.DatabaseName)
             ? "client_" + id.ToString("N")
@@ -36,19 +39,21 @@ public static class AdminEndpoints
             Name = request.Name,
             DatabaseName = database,
             RequireSegregationOfDuties = request.RequireSegregationOfDuties,
+            FiscalYearEndMonth = request.FiscalYearEndMonth,
         };
         await control.RegisterClientAsync(registration, cancellationToken);
 
         return Results.Created(
             $"/admin/clients/{id}",
-            new ClientRegistrationResponse(id, registration.Name, registration.DatabaseName, registration.RequireSegregationOfDuties));
+            new ClientRegistrationResponse(id, registration.Name, registration.DatabaseName,
+                registration.RequireSegregationOfDuties, registration.FiscalYearEndMonth));
     }
 
     private static async Task<IResult> ListClients(ControlStore control, CancellationToken cancellationToken)
     {
         IReadOnlyList<ClientRegistration> clients = await control.ListClientsAsync(cancellationToken);
         return Results.Ok(clients
-            .Select(c => new ClientRegistrationResponse(c.Id, c.Name, c.DatabaseName, c.RequireSegregationOfDuties))
+            .Select(c => new ClientRegistrationResponse(c.Id, c.Name, c.DatabaseName, c.RequireSegregationOfDuties, FiscalYear.MonthOf(c)))
             .ToList());
     }
 

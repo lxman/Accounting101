@@ -55,4 +55,33 @@ public sealed class AdminTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         MembershipResponse[] members = (await admin.GetFromJsonAsync<MembershipResponse[]>($"/admin/clients/{client.Id}/members"))!;
         Assert.Contains(members, m => m.UserId == user && m.Role == "Auditor");
     }
+
+    [Fact]
+    public async Task Create_client_stores_and_returns_the_fiscal_year_end_month()
+    {
+        HttpResponseMessage created = await fixture.AdminClient().PostAsJsonAsync("/admin/clients",
+            new CreateClientRequest { Name = "JuneCo", FiscalYearEndMonth = 6 });
+        created.EnsureSuccessStatusCode();
+        ClientRegistrationResponse body = (await created.Content.ReadFromJsonAsync<ClientRegistrationResponse>())!;
+        Assert.Equal(6, body.FiscalYearEndMonth);
+    }
+
+    [Fact]
+    public async Task Create_client_defaults_fiscal_year_end_to_december()
+    {
+        HttpResponseMessage created = await fixture.AdminClient().PostAsJsonAsync("/admin/clients",
+            new CreateClientRequest { Name = "DefaultCo" });   // FiscalYearEndMonth omitted
+        ClientRegistrationResponse body = (await created.Content.ReadFromJsonAsync<ClientRegistrationResponse>())!;
+        Assert.Equal(12, body.FiscalYearEndMonth);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(13)]
+    public async Task Create_client_rejects_an_out_of_range_fiscal_year_end_month(int month)
+    {
+        HttpResponseMessage created = await fixture.AdminClient().PostAsJsonAsync("/admin/clients",
+            new CreateClientRequest { Name = "BadCo", FiscalYearEndMonth = month });
+        Assert.Equal(HttpStatusCode.BadRequest, created.StatusCode);
+    }
 }
