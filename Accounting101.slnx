@@ -21,6 +21,7 @@
     <Project Path="Modules/Receivables/Accounting101.Receivables.Tests/Accounting101.Receivables.Tests.csproj" />
   </Folder>
   <Folder Name="/Modules/Banking/Reconciliation/">
+    <Project Path="Modules/Banking/Reconciliation/Accounting101.Banking.Reconciliation.Api/Accounting101.Banking.Reconciliation.Api.csproj" />
     <Project Path="Modules/Banking/Reconciliation/Accounting101.Banking.Reconciliation.Tests/Accounting101.Banking.Reconciliation.Tests.csproj" />
   </Folder>
   <Folder Name="/Modules/Payables/">
