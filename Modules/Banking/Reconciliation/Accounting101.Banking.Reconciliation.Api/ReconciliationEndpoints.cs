@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Accounting101.Banking.Reconciliation;
 using Accounting101.Interchange;
+using Accounting101.Ledger.Contracts;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Accounting101.Banking.Reconciliation.Api;
@@ -55,11 +56,18 @@ public static class ReconciliationEndpoints
     }
 
     private static async Task<IResult> ListStatements(
-        Guid clientId, Guid? cashAccountId, ReconciliationService service, CancellationToken ct)
+        Guid clientId, Guid? cashAccountId, int? skip, int? limit, string? order,
+        ReconciliationService service, CancellationToken ct)
     {
         if (cashAccountId is null || cashAccountId == Guid.Empty)
             return Results.Problem("cashAccountId query parameter is required.", statusCode: StatusCodes.Status400BadRequest);
-        return Results.Ok(await service.ListStatementsAsync(clientId, cashAccountId.Value, ct));
+        if (!TryOrder(order, out bool descending))
+            return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
+        IReadOnlyList<BankStatement> all = await service.ListStatementsAsync(clientId, cashAccountId.Value, ct);
+        IEnumerable<BankStatement> ordered = descending
+            ? all.OrderByDescending(s => s.Number) : all.OrderBy(s => s.Number);
+        List<BankStatement> items = ordered.Skip(Math.Max(0, skip ?? 0)).Take(Math.Clamp(limit ?? 50, 1, 200)).ToList();
+        return Results.Ok(new PagedResponse<BankStatement>(items, all.Count, skip ?? 0, limit ?? 50));
     }
 
     private static async Task<IResult> StartReconciliation(
@@ -124,8 +132,27 @@ public static class ReconciliationEndpoints
         }
     }
 
-    private static async Task<IResult> ListAdjustments(Guid clientId, Guid id, AdjustmentService service, CancellationToken ct) =>
-        Results.Ok(await service.ListAdjustmentsAsync(clientId, id, ct));
+    private static async Task<IResult> ListAdjustments(
+        Guid clientId, Guid id, int? skip, int? limit, string? order,
+        AdjustmentService service, CancellationToken ct)
+    {
+        if (!TryOrder(order, out bool descending))
+            return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
+        IReadOnlyList<BankAdjustment> all = await service.ListAdjustmentsAsync(clientId, id, ct);
+        IEnumerable<BankAdjustment> ordered = descending
+            ? all.OrderByDescending(a => a.Number) : all.OrderBy(a => a.Number);
+        List<BankAdjustment> items = ordered.Skip(Math.Max(0, skip ?? 0)).Take(Math.Clamp(limit ?? 50, 1, 200)).ToList();
+        return Results.Ok(new PagedResponse<BankAdjustment>(items, all.Count, skip ?? 0, limit ?? 50));
+    }
+
+    private static bool TryOrder(string? order, out bool descending)
+    {
+        descending = true;
+        if (string.IsNullOrEmpty(order)) return true;
+        if (string.Equals(order, "desc", StringComparison.OrdinalIgnoreCase)) { descending = true; return true; }
+        if (string.Equals(order, "asc", StringComparison.OrdinalIgnoreCase)) { descending = false; return true; }
+        return false;
+    }
 
     private static async Task<IResult> GetAdjustment(Guid clientId, Guid id, Guid adjId, AdjustmentService service, CancellationToken ct)
     {
