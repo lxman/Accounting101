@@ -27,6 +27,7 @@ public sealed class InterchangeRegistry : IInterchangeRegistry
     {
         InterchangeRegistry registry = new();
         registry.Register<ImportedStatement>(new CsvStatementImporter());
+        registry.Register<ImportedStatement>(new OfxStatementImporter());
         return registry;
     }
 }
