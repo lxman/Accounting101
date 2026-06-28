@@ -22,5 +22,11 @@ public sealed class InterchangeRegistry : IInterchangeRegistry
     public IImporter<T>? Resolve<T>(InterchangeFormat format) =>
         _importers.TryGetValue((typeof(T), format), out object? importer) ? (IImporter<T>)importer : null;
 
-    // CreateDefault() is added in Task 3, once CsvStatementImporter exists.
+    /// <summary>The app's standard registry: the bundled first-party importers. Add new importers here.</summary>
+    public static InterchangeRegistry CreateDefault()
+    {
+        InterchangeRegistry registry = new();
+        registry.Register<ImportedStatement>(new CsvStatementImporter());
+        return registry;
+    }
 }
