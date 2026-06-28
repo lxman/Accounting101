@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using Accounting101.Receivables.Api;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Control;
+using Accounting101.TestSupport;
 using EphemeralMongo;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -18,7 +19,6 @@ namespace Accounting101.Receivables.Tests;
 /// </summary>
 public sealed class ReceivablesHostFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private IMongoRunner _runner = null!;
     private string _connectionString = "";
 
     public IMongoClient Mongo { get; private set; } = null!;
@@ -34,22 +34,14 @@ public sealed class ReceivablesHostFixture : WebApplicationFactory<Program>, IAs
 
     public async Task InitializeAsync()
     {
-        MongoRunnerOptions options = new()
-        {
-            Version = MongoVersion.V8,
-            UseSingleNodeReplicaSet = true,
-            AdditionalArguments = ["--quiet"],
-            StandardErrorLogger = Console.Error.WriteLine,
-        };
-        _runner = await MongoRunner.RunAsync(options);
-        _connectionString = _runner.ConnectionString;
+        IMongoRunner runner = await SharedMongo.InstanceAsync();
+        _connectionString = runner.ConnectionString;
         Mongo = new MongoClient(_connectionString);
     }
 
     async Task IAsyncLifetime.DisposeAsync()
     {
         await ((IAsyncDisposable)this).DisposeAsync();
-        _runner?.Dispose();
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
