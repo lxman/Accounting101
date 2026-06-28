@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The segregated import/export subsystem: entity- and format-pluggable IImporter<T>/IExporter<T>.
+       Zero dependencies — pure parsing/serialization, no HTTP/Mongo/module types. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
