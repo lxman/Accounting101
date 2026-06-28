@@ -32,6 +32,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Accounting101.Host\Accounting101.Host.csproj" />
+    <ProjectReference Include="..\..\Accounting101.TestSupport\Accounting101.TestSupport.csproj" />
   </ItemGroup>
 
 </Project>
