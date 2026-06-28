@@ -316,4 +316,94 @@ public sealed class ConcurrencyTests(MongoFixture fixture) : IClassFixture<Mongo
             // "never a void into a frozen period" holds because the freeze didn't exist when void ran.
         }
     }
+
+    // ── Unfenced-path coverage: Reopen appends to the audit chain without the counter fence ─────────
+    // ReopenAsync is the only mutation that does not $inc the journal:{clientId} counter, so these prove
+    // a Reopen racing posts still serializes safely via the WithTransactionAsync retry on the audit
+    // unique-sequence conflict (no spurious 5xx, no broken chain).
+
+    private (LedgerService service, MongoAuditLog audit) NewLedgerWithAudit()
+    {
+        MongoJournalStore store = fixture.NewStore();
+        MongoBalanceProjection projection = new(fixture.Database, store, "balances_probe_" + Guid.NewGuid().ToString("N"));
+        MongoCheckpointStore checkpoints = new(fixture.Database, "checkpoints_probe_" + Guid.NewGuid().ToString("N"));
+        MongoAuditLog audit = new(fixture.Database, "audit_probe_" + Guid.NewGuid().ToString("N"));
+        return (new LedgerService(fixture.Database.Client, store, projection, checkpoints, audit, new MongoSequenceStore(fixture.Database)), audit);
+    }
+
+    /// <summary>
+    /// PROBE for the suspected residual race. <see cref="LedgerService.ReopenAsync"/> is the one mutation
+    /// that appends to the audit chain WITHOUT touching the <c>journal:{clientId}</c> counter fence, so a
+    /// Reopen racing a Post does not serialize on the counter and could collide on the audit
+    /// unique-sequence index. Both operations here are individually legal — reopen an existing close, and
+    /// post into a much-later OPEN period — so NEITHER should fail. A spurious failure (or a broken chain)
+    /// is the residual race. 50 iterations widen the window.
+    /// </summary>
+    [Fact]
+    public async Task Reopen_racing_a_post_never_spuriously_fails()
+    {
+        for (int i = 0; i < 50; i++)
+        {
+            (LedgerService service, MongoAuditLog audit) = NewLedgerWithAudit();
+            await audit.EnsureIndexesAsync();
+            Guid clientId = Guid.NewGuid();
+
+            // Establish a closed period so there is something to reopen.
+            JournalEntry seed = EntryDated(clientId, new DateOnly(2024, 5, 15));
+            await service.PostAsync(seed, Actor, CancellationToken.None);
+            await service.ApproveAsync(seed.Id, Actor, CancellationToken.None);
+            await service.CloseAsync(clientId, new DateOnly(2024, 5, 31), Actor, CancellationToken.None);
+
+            // Race: clear the freeze (Reopen, unfenced) vs post a fresh entry in a later OPEN period.
+            Task reopen = service.ReopenAsync(clientId, null, Actor, "probe", CancellationToken.None);
+            Task post = service.PostAsync(EntryDated(clientId, new DateOnly(2024, 7, 1)), Actor, CancellationToken.None);
+
+            Exception? reopenEx = await Record.ExceptionAsync(() => reopen);
+            Exception? postEx = await Record.ExceptionAsync(() => post);
+
+            Assert.True(reopenEx is null && postEx is null,
+                $"Iteration {i}: a legal reopen+post pair failed — residual race. reopenEx={reopenEx?.GetType().Name}: {reopenEx?.Message}; postEx={postEx?.GetType().Name}: {postEx?.Message}");
+            Assert.True(await audit.VerifyAsync(clientId), $"Iteration {i}: audit chain broken after the reopen/post race.");
+        }
+    }
+
+    /// <summary>
+    /// Wider-window variant: one unfenced <see cref="LedgerService.ReopenAsync"/> races EIGHT concurrent
+    /// posts (each fenced via the counter, each appending to the audit chain) on the same client. This
+    /// maximises the chance that the reopen's audit append collides with a post's audit append without
+    /// serializing on the counter. All nine operations are legal, so none should fail and the chain must
+    /// stay gapless. 30 iterations.
+    /// </summary>
+    [Fact]
+    public async Task Reopen_racing_many_posts_never_spuriously_fails()
+    {
+        for (int i = 0; i < 30; i++)
+        {
+            (LedgerService service, MongoAuditLog audit) = NewLedgerWithAudit();
+            await audit.EnsureIndexesAsync();
+            Guid clientId = Guid.NewGuid();
+
+            JournalEntry seed = EntryDated(clientId, new DateOnly(2024, 5, 15));
+            await service.PostAsync(seed, Actor, CancellationToken.None);
+            await service.ApproveAsync(seed.Id, Actor, CancellationToken.None);
+            await service.CloseAsync(clientId, new DateOnly(2024, 5, 31), Actor, CancellationToken.None);
+
+            // One reopen (unfenced) racing eight fenced posts in a later OPEN period — fired together.
+            Task reopen = service.ReopenAsync(clientId, null, Actor, "probe", CancellationToken.None);
+            Task[] posts = Enumerable.Range(0, 8)
+                .Select(_ => service.PostAsync(EntryDated(clientId, new DateOnly(2024, 7, 1)), Actor, CancellationToken.None))
+                .ToArray();
+
+            Exception? reopenEx = await Record.ExceptionAsync(() => reopen);
+            Exception?[] postExs = await Task.WhenAll(posts.Select(p => Record.ExceptionAsync(() => p)));
+
+            Assert.Null(reopenEx);
+            Assert.All(postExs, ex => Assert.Null(ex));
+            Assert.True(await audit.VerifyAsync(clientId), $"Iteration {i}: audit chain broken after reopen vs 8 posts.");
+
+            // Gapless audit sequence: seed(create+approve+...) + close + reopen + 8 posts, all linked 1..N.
+            IReadOnlyList<AuditRecordDocument> records = await audit.GetForClientAsync(clientId);
+            Assert.Equal(Enumerable.Range(1, records.Count).Select(n => (long)n), records.Select(r => r.Sequence));
+        }
+    }
 }
