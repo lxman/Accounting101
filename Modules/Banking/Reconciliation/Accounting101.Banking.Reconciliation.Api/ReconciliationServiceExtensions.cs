@@ -17,6 +17,7 @@ public static class ReconciliationServiceExtensions
         {
             manifest.Evidentiary("bank-statements");
             manifest.Plain("reconciliations");
+            manifest.Evidentiary("bank-adjustments");
         });
 
         services.AddScoped<IBankStatementStore>(sp => new DocumentBankStatementStore(sp.GetRequiredKeyedService<IDocumentStore>("reconciliation")));
@@ -27,6 +28,14 @@ public static class ReconciliationServiceExtensions
         services.AddHttpClient("ReconciliationLedgerClient", client =>
                 client.BaseAddress = new Uri(configuration["Engine:BaseAddress"] ?? "http://localhost"))
             .AddTypedClient<IReconciliationLedgerReader, HttpReconciliationLedgerReader>();
+
+        services.AddScoped<IBankAdjustmentStore>(sp => new DocumentBankAdjustmentStore(sp.GetRequiredKeyedService<IDocumentStore>("reconciliation")));
+        services.AddScoped<AdjustmentService>();
+
+        // Credentialed posting client (Slice 3) — distinct named client from the Slice 1 read-only reader.
+        services.AddHttpClient("ReconciliationPostingClient", client =>
+                client.BaseAddress = new Uri(configuration["Engine:BaseAddress"] ?? "http://localhost"))
+            .AddTypedClient<ILedgerClient, HttpLedgerClient>();
 
         return services;
     }
