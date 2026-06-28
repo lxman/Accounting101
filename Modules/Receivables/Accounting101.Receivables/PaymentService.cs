@@ -128,6 +128,20 @@ public sealed class PaymentService(
         if (payment.Voided)
             throw new InvalidOperationException($"Payment {paymentId} is already voided.");
 
+        // A void reverses the whole payment, including the overpayment that landed as customer credit. If that
+        // credit has since been applied or refunded, removing it would drive the credit balance negative (a
+        // debit balance on a liability) — a corrupt state. Refuse; the consuming application/refund must be
+        // reversed first.
+        if (payment.Unapplied > 0m)
+        {
+            decimal creditBalance = await GetCustomerCreditBalanceAsync(clientId, payment.CustomerId, ct);
+            if (creditBalance - payment.Unapplied < 0m)
+                throw new InvalidOperationException(
+                    $"Cannot void payment {paymentId}: its overpayment credit ({payment.Unapplied:C}) has already " +
+                    $"been applied or refunded (available credit is only {creditBalance:C}). Reverse the credit " +
+                    $"application(s)/refund(s) first, then void this payment.");
+        }
+
         await VoidLedgerEntryAsync(clientId, paymentId, payment.Date, "payment", reason, ct);
 
         await payments.VoidAsync(clientId, paymentId, ct);

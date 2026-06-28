@@ -113,6 +113,10 @@ public static class ReceivablesEndpoints
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
         }
+        catch (LedgerClientException ex) // the engine refused — relay its real status + reason, not a 500
+        {
+            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
+        }
     }
 
     private static async Task<IResult> GetInvoice(
@@ -155,6 +159,10 @@ public static class ReceivablesEndpoints
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
         }
+        catch (LedgerClientException ex) // the engine refused — relay its real status + reason, not a 500
+        {
+            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
+        }
     }
 
     private static async Task<IResult> VoidPayment(
@@ -168,6 +176,10 @@ public static class ReceivablesEndpoints
         catch (InvalidOperationException ex)
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+        catch (LedgerClientException ex) // the engine refused — relay its real status + reason, not a 500
+        {
+            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
         }
     }
 
@@ -183,6 +195,10 @@ public static class ReceivablesEndpoints
         catch (InvalidOperationException ex)
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+        catch (LedgerClientException ex) // the engine refused — relay its real status + reason, not a 500
+        {
+            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
         }
     }
 
@@ -206,6 +222,10 @@ public static class ReceivablesEndpoints
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
         }
+        catch (LedgerClientException ex) // the engine refused — relay its real status + reason, not a 500
+        {
+            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
+        }
     }
 
     private static async Task<IResult> VoidWriteOff(
@@ -219,6 +239,10 @@ public static class ReceivablesEndpoints
         catch (InvalidOperationException ex)
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+        catch (LedgerClientException ex) // the engine refused — relay its real status + reason, not a 500
+        {
+            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
         }
     }
 
@@ -235,6 +259,10 @@ public static class ReceivablesEndpoints
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
         }
+        catch (LedgerClientException ex) // the engine refused — relay its real status + reason, not a 500
+        {
+            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
+        }
     }
 
     private static async Task<IResult> VoidCreditNote(
@@ -248,6 +276,10 @@ public static class ReceivablesEndpoints
         catch (InvalidOperationException ex)
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+        catch (LedgerClientException ex) // the engine refused — relay its real status + reason, not a 500
+        {
+            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
         }
     }
 
@@ -264,6 +296,10 @@ public static class ReceivablesEndpoints
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
         }
+        catch (LedgerClientException ex) // the engine refused — relay its real status + reason, not a 500
+        {
+            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
+        }
     }
 
     private static async Task<IResult> VoidRefund(
@@ -277,6 +313,10 @@ public static class ReceivablesEndpoints
         catch (InvalidOperationException ex)
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+        catch (LedgerClientException ex) // the engine refused — relay its real status + reason, not a 500
+        {
+            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
         }
     }
 }

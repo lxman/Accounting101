@@ -56,6 +56,19 @@ public sealed class BillPaymentService(
         if (payment.Voided)
             throw new InvalidOperationException($"Payment {paymentId} is already voided.");
 
+        // A void reverses the whole payment, including the overpayment that landed as vendor credit. If that
+        // credit has since been applied, removing it would drive the credit balance negative (a credit balance
+        // on the Vendor Credits asset) — a corrupt state. Refuse; the consuming application must be reversed first.
+        if (payment.Unapplied > 0m)
+        {
+            decimal creditBalance = await GetVendorCreditBalanceAsync(clientId, payment.VendorId, ct);
+            if (creditBalance - payment.Unapplied < 0m)
+                throw new InvalidOperationException(
+                    $"Cannot void payment {paymentId}: its overpayment credit ({payment.Unapplied:C}) has already " +
+                    $"been applied (available credit is only {creditBalance:C}). Reverse the vendor credit " +
+                    $"application(s) first, then void this payment.");
+        }
+
         IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, paymentId, ct);
         EntryResponse settlement = spawned.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null })
             ?? throw new InvalidOperationException($"No entry found for payment {paymentId} to void.");
