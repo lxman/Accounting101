@@ -18,6 +18,7 @@ public static class AdminEndpoints
 
         admin.MapPost("/clients", CreateClient);
         admin.MapGet("/clients", ListClients);
+        admin.MapPut("/clients/{clientId:guid}/fiscal-year-end", SetFiscalYearEnd);
         admin.MapPost("/clients/{clientId:guid}/members", AddMember);
         admin.MapGet("/clients/{clientId:guid}/members", ListMembers);
     }
@@ -47,6 +48,25 @@ public static class AdminEndpoints
             $"/admin/clients/{id}",
             new ClientRegistrationResponse(id, registration.Name, registration.DatabaseName,
                 registration.RequireSegregationOfDuties, FiscalYear.MonthOf(registration)));
+    }
+
+    private static async Task<IResult> SetFiscalYearEnd(
+        Guid clientId, SetFiscalYearEndRequest request, ControlStore control, CancellationToken cancellationToken)
+    {
+        if (request.FiscalYearEndMonth is < 1 or > 12)
+            return Results.Problem("FiscalYearEndMonth must be between 1 and 12.", statusCode: StatusCodes.Status400BadRequest);
+
+        // Forward-only: already-closed years are immutable in the journal, so changing the scalar only
+        // affects the validation of future closes. No effective-dated history is needed.
+        ClientRegistration? registration = await control.GetClientAsync(clientId, cancellationToken);
+        if (registration is null)
+            return Results.NotFound();
+
+        registration.FiscalYearEndMonth = request.FiscalYearEndMonth;
+        await control.RegisterClientAsync(registration, cancellationToken);
+
+        return Results.Ok(new ClientRegistrationResponse(registration.Id, registration.Name, registration.DatabaseName,
+            registration.RequireSegregationOfDuties, FiscalYear.MonthOf(registration)));
     }
 
     private static async Task<IResult> ListClients(ControlStore control, CancellationToken cancellationToken)

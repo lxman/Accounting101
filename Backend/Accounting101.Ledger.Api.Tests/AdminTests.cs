@@ -84,4 +84,47 @@ public sealed class AdminTests(ApiFixture fixture) : IClassFixture<ApiFixture>
             new CreateClientRequest { Name = "BadCo", FiscalYearEndMonth = month });
         Assert.Equal(HttpStatusCode.BadRequest, created.StatusCode);
     }
+
+    [Fact]
+    public async Task An_admin_changes_a_clients_fiscal_year_end_after_creation()
+    {
+        HttpClient admin = fixture.AdminClient();
+        ClientRegistrationResponse client = (await (await admin.PostAsJsonAsync(
+            "/admin/clients", new CreateClientRequest { Name = "ShiftCo" }))   // defaults to December
+            .Content.ReadFromJsonAsync<ClientRegistrationResponse>())!;
+        Assert.Equal(12, client.FiscalYearEndMonth);
+
+        HttpResponseMessage changed = await admin.PutAsJsonAsync(
+            $"/admin/clients/{client.Id}/fiscal-year-end", new SetFiscalYearEndRequest(6));
+        Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
+        Assert.Equal(6, (await changed.Content.ReadFromJsonAsync<ClientRegistrationResponse>())!.FiscalYearEndMonth);
+
+        // The new month persists — a subsequent list reflects it (and so close-year validation, which reads
+        // the same scalar via FiscalYear.MonthOf, now uses June).
+        ClientRegistrationResponse[] clients = (await admin.GetFromJsonAsync<ClientRegistrationResponse[]>("/admin/clients"))!;
+        Assert.Equal(6, clients.Single(c => c.Id == client.Id).FiscalYearEndMonth);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(13)]
+    public async Task Change_fiscal_year_end_rejects_an_out_of_range_month(int month)
+    {
+        HttpClient admin = fixture.AdminClient();
+        ClientRegistrationResponse client = (await (await admin.PostAsJsonAsync(
+            "/admin/clients", new CreateClientRequest { Name = "RangeCo" }))
+            .Content.ReadFromJsonAsync<ClientRegistrationResponse>())!;
+
+        HttpResponseMessage changed = await admin.PutAsJsonAsync(
+            $"/admin/clients/{client.Id}/fiscal-year-end", new SetFiscalYearEndRequest(month));
+        Assert.Equal(HttpStatusCode.BadRequest, changed.StatusCode);
+    }
+
+    [Fact]
+    public async Task Change_fiscal_year_end_returns_404_for_an_unknown_client()
+    {
+        HttpResponseMessage changed = await fixture.AdminClient().PutAsJsonAsync(
+            $"/admin/clients/{Guid.NewGuid()}/fiscal-year-end", new SetFiscalYearEndRequest(6));
+        Assert.Equal(HttpStatusCode.NotFound, changed.StatusCode);
+    }
 }
