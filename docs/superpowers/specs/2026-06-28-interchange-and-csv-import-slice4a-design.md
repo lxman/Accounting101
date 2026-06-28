@@ -15,7 +15,8 @@ other formats (JSON, TSV) and other data types, and (later) export.
 Slice 4 is therefore split into two shippable cycles under one design:
 
 - **4a — Interchange framework + CSV statement import + preview endpoint** ← THIS SPEC
-- **4b — `OfxStatementImporter`** (OFX 1.x SGML + 2.x XML), added into the proven framework
+- **4b — `OfxStatementImporter`, OFX 1.x SGML only** (the user's real Wells Fargo QFX) — its own cycle, since SGML is the riskiest parser
+- **4c — OFX 2.x XML** (deferred) — a second branch in the same importer, added if/when a 2.x file appears
 
 Statement *creation* already exists and validates (Slice 1 `POST
 /bank-statements`, foots-or-422). Import's job is purely **parsing** a bank
