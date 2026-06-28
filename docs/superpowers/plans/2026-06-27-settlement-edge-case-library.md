@@ -264,7 +264,9 @@ public sealed class AllocationBoundaryE2eTests(ReceivablesHostFixture fixture) :
         (Guid clientId, _, HttpClient clerk, HttpClient approver) = await ArrangeAsync();
         Guid customer = await CreateCustomerAsync(clerk, clientId);
         Guid invoice = await IssueInvoiceAsync(clerk, approver, clientId, customer, 100m);
-        (await clerk.PostAsJsonAsync($"/clients/{clientId}/invoices/{invoice}/void",
+        // Voiding an issued invoice is an Approver operation (Reverse/Void permission); the Clerk has only
+        // Read for raw GL. Matches the established ReceivablesVoidTests pattern.
+        (await approver.PostAsJsonAsync($"/clients/{clientId}/invoices/{invoice}/void",
             new VoidInvoiceRequest("test"))).EnsureSuccessStatusCode();
 
         HttpResponseMessage resp = await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
@@ -451,10 +453,12 @@ public sealed class DispositionLimitE2eTests(ReceivablesHostFixture fixture) : I
             .Content.ReadFromJsonAsync<Payment>())!;
         await ApproveBySourceRefAsync(clerk, approver, clientId, pay.Id);
 
-        (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments/{pay.Id}/void",
+        // Voiding an approved (posted) payment reverses a posted GL entry — an Approver action. Both voids
+        // go through the approver; the second hits the already-voided guard before any ledger call.
+        (await approver.PostAsJsonAsync($"/clients/{clientId}/payments/{pay.Id}/void",
             new VoidInvoiceRequest("first void"))).EnsureSuccessStatusCode();
 
-        HttpResponseMessage resp = await clerk.PostAsJsonAsync($"/clients/{clientId}/payments/{pay.Id}/void",
+        HttpResponseMessage resp = await approver.PostAsJsonAsync($"/clients/{clientId}/payments/{pay.Id}/void",
             new VoidInvoiceRequest("second void"));
 
         await AssertProblemAsync(resp, HttpStatusCode.Conflict, "already voided");
@@ -663,10 +667,12 @@ public sealed class SettlementIntegrityE2eTests(ReceivablesHostFixture fixture) 
         await ApproveBySourceRefAsync(clerk, approver, clientId, wo.Id);
         await AssertConsistentAsync(clerk, clientId, invoice, expectedOpen: 0m);
 
-        // Void the write-off → open back to 300.
-        (await clerk.PostAsJsonAsync($"/clients/{clientId}/write-offs/{wo.Id}/void",
+        // Void the write-off → open back to 300. Voiding an approved (posted) write-off reverses a posted
+        // GL entry — an Approver action. The reversal lands PendingApproval; under SoD the Approver authored
+        // it, so a distinct actor (the Controller) approves it (matches ReceivablesVoidTests).
+        (await approver.PostAsJsonAsync($"/clients/{clientId}/write-offs/{wo.Id}/void",
             new VoidInvoiceRequest("re-evaluated"))).EnsureSuccessStatusCode();
-        await ApproveBySourceRefAsync(clerk, approver, clientId, wo.Id);
+        await ApproveBySourceRefAsync(controller, controller, clientId, wo.Id);
         await AssertConsistentAsync(clerk, clientId, invoice, expectedOpen: 300m);
     }
 
@@ -1038,10 +1044,12 @@ public sealed class BillDispositionLimitE2eTests(PayablesHostFixture fixture) : 
             .Content.ReadFromJsonAsync<BillPayment>())!;
         await ApproveBySourceRefAsync(clerk, approver, clientId, pay.Id);
 
-        (await clerk.PostAsJsonAsync($"/clients/{clientId}/bill-payments/{pay.Id}/void",
+        // Voiding an approved (posted) bill payment reverses a posted GL entry — an Approver action. Both
+        // voids go through the approver; the second hits the already-voided guard before any ledger call.
+        (await approver.PostAsJsonAsync($"/clients/{clientId}/bill-payments/{pay.Id}/void",
             new VoidReasonRequest("first void"))).EnsureSuccessStatusCode();
 
-        HttpResponseMessage resp = await clerk.PostAsJsonAsync($"/clients/{clientId}/bill-payments/{pay.Id}/void",
+        HttpResponseMessage resp = await approver.PostAsJsonAsync($"/clients/{clientId}/bill-payments/{pay.Id}/void",
             new VoidReasonRequest("second void"));
 
         await AssertProblemAsync(resp, HttpStatusCode.Conflict, "already voided");
@@ -1168,7 +1176,7 @@ EOF
 **Interfaces:**
 - Consumes: `BillSettlementScenario` (Task 5).
 
-Sequence: bill1 1000, bill2 500. pay 600 → bill1 open 400; overpay bill2 (pay 600, allocate 500) → bill2 open 0, vendor credit 100; apply credit 100 to bill1 → bill1 open 300; void the credit application → bill1 open 400, credit restored to 100. After every approved step the books balance and both subledgers tie out.
+Sequence: bill1 1000, bill2 500. pay1 600 → bill1 open 400; overpay bill2 (pay2 600, allocate 500) → bill2 open 0, vendor credit 100; apply credit 100 to bill1 → bill1 open 300; void **pay1** (a plain payment with no credit entanglement; reversed by the Approver, reversal approved by the Controller under SoD) → bill1 open 900 (only the applied 100 credit remains), bill2 open 0, vendor credit 0. After every approved step the books balance and both subledgers tie out. (We void pay1 rather than pay2 because pay2's overpayment credit has already been applied to bill1; voiding pay2 would drive the vendor-credit balance negative — an incoherent state worth probing separately, not in the integrity sweep.)
 
 - [ ] **Step 1: Write the integrity test**
 
@@ -1218,14 +1226,17 @@ public sealed class BillSettlementIntegrityE2eTests(PayablesHostFixture fixture)
         await ApproveBySourceRefAsync(clerk, approver, clientId, app.Id);
         await AssertConsistentAsync(clerk, clientId, bill1, 300m, bill2, 0m);
 
-        // Void the second payment? No — void the credit application is not exposed; void pay2 instead would
-        // remove the credit. Here we void pay2 to confirm the credit (and bill1 application) unwind cleanly:
-        // pay2 void -> bill2 open back to 500, vendor credit reverts to 0, and the applied 100 can no longer
-        // stand, so bill1 returns to 400.
-        (await clerk.PostAsJsonAsync($"/clients/{clientId}/bill-payments/{pay2.Id}/void",
+        // Void pay1 (a plain payment with NO credit entanglement). Voiding an approved (posted) payment
+        // reverses a posted GL entry — an Approver action; the reversal lands PendingApproval and, under SoD,
+        // is approved by a distinct actor (the Controller). bill1 loses pay1's 600 but keeps the applied 100
+        // credit → open 900; bill2 stays 0; vendor credit stays 0.
+        // (We void pay1, not pay2: pay2's overpayment credit is already applied to bill1, so voiding pay2
+        // would drive the vendor-credit balance negative — an incoherent state worth probing separately, but
+        // not what this integrity sweep should assert.)
+        (await approver.PostAsJsonAsync($"/clients/{clientId}/bill-payments/{pay1.Id}/void",
             new VoidReasonRequest("reversed"))).EnsureSuccessStatusCode();
-        await ApproveBySourceRefAsync(clerk, approver, clientId, pay2.Id);
-        await AssertConsistentAsync(clerk, clientId, bill1, 300m, bill2, 500m);
+        await ApproveBySourceRefAsync(controller, controller, clientId, pay1.Id);
+        await AssertConsistentAsync(clerk, clientId, bill1, 900m, bill2, 0m);
     }
 
     private async Task AssertConsistentAsync(
@@ -1249,7 +1260,7 @@ public sealed class BillSettlementIntegrityE2eTests(PayablesHostFixture fixture)
 }
 ```
 
-> Implementer note on the final step: voiding `pay2` removes the vendor credit that the credit-application spent. The expected end state asserted is bill1 = 300 (credit application still stands), bill2 = 500 (payment reversed). **If the service instead blocks voiding a payment whose credit is already applied, or unwinds the application too** (bill1 → 400), that is a legitimate behavior question — STOP and surface it as a finding with the observed status/balances, rather than editing the assertion to match. The expected values above assume credit-applications are independent records that are not cascade-reversed; confirm against `BillPaymentService.VoidPaymentAsync` behavior and adjust the *sequence* (not silently the expectation) if needed.
+> Implementer note on the final step: the void of `pay1` reverses a posted entry (Approver action), and the reversal is approved by the Controller under SoD because the Approver authored it — the same pattern as the AR integrity sweep (Task 4) and the established `ReceivablesVoidTests`. Expected end state: bill1 = 900 (pay1's 600 reversed; the applied 100 credit still stands), bill2 = 0, vendor credit 0, both subledgers tie out. If any open balance, tie-out, or balance differs from the asserted values, STOP and surface it as a finding with observed-vs-expected — do not bend the assertion or touch product code.
 
 - [ ] **Step 2: Run the test, expect PASS**
 
