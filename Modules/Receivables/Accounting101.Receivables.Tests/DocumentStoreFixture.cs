@@ -4,6 +4,7 @@ using Accounting101.Ledger.Api.Documents;
 using Accounting101.Ledger.Api.Tenancy;
 using Accounting101.Ledger.Contracts;
 using Accounting101.Ledger.Mongo;
+using Accounting101.TestSupport;
 using EphemeralMongo;
 using MongoDB.Driver;
 
@@ -17,23 +18,14 @@ namespace Accounting101.Receivables.Tests;
 /// </summary>
 public sealed class DocumentStoreFixture : IAsyncLifetime
 {
-    private IMongoRunner _runner = null!;
-
     public Guid ClientId { get; private set; }
     public Guid UserId { get; private set; }
     public IDocumentStore Store { get; private set; } = null!;
 
     public async Task InitializeAsync()
     {
-        MongoRunnerOptions options = new()
-        {
-            Version = MongoVersion.V8,
-            UseSingleNodeReplicaSet = true,
-            AdditionalArguments = ["--quiet"],
-            StandardErrorLogger = Console.Error.WriteLine,
-        };
-        _runner = await MongoRunner.RunAsync(options);
-        IMongoClient mongo = new MongoClient(_runner.ConnectionString);
+        IMongoRunner runner = await SharedMongo.InstanceAsync();
+        IMongoClient mongo = new MongoClient(runner.ConnectionString);
 
         ControlStore control = new(mongo.GetDatabase("control_" + Guid.NewGuid().ToString("N")));
         ClientId = Guid.NewGuid();
@@ -61,11 +53,7 @@ public sealed class DocumentStoreFixture : IAsyncLifetime
             new ModuleAccess(control));
     }
 
-    public Task DisposeAsync()
-    {
-        _runner?.Dispose();
-        return Task.CompletedTask;
-    }
+    public Task DisposeAsync() => Task.CompletedTask;
 }
 
 /// <summary>An <see cref="ICurrentActor"/> that always returns a fixed member principal.</summary>

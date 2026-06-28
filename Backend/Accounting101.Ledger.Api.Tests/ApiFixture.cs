@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Control;
+using Accounting101.TestSupport;
 using EphemeralMongo;
 using Microsoft.AspNetCore.Mvc.Testing;
 using MongoDB.Driver;
@@ -15,7 +16,6 @@ namespace Accounting101.Ledger.Api.Tests;
 /// </summary>
 public sealed class ApiFixture : IAsyncLifetime
 {
-    private IMongoRunner _runner = null!;
     private WebApplicationFactory<Program> _factory = null!;
 
     public IMongoClient Mongo { get; private set; } = null!;
@@ -23,25 +23,18 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        MongoRunnerOptions options = new()
-        {
-            Version = MongoVersion.V8,
-            UseSingleNodeReplicaSet = true,
-            AdditionalArguments = ["--quiet"],
-            StandardErrorLogger = Console.Error.WriteLine,
-        };
-        _runner = await MongoRunner.RunAsync(options);
-        Mongo = new MongoClient(_runner.ConnectionString);
+        IMongoRunner runner = await SharedMongo.InstanceAsync();
+        string connectionString = runner.ConnectionString;
+        Mongo = new MongoClient(connectionString);
 
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
-            b.UseSetting("Mongo:ConnectionString", _runner.ConnectionString)
+            b.UseSetting("Mongo:ConnectionString", connectionString)
              .UseSetting("Mongo:ControlDatabase", ControlDatabase));
     }
 
     public Task DisposeAsync()
     {
         _factory?.Dispose();
-        _runner?.Dispose();
         return Task.CompletedTask;
     }
 

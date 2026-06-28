@@ -35,6 +35,7 @@
     <ProjectReference Include="..\Accounting101.Banking.Cash.Api\Accounting101.Banking.Cash.Api.csproj" />
     <ProjectReference Include="..\..\..\..\Backend\Accounting101.Ledger.Api\Accounting101.Ledger.Api.csproj" />
     <ProjectReference Include="..\..\..\..\Accounting101.Host\Accounting101.Host.csproj" />
+    <ProjectReference Include="..\..\..\..\Accounting101.TestSupport\Accounting101.TestSupport.csproj" />
   </ItemGroup>
 
 </Project>
