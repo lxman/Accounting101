@@ -51,7 +51,7 @@ public sealed class ReconciliationService(
         var cleared = reconciliation.ClearedEntryIds.Concat(entryIds).Distinct().ToList();
         Reconciliation updated = reconciliation with { ClearedEntryIds = cleared };
         await reconciliations.SaveAsync(clientId, updated, ct);
-        return BuildWorksheet(updated, await statements.GetAsync(clientId, updated.BankStatementId, ct)!, eligible, await ledger.GetCashBalanceAsync(clientId, updated.CashAccountId, updated.StatementDate, ct));
+        return await BuildWorksheetAsync(clientId, updated, ct);
     }
 
     public async Task<ReconciliationWorksheet> UnclearAsync(Guid clientId, Guid reconciliationId, IReadOnlyList<Guid> entryIds, CancellationToken ct = default)
