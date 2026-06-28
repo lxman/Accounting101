@@ -45,10 +45,6 @@ public static class PayablesEndpoints
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
         }
-        catch (LedgerClientException ex) // the engine refused — relay its real status + reason, not a 500
-        {
-            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
-        }
     }
 
     private static async Task<IResult> EnterBill(
