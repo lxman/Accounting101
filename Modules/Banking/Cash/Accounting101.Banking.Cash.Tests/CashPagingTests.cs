@@ -1,3 +1,4 @@
+using System.Net.Http.Json;
 using Accounting101.Ledger.Contracts;
 
 namespace Accounting101.Banking.Cash.Tests;
@@ -138,5 +139,25 @@ public sealed class CashPagingTests
 
         Assert.Equal(2, withoutVoided.Total);
         Assert.Equal(3, withVoided.Total);
+    }
+}
+
+/// <summary>
+/// HTTP-level over-request test: verifies the endpoint echoes the effective clamped limit (200),
+/// not the raw requested value (500), when a client sends an over-size limit query parameter.
+/// </summary>
+public sealed class CashPagingHttpTests(CashHostFixture fixture) : IClassFixture<CashHostFixture>
+{
+    [Fact]
+    public async Task Deposits_over_request_limit_envelope_echoes_effective_clamp()
+    {
+        (Guid clientId, _, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+
+        // No deposits seeded — empty list still exercises the endpoint pagination path.
+        PagedResponse<CashDepositView> page = (await clerk.GetFromJsonAsync<PagedResponse<CashDepositView>>(
+            $"/clients/{clientId}/cash-deposits?limit=500&skip=0"))!;
+
+        Assert.Equal(200, page.Limit);
+        Assert.Equal(0, page.Skip);
     }
 }

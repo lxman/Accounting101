@@ -70,6 +70,22 @@ public sealed class InvoiceListPagingTests(ReceivablesHostFixture fixture) : ICl
         Assert.DoesNotContain(page2.Items[0].Invoice.Id, page1.Items.Select(v => v.Invoice.Id));
     }
 
+    [Fact]
+    public async Task Over_request_limit_envelope_echoes_effective_clamp()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        await SettlementScenario.SetUpChartAsync(controller, clientId, fixture);
+        Guid customerId = await SettlementScenario.CreateCustomerAsync(clerk, clientId);
+
+        await IssueAsync(clerk, clientId, customerId);
+
+        PagedResponse<InvoiceView> page = (await clerk.GetFromJsonAsync<PagedResponse<InvoiceView>>(
+            $"/clients/{clientId}/invoices?customerId={customerId}&limit=500&skip=0"))!;
+
+        Assert.Equal(200, page.Limit);
+        Assert.Equal(0, page.Skip);
+    }
+
     private static async Task IssueAsync(HttpClient clerk, Guid clientId, Guid customerId)
     {
         DraftInvoiceRequest req = new(customerId,

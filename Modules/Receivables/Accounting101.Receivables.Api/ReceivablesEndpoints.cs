@@ -150,7 +150,7 @@ public static class ReceivablesEndpoints
         IEnumerable<InvoiceView> ordered = descending
             ? all.OrderByDescending(v => v.Invoice.Number) : all.OrderBy(v => v.Invoice.Number);
         List<InvoiceView> items = ordered.Skip(Math.Max(0, skip ?? 0)).Take(Math.Clamp(limit ?? 50, 1, 200)).ToList();
-        return Results.Ok(new PagedResponse<InvoiceView>(items, all.Count, skip ?? 0, limit ?? 50));
+        return Results.Ok(new PagedResponse<InvoiceView>(items, all.Count, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200)));
     }
 
     private static bool TryOrder(string? order, out bool descending)

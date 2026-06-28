@@ -67,7 +67,7 @@ public static class ReconciliationEndpoints
         IEnumerable<BankStatement> ordered = descending
             ? all.OrderByDescending(s => s.Number) : all.OrderBy(s => s.Number);
         List<BankStatement> items = ordered.Skip(Math.Max(0, skip ?? 0)).Take(Math.Clamp(limit ?? 50, 1, 200)).ToList();
-        return Results.Ok(new PagedResponse<BankStatement>(items, all.Count, skip ?? 0, limit ?? 50));
+        return Results.Ok(new PagedResponse<BankStatement>(items, all.Count, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200)));
     }
 
     private static async Task<IResult> StartReconciliation(
@@ -142,7 +142,7 @@ public static class ReconciliationEndpoints
         IEnumerable<BankAdjustment> ordered = descending
             ? all.OrderByDescending(a => a.Number) : all.OrderBy(a => a.Number);
         List<BankAdjustment> items = ordered.Skip(Math.Max(0, skip ?? 0)).Take(Math.Clamp(limit ?? 50, 1, 200)).ToList();
-        return Results.Ok(new PagedResponse<BankAdjustment>(items, all.Count, skip ?? 0, limit ?? 50));
+        return Results.Ok(new PagedResponse<BankAdjustment>(items, all.Count, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200)));
     }
 
     private static bool TryOrder(string? order, out bool descending)

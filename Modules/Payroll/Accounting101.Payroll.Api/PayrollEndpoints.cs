@@ -69,7 +69,7 @@ public static class PayrollEndpoints
         if (!TryOrder(order, out bool descending))
             return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
         PagedResponse<PayrollRun> page = await store.GetByClientPagedAsync(
-            clientId, skip ?? 0, limit ?? 50, descending, includeVoided ?? false, cancellationToken);
+            clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeVoided ?? false, cancellationToken);
         return Results.Ok(new PagedResponse<PayrollRunView>(
             page.Items.Select(r => new PayrollRunView(r)).ToList(), page.Total, page.Skip, page.Limit));
     }
@@ -113,7 +113,7 @@ public static class PayrollEndpoints
         if (!TryOrder(order, out bool descending))
             return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
         PagedResponse<TaxRemittance> page = await store.GetByClientPagedAsync(
-            clientId, skip ?? 0, limit ?? 50, descending, includeVoided ?? false, cancellationToken);
+            clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeVoided ?? false, cancellationToken);
         return Results.Ok(new PagedResponse<TaxRemittanceView>(
             page.Items.Select(r => new TaxRemittanceView(r)).ToList(), page.Total, page.Skip, page.Limit));
     }

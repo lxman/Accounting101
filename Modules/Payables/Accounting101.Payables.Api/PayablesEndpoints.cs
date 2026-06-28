@@ -114,7 +114,7 @@ public static class PayablesEndpoints
         IEnumerable<BillView> ordered = descending
             ? all.OrderByDescending(v => v.Bill.Number) : all.OrderBy(v => v.Bill.Number);
         List<BillView> items = ordered.Skip(Math.Max(0, skip ?? 0)).Take(Math.Clamp(limit ?? 50, 1, 200)).ToList();
-        return Results.Ok(new PagedResponse<BillView>(items, all.Count, skip ?? 0, limit ?? 50));
+        return Results.Ok(new PagedResponse<BillView>(items, all.Count, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200)));
     }
 
     private static bool TryOrder(string? order, out bool descending)

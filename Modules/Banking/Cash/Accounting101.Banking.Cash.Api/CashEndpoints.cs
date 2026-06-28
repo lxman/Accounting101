@@ -72,7 +72,7 @@ public static class CashEndpoints
         if (!TryOrder(order, out bool descending))
             return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
         PagedResponse<CashDisbursement> page = await store.GetByClientPagedAsync(
-            clientId, skip ?? 0, limit ?? 50, descending, includeVoided ?? false, cancellationToken);
+            clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeVoided ?? false, cancellationToken);
         return Results.Ok(new PagedResponse<CashDisbursementView>(
             page.Items.Select(d => new CashDisbursementView(d)).ToList(), page.Total, page.Skip, page.Limit));
     }
@@ -127,7 +127,7 @@ public static class CashEndpoints
         if (!TryOrder(order, out bool descending))
             return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
         PagedResponse<CashDeposit> page = await store.GetByClientPagedAsync(
-            clientId, skip ?? 0, limit ?? 50, descending, includeVoided ?? false, cancellationToken);
+            clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeVoided ?? false, cancellationToken);
         return Results.Ok(new PagedResponse<CashDepositView>(
             page.Items.Select(d => new CashDepositView(d)).ToList(), page.Total, page.Skip, page.Limit));
     }
