@@ -1,6 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
-using Accounting101.Ledger.Contracts;
 using Accounting101.Ledger.Api.Control;
 using static Accounting101.Ledger.Api.Tests.TemporalScenario;
 
