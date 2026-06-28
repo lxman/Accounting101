@@ -34,7 +34,7 @@ public sealed class DocumentCashDisbursementStore(IDocumentStore documents) : IC
     public async Task<IReadOnlyList<CashDisbursement>> GetByClientAsync(Guid clientId, CancellationToken ct = default)
     {
         IReadOnlyList<DocumentResult<CashDisbursementBody>> results =
-            await documents.QueryAsync<CashDisbursementBody>(clientId, Collection, Tags(), ct);
+            await documents.QueryAsync<CashDisbursementBody>(clientId, Collection, Tags(), cancellationToken: ct);
         return results.Select(Map).ToList();
     }
 

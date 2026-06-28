@@ -58,12 +58,22 @@ public sealed class ScopedDocumentStore(
     }
 
     public async Task<IReadOnlyList<DocumentResult<T>>> QueryAsync<T>(Guid clientId, string collection,
-        IReadOnlyDictionary<string, string> tagFilter, CancellationToken cancellationToken = default)
+        IReadOnlyDictionary<string, string> tagFilter,
+        int? skip = null, int? limit = null, bool descending = true, bool includeVoided = false,
+        CancellationToken cancellationToken = default)
     {
         manifest.PolicyOf(collection);
         Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
-        IReadOnlyList<ModuleDocument> docs = await ctx.Store.QueryAsync(ctx.Physical, tagFilter, cancellationToken);
+        IReadOnlyList<ModuleDocument> docs = await ctx.Store.QueryAsync(ctx.Physical, tagFilter, skip, limit, descending, includeVoided, cancellationToken);
         return docs.Select(d => new DocumentResult<T>(d.Id, MapState(d.State), d.Sequence, BsonSerializer.Deserialize<T>(d.Body))).ToList();
+    }
+
+    public async Task<long> CountAsync(Guid clientId, string collection,
+        IReadOnlyDictionary<string, string> tagFilter, bool includeVoided = false, CancellationToken cancellationToken = default)
+    {
+        manifest.PolicyOf(collection);
+        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        return await ctx.Store.CountAsync(ctx.Physical, tagFilter, includeVoided, cancellationToken);
     }
 
     public async Task DeleteAsync(Guid clientId, string collection, Guid id, CancellationToken cancellationToken = default)

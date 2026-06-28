@@ -34,7 +34,7 @@ public sealed class DocumentTaxRemittanceStore(IDocumentStore documents) : ITaxR
     public async Task<IReadOnlyList<TaxRemittance>> GetByClientAsync(Guid clientId, CancellationToken ct = default)
     {
         IReadOnlyList<DocumentResult<TaxRemittanceBody>> results =
-            await documents.QueryAsync<TaxRemittanceBody>(clientId, Collection, Tags(), ct);
+            await documents.QueryAsync<TaxRemittanceBody>(clientId, Collection, Tags(), cancellationToken: ct);
         return results.Select(Map).ToList();
     }
 

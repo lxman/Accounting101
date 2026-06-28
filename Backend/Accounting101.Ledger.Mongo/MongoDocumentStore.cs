@@ -61,15 +61,37 @@ public sealed class MongoDocumentStore
 
     /// <summary>
     /// Documents whose tags match every entry in <paramref name="tagFilter"/> (equality). Hides
-    /// Inactive/Superseded/Voided — the active view, mirroring the journal's "replay sums Active" default.
+    /// Inactive/Superseded/Voided by default — the active view, mirroring the journal's "replay sums Active" default.
+    /// When <paramref name="limit"/> is supplied, sorts by Sequence and pages; otherwise returns all (unbounded, no sort).
     /// </summary>
     public async Task<IReadOnlyList<ModuleDocument>> QueryAsync(
-        string collection, IReadOnlyDictionary<string, string> tagFilter, CancellationToken cancellationToken = default)
+        string collection, IReadOnlyDictionary<string, string> tagFilter,
+        int? skip = null, int? limit = null, bool descending = true, bool includeVoided = false,
+        CancellationToken cancellationToken = default)
+    {
+        IFindFluent<ModuleDocument, ModuleDocument> find = Collection(collection).Find(MatchFilter(tagFilter, includeVoided));
+        if (limit is not null)
+        {
+            SortDefinition<ModuleDocument> sort = descending
+                ? Builders<ModuleDocument>.Sort.Descending(d => d.Sequence)
+                : Builders<ModuleDocument>.Sort.Ascending(d => d.Sequence);
+            find = find.Sort(sort).Skip(skip > 0 ? skip : 0).Limit(Math.Clamp(limit.Value, 1, 200));
+        }
+        return await find.ToListAsync(cancellationToken);
+    }
+
+    public Task<long> CountAsync(
+        string collection, IReadOnlyDictionary<string, string> tagFilter, bool includeVoided = false,
+        CancellationToken cancellationToken = default) =>
+        Collection(collection).CountDocumentsAsync(MatchFilter(tagFilter, includeVoided), cancellationToken: cancellationToken);
+
+    private static FilterDefinition<ModuleDocument> MatchFilter(IReadOnlyDictionary<string, string> tagFilter, bool includeVoided)
     {
         FilterDefinitionBuilder<ModuleDocument> b = Builders<ModuleDocument>.Filter;
-        List<FilterDefinition<ModuleDocument>> clauses = [b.Nin(d => d.State, HiddenStates)];
+        List<FilterDefinition<ModuleDocument>> clauses = [];
+        if (!includeVoided) clauses.Add(b.Nin(d => d.State, HiddenStates));   // default: hide Inactive/Superseded/Voided
         clauses.AddRange(tagFilter.Select(t => b.Eq("Tags." + t.Key, t.Value)));
-        return await Collection(collection).Find(b.And(clauses)).ToListAsync(cancellationToken);
+        return clauses.Count > 0 ? b.And(clauses) : b.Empty;
     }
 
     /// <summary>Ensure an index on each declared indexed-tag key (<c>Tags.{key}</c>). Idempotent.</summary>

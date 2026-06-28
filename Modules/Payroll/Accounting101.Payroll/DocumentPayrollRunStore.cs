@@ -34,7 +34,7 @@ public sealed class DocumentPayrollRunStore(IDocumentStore documents) : IPayroll
     public async Task<IReadOnlyList<PayrollRun>> GetByClientAsync(Guid clientId, CancellationToken ct = default)
     {
         IReadOnlyList<DocumentResult<PayrollRunBody>> results =
-            await documents.QueryAsync<PayrollRunBody>(clientId, Collection, Tags(), ct);
+            await documents.QueryAsync<PayrollRunBody>(clientId, Collection, Tags(), cancellationToken: ct);
         return results.Select(Map).ToList();
     }
 

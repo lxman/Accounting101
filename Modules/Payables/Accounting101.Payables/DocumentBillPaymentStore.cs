@@ -40,14 +40,14 @@ public sealed class DocumentBillPaymentStore(IDocumentStore documents) : IBillPa
     public async Task<IReadOnlyList<BillPayment>> GetPaymentsByVendorAsync(Guid clientId, Guid vendorId, CancellationToken ct = default)
     {
         IReadOnlyList<DocumentResult<BillPaymentBody>> results =
-            await documents.QueryAsync<BillPaymentBody>(clientId, BillPayments, Tags(vendorId), ct);
+            await documents.QueryAsync<BillPaymentBody>(clientId, BillPayments, Tags(vendorId), cancellationToken: ct);
         return results.Select(MapPayment).ToList();
     }
 
     public async Task<IReadOnlyList<VendorCreditApplication>> GetCreditApplicationsByVendorAsync(Guid clientId, Guid vendorId, CancellationToken ct = default)
     {
         IReadOnlyList<DocumentResult<VendorCreditApplicationBody>> results =
-            await documents.QueryAsync<VendorCreditApplicationBody>(clientId, VendorCreditApplications, Tags(vendorId), ct);
+            await documents.QueryAsync<VendorCreditApplicationBody>(clientId, VendorCreditApplications, Tags(vendorId), cancellationToken: ct);
         return results.Select(MapCredit).ToList();
     }
 

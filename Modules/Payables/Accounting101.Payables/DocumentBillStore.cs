@@ -38,7 +38,7 @@ public sealed class DocumentBillStore(IDocumentStore documents) : IBillStore
     public async Task<IReadOnlyList<Bill>> GetByVendorAsync(Guid clientId, Guid vendorId, CancellationToken ct = default)
     {
         IReadOnlyList<DocumentResult<BillBody>> results =
-            await documents.QueryAsync<BillBody>(clientId, Collection, Tags(vendorId), ct);
+            await documents.QueryAsync<BillBody>(clientId, Collection, Tags(vendorId), cancellationToken: ct);
         return results.Select(Map).ToList();
     }
 

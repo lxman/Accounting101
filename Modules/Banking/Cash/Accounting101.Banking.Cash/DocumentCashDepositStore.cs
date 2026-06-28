@@ -34,7 +34,7 @@ public sealed class DocumentCashDepositStore(IDocumentStore documents) : ICashDe
     public async Task<IReadOnlyList<CashDeposit>> GetByClientAsync(Guid clientId, CancellationToken ct = default)
     {
         IReadOnlyList<DocumentResult<CashDepositBody>> results =
-            await documents.QueryAsync<CashDepositBody>(clientId, Collection, Tags(), ct);
+            await documents.QueryAsync<CashDepositBody>(clientId, Collection, Tags(), cancellationToken: ct);
         return results.Select(Map).ToList();
     }
 

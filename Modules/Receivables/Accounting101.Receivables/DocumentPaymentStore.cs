@@ -43,14 +43,14 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
     public async Task<IReadOnlyList<Payment>> GetPaymentsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default)
     {
         IReadOnlyList<DocumentResult<PaymentBody>> results =
-            await documents.QueryAsync<PaymentBody>(clientId, Payments, Tags(customerId), ct);
+            await documents.QueryAsync<PaymentBody>(clientId, Payments, Tags(customerId), cancellationToken: ct);
         return results.Select(MapPayment).ToList();
     }
 
     public async Task<IReadOnlyList<CreditApplication>> GetCreditApplicationsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default)
     {
         IReadOnlyList<DocumentResult<CreditApplicationBody>> results =
-            await documents.QueryAsync<CreditApplicationBody>(clientId, CreditApplications, Tags(customerId), ct);
+            await documents.QueryAsync<CreditApplicationBody>(clientId, CreditApplications, Tags(customerId), cancellationToken: ct);
         return results.Select(MapCredit).ToList();
     }
 
@@ -71,7 +71,7 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
 
     public async Task<IReadOnlyList<WriteOff>> GetWriteOffsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default)
     {
-        IReadOnlyList<DocumentResult<WriteOffBody>> rs = await documents.QueryAsync<WriteOffBody>(clientId, WriteOffs, Tags(customerId), ct);
+        IReadOnlyList<DocumentResult<WriteOffBody>> rs = await documents.QueryAsync<WriteOffBody>(clientId, WriteOffs, Tags(customerId), cancellationToken: ct);
         return rs.Select(MapWriteOff).ToList();
     }
 
@@ -95,7 +95,7 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
 
     public async Task<IReadOnlyList<CreditNote>> GetCreditNotesByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default)
     {
-        IReadOnlyList<DocumentResult<CreditNoteBody>> rs = await documents.QueryAsync<CreditNoteBody>(clientId, CreditNotes, Tags(customerId), ct);
+        IReadOnlyList<DocumentResult<CreditNoteBody>> rs = await documents.QueryAsync<CreditNoteBody>(clientId, CreditNotes, Tags(customerId), cancellationToken: ct);
         return rs.Select(MapCreditNote).ToList();
     }
 
@@ -119,7 +119,7 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
 
     public async Task<IReadOnlyList<Refund>> GetRefundsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default)
     {
-        IReadOnlyList<DocumentResult<RefundBody>> rs = await documents.QueryAsync<RefundBody>(clientId, Refunds, Tags(customerId), ct);
+        IReadOnlyList<DocumentResult<RefundBody>> rs = await documents.QueryAsync<RefundBody>(clientId, Refunds, Tags(customerId), cancellationToken: ct);
         return rs.Select(MapRefund).ToList();
     }
 

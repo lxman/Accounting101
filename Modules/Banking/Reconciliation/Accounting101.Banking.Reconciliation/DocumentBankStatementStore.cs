@@ -27,7 +27,7 @@ public sealed class DocumentBankStatementStore(IDocumentStore documents) : IBank
     public async Task<IReadOnlyList<BankStatement>> GetByAccountAsync(Guid clientId, Guid cashAccountId, CancellationToken ct = default)
     {
         IReadOnlyList<DocumentResult<BankStatementBody>> results =
-            await documents.QueryAsync<BankStatementBody>(clientId, Collection, Tags(), ct);
+            await documents.QueryAsync<BankStatementBody>(clientId, Collection, Tags(), cancellationToken: ct);
         return results.Where(r => r.Body.CashAccountId == cashAccountId).Select(Map).ToList();
     }
 
