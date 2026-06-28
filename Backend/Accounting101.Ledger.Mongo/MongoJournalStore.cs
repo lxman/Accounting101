@@ -200,6 +200,28 @@ public sealed class MongoJournalStore
         return docs.Select(d => d.ToDomain()).ToList();
     }
 
+    /// <summary>
+    /// Total entries for <paramref name="clientId"/> in the journal — the denominator for a paged unfiltered
+    /// browse. Mirrors the filter of <see cref="GetByClientAsync"/> with <c>CountDocumentsAsync</c>.
+    /// </summary>
+    public Task<long> CountByClientAsync(Guid clientId, CancellationToken cancellationToken = default) =>
+        _entries.CountDocumentsAsync(e => e.ClientId == clientId, cancellationToken: cancellationToken);
+
+    /// <summary>
+    /// Total entries for <paramref name="clientId"/> whose posting state matches <paramref name="posting"/> —
+    /// the denominator for a paged posting-filtered browse. Mirrors the filter of
+    /// <see cref="GetByPostingAsync"/> with <c>CountDocumentsAsync</c>.
+    /// </summary>
+    public Task<long> CountByPostingAsync(
+        Guid clientId, PostingState posting, CancellationToken cancellationToken = default)
+    {
+        FilterDefinitionBuilder<JournalEntryDocument> f = Builders<JournalEntryDocument>.Filter;
+        FilterDefinition<JournalEntryDocument> filter = f.And(
+            f.Eq(e => e.ClientId, clientId),
+            f.Eq("Posting", posting.ToString()));
+        return _entries.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
+    }
+
     /// <summary>Creates the indexes the prototype's read paths rely on. Idempotent.</summary>
     public Task EnsureIndexesAsync(CancellationToken cancellationToken = default)
     {

@@ -389,9 +389,13 @@ public static class LedgerEndpoints
         if (badPosting is not null) return badPosting;
 
         // Base-query precedence: reference → sourceRef → dimension → account → posting-only → unfiltered.
-        // The unfiltered and posting-only branches are paged; the others return all matching entries.
+        // The unfiltered and posting-only branches are pageable display paths (they may return an envelope).
+        // The filtered branches (reference/sourceRef/dimension/account) always return a bare array — they are
+        // internal aggregation reads that module ledger clients consume directly.
         IReadOnlyList<JournalEntry> entries;
         bool postingHandledByQuery = false;
+        bool pageable = false;
+        PostingState ps = default;
         if (!string.IsNullOrWhiteSpace(reference))
             entries = await ctx.Ledger.Journal.GetByReferenceAsync(clientId, reference, cancellationToken);
         else if (sourceRef is { } source)
@@ -400,19 +404,33 @@ public static class LedgerEndpoints
             entries = await ctx.Ledger.Journal.GetTouchingDimensionAsync(clientId, dimension, dimValue, cancellationToken);
         else if (account is { } accountId)
             entries = await ctx.Ledger.Journal.GetTouchingAccountAsync(clientId, accountId, cancellationToken);
-        else if (postingState is { } ps)
+        else if (postingState is { } pss)
         {
+            ps = pss;
             entries = await ctx.Ledger.Journal.GetByPostingAsync(clientId, ps, Page(skip), PageLimit(limit), cancellationToken);
             postingHandledByQuery = true;
+            pageable = true;
         }
         else
+        {
             entries = await ctx.Ledger.Journal.GetByClientAsync(clientId, Page(skip), PageLimit(limit), cancellationToken);
+            pageable = true;
+        }
 
         // When postingState was provided but the base query was not the posting-only branch, refine in-memory.
         if (postingState is { } refine && !postingHandledByQuery)
             entries = entries.Where(e => e.Posting == refine).ToList();
 
-        return Results.Ok(entries.Select(ToEntryResponse).ToList());
+        List<EntryResponse> items = entries.Select(ToEntryResponse).ToList();
+        bool paged = skip is not null || limit is not null;
+        if (pageable && paged)
+        {
+            long total = postingHandledByQuery
+                ? await ctx.Ledger.Journal.CountByPostingAsync(clientId, ps, cancellationToken)
+                : await ctx.Ledger.Journal.CountByClientAsync(clientId, cancellationToken);
+            return Results.Ok(new PagedResponse<EntryResponse>(items, total, Page(skip), PageLimit(limit)));
+        }
+        return Results.Ok(items);
     }
 
     /// <summary>

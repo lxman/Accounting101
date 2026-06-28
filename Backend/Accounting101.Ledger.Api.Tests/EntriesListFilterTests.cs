@@ -151,4 +151,129 @@ public sealed class EntriesListFilterTests(ApiFixture fixture) : IClassFixture<A
         Assert.DoesNotContain(entries, e => e.Id == approvedCash);
         Assert.DoesNotContain(entries, e => e.Id == pendingOther);
     }
+
+    // ---- dual-shape paging tests -----------------------------------------------
+
+    /// <summary>No skip/limit → bare array (internal-consumer gate: sourceRef filter always bare).</summary>
+    [Fact]
+    public async Task SourceRef_filter_always_returns_bare_array()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid debit = Guid.NewGuid(), credit = Guid.NewGuid();
+        DateOnly date = new(2026, 3, 31);
+
+        // Post one entry.
+        await PostEntryAsync(c.Http, c.ClientId, date, null, debit, credit, 100m);
+
+        // Even with limit= supplied, the sourceRef path must return a bare array — NOT a PagedResponse.
+        string url = $"/clients/{c.ClientId}/entries?sourceRef={Guid.NewGuid()}&limit=10";
+        HttpResponseMessage listResp = await c.Http.GetAsync(url);
+        listResp.EnsureSuccessStatusCode();
+
+        // Must deserialise as a bare list — PagedResponse has "Items"/"Total" keys.
+        List<EntryResponse>? bare = await listResp.Content.ReadFromJsonAsync<List<EntryResponse>>();
+        Assert.NotNull(bare); // bare array deserialized correctly (internal-consumer gate)
+    }
+
+    /// <summary>Unfiltered + limit → PagedResponse envelope with correct Total and window.</summary>
+    [Fact]
+    public async Task Limit_on_unfiltered_returns_paged_envelope()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid debit = Guid.NewGuid(), credit = Guid.NewGuid();
+        DateOnly date = new(2026, 3, 31);
+
+        // Seed 4 entries.
+        for (int i = 0; i < 4; i++)
+            await PostEntryAsync(c.Http, c.ClientId, date, null, debit, credit, (i + 1) * 10m);
+
+        // Request first page of 2.
+        HttpResponseMessage resp = await c.Http.GetAsync($"/clients/{c.ClientId}/entries?skip=0&limit=2");
+        resp.EnsureSuccessStatusCode();
+
+        PagedResponse<EntryResponse>? page =
+            await resp.Content.ReadFromJsonAsync<PagedResponse<EntryResponse>>();
+
+        Assert.NotNull(page);
+        Assert.Equal(4L, page.Total);
+        Assert.Equal(2, page.Items.Count);
+        Assert.Equal(0, page.Skip);
+        Assert.Equal(2, page.Limit);
+    }
+
+    /// <summary>Unfiltered skip=2 + limit=2 → second window of 2 entries.</summary>
+    [Fact]
+    public async Task Skip_and_limit_return_second_window()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid debit = Guid.NewGuid(), credit = Guid.NewGuid();
+        DateOnly date = new(2026, 3, 31);
+
+        List<Guid> ids = [];
+        for (int i = 0; i < 4; i++)
+            ids.Add(await PostEntryAsync(c.Http, c.ClientId, date, null, debit, credit, (i + 1) * 10m));
+
+        // Second window: skip the first 2.
+        HttpResponseMessage resp = await c.Http.GetAsync($"/clients/{c.ClientId}/entries?skip=2&limit=2");
+        resp.EnsureSuccessStatusCode();
+
+        PagedResponse<EntryResponse>? page =
+            await resp.Content.ReadFromJsonAsync<PagedResponse<EntryResponse>>();
+
+        Assert.NotNull(page);
+        Assert.Equal(4L, page.Total);
+        Assert.Equal(2, page.Items.Count);
+        Assert.Equal(2, page.Skip);
+        Assert.Equal(2, page.Limit);
+        // The first two entries must not appear in the second window.
+        Assert.DoesNotContain(page.Items, e => e.Id == ids[0]);
+        Assert.DoesNotContain(page.Items, e => e.Id == ids[1]);
+    }
+
+    /// <summary>Posting=Posted + limit → PagedResponse whose Total is the posted-only count.</summary>
+    [Fact]
+    public async Task Posting_Posted_with_limit_returns_paged_envelope_with_posted_total()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid debit = Guid.NewGuid(), credit = Guid.NewGuid();
+        DateOnly date = new(2026, 3, 31);
+
+        // 3 pending, 2 approved (posted).
+        for (int i = 0; i < 3; i++)
+            await PostEntryAsync(c.Http, c.ClientId, date, null, debit, credit, (i + 1) * 10m);
+        for (int i = 0; i < 2; i++)
+        {
+            Guid id = await PostEntryAsync(c.Http, c.ClientId, date, null, debit, credit, (i + 10) * 10m);
+            await ApproveAsync(c.Http, c.ClientId, id);
+        }
+
+        HttpResponseMessage resp = await c.Http.GetAsync(
+            $"/clients/{c.ClientId}/entries?posting=Posted&limit=10");
+        resp.EnsureSuccessStatusCode();
+
+        PagedResponse<EntryResponse>? page =
+            await resp.Content.ReadFromJsonAsync<PagedResponse<EntryResponse>>();
+
+        Assert.NotNull(page);
+        Assert.Equal(2L, page.Total);          // only the 2 posted entries
+        Assert.Equal(2, page.Items.Count);
+        Assert.All(page.Items, e => Assert.Equal("Posted", e.Posting));
+    }
+
+    /// <summary>No skip/limit on unfiltered → bare array (back-compat default).</summary>
+    [Fact]
+    public async Task No_paging_params_returns_bare_array()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid debit = Guid.NewGuid(), credit = Guid.NewGuid();
+        DateOnly date = new(2026, 3, 31);
+
+        await PostEntryAsync(c.Http, c.ClientId, date, null, debit, credit, 50m);
+
+        // No skip/limit → must deserialise as a bare list.
+        List<EntryResponse>? bare = await c.Http.GetFromJsonAsync<List<EntryResponse>>(
+            $"/clients/{c.ClientId}/entries");
+        Assert.NotNull(bare);
+        Assert.NotEmpty(bare);
+    }
 }
