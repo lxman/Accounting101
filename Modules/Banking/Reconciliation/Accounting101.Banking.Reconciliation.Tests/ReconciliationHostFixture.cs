@@ -91,6 +91,8 @@ public sealed class ReconciliationHostFixture : WebApplicationFactory<Program>, 
                     .ConfigurePrimaryHttpMessageHandler(() => Server.CreateHandler());
             services.AddHttpClient("ReconciliationLedgerClient", c => c.BaseAddress = new Uri("http://localhost"))
                     .ConfigurePrimaryHttpMessageHandler(() => Server.CreateHandler());
+            services.AddHttpClient("ReconciliationPostingClient", c => c.BaseAddress = new Uri("http://localhost"))
+                    .ConfigurePrimaryHttpMessageHandler(() => Server.CreateHandler());
         });
     }
 

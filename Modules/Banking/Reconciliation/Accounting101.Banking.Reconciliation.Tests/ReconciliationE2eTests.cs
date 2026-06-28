@@ -140,4 +140,104 @@ public sealed class ReconciliationE2eTests(ReconciliationHostFixture fixture) : 
             .Content.ReadFromJsonAsync<Reconciliation>())!;
         Assert.Equal(ReconciliationStatus.Completed, done.Status);
     }
+
+    [Fact]
+    public async Task A_fee_adjustment_posts_pending_then_clears_the_residual_after_approval()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId, fixture);
+        DateOnly date = new(2026, 1, 20);
+        DateOnly stmtDate = new(2026, 1, 31);
+
+        // A real deposit (Dr Cash 100), approved → posted. Book cash = 100.
+        CashDeposit dep = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/cash-deposits",
+                new RecordCashDepositRequest([new CashLineRequest(fixture.MembersCapitalAccountId, 100m)], date, "DEP", null)))
+            .Content.ReadFromJsonAsync<CashDeposit>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, dep.Id);
+
+        // Statement foots WITH a $5 bank fee the books lack: 0 + 100 − 5 = 95.
+        BankStatement statement = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/bank-statements",
+                new RecordBankStatementRequest(fixture.CashAccountId, stmtDate, 0m, 95m,
+                    [new BankStatementLineRequest(date, 100m, "deposit", null), new BankStatementLineRequest(stmtDate, -5m, "service fee", null)])))
+            .Content.ReadFromJsonAsync<BankStatement>())!;
+        Reconciliation rec = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/reconciliations",
+                new StartReconciliationRequest(statement.Id))).Content.ReadFromJsonAsync<Reconciliation>())!;
+
+        // Clear only the deposit → a −5 fee residual remains.
+        ReconciliationWorksheet beforeAdj = (await clerk.GetFromJsonAsync<ReconciliationWorksheet>($"/clients/{clientId}/reconciliations/{rec.Id}"))!;
+        Guid depEntryId = beforeAdj.Entries.Single().EntryId;
+        await clerk.PostAsJsonAsync($"/clients/{clientId}/reconciliations/{rec.Id}/clear", new ClearRequest([depEntryId]));
+        ReconciliationWorksheet residual = (await clerk.GetFromJsonAsync<ReconciliationWorksheet>($"/clients/{clientId}/reconciliations/{rec.Id}"))!;
+        Assert.Equal(-5m, residual.ReconciledDifference);
+        Assert.False(residual.Balanced);
+
+        // Record a Charge adjustment (Dr InterestExpense / Cr Cash 5) → 201; its entry is PendingApproval, ViaModule=reconciliation.
+        BankAdjustment adj = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/reconciliations/{rec.Id}/adjustments",
+                new RecordAdjustmentRequest(fixture.InterestExpenseAccountId, 5m, AdjustmentKind.Charge, null, "service fee")))
+            .Content.ReadFromJsonAsync<BankAdjustment>())!;
+        EntryResponse[] adjEntries = (await clerk.GetFromJsonAsync<EntryResponse[]>($"/clients/{clientId}/entries?sourceRef={adj.Id}"))!;
+        Assert.Single(adjEntries);
+        Assert.Equal("PendingApproval", adjEntries[0].Posting);
+        Assert.Equal("reconciliation", adjEntries[0].ViaModule);
+
+        // Approve it (distinct Approver — maker-checker), then it becomes an eligible cash entry.
+        await ApproveBySourceRefAsync(clerk, approver, clientId, adj.Id);
+
+        ReconciliationWorksheet afterApprove = (await clerk.GetFromJsonAsync<ReconciliationWorksheet>($"/clients/{clientId}/reconciliations/{rec.Id}"))!;
+        Guid adjEntryId = afterApprove.Entries.Single(e => !e.Cleared).EntryId;
+        ReconciliationWorksheet balanced = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/reconciliations/{rec.Id}/clear",
+                new ClearRequest([adjEntryId]))).Content.ReadFromJsonAsync<ReconciliationWorksheet>())!;
+        Assert.Equal(0m, balanced.ReconciledDifference);
+        Assert.True(balanced.Balanced);
+
+        Reconciliation done = (await (await clerk.PostAsync($"/clients/{clientId}/reconciliations/{rec.Id}/complete", null))
+            .Content.ReadFromJsonAsync<Reconciliation>())!;
+        Assert.Equal(ReconciliationStatus.Completed, done.Status);
+    }
+
+    [Fact]
+    public async Task A_pending_adjustment_can_be_voided()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId, fixture);
+        DateOnly stmtDate = new(2026, 1, 31);
+
+        BankStatement statement = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/bank-statements",
+                new RecordBankStatementRequest(fixture.CashAccountId, stmtDate, 0m, -5m,
+                    [new BankStatementLineRequest(stmtDate, -5m, "service fee", null)])))
+            .Content.ReadFromJsonAsync<BankStatement>())!;
+        Reconciliation rec = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/reconciliations",
+                new StartReconciliationRequest(statement.Id))).Content.ReadFromJsonAsync<Reconciliation>())!;
+
+        BankAdjustment adj = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/reconciliations/{rec.Id}/adjustments",
+                new RecordAdjustmentRequest(fixture.InterestExpenseAccountId, 5m, AdjustmentKind.Charge, null, null)))
+            .Content.ReadFromJsonAsync<BankAdjustment>())!;
+
+        // Void the still-pending adjustment. The void calls the engine's entry-void, which requires Void
+        // permission — drive it with the Approver (the SoD role that carries approve/void), not the Clerk.
+        HttpResponseMessage voidResp = await approver.PostAsJsonAsync(
+            $"/clients/{clientId}/reconciliations/{rec.Id}/adjustments/{adj.Id}/void", new Accounting101.Banking.Reconciliation.Api.VoidReasonRequest("recorded in error"));
+        Assert.Equal(HttpStatusCode.OK, voidResp.StatusCode);
+        BankAdjustment voided = (await voidResp.Content.ReadFromJsonAsync<BankAdjustment>())!;
+        Assert.Equal(BankAdjustmentStatus.Void, voided.Status);
+    }
+
+    [Fact]
+    public async Task An_adjustment_with_a_non_positive_amount_is_rejected_422()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId, fixture);
+        DateOnly stmtDate = new(2026, 1, 31);
+
+        BankStatement statement = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/bank-statements",
+                new RecordBankStatementRequest(fixture.CashAccountId, stmtDate, 0m, 10m,
+                    [new BankStatementLineRequest(stmtDate, 10m, "deposit", null)])))
+            .Content.ReadFromJsonAsync<BankStatement>())!;
+        Reconciliation rec = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/reconciliations",
+                new StartReconciliationRequest(statement.Id))).Content.ReadFromJsonAsync<Reconciliation>())!;
+
+        HttpResponseMessage resp = await clerk.PostAsJsonAsync($"/clients/{clientId}/reconciliations/{rec.Id}/adjustments",
+            new RecordAdjustmentRequest(fixture.InterestExpenseAccountId, 0m, AdjustmentKind.Charge, null, null));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, resp.StatusCode);
+    }
 }
