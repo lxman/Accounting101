@@ -13,6 +13,10 @@ public sealed record CreateClientRequest
 public sealed record ClientRegistrationResponse(
     Guid Id, string Name, string DatabaseName, bool RequireSegregationOfDuties, int FiscalYearEndMonth);
 
+/// <summary>Change a client's fiscal-year-end month (1-12), forward-only. Already-closed years are
+/// immutable; this affects only future closes.</summary>
+public sealed record SetFiscalYearEndRequest(int FiscalYearEndMonth);
+
 /// <summary>Grant a user a role on a client. Role: Auditor | Clerk | Approver | Controller | Admin.</summary>
 public sealed record AddMemberRequest(Guid UserId, string Role);
 
