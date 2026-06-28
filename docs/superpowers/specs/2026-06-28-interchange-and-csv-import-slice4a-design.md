@@ -116,8 +116,16 @@ public sealed record CsvMapping(
     ColumnRef? Reference,
     string? DateFormat,          // null → try a fixed set of common formats
     bool HasHeader,
-    char Delimiter = ',');
+    char Delimiter = ',',
+    ColumnRef? Status = null,    // optional status column (e.g. Wells Fargo "STATUS")
+    IReadOnlyList<string>? ExcludeStatuses = null);  // rows whose Status equals one of these (case-insensitive) are skipped (e.g. ["Pending"])
 ```
+
+When a `Status` column is mapped and `ExcludeStatuses` is non-empty, a row whose
+status value matches (case-insensitive, trimmed) is filtered out **before** parsing
+— it is not an error and does not appear in `Warnings`, it is simply excluded (so
+an unreconcilable *Pending* row never enters the statement). When `Status` is not
+mapped, all rows are parsed (the existing behavior).
 
 **`CsvStatementImporter : IImporter<ImportedStatement>` (Format = Csv):**
 - Reads rows via `DelimitedReader`; if `HasHeader`, the first row is the header
@@ -137,6 +145,32 @@ public sealed record CsvMapping(
 **DI registration (`InterchangeServiceExtensions.AddInterchange`):** registers a
 singleton `IInterchangeRegistry` pre-populated with `CsvStatementImporter` for
 `ImportedStatement`. Future importers/exporters register here.
+
+### Validated against real Wells Fargo exports (schema only)
+
+The design was checked against a real Wells Fargo Checking CSV + QFX. These are
+**schema facts** (no personal data) that pin the canonical test cases and pre-load
+Slice 4b:
+
+- **WF CSV layout:** header `DATE,DESCRIPTION,AMOUNT,CHECK #,STATUS`; all fields
+  quoted; `DATE` = `MM/dd/yyyy`; **single signed `AMOUNT`** (− for purchases);
+  `CHECK #` often empty; `STATUS` ∈ {Pending, …}. The canonical 4a test uses this
+  layout with **synthetic** rows — a `CsvMapping` of `{ Date: "DATE", Amount:
+  "AMOUNT", Description: "DESCRIPTION", Reference: "CHECK #", Status: "STATUS",
+  ExcludeStatuses: ["Pending"], DateFormat: "MM/dd/yyyy", HasHeader: true }`. A
+  test asserts the `Pending` rows are excluded and the posted rows parse with the
+  right signed amounts + dates.
+- **WF QFX is OFX 1.x SGML (Slice 4b):** `OFXHEADER:100, DATA:OFXSGML,
+  VERSION:102, ENCODING:USASCII, CHARSET:1252`. **Leaf tags are unclosed**
+  (`<TRNAMT>`, `<DTPOSTED>`, `<NAME>`, `<MEMO>`, `<FITID>`, `<TRNTYPE>`) — value
+  runs to the next `<`; **aggregates are closed** (`<STMTTRN></STMTTRN>`,
+  `<LEDGERBAL></LEDGERBAL>`, `<BANKACCTFROM></BANKACCTFROM>`). A **separate
+  `<AVAILBAL>`** also holds a `BALAMT`/`DTASOF` — 4b must read LEDGERBAL's, not
+  AVAILBAL's. Intuit tags `<INTU.BID>`/`<INTU.USERID>` mean the tag scanner must
+  allow `.` in tag names. `<BANKACCTFROM><ACCTID>` → AccountHint;
+  `<BANKTRANLIST><DTSTART>/<DTEND>` bound the period. OFX is posted-only (228 txns
+  vs 236 CSV rows = the 8 pending CSV rows) — so the CSV `ExcludeStatuses:
+  ["Pending"]` filter makes a CSV import match the OFX posted-only set.
 
 ### Reconciliation.Api — the preview endpoint
 
@@ -194,12 +228,15 @@ client reviews + supplies opening/closing → POST /bank-statements (Slice 1, fo
 - **`DelimitedReader` unit tests:** plain rows; quoted field with embedded comma;
   escaped quotes (`""`); embedded newline inside quotes; CRLF vs LF; trailing
   newline; a custom delimiter (`;`).
-- **`CsvStatementImporter` unit tests:** a signed-amount mapping (header + by-name
-  refs) parses N lines correctly; a Debit/Credit two-column mapping combines to the
-  right signed amounts; a positional (no-header, by-index) mapping; a bad date and
-  a bad amount land in `Warnings` and are skipped (good rows still parsed); an
-  invalid mapping (no Amount and no Debit/Credit) throws `ArgumentException`; a
-  custom date format is honored.
+- **`CsvStatementImporter` unit tests:** the **Wells Fargo layout** (synthetic
+  rows: header `DATE,DESCRIPTION,AMOUNT,CHECK #,STATUS`, `MM/dd/yyyy`, signed
+  amount, by-header refs) parses the posted lines with the right signed amounts +
+  dates AND **excludes the `Pending` rows** via `Status`/`ExcludeStatuses`; a
+  Debit/Credit two-column mapping combines to the right signed amounts; a
+  positional (no-header, by-index) mapping; a bad date and a bad amount land in
+  `Warnings` and are skipped (good rows still parsed); an invalid mapping (no
+  Amount and no Debit/Credit) throws `ArgumentException`; a custom date format is
+  honored.
 - **E2E** (Reconciliation host): POST a small CSV (multipart, a signed-amount
   mapping) → 200 preview with the expected `BankStatementLineRequest`s and empty
   warnings; then take the previewed lines, compute opening/closing, and submit to
