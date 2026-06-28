@@ -1,10 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <!-- The reconciliation module scaffold: implemented in a later slice; intentionally empty. -->
+  <!-- The reconciliation module (slice 1): bank statements + the cleared-method reconciliation core.
+       Read-only on the ledger — reads entries-by-account + as-of cash balance; posts nothing. -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Backend\Accounting101.Ledger.Contracts\Accounting101.Ledger.Contracts.csproj" />
+  </ItemGroup>
 
 </Project>
