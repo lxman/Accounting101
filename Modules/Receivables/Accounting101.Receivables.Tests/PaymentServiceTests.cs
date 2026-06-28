@@ -457,6 +457,69 @@ public sealed class PaymentServiceTests
         Assert.Equal(reversalsBefore + 1, ledger.ReversalCount);
         Assert.Equal(40m, await service.GetCustomerCreditBalanceAsync(clientId, customer));
     }
+
+    // ── negative-credit guard on payment void ───────────────────────────────
+
+    private async Task<Invoice> IssueAnotherInvoiceAsync(Harness h, Guid clientId, Guid customerId, decimal total)
+    {
+        Invoice draft = await h.Invoices.CreateDraftAsync(clientId, new InvoiceBody(
+            customerId, new DateOnly(2026, 3, 1), null, 0m, null, [new LineBody("Services", 1m, total, false)]));
+        return await h.Invoices.PromoteDraftAsync(clientId, draft.Id);
+    }
+
+    [Fact]
+    public async Task Voiding_a_payment_whose_credit_was_applied_is_rejected()
+    {
+        (Harness h, Guid clientId, Guid customerId, Invoice invoice1) = await SetupWithIssuedInvoiceAsync(100m);
+        // Overpay invoice1 by 50 → $50 customer credit.
+        Payment pay = await h.Service.RecordPaymentAsync(clientId,
+            new PaymentBody(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice1.Id, 100m)]));
+        // Apply that $50 credit to a second invoice → pool now 0.
+        Invoice invoice2 = await IssueAnotherInvoiceAsync(h, clientId, customerId, 100m);
+        await h.Service.RecordCreditApplicationAsync(clientId,
+            new CreditApplicationBody(customerId, new DateOnly(2026, 4, 1), [new Allocation(invoice2.Id, 50m)]));
+
+        InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => h.Service.VoidPaymentAsync(clientId, pay.Id));
+        Assert.Contains("already been applied", ex.Message, StringComparison.OrdinalIgnoreCase);
+
+        // The credit balance never went negative; the payment is still active.
+        Assert.Equal(0m, await h.Service.GetCustomerCreditBalanceAsync(clientId, customerId));
+    }
+
+    [Fact]
+    public async Task Voiding_a_payment_whose_credit_is_still_available_succeeds()
+    {
+        (Harness h, Guid clientId, Guid customerId, Invoice invoice1) = await SetupWithIssuedInvoiceAsync(100m);
+        Payment pay = await h.Service.RecordPaymentAsync(clientId,
+            new PaymentBody(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice1.Id, 100m)]));
+
+        Payment voided = await h.Service.VoidPaymentAsync(clientId, pay.Id);
+
+        Assert.True(voided.Voided);
+        Assert.Equal(0m, await h.Service.GetCustomerCreditBalanceAsync(clientId, customerId));
+    }
+
+    [Fact]
+    public async Task Voiding_one_overpayment_is_allowed_when_other_credit_covers_the_spend()
+    {
+        (Harness h, Guid clientId, Guid customerId, Invoice invoice1) = await SetupWithIssuedInvoiceAsync(100m);
+        // Two overpayments → pool $100.
+        Payment payA = await h.Service.RecordPaymentAsync(clientId,
+            new PaymentBody(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice1.Id, 100m)]));
+        Invoice invoice2 = await IssueAnotherInvoiceAsync(h, clientId, customerId, 100m);
+        await h.Service.RecordPaymentAsync(clientId,
+            new PaymentBody(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice2.Id, 100m)]));
+        // Spend $50 of credit on a third invoice → pool $50 remains.
+        Invoice invoice3 = await IssueAnotherInvoiceAsync(h, clientId, customerId, 100m);
+        await h.Service.RecordCreditApplicationAsync(clientId,
+            new CreditApplicationBody(customerId, new DateOnly(2026, 4, 1), [new Allocation(invoice3.Id, 50m)]));
+
+        // Voiding payA ($50 unapplied) is allowed: pool ($50) still covers it (payB's credit absorbs the spend).
+        Payment voided = await h.Service.VoidPaymentAsync(clientId, payA.Id);
+        Assert.True(voided.Voided);
+        Assert.Equal(0m, await h.Service.GetCustomerCreditBalanceAsync(clientId, customerId));
+    }
 }
 
 internal sealed class FixedPaymentAccountsProvider(PaymentPostingAccounts accounts) : IPaymentAccountsProvider
