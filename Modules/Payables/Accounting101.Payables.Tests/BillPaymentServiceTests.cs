@@ -241,4 +241,63 @@ public sealed class BillPaymentServiceTests
         BillView? view = await h.Payments.GetBillViewAsync(clientId, bill.Id);
         Assert.Equal(SettlementStatus.Paid, view!.SettlementStatus);
     }
+
+    // ── negative-credit guard on void ───────────────────────────────────────
+
+    private static async Task<Bill> EnterAnotherBillAsync(Harness h, Guid clientId, Guid vendorId, decimal total)
+    {
+        Bill draft = await h.BillStore.CreateDraftAsync(clientId, new BillBody(
+            vendorId, new DateOnly(2026, 3, 1), null, null, null, [new BillLineBody("Rent", total, Guid.NewGuid())]));
+        return await h.BillStore.FinalizeAsync(clientId, draft.Id);
+    }
+
+    [Fact]
+    public async Task Voiding_a_bill_payment_whose_credit_was_applied_is_rejected()
+    {
+        (Harness h, Guid clientId, Guid vendorId, Bill bill1) = await SetupWithEnteredBillAsync(100m);
+        // Overpay bill1 by 50 → $50 vendor credit.
+        BillPayment pay = await h.Payments.RecordPaymentAsync(clientId,
+            new BillPaymentBody(vendorId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(bill1.Id, 100m)]));
+        // Apply that $50 credit to a second bill → pool now 0.
+        Bill bill2 = await EnterAnotherBillAsync(h, clientId, vendorId, 100m);
+        await h.Payments.RecordCreditApplicationAsync(clientId,
+            new VendorCreditApplicationBody(vendorId, new DateOnly(2026, 4, 1), [new Allocation(bill2.Id, 50m)]));
+
+        InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => h.Payments.VoidPaymentAsync(clientId, pay.Id));
+        Assert.Contains("already been applied", ex.Message, StringComparison.OrdinalIgnoreCase);
+
+        Assert.Equal(0m, await h.Payments.GetVendorCreditBalanceAsync(clientId, vendorId));
+    }
+
+    [Fact]
+    public async Task Voiding_a_bill_payment_whose_credit_is_still_available_succeeds()
+    {
+        (Harness h, Guid clientId, Guid vendorId, Bill bill1) = await SetupWithEnteredBillAsync(100m);
+        BillPayment pay = await h.Payments.RecordPaymentAsync(clientId,
+            new BillPaymentBody(vendorId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(bill1.Id, 100m)]));
+
+        BillPayment voided = await h.Payments.VoidPaymentAsync(clientId, pay.Id);
+
+        Assert.True(voided.Voided);
+        Assert.Equal(0m, await h.Payments.GetVendorCreditBalanceAsync(clientId, vendorId));
+    }
+
+    [Fact]
+    public async Task Voiding_one_overpayment_is_allowed_when_other_vendor_credit_covers_the_spend()
+    {
+        (Harness h, Guid clientId, Guid vendorId, Bill bill1) = await SetupWithEnteredBillAsync(100m);
+        BillPayment payA = await h.Payments.RecordPaymentAsync(clientId,
+            new BillPaymentBody(vendorId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(bill1.Id, 100m)]));
+        Bill bill2 = await EnterAnotherBillAsync(h, clientId, vendorId, 100m);
+        await h.Payments.RecordPaymentAsync(clientId,
+            new BillPaymentBody(vendorId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(bill2.Id, 100m)]));
+        Bill bill3 = await EnterAnotherBillAsync(h, clientId, vendorId, 100m);
+        await h.Payments.RecordCreditApplicationAsync(clientId,
+            new VendorCreditApplicationBody(vendorId, new DateOnly(2026, 4, 1), [new Allocation(bill3.Id, 50m)]));
+
+        BillPayment voided = await h.Payments.VoidPaymentAsync(clientId, payA.Id);
+        Assert.True(voided.Voided);
+        Assert.Equal(0m, await h.Payments.GetVendorCreditBalanceAsync(clientId, vendorId));
+    }
 }
