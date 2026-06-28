@@ -22,7 +22,7 @@ public sealed class HttpReconciliationLedgerReader(HttpClient http, IHttpContext
         using HttpResponseMessage response = await http.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
         TrialBalanceResponse tb = (await response.Content.ReadFromJsonAsync<TrialBalanceResponse>(ct))!;
-        return tb.Accounts.SingleOrDefault(a => a.AccountId == accountId)?.Balance ?? 0m;
+        return tb.Accounts.FirstOrDefault(a => a.AccountId == accountId)?.Balance ?? 0m;
     }
 
     private HttpRequestMessage Forwarded(HttpMethod method, string uri)
