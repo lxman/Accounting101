@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Accounting101.Ledger.Mongo\Accounting101.Ledger.Mongo.csproj" />
+    <ProjectReference Include="..\..\Accounting101.TestSupport\Accounting101.TestSupport.csproj" />
   </ItemGroup>
 
 </Project>
