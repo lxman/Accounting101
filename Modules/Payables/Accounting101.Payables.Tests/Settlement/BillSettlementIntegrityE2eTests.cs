@@ -54,6 +54,16 @@ public sealed class BillSettlementIntegrityE2eTests(PayablesHostFixture fixture)
             new VoidReasonRequest("reversed"))).EnsureSuccessStatusCode();
         await ApproveBySourceRefAsync(controller, controller, clientId, pay1.Id);
         await AssertConsistentAsync(clerk, clientId, bill1, 900m, bill2, 0m);
+
+        // Pin contra-account routing at the terminal state: rent expense reflects both bills (1500) and was
+        // untouched by the cash-side churn; the vendor-credit lifecycle (created 100 -> applied 100) nets to 0.
+        IncomeStatementResponse income = (await clerk.GetFromJsonAsync<IncomeStatementResponse>(
+            $"/clients/{clientId}/statements/income-statement?from=2026-01-01&to=2026-03-31"))!;
+        Assert.Equal(1500m, income.Expenses.Total);
+
+        decimal vendorCredit = (await clerk.GetFromJsonAsync<VendorCreditBalanceProbe>(
+            $"/clients/{clientId}/vendors/{vendor}/credit-balance"))!.CreditBalance;
+        Assert.Equal(0m, vendorCredit);
     }
 
     private async Task AssertConsistentAsync(
@@ -74,4 +84,6 @@ public sealed class BillSettlementIntegrityE2eTests(PayablesHostFixture fixture)
             $"/clients/{clientId}/subledger/reconciliation?account={fixture.VendorCreditsAccountId}&dimension=Vendor"))!;
         Assert.True(vc.TiesOut, $"Vendor-credits subledger did not tie out (variance {vc.Variance})");
     }
+
+    private sealed record VendorCreditBalanceProbe(Guid VendorId, decimal CreditBalance);
 }

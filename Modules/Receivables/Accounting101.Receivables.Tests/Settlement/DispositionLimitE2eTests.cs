@@ -25,7 +25,7 @@ public sealed class DispositionLimitE2eTests(ReceivablesHostFixture fixture) : I
 
         Payment pay = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
                 new RecordPaymentRequest(customer, new DateOnly(2026, 3, 5), 60m, "check", [new Allocation(invoice, 60m)])))
-            .Content.ReadFromJsonAsync<Payment>())!;
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Payment>())!;
         await ApproveBySourceRefAsync(clerk, approver, clientId, pay.Id);
 
         HttpResponseMessage resp = await clerk.PostAsJsonAsync($"/clients/{clientId}/write-offs",
@@ -57,7 +57,7 @@ public sealed class DispositionLimitE2eTests(ReceivablesHostFixture fixture) : I
         // Overpay by 20 → customer credit 20.
         Payment pay = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
                 new RecordPaymentRequest(customer, new DateOnly(2026, 3, 5), 120m, "check", [new Allocation(invoice, 100m)])))
-            .Content.ReadFromJsonAsync<Payment>())!;
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Payment>())!;
         await ApproveBySourceRefAsync(clerk, approver, clientId, pay.Id);
 
         HttpResponseMessage resp = await clerk.PostAsJsonAsync($"/clients/{clientId}/refunds",
@@ -76,7 +76,7 @@ public sealed class DispositionLimitE2eTests(ReceivablesHostFixture fixture) : I
         // Overpay by 10 → customer credit 10.
         Payment pay = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
                 new RecordPaymentRequest(customer, new DateOnly(2026, 3, 5), 110m, "check", [new Allocation(invoice1, 100m)])))
-            .Content.ReadFromJsonAsync<Payment>())!;
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Payment>())!;
         await ApproveBySourceRefAsync(clerk, approver, clientId, pay.Id);
 
         Guid invoice2 = await IssueInvoiceAsync(clerk, approver, clientId, customer, 100m);
@@ -95,7 +95,7 @@ public sealed class DispositionLimitE2eTests(ReceivablesHostFixture fixture) : I
 
         Payment pay = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
                 new RecordPaymentRequest(customer, new DateOnly(2026, 3, 5), 100m, "check", [new Allocation(invoice, 100m)])))
-            .Content.ReadFromJsonAsync<Payment>())!;
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Payment>())!;
         await ApproveBySourceRefAsync(clerk, approver, clientId, pay.Id);
 
         (await approver.PostAsJsonAsync($"/clients/{clientId}/payments/{pay.Id}/void",

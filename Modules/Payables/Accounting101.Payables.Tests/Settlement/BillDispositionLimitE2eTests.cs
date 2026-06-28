@@ -26,7 +26,7 @@ public sealed class BillDispositionLimitE2eTests(PayablesHostFixture fixture) : 
         // Overpay bill1 by 10 → vendor credit 10.
         BillPayment pay = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/bill-payments",
                 new RecordBillPaymentRequest(vendor, new DateOnly(2026, 3, 5), 110m, "check", [new Allocation(bill1, 100m)])))
-            .Content.ReadFromJsonAsync<BillPayment>())!;
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<BillPayment>())!;
         await ApproveBySourceRefAsync(clerk, approver, clientId, pay.Id);
 
         Guid bill2 = await EnterBillAsync(clerk, approver, clientId, vendor, 100m, fixture.RentExpenseAccountId);
@@ -45,7 +45,7 @@ public sealed class BillDispositionLimitE2eTests(PayablesHostFixture fixture) : 
 
         BillPayment pay = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/bill-payments",
                 new RecordBillPaymentRequest(vendor, new DateOnly(2026, 3, 5), 100m, "check", [new Allocation(bill, 100m)])))
-            .Content.ReadFromJsonAsync<BillPayment>())!;
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<BillPayment>())!;
         await ApproveBySourceRefAsync(clerk, approver, clientId, pay.Id);
 
         // Voiding an approved (posted) bill payment reverses a posted GL entry — an Approver action. Both

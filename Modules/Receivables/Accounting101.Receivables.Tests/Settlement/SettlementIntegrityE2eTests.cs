@@ -49,6 +49,18 @@ public sealed class SettlementIntegrityE2eTests(ReceivablesHostFixture fixture) 
             new VoidInvoiceRequest("re-evaluated"))).EnsureSuccessStatusCode();
         await ApproveBySourceRefAsync(controller, controller, clientId, wo.Id);
         await AssertConsistentAsync(clerk, clientId, invoice, expectedOpen: 300m);
+
+        // Pin contra-account routing at the terminal state (not just self-consistency):
+        // the credit note reduced revenue via contra (1000 - 100 = 900); the write-off was reversed by the
+        // void, so bad-debt expense nets to zero; and no customer credit was ever created.
+        IncomeStatementResponse income = (await clerk.GetFromJsonAsync<IncomeStatementResponse>(
+            $"/clients/{clientId}/statements/income-statement?from=2026-01-01&to=2026-03-31"))!;
+        Assert.Equal(900m, income.Revenue.Total);
+        Assert.Equal(0m, income.Expenses.Total);
+
+        decimal customerCredit = (await clerk.GetFromJsonAsync<CreditBalanceProbe>(
+            $"/clients/{clientId}/customers/{customer}/credit-balance"))!.CreditBalance;
+        Assert.Equal(0m, customerCredit);
     }
 
     private async Task AssertConsistentAsync(HttpClient http, Guid clientId, Guid invoice, decimal expectedOpen)
@@ -66,4 +78,6 @@ public sealed class SettlementIntegrityE2eTests(ReceivablesHostFixture fixture) 
             $"/clients/{clientId}/subledger/reconciliation?account={fixture.CustomerCreditsAccountId}&dimension=Customer"))!;
         Assert.True(credits.TiesOut, $"Customer-credits subledger did not tie out (variance {credits.Variance})");
     }
+
+    private sealed record CreditBalanceProbe(Guid CustomerId, decimal CreditBalance);
 }

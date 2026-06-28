@@ -51,7 +51,7 @@ public sealed class AllocationBoundaryE2eTests(ReceivablesHostFixture fixture) :
 
         Payment paid = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
                 new RecordPaymentRequest(customer, new DateOnly(2026, 3, 5), 100m, "check", [new Allocation(invoice, 100m)])))
-            .Content.ReadFromJsonAsync<Payment>())!;
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Payment>())!;
         await ApproveBySourceRefAsync(clerk, approver, clientId, paid.Id);
 
         HttpResponseMessage resp = await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",

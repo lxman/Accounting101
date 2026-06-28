@@ -51,7 +51,7 @@ public sealed class BillAllocationBoundaryE2eTests(PayablesHostFixture fixture) 
 
         BillPayment paid = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/bill-payments",
                 new RecordBillPaymentRequest(vendor, new DateOnly(2026, 3, 5), 100m, "check", [new Allocation(bill, 100m)])))
-            .Content.ReadFromJsonAsync<BillPayment>())!;
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<BillPayment>())!;
         await ApproveBySourceRefAsync(clerk, approver, clientId, paid.Id);
 
         HttpResponseMessage resp = await clerk.PostAsJsonAsync($"/clients/{clientId}/bill-payments",
