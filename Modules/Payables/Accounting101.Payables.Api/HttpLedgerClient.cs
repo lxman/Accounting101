@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Contracts;
 
@@ -37,7 +39,7 @@ public sealed class HttpLedgerClient(
         request.Headers.TryAddWithoutValidation("X-Module-Secret", credential.Secret);
         request.Content = JsonContent.Create(entry);
         using HttpResponseMessage response = await http.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<PostEntryResponse>(cancellationToken))!;
     }
 
@@ -45,7 +47,7 @@ public sealed class HttpLedgerClient(
     {
         using HttpRequestMessage request = Forwarded(HttpMethod.Post, $"clients/{clientId}/entries/{entryId}/approve");
         using HttpResponseMessage response = await http.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<EntryResponse>(cancellationToken))!;
     }
 
@@ -54,7 +56,7 @@ public sealed class HttpLedgerClient(
         using HttpRequestMessage message = Forwarded(HttpMethod.Post, $"clients/{clientId}/entries/{entryId}/reverse");
         message.Content = JsonContent.Create(request);
         using HttpResponseMessage response = await http.SendAsync(message, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<EntryResponse>(cancellationToken))!;
     }
 
@@ -63,7 +65,7 @@ public sealed class HttpLedgerClient(
         using HttpRequestMessage message = Forwarded(HttpMethod.Post, $"clients/{clientId}/entries/{entryId}/void");
         message.Content = JsonContent.Create(request);
         using HttpResponseMessage response = await http.SendAsync(message, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<EntryResponse>(cancellationToken))!;
     }
 
@@ -71,8 +73,62 @@ public sealed class HttpLedgerClient(
     {
         using HttpRequestMessage request = Forwarded(HttpMethod.Get, $"clients/{clientId}/entries?sourceRef={sourceRef}");
         using HttpResponseMessage response = await http.SendAsync(request, cancellationToken);
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<List<EntryResponse>>(cancellationToken))!;
+    }
+
+    /// <summary>Throw a typed <see cref="LedgerClientException"/> carrying the engine's status and reason on
+    /// any non-success response, so the module's endpoints can relay the real cause instead of a 500.</summary>
+    private static async Task EnsureSuccessAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        if (response.IsSuccessStatusCode) return;
+
+        string body = await response.Content.ReadAsStringAsync(cancellationToken);
+        throw new LedgerClientException((int)response.StatusCode, ReasonFrom(body, response));
+    }
+
+    /// <summary>Best available reason from the response body: ValidationProblemDetails <c>errors</c> flattened
+    /// to "field: msg; …", else ProblemDetails <c>detail</c>, else the raw body, else the status phrase.</summary>
+    private static string ReasonFrom(string body, HttpResponseMessage response)
+    {
+        if (!string.IsNullOrWhiteSpace(body))
+        {
+            try
+            {
+                using JsonDocument doc = JsonDocument.Parse(body);
+                JsonElement root = doc.RootElement;
+                if (root.ValueKind == JsonValueKind.Object)
+                {
+                    if (root.TryGetProperty("errors", out JsonElement errors)
+                        && errors.ValueKind == JsonValueKind.Object)
+                    {
+                        StringBuilder sb = new();
+                        foreach (JsonProperty prop in errors.EnumerateObject())
+                        {
+                            if (sb.Length > 0) sb.Append("; ");
+                            sb.Append(prop.Name).Append(": ");
+                            if (prop.Value.ValueKind == JsonValueKind.Array)
+                                sb.Append(string.Join(", ", prop.Value.EnumerateArray().Select(m => m.GetString() ?? string.Empty)));
+                            else
+                                sb.Append(prop.Value.GetRawText().Trim('"'));
+                        }
+                        if (sb.Length > 0) return sb.ToString();
+                    }
+
+                    if (root.TryGetProperty("detail", out JsonElement detail)
+                        && detail.ValueKind == JsonValueKind.String
+                        && detail.GetString() is { Length: > 0 } text)
+                    {
+                        return text;
+                    }
+                }
+            }
+            catch (JsonException) { /* not JSON — relay the raw body */ }
+
+            return body.Trim();
+        }
+
+        return response.ReasonPhrase ?? $"HTTP {(int)response.StatusCode}";
     }
 
     /// <summary>Build a request carrying the caller's bearer token, so the engine acts as that user.</summary>
