@@ -71,7 +71,7 @@ shared instance makes that unnecessary).
 ## Architecture
 
 ```
-Accounting101.TestSupport (new net10.0 lib; refs EphemeralMongo + MongoDB.Driver)
+Accounting101.TestSupport (new net10.0 lib; refs EphemeralMongo only — SharedMongo touches no MongoDB.Driver types)
   └── SharedMongo  — static; one IMongoRunner per test process, lazily started
         ▲ ProjectReference
    ┌────┴───────────────────────────────────────────────────────────┐
