@@ -43,6 +43,22 @@ public sealed class BillAllocationBoundaryE2eTests(PayablesHostFixture fixture) 
     }
 
     [Fact]
+    public async Task Allocation_to_a_voided_bill_is_rejected()
+    {
+        (Guid clientId, HttpClient clerk, HttpClient approver) = await ArrangeAsync();
+        Guid vendor = await CreateVendorAsync(clerk, clientId);
+        Guid bill = await EnterBillAsync(clerk, approver, clientId, vendor, 100m, fixture.RentExpenseAccountId);
+        // Voiding an entered bill reverses its posted entry — an Approver action (matches the AR voided-invoice case).
+        (await approver.PostAsJsonAsync($"/clients/{clientId}/bills/{bill}/void",
+            new VoidReasonRequest("test"))).EnsureSuccessStatusCode();
+
+        HttpResponseMessage resp = await clerk.PostAsJsonAsync($"/clients/{clientId}/bill-payments",
+            new RecordBillPaymentRequest(vendor, new DateOnly(2026, 3, 6), 50m, "check", [new Allocation(bill, 50m)]));
+
+        await AssertProblemAsync(resp, HttpStatusCode.UnprocessableEntity, "only entered bills can be paid");
+    }
+
+    [Fact]
     public async Task Paying_an_already_settled_bill_is_rejected()
     {
         (Guid clientId, HttpClient clerk, HttpClient approver) = await ArrangeAsync();
