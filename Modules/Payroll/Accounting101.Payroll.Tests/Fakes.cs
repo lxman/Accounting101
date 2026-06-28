@@ -85,7 +85,9 @@ internal sealed class InMemoryPayrollRunStore : IPayrollRunStore
 
     public Task<PagedResponse<PayrollRun>> GetByClientPagedAsync(Guid clientId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default)
     {
-        IEnumerable<PayrollRun> all = _store.Values.Where(r => includeVoided || r.Status != PayrollRunStatus.Void);
+        IEnumerable<PayrollRun> all = _store
+            .Where(kv => kv.Key.Item1 == clientId).Select(kv => kv.Value)
+            .Where(r => includeVoided || r.Status != PayrollRunStatus.Void);
         List<PayrollRun> ordered = (descending ? all.OrderByDescending(r => r.Number) : all.OrderBy(r => r.Number)).ToList();
         List<PayrollRun> items = ordered.Skip(Math.Max(0, skip)).Take(Math.Clamp(limit, 1, 200)).ToList();
         return Task.FromResult(new PagedResponse<PayrollRun>(items, ordered.Count, skip, limit));
@@ -129,7 +131,9 @@ internal sealed class InMemoryTaxRemittanceStore : ITaxRemittanceStore
 
     public Task<PagedResponse<TaxRemittance>> GetByClientPagedAsync(Guid clientId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default)
     {
-        IEnumerable<TaxRemittance> all = _store.Values.Where(r => includeVoided || r.Status != TaxRemittanceStatus.Void);
+        IEnumerable<TaxRemittance> all = _store
+            .Where(kv => kv.Key.Item1 == clientId).Select(kv => kv.Value)
+            .Where(r => includeVoided || r.Status != TaxRemittanceStatus.Void);
         List<TaxRemittance> ordered = (descending ? all.OrderByDescending(r => r.Number) : all.OrderBy(r => r.Number)).ToList();
         List<TaxRemittance> items = ordered.Skip(Math.Max(0, skip)).Take(Math.Clamp(limit, 1, 200)).ToList();
         return Task.FromResult(new PagedResponse<TaxRemittance>(items, ordered.Count, skip, limit));

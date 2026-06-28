@@ -82,7 +82,9 @@ internal sealed class InMemoryCashDisbursementStore : ICashDisbursementStore
 
     public Task<PagedResponse<CashDisbursement>> GetByClientPagedAsync(Guid clientId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default)
     {
-        IEnumerable<CashDisbursement> all = _store.Values.Where(d => includeVoided || d.Status != CashDisbursementStatus.Void);
+        IEnumerable<CashDisbursement> all = _store
+            .Where(kv => kv.Key.Item1 == clientId).Select(kv => kv.Value)
+            .Where(d => includeVoided || d.Status != CashDisbursementStatus.Void);
         List<CashDisbursement> ordered = (descending ? all.OrderByDescending(d => d.Number) : all.OrderBy(d => d.Number)).ToList();
         List<CashDisbursement> items = ordered.Skip(Math.Max(0, skip)).Take(Math.Clamp(limit, 1, 200)).ToList();
         return Task.FromResult(new PagedResponse<CashDisbursement>(items, ordered.Count, skip, limit));
@@ -126,7 +128,9 @@ internal sealed class InMemoryCashDepositStore : ICashDepositStore
 
     public Task<PagedResponse<CashDeposit>> GetByClientPagedAsync(Guid clientId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default)
     {
-        IEnumerable<CashDeposit> all = _store.Values.Where(d => includeVoided || d.Status != CashDepositStatus.Void);
+        IEnumerable<CashDeposit> all = _store
+            .Where(kv => kv.Key.Item1 == clientId).Select(kv => kv.Value)
+            .Where(d => includeVoided || d.Status != CashDepositStatus.Void);
         List<CashDeposit> ordered = (descending ? all.OrderByDescending(d => d.Number) : all.OrderBy(d => d.Number)).ToList();
         List<CashDeposit> items = ordered.Skip(Math.Max(0, skip)).Take(Math.Clamp(limit, 1, 200)).ToList();
         return Task.FromResult(new PagedResponse<CashDeposit>(items, ordered.Count, skip, limit));
