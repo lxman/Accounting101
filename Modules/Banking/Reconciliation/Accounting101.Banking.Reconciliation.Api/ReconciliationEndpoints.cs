@@ -19,6 +19,7 @@ public static class ReconciliationEndpoints
         clients.MapPost("/reconciliations/{id:guid}/clear", Clear);
         clients.MapPost("/reconciliations/{id:guid}/unclear", Unclear);
         clients.MapPost("/reconciliations/{id:guid}/complete", Complete);
+        clients.MapPost("/reconciliations/{id:guid}/auto-match", AutoMatch);
     }
 
     private static async Task<IResult> RecordStatement(
@@ -89,5 +90,24 @@ public static class ReconciliationEndpoints
     {
         try { return Results.Ok(await service.CompleteAsync(clientId, id, ct)); }
         catch (InvalidOperationException ex) { return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict); }
+    }
+
+    private static async Task<IResult> AutoMatch(
+        Guid clientId, Guid id, bool? apply, ReconciliationService service, CancellationToken ct)
+    {
+        try
+        {
+            return apply == true
+                ? Results.Ok(await service.AutoMatchApplyAsync(clientId, id, ct))   // clears matches → worksheet
+                : Results.Ok(await service.AutoMatchAsync(clientId, id, ct));        // read-only proposal
+        }
+        catch (InvalidOperationException ex) // reconciliation not found or already completed
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+        catch (ArgumentException ex) // ineligible id on the apply→clear path (not expected in normal operation)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
     }
 }

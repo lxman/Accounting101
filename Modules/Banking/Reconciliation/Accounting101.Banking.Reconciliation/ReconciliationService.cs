@@ -76,6 +76,29 @@ public sealed class ReconciliationService(
         return completed;
     }
 
+    /// <summary>Propose 1:1 pairings of the statement's lines to the uncleared eligible entries, by signed
+    /// amount (nearest-date tiebreak). Read-only — proposes, never clears.</summary>
+    public async Task<AutoMatchProposal> AutoMatchAsync(Guid clientId, Guid reconciliationId, CancellationToken ct = default)
+    {
+        Reconciliation reconciliation = await RequireOpenAsync(clientId, reconciliationId, ct);
+        BankStatement statement = (await statements.GetAsync(clientId, reconciliation.BankStatementId, ct))!;
+        IReadOnlyList<EntryResponse> eligible = await EligibleEntriesAsync(clientId, reconciliation, ct);
+        var clearedIds = reconciliation.ClearedEntryIds.ToHashSet();
+        List<MatchableEntry> uncleared = eligible
+            .Where(e => !clearedIds.Contains(e.Id))
+            .Select(e => new MatchableEntry(e.Id, e.EffectiveDate, ReconciliationMath.CashEffect(e, reconciliation.CashAccountId)))
+            .ToList();
+        return AutoMatcher.Match(statement.Lines, uncleared);
+    }
+
+    /// <summary>Run the auto-match and clear the matched entries (through the validated <see cref="ClearAsync"/>),
+    /// returning the updated worksheet.</summary>
+    public async Task<ReconciliationWorksheet> AutoMatchApplyAsync(Guid clientId, Guid reconciliationId, CancellationToken ct = default)
+    {
+        AutoMatchProposal proposal = await AutoMatchAsync(clientId, reconciliationId, ct);
+        return await ClearAsync(clientId, reconciliationId, proposal.MatchedEntryIds, ct);
+    }
+
     private async Task<Reconciliation> RequireOpenAsync(Guid clientId, Guid reconciliationId, CancellationToken ct)
     {
         Reconciliation reconciliation = await reconciliations.GetAsync(clientId, reconciliationId, ct)
