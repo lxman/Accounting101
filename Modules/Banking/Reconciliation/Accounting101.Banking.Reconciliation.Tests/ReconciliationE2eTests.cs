@@ -91,4 +91,53 @@ public sealed class ReconciliationE2eTests(ReconciliationHostFixture fixture) : 
 
         Assert.Equal(HttpStatusCode.UnprocessableEntity, resp.StatusCode);
     }
+
+    [Fact]
+    public async Task Auto_match_proposes_then_applies_to_balance_the_reconciliation()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId, fixture);
+        DateOnly date = new(2026, 1, 20);
+        DateOnly stmtDate = new(2026, 1, 31);
+
+        // Real deposit (Dr Cash 100) + disbursement (Cr Cash 40), both approved → posted.
+        CashDeposit dep = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/cash-deposits",
+                new RecordCashDepositRequest([new CashLineRequest(fixture.MembersCapitalAccountId, 100m)], date, "DEP", null)))
+            .Content.ReadFromJsonAsync<CashDeposit>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, dep.Id);
+        CashDisbursement dis = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/cash-disbursements",
+                new RecordCashDisbursementRequest([new CashLineRequest(fixture.InterestExpenseAccountId, 40m)], date, "DIS", null)))
+            .Content.ReadFromJsonAsync<CashDisbursement>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, dis.Id);
+
+        BankStatement statement = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/bank-statements",
+                new RecordBankStatementRequest(fixture.CashAccountId, stmtDate, 0m, 60m,
+                    [new BankStatementLineRequest(date, 100m, "deposit", null), new BankStatementLineRequest(date, -40m, "payment", null)])))
+            .Content.ReadFromJsonAsync<BankStatement>())!;
+        Reconciliation rec = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/reconciliations",
+                new StartReconciliationRequest(statement.Id))).Content.ReadFromJsonAsync<Reconciliation>())!;
+
+        // Preview: proposes both pairings, nothing unmatched, mutates nothing.
+        AutoMatchProposal proposal = (await (await clerk.PostAsync($"/clients/{clientId}/reconciliations/{rec.Id}/auto-match", null))
+            .Content.ReadFromJsonAsync<AutoMatchProposal>())!;
+        Assert.Equal(2, proposal.Matches.Count);
+        Assert.Empty(proposal.UnmatchedStatementLines);
+        Assert.Empty(proposal.UnmatchedEntries);
+
+        // Preview left the reconciliation untouched — nothing cleared yet.
+        ReconciliationWorksheet preview = (await clerk.GetFromJsonAsync<ReconciliationWorksheet>($"/clients/{clientId}/reconciliations/{rec.Id}"))!;
+        Assert.All(preview.Entries, e => Assert.False(e.Cleared));
+
+        // Apply: clears the matches → balanced.
+        ReconciliationWorksheet applied = (await (await clerk.PostAsync($"/clients/{clientId}/reconciliations/{rec.Id}/auto-match?apply=true", null))
+            .Content.ReadFromJsonAsync<ReconciliationWorksheet>())!;
+        Assert.Equal(60m, applied.ClearedTotal);
+        Assert.Equal(0m, applied.ReconciledDifference);
+        Assert.True(applied.Balanced);
+
+        // complete now succeeds.
+        Reconciliation done = (await (await clerk.PostAsync($"/clients/{clientId}/reconciliations/{rec.Id}/complete", null))
+            .Content.ReadFromJsonAsync<Reconciliation>())!;
+        Assert.Equal(ReconciliationStatus.Completed, done.Status);
+    }
 }
