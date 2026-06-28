@@ -42,4 +42,5 @@
     <File Path="UI/UI-UX-provisioning-plan.md" />
   </Folder>
   <Folder Name="/UI/" />
+  <Project Path="Accounting101.TestSupport/Accounting101.TestSupport.csproj" />
 </Solution>
