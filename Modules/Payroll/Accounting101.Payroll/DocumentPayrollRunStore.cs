@@ -38,6 +38,14 @@ public sealed class DocumentPayrollRunStore(IDocumentStore documents) : IPayroll
         return results.Select(Map).ToList();
     }
 
+    public async Task<PagedResponse<PayrollRun>> GetByClientPagedAsync(Guid clientId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default)
+    {
+        IReadOnlyList<DocumentResult<PayrollRunBody>> page =
+            await documents.QueryAsync<PayrollRunBody>(clientId, Collection, Tags(), skip, limit, descending, includeVoided, ct);
+        long total = await documents.CountAsync(clientId, Collection, Tags(), includeVoided, ct);
+        return new PagedResponse<PayrollRun>(page.Select(Map).ToList(), total, skip, limit);
+    }
+
     private static Dictionary<string, string> Tags() => new();
 
     private static PayrollRun Map(DocumentResult<PayrollRunBody> result) => new()

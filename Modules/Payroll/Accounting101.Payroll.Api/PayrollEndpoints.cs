@@ -1,3 +1,5 @@
+using Accounting101.Ledger.Contracts;
+
 namespace Accounting101.Payroll.Api;
 
 /// <summary>The payroll HTTP surface: payroll-run and tax-remittance lifecycle under /clients/{clientId}.
@@ -61,10 +63,15 @@ public static class PayrollEndpoints
     }
 
     private static async Task<IResult> ListRuns(
-        Guid clientId, IPayrollRunStore store, CancellationToken cancellationToken)
+        Guid clientId, int? skip, int? limit, string? order, bool? includeVoided,
+        IPayrollRunStore store, CancellationToken cancellationToken)
     {
-        IReadOnlyList<PayrollRun> runs = await store.GetByClientAsync(clientId, cancellationToken);
-        return Results.Ok(runs.Select(r => new PayrollRunView(r)).ToList());
+        if (!TryOrder(order, out bool descending))
+            return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
+        PagedResponse<PayrollRun> page = await store.GetByClientPagedAsync(
+            clientId, skip ?? 0, limit ?? 50, descending, includeVoided ?? false, cancellationToken);
+        return Results.Ok(new PagedResponse<PayrollRunView>(
+            page.Items.Select(r => new PayrollRunView(r)).ToList(), page.Total, page.Skip, page.Limit));
     }
 
     // ── Tax Remittances ─────────────────────────────────────────────────────
@@ -100,9 +107,23 @@ public static class PayrollEndpoints
     }
 
     private static async Task<IResult> ListRemittances(
-        Guid clientId, ITaxRemittanceStore store, CancellationToken cancellationToken)
+        Guid clientId, int? skip, int? limit, string? order, bool? includeVoided,
+        ITaxRemittanceStore store, CancellationToken cancellationToken)
     {
-        IReadOnlyList<TaxRemittance> remittances = await store.GetByClientAsync(clientId, cancellationToken);
-        return Results.Ok(remittances.Select(r => new TaxRemittanceView(r)).ToList());
+        if (!TryOrder(order, out bool descending))
+            return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
+        PagedResponse<TaxRemittance> page = await store.GetByClientPagedAsync(
+            clientId, skip ?? 0, limit ?? 50, descending, includeVoided ?? false, cancellationToken);
+        return Results.Ok(new PagedResponse<TaxRemittanceView>(
+            page.Items.Select(r => new TaxRemittanceView(r)).ToList(), page.Total, page.Skip, page.Limit));
+    }
+
+    private static bool TryOrder(string? order, out bool descending)
+    {
+        descending = true;
+        if (string.IsNullOrEmpty(order)) return true;
+        if (string.Equals(order, "desc", StringComparison.OrdinalIgnoreCase)) { descending = true; return true; }
+        if (string.Equals(order, "asc", StringComparison.OrdinalIgnoreCase)) { descending = false; return true; }
+        return false;
     }
 }

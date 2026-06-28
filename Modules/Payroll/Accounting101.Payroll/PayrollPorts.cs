@@ -1,3 +1,5 @@
+using Accounting101.Ledger.Contracts;
+
 namespace Accounting101.Payroll;
 
 /// <summary>The module's payroll run store — evidentiary documents backed by the engine's document
@@ -8,6 +10,7 @@ public interface IPayrollRunStore
     Task VoidAsync(Guid clientId, Guid runId, CancellationToken ct = default);
     Task<PayrollRun?> GetAsync(Guid clientId, Guid runId, CancellationToken ct = default);
     Task<IReadOnlyList<PayrollRun>> GetByClientAsync(Guid clientId, CancellationToken ct = default);
+    Task<PagedResponse<PayrollRun>> GetByClientPagedAsync(Guid clientId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default);
 }
 
 /// <summary>The module's tax remittance store — evidentiary documents backed by the engine's document
@@ -18,6 +21,7 @@ public interface ITaxRemittanceStore
     Task VoidAsync(Guid clientId, Guid remittanceId, CancellationToken ct = default);
     Task<TaxRemittance?> GetAsync(Guid clientId, Guid remittanceId, CancellationToken ct = default);
     Task<IReadOnlyList<TaxRemittance>> GetByClientAsync(Guid clientId, CancellationToken ct = default);
+    Task<PagedResponse<TaxRemittance>> GetByClientPagedAsync(Guid clientId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default);
 }
 
 /// <summary>Resolves the chart accounts the payroll recipes post to for a given client.</summary>

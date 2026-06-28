@@ -38,6 +38,14 @@ public sealed class DocumentCashDisbursementStore(IDocumentStore documents) : IC
         return results.Select(Map).ToList();
     }
 
+    public async Task<PagedResponse<CashDisbursement>> GetByClientPagedAsync(Guid clientId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default)
+    {
+        IReadOnlyList<DocumentResult<CashDisbursementBody>> page =
+            await documents.QueryAsync<CashDisbursementBody>(clientId, Collection, Tags(), skip, limit, descending, includeVoided, ct);
+        long total = await documents.CountAsync(clientId, Collection, Tags(), includeVoided, ct);
+        return new PagedResponse<CashDisbursement>(page.Select(Map).ToList(), total, skip, limit);
+    }
+
     private static Dictionary<string, string> Tags() => new();
 
     private static CashDisbursement Map(DocumentResult<CashDisbursementBody> result) => new()
