@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Accounting101.Banking.Reconciliation\Accounting101.Banking.Reconciliation.csproj" />
+    <ProjectReference Include="..\..\..\..\Accounting101.Interchange\Accounting101.Interchange.csproj" />
     <ProjectReference Include="..\..\..\..\Backend\Accounting101.Ledger.Api\Accounting101.Ledger.Api.csproj" />
     <ProjectReference Include="..\..\..\..\Backend\Accounting101.Ledger.Contracts\Accounting101.Ledger.Contracts.csproj" />
   </ItemGroup>

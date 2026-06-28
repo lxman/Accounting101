@@ -1,4 +1,7 @@
+using System.Text.Json;
 using Accounting101.Banking.Reconciliation;
+using Accounting101.Interchange;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Accounting101.Banking.Reconciliation.Api;
 
@@ -13,6 +16,7 @@ public static class ReconciliationEndpoints
         clients.MapPost("/bank-statements", RecordStatement);
         clients.MapGet("/bank-statements/{id:guid}", GetStatement);
         clients.MapGet("/bank-statements", ListStatements);
+        clients.MapPost("/bank-statements/import", ImportStatement).DisableAntiforgery();
 
         clients.MapPost("/reconciliations", StartReconciliation);
         clients.MapGet("/reconciliations/{id:guid}", GetWorksheet);
@@ -161,6 +165,53 @@ public static class ReconciliationEndpoints
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
         }
         catch (ArgumentException ex) // ineligible id on the apply→clear path (not expected in normal operation)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+    }
+
+    private static async Task<IResult> ImportStatement(
+        Guid clientId, IFormFile? file, [FromForm] string? format, [FromForm] string? mapping,
+        IInterchangeRegistry registry, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+            return Results.Problem("A non-empty file is required.", statusCode: StatusCodes.Status422UnprocessableEntity);
+        if (!Enum.TryParse(format, ignoreCase: true, out InterchangeFormat fmt))
+            return Results.Problem($"Unsupported or missing format '{format}'.", statusCode: StatusCodes.Status400BadRequest);
+
+        IImporter<ImportedStatement>? importer = registry.Resolve<ImportedStatement>(fmt);
+        if (importer is null)
+            return Results.Problem($"No statement importer is registered for format '{fmt}'.", statusCode: StatusCodes.Status400BadRequest);
+
+        CsvMapping? csvMapping = null;
+        if (fmt == InterchangeFormat.Csv)
+        {
+            if (string.IsNullOrWhiteSpace(mapping))
+                return Results.Problem("A CSV 'mapping' is required.", statusCode: StatusCodes.Status422UnprocessableEntity);
+            try
+            {
+                csvMapping = JsonSerializer.Deserialize<CsvMapping>(mapping, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            }
+            catch (JsonException ex)
+            {
+                return Results.Problem($"Invalid mapping JSON: {ex.Message}", statusCode: StatusCodes.Status422UnprocessableEntity);
+            }
+            if (csvMapping is null)
+                return Results.Problem("A CSV 'mapping' is required.", statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+
+        try
+        {
+            await using Stream stream = file.OpenReadStream();
+            ImportResult<ImportedStatement> result = importer.Import(stream, new ImportOptions { Csv = csvMapping });
+            List<StatementPreview> statements = result.Records
+                .Select(s => new StatementPreview(
+                    s.Lines.Select(l => new BankStatementLineRequest(l.Date, l.Amount, l.Description, l.Reference)).ToList(),
+                    s.OpeningBalance, s.ClosingBalance, s.StatementDate, s.AccountHint))
+                .ToList();
+            return Results.Ok(new ImportPreviewResponse(statements, result.Warnings));
+        }
+        catch (ArgumentException ex) // invalid mapping (no amount columns, missing header, header-name without HasHeader)
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
         }

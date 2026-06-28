@@ -1,4 +1,5 @@
 using Accounting101.Banking.Reconciliation;
+using Accounting101.Interchange;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Hosting;
 using Accounting101.Ledger.Contracts;
@@ -36,6 +37,9 @@ public static class ReconciliationServiceExtensions
         services.AddHttpClient("ReconciliationPostingClient", client =>
                 client.BaseAddress = new Uri(configuration["Engine:BaseAddress"] ?? "http://localhost"))
             .AddTypedClient<ILedgerClient, HttpLedgerClient>();
+
+        // Import/export framework (Slice 4a) — the default registry (CSV statement importer registered).
+        services.AddSingleton<IInterchangeRegistry>(InterchangeRegistry.CreateDefault());
 
         return services;
     }
