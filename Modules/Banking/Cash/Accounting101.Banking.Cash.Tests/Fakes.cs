@@ -79,6 +79,16 @@ internal sealed class InMemoryCashDisbursementStore : ICashDisbursementStore
     public Task<IReadOnlyList<CashDisbursement>> GetByClientAsync(Guid clientId, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<CashDisbursement>>(
             _store.Where(kv => kv.Key.Item1 == clientId).Select(kv => kv.Value).ToList());
+
+    public Task<PagedResponse<CashDisbursement>> GetByClientPagedAsync(Guid clientId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default)
+    {
+        IEnumerable<CashDisbursement> all = _store
+            .Where(kv => kv.Key.Item1 == clientId).Select(kv => kv.Value)
+            .Where(d => includeVoided || d.Status != CashDisbursementStatus.Void);
+        List<CashDisbursement> ordered = (descending ? all.OrderByDescending(d => d.Number) : all.OrderBy(d => d.Number)).ToList();
+        List<CashDisbursement> items = ordered.Skip(Math.Max(0, skip)).Take(Math.Clamp(limit, 1, 200)).ToList();
+        return Task.FromResult(new PagedResponse<CashDisbursement>(items, ordered.Count, skip, limit));
+    }
 }
 
 internal sealed class InMemoryCashDepositStore : ICashDepositStore
@@ -115,6 +125,16 @@ internal sealed class InMemoryCashDepositStore : ICashDepositStore
     public Task<IReadOnlyList<CashDeposit>> GetByClientAsync(Guid clientId, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<CashDeposit>>(
             _store.Where(kv => kv.Key.Item1 == clientId).Select(kv => kv.Value).ToList());
+
+    public Task<PagedResponse<CashDeposit>> GetByClientPagedAsync(Guid clientId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default)
+    {
+        IEnumerable<CashDeposit> all = _store
+            .Where(kv => kv.Key.Item1 == clientId).Select(kv => kv.Value)
+            .Where(d => includeVoided || d.Status != CashDepositStatus.Void);
+        List<CashDeposit> ordered = (descending ? all.OrderByDescending(d => d.Number) : all.OrderBy(d => d.Number)).ToList();
+        List<CashDeposit> items = ordered.Skip(Math.Max(0, skip)).Take(Math.Clamp(limit, 1, 200)).ToList();
+        return Task.FromResult(new PagedResponse<CashDeposit>(items, ordered.Count, skip, limit));
+    }
 }
 
 internal sealed class FixedCashAccountsProvider(CashPostingAccounts fixedAccounts) : ICashAccountsProvider

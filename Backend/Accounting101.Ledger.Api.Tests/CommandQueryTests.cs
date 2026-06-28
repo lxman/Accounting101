@@ -193,13 +193,15 @@ public sealed class CommandQueryTests(ApiFixture fixture) : IClassFixture<ApiFix
         for (int i = 0; i < 3; i++)
             await PostAndApproveAsync(c.Http, c.ClientId, i + 1, new DateOnly(2026, 3, 31), a, b, 10m);
 
-        List<EntryResponse> firstTwo = (await c.Http.GetFromJsonAsync<List<EntryResponse>>(
+        // With skip/limit the endpoint returns a PagedResponse<EntryResponse> envelope.
+        PagedResponse<EntryResponse> firstTwo = (await c.Http.GetFromJsonAsync<PagedResponse<EntryResponse>>(
             $"/clients/{c.ClientId}/entries?limit=2"))!;
-        Assert.Equal(2, firstTwo.Count);
+        Assert.Equal(2, firstTwo.Items.Count);
+        Assert.Equal(3L, firstTwo.Total);
 
-        List<EntryResponse> rest = (await c.Http.GetFromJsonAsync<List<EntryResponse>>(
+        PagedResponse<EntryResponse> rest = (await c.Http.GetFromJsonAsync<PagedResponse<EntryResponse>>(
             $"/clients/{c.ClientId}/entries?skip=2&limit=2"))!;
-        Assert.Single(rest);
+        Assert.Single(rest.Items);
     }
 
     [Fact]

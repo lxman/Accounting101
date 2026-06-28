@@ -67,8 +67,8 @@ public sealed class DocumentInvoiceStore(IDocumentStore documents) : IInvoiceSto
 
     public async Task<IReadOnlyList<Invoice>> GetByCustomerAsync(Guid clientId, Guid customerId, CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<DocumentResult<InvoiceBody>> drafts = await documents.QueryAsync<InvoiceBody>(clientId, Drafts, Tags(customerId), cancellationToken);
-        IReadOnlyList<DocumentResult<InvoiceBody>> issued = await documents.QueryAsync<InvoiceBody>(clientId, Collection, Tags(customerId), cancellationToken);
+        IReadOnlyList<DocumentResult<InvoiceBody>> drafts = await documents.QueryAsync<InvoiceBody>(clientId, Drafts, Tags(customerId), cancellationToken: cancellationToken);
+        IReadOnlyList<DocumentResult<InvoiceBody>> issued = await documents.QueryAsync<InvoiceBody>(clientId, Collection, Tags(customerId), cancellationToken: cancellationToken);
         return drafts.Concat(issued).Select(Map).ToList();
     }
 

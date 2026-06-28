@@ -1,3 +1,5 @@
+using Accounting101.Ledger.Contracts;
+
 namespace Accounting101.Banking.Cash.Api;
 
 /// <summary>The cash HTTP surface: disbursement and deposit lifecycle under /clients/{clientId}.
@@ -64,10 +66,15 @@ public static class CashEndpoints
     }
 
     private static async Task<IResult> ListDisbursements(
-        Guid clientId, ICashDisbursementStore store, CancellationToken cancellationToken)
+        Guid clientId, int? skip, int? limit, string? order, bool? includeVoided,
+        ICashDisbursementStore store, CancellationToken cancellationToken)
     {
-        IReadOnlyList<CashDisbursement> disbursements = await store.GetByClientAsync(clientId, cancellationToken);
-        return Results.Ok(disbursements.Select(d => new CashDisbursementView(d)).ToList());
+        if (!TryOrder(order, out bool descending))
+            return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
+        PagedResponse<CashDisbursement> page = await store.GetByClientPagedAsync(
+            clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeVoided ?? false, cancellationToken);
+        return Results.Ok(new PagedResponse<CashDisbursementView>(
+            page.Items.Select(d => new CashDisbursementView(d)).ToList(), page.Total, page.Skip, page.Limit));
     }
 
     // ── Cash Deposits ───────────────────────────────────────────────────────
@@ -114,9 +121,23 @@ public static class CashEndpoints
     }
 
     private static async Task<IResult> ListDeposits(
-        Guid clientId, ICashDepositStore store, CancellationToken cancellationToken)
+        Guid clientId, int? skip, int? limit, string? order, bool? includeVoided,
+        ICashDepositStore store, CancellationToken cancellationToken)
     {
-        IReadOnlyList<CashDeposit> deposits = await store.GetByClientAsync(clientId, cancellationToken);
-        return Results.Ok(deposits.Select(d => new CashDepositView(d)).ToList());
+        if (!TryOrder(order, out bool descending))
+            return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
+        PagedResponse<CashDeposit> page = await store.GetByClientPagedAsync(
+            clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeVoided ?? false, cancellationToken);
+        return Results.Ok(new PagedResponse<CashDepositView>(
+            page.Items.Select(d => new CashDepositView(d)).ToList(), page.Total, page.Skip, page.Limit));
+    }
+
+    private static bool TryOrder(string? order, out bool descending)
+    {
+        descending = true;
+        if (string.IsNullOrEmpty(order)) return true;
+        if (string.Equals(order, "desc", StringComparison.OrdinalIgnoreCase)) { descending = true; return true; }
+        if (string.Equals(order, "asc", StringComparison.OrdinalIgnoreCase)) { descending = false; return true; }
+        return false;
     }
 }

@@ -30,7 +30,7 @@ public sealed class DocumentBankAdjustmentStore(IDocumentStore documents) : IBan
     public async Task<IReadOnlyList<BankAdjustment>> GetByReconciliationAsync(Guid clientId, Guid reconciliationId, CancellationToken ct = default)
     {
         IReadOnlyList<DocumentResult<BankAdjustmentBody>> results =
-            await documents.QueryAsync<BankAdjustmentBody>(clientId, Collection, Tags(), ct);
+            await documents.QueryAsync<BankAdjustmentBody>(clientId, Collection, Tags(), cancellationToken: ct);
         return results.Where(r => r.Body.ReconciliationId == reconciliationId).Select(Map).ToList();
     }
 

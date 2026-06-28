@@ -30,7 +30,14 @@ public interface IDocumentStore
     // Universal
     Task<DocumentResult<T>?> GetAsync<T>(Guid clientId, string collection, Guid id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<DocumentResult<T>>> QueryAsync<T>(Guid clientId, string collection,
-        IReadOnlyDictionary<string, string> tagFilter, CancellationToken cancellationToken = default);
+        IReadOnlyDictionary<string, string> tagFilter,
+        int? skip = null, int? limit = null, bool descending = true, bool includeVoided = false,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>Count the documents matching the tag filter (for a paged list's Total). Honors includeVoided.</summary>
+    Task<long> CountAsync(Guid clientId, string collection,
+        IReadOnlyDictionary<string, string> tagFilter, bool includeVoided = false,
+        CancellationToken cancellationToken = default);
 
     // Plain + reference (reference path is audited)
     Task PutAsync<T>(Guid clientId, string collection, Guid id, T body,

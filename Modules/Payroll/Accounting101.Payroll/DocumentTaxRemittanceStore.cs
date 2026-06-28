@@ -34,8 +34,16 @@ public sealed class DocumentTaxRemittanceStore(IDocumentStore documents) : ITaxR
     public async Task<IReadOnlyList<TaxRemittance>> GetByClientAsync(Guid clientId, CancellationToken ct = default)
     {
         IReadOnlyList<DocumentResult<TaxRemittanceBody>> results =
-            await documents.QueryAsync<TaxRemittanceBody>(clientId, Collection, Tags(), ct);
+            await documents.QueryAsync<TaxRemittanceBody>(clientId, Collection, Tags(), cancellationToken: ct);
         return results.Select(Map).ToList();
+    }
+
+    public async Task<PagedResponse<TaxRemittance>> GetByClientPagedAsync(Guid clientId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default)
+    {
+        IReadOnlyList<DocumentResult<TaxRemittanceBody>> page =
+            await documents.QueryAsync<TaxRemittanceBody>(clientId, Collection, Tags(), skip, limit, descending, includeVoided, ct);
+        long total = await documents.CountAsync(clientId, Collection, Tags(), includeVoided, ct);
+        return new PagedResponse<TaxRemittance>(page.Select(Map).ToList(), total, skip, limit);
     }
 
     private static Dictionary<string, string> Tags() => new();

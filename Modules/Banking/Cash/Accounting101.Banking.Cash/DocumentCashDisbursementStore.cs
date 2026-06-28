@@ -34,8 +34,16 @@ public sealed class DocumentCashDisbursementStore(IDocumentStore documents) : IC
     public async Task<IReadOnlyList<CashDisbursement>> GetByClientAsync(Guid clientId, CancellationToken ct = default)
     {
         IReadOnlyList<DocumentResult<CashDisbursementBody>> results =
-            await documents.QueryAsync<CashDisbursementBody>(clientId, Collection, Tags(), ct);
+            await documents.QueryAsync<CashDisbursementBody>(clientId, Collection, Tags(), cancellationToken: ct);
         return results.Select(Map).ToList();
+    }
+
+    public async Task<PagedResponse<CashDisbursement>> GetByClientPagedAsync(Guid clientId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default)
+    {
+        IReadOnlyList<DocumentResult<CashDisbursementBody>> page =
+            await documents.QueryAsync<CashDisbursementBody>(clientId, Collection, Tags(), skip, limit, descending, includeVoided, ct);
+        long total = await documents.CountAsync(clientId, Collection, Tags(), includeVoided, ct);
+        return new PagedResponse<CashDisbursement>(page.Select(Map).ToList(), total, skip, limit);
     }
 
     private static Dictionary<string, string> Tags() => new();

@@ -1,3 +1,4 @@
+using Accounting101.Ledger.Contracts;
 using Accounting101.Settlement;
 
 namespace Accounting101.Receivables.Api;
@@ -127,10 +128,14 @@ public static class ReceivablesEndpoints
     }
 
     private static async Task<IResult> ListInvoices(
-        Guid clientId, Guid? customerId, string? settlement, PaymentService service, CancellationToken cancellationToken)
+        Guid clientId, Guid? customerId, string? settlement, int? skip, int? limit, string? order,
+        PaymentService service, CancellationToken cancellationToken)
     {
         if (customerId is null || customerId == Guid.Empty)
             return Results.Problem("customerId query parameter is required.", statusCode: StatusCodes.Status400BadRequest);
+
+        if (!TryOrder(order, out bool descending))
+            return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
 
         SettlementFilter? filter;
         switch (settlement?.ToLowerInvariant())
@@ -141,8 +146,20 @@ public static class ReceivablesEndpoints
             default: return Results.Problem($"Unknown settlement filter '{settlement}'.", statusCode: StatusCodes.Status400BadRequest);
         }
 
-        IReadOnlyList<InvoiceView> views = await service.ListInvoiceViewsAsync(clientId, customerId.Value, filter, cancellationToken);
-        return Results.Ok(views);
+        IReadOnlyList<InvoiceView> all = await service.ListInvoiceViewsAsync(clientId, customerId.Value, filter, cancellationToken);
+        IEnumerable<InvoiceView> ordered = descending
+            ? all.OrderByDescending(v => v.Invoice.Number) : all.OrderBy(v => v.Invoice.Number);
+        List<InvoiceView> items = ordered.Skip(Math.Max(0, skip ?? 0)).Take(Math.Clamp(limit ?? 50, 1, 200)).ToList();
+        return Results.Ok(new PagedResponse<InvoiceView>(items, all.Count, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200)));
+    }
+
+    private static bool TryOrder(string? order, out bool descending)
+    {
+        descending = true;
+        if (string.IsNullOrEmpty(order)) return true;
+        if (string.Equals(order, "desc", StringComparison.OrdinalIgnoreCase)) { descending = true; return true; }
+        if (string.Equals(order, "asc", StringComparison.OrdinalIgnoreCase)) { descending = false; return true; }
+        return false;
     }
 
     private static async Task<IResult> RecordPayment(
