@@ -20,6 +20,11 @@ public static class ReconciliationEndpoints
         clients.MapPost("/reconciliations/{id:guid}/unclear", Unclear);
         clients.MapPost("/reconciliations/{id:guid}/complete", Complete);
         clients.MapPost("/reconciliations/{id:guid}/auto-match", AutoMatch);
+
+        clients.MapPost("/reconciliations/{id:guid}/adjustments", RecordAdjustment);
+        clients.MapGet("/reconciliations/{id:guid}/adjustments", ListAdjustments);
+        clients.MapGet("/reconciliations/{id:guid}/adjustments/{adjId:guid}", GetAdjustment);
+        clients.MapPost("/reconciliations/{id:guid}/adjustments/{adjId:guid}/void", VoidAdjustment);
     }
 
     private static async Task<IResult> RecordStatement(
@@ -90,6 +95,56 @@ public static class ReconciliationEndpoints
     {
         try { return Results.Ok(await service.CompleteAsync(clientId, id, ct)); }
         catch (InvalidOperationException ex) { return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict); }
+    }
+
+    private static async Task<IResult> RecordAdjustment(
+        Guid clientId, Guid id, RecordAdjustmentRequest request, AdjustmentService service, CancellationToken ct)
+    {
+        try
+        {
+            BankAdjustment adjustment = await service.RecordAdjustmentAsync(clientId, id,
+                new RecordAdjustmentInput(request.OffsetAccountId, request.Amount, request.Kind, request.Date, request.Memo), ct);
+            return Results.Created($"/clients/{clientId}/reconciliations/{id}/adjustments/{adjustment.Id}", adjustment);
+        }
+        catch (ArgumentException ex) // amount <= 0, offset == cash
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+        catch (LedgerClientException ex) // engine rejected the post (closed period, unknown account)
+        {
+            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
+        }
+        catch (InvalidOperationException ex) // reconciliation not found / completed
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+    }
+
+    private static async Task<IResult> ListAdjustments(Guid clientId, Guid id, AdjustmentService service, CancellationToken ct) =>
+        Results.Ok(await service.ListAdjustmentsAsync(clientId, id, ct));
+
+    private static async Task<IResult> GetAdjustment(Guid clientId, Guid id, Guid adjId, AdjustmentService service, CancellationToken ct)
+    {
+        BankAdjustment? adjustment = await service.GetAdjustmentAsync(clientId, adjId, ct);
+        return adjustment is null ? Results.NotFound() : Results.Ok(adjustment);
+    }
+
+    private static async Task<IResult> VoidAdjustment(
+        Guid clientId, Guid id, Guid adjId, VoidReasonRequest? request, AdjustmentService service, CancellationToken ct)
+    {
+        try
+        {
+            BankAdjustment voided = await service.VoidAdjustmentAsync(clientId, adjId, request?.Reason, ct);
+            return Results.Ok(voided);
+        }
+        catch (LedgerClientException ex)
+        {
+            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
+        }
+        catch (InvalidOperationException ex) // not found, already void, or no entry
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
     }
 
     private static async Task<IResult> AutoMatch(
