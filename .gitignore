@@ -483,3 +483,6 @@ $RECYCLE.BIN/
 
 # superpowers SDD scratch (progress ledger, briefs, reports, review packages) — never committed
 .superpowers/
+
+# Local dev only — disposable replica-set Mongo data + scripts (never committed)
+.localdev/
