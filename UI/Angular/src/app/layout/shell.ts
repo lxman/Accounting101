@@ -21,9 +21,9 @@ import { NAV } from './nav';
           <button hlmBtn type="button" variant="ghost" size="sm">Edit Firm</button>
           <button hlmBtn type="button" variant="ghost" size="sm">Edit Client</button>
           <app-theme-switch />
-          <div hlmSelect [value]="identity.active().sub" (valueChange)="identity.use($any($event))" class="w-44">
+          <div hlmSelect [value]="identity.active().sub" [itemToString]="identityItemToString" (valueChange)="identity.use($any($event))" class="w-44">
             <hlm-select-trigger class="w-44">
-              <hlm-select-value placeholder="Acting as…">Acting as: {{ identity.active().name }}</hlm-select-value>
+              <hlm-select-value placeholder="Acting as…" />
             </hlm-select-trigger>
             <hlm-select-content *hlmSelectPortal>
               @for (id of identity.identities; track id.sub) {
@@ -37,6 +37,7 @@ import { NAV } from './nav';
         <aside class="w-44 min-h-[calc(100vh-3.5rem)] p-2 bg-sidebar text-sidebar-foreground">
           @for (item of nav; track item.path) {
             <a [routerLink]="item.path" routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
+               [routerLinkActiveOptions]="{ exact: true }"
                class="block px-3 py-2 rounded-lg text-sm">{{ item.label }}</a>
           }
         </aside>
@@ -48,4 +49,9 @@ export class Shell {
   protected readonly nav = NAV;
   protected readonly client = inject(ClientContextService);
   protected readonly identity = inject(DevIdentityService);
+
+  // The trigger renders the active value (a user sub) via itemToString; map it back to a readable
+  // "Acting as: <name>" (a bare value would display the raw GUID).
+  protected readonly identityItemToString = (sub: string): string =>
+    `Acting as: ${this.identity.identities.find((i) => i.sub === sub)?.name ?? sub}`;
 }

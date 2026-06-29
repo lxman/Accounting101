@@ -29,9 +29,8 @@ describe('Shell', () => {
     const ids = TestBed.inject(DevIdentityService);
     ids.use(environment.devApprover.sub);
     fixture.detectChanges();
-    // The dropdown options live in a deferred overlay (via *hlmSelectPortal), so they are NOT in the
-    // inline DOM until opened. The active identity is reflected in the trigger — assert the switch
-    // took effect by the rendered active sub. (Human-readable label in the trigger is tracked separately.)
-    expect(fixture.nativeElement.textContent).toContain(environment.devApprover.sub);
+    // The trigger renders the active identity via itemToString ("Acting as: <name>"). Options live in a
+    // deferred overlay (*hlmSelectPortal), so this asserts the trigger label, not an inline option.
+    expect(fixture.nativeElement.textContent).toContain('Dev Approver');
   });
 });

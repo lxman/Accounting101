@@ -60,7 +60,7 @@ const emptyLine = (): LineModel => ({ accountId: '', debit: null, credit: null }
           @for (line of model().lines; track $index) {
             <tr>
               <td class="py-1 pr-2">
-                <div hlmSelect [value]="line.accountId" (valueChange)="setAccount($index, $any($event))" class="w-full">
+                <div hlmSelect [value]="line.accountId" [itemToString]="accountItemToString" (valueChange)="setAccount($index, $any($event))" class="w-full">
                   <hlm-select-trigger class="w-full"><hlm-select-value placeholder="Select account" /></hlm-select-trigger>
                   <hlm-select-content *hlmSelectPortal>
                     @for (a of postableAccounts(); track a.id) {
@@ -143,6 +143,10 @@ export class EntryForm {
   readonly balanceError = computed(() => this.entryForm.lines().errors().map(e => e.message).filter(Boolean).join('; ') || null);
 
   constructor() { if (this.accounts.accounts().length === 0) this.accounts.load(); }
+
+  // The trigger renders the selected value via itemToString; map the account id → "<number> <name>"
+  // (a bare value would otherwise display the raw GUID).
+  readonly accountItemToString = (id: string): string => this.accounts.label(id);
 
   setAccount(i: number, id: string): void { this.entryForm.lines[i].accountId().value.set(id); }
   addLine(): void { this.model.update(v => ({ ...v, lines: [...v.lines, emptyLine()] })); }
