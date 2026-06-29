@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { tap } from 'rxjs';
+import { EMPTY, Observable, tap } from 'rxjs';
 import { ClientContextService } from '../client/client-context.service';
 import { environment } from '../api/environment';
 import { AccountResponse, AccountUpsert } from './account';
@@ -23,8 +23,9 @@ export class AccountsService {
     const a = this.byId().get(accountId); return a ? `${a.number} ${a.name}` : accountId;
   }
 
-  upsert(a: AccountUpsert) {
+  upsert(a: AccountUpsert): Observable<AccountResponse> {
     const id = this.client.clientId();
+    if (!id) return EMPTY;
     const body = { number: a.number, name: a.name, type: a.type, parentId: a.parentId,
       postable: a.postable, requiredDimension: a.requiredDimension, cashFlowActivity: a.cashFlowActivity,
       isRetainedEarnings: a.isRetainedEarnings, active: a.active };

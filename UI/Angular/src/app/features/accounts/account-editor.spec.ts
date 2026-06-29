@@ -19,11 +19,11 @@ function seedAccounts(svc: AccountsService) {
 
 describe('AccountEditor', () => {
   let ctrl: HttpTestingController;
-  function setup(id: string | null) {
+  function setup(id: string | null, seed = true) {
     TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), route(id)] });
     ctrl = TestBed.inject(HttpTestingController);
     TestBed.inject(ClientContextService).select('C1');
-    seedAccounts(TestBed.inject(AccountsService));
+    if (seed) seedAccounts(TestBed.inject(AccountsService));
   }
   afterEach(() => ctrl.verify());
 
@@ -31,14 +31,16 @@ describe('AccountEditor', () => {
     setup(null); const f = TestBed.createComponent(AccountEditor); f.detectChanges();
     const cmp = f.componentInstance;
     expect(cmp.canSave()).toBe(false);
-    cmp.accountForm.number().value.set('1100'); cmp.accountForm.name().value.set('Petty Cash'); cmp.accountForm.type().value.set('Asset');
+    cmp.accountForm.number().value.set('4100'); cmp.accountForm.name().value.set('Service Revenue'); cmp.accountForm.type().value.set('Revenue');
     f.detectChanges();
     expect(cmp.canSave()).toBe(true);
+    expect(cmp.normalSide()).toBe('Credit');             // Revenue is a credit-normal type
     const nav = vi.spyOn(TestBed.inject(Router), 'navigate');
     cmp.save();
     const put = ctrl.expectOne(r => r.method === 'PUT' && /\/clients\/C1\/accounts\/.+/.test(r.url));
-    expect(put.request.body.number).toBe('1100'); expect(put.request.body.type).toBe('Asset');
-    put.flush({ id: 'x', number: '1100', name: 'Petty Cash', type: 'Asset', parentId: null, postable: true, requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active: true, normalSide: 'Debit', isTemporary: false });
+    expect(put.request.body.number).toBe('4100'); expect(put.request.body.type).toBe('Revenue');
+    expect(put.request.body.normalSide).toBeUndefined(); // normalSide is derived, not persisted in PUT body
+    put.flush({ id: 'x', number: '4100', name: 'Service Revenue', type: 'Revenue', parentId: null, postable: true, requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active: true, normalSide: 'Credit', isTemporary: false });
     expect(nav).toHaveBeenCalledWith(['/accounts']);
   });
 
@@ -51,6 +53,21 @@ describe('AccountEditor', () => {
     const put = ctrl.expectOne('http://localhost:5000/clients/C1/accounts/cash');
     expect(put.request.body.number).toBe('1001');
     put.flush({ id: 'cash', number: '1001', name: 'n1000', type: 'Asset', parentId: null, postable: true, requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active: true, normalSide: 'Debit', isTemporary: false });
+  });
+
+  it('edit: loads form reactively on cold cache (direct nav / hard refresh)', () => {
+    setup('cash', false); // cold cache — accounts signal is empty
+    const f = TestBed.createComponent(AccountEditor); f.detectChanges();
+    const cmp = f.componentInstance;
+    // Cache is cold; form must start blank before the HTTP response arrives
+    expect(cmp.accountForm.number().value()).toBe('');
+    // Flush the GET accounts that load() triggered on cold cache
+    ctrl.expectOne('http://localhost:5000/clients/C1/accounts').flush([
+      { id: 'cash', number: '1000', name: 'nCash', type: 'Asset', parentId: null, postable: true, requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active: true, normalSide: 'Debit', isTemporary: false },
+    ]);
+    f.detectChanges(); // let the effect observe the now-populated byId() and populate the form
+    // Effect must have populated the form from the loaded account
+    expect(cmp.accountForm.number().value()).toBe('1000');
   });
 
   it('surfaces a server 422 (duplicate number)', () => {

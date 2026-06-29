@@ -30,6 +30,7 @@ describe('ChartOfAccounts', () => {
     setup(); const f = TestBed.createComponent(ChartOfAccounts); f.detectChanges(); flushData(); f.detectChanges();
     const text = f.nativeElement.textContent;
     expect(text).toContain('Asset'); expect(text).toContain('1000 n1000');
+    expect(text).toContain('500.00');                    // balance rendered via money()
     expect(text).not.toContain('1900');                 // inactive hidden
     f.componentInstance.showInactive.set(true); f.detectChanges();
     expect(f.nativeElement.textContent).toContain('1900'); // shown when toggled

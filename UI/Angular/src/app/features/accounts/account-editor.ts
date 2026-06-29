@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { form, required, FormField } from '@angular/forms/signals';
 import { HlmInputImports } from '@spartan-ng/helm/input';
@@ -86,6 +86,7 @@ const DEBIT_TYPES = new Set<AccountType>(['Asset', 'Expense']);
   `,
 })
 export class AccountEditor {
+  #loaded = false;
   private readonly accounts = inject(AccountsService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
@@ -112,8 +113,13 @@ export class AccountEditor {
   constructor() {
     if (this.accounts.accounts().length === 0) this.accounts.load();
     if (this.editId) {
-      const existing = this.accounts.byId().get(this.editId);
-      if (existing) this.model.set(this.fromAccount(existing));
+      effect(() => {
+        if (this.#loaded) return;
+        const existing = this.accounts.byId().get(this.editId!);
+        if (!existing) return;
+        this.#loaded = true;
+        this.model.set(this.fromAccount(existing));
+      });
     }
   }
 
@@ -139,7 +145,7 @@ export class AccountEditor {
       postable: v.postable, requiredDimension: null, cashFlowActivity: v.cashFlowActivity || null,
       isRetainedEarnings: v.isRetainedEarnings, active: v.active,
     }).subscribe({
-      next: () => this.router.navigate(['/accounts']),
+      next: () => { this.busy.set(false); this.router.navigate(['/accounts']); },
       error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
     });
   }
