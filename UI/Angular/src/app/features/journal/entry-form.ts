@@ -34,7 +34,7 @@ const emptyLine = (): LineModel => ({ accountId: '', debit: null, credit: null }
           <label hlmLabel>Type</label>
           <div hlmSelect [value]="entryForm.type().value()" (valueChange)="entryForm.type().value.set($any($event))">
             <hlm-select-trigger class="w-full"><hlm-select-value /></hlm-select-trigger>
-            <hlm-select-content>
+            <hlm-select-content *hlmSelectPortal>
               <hlm-select-item value="Standard">Standard</hlm-select-item>
               <hlm-select-item value="Adjusting">Adjusting</hlm-select-item>
             </hlm-select-content>
@@ -62,7 +62,7 @@ const emptyLine = (): LineModel => ({ accountId: '', debit: null, credit: null }
               <td class="py-1 pr-2">
                 <div hlmSelect [value]="line.accountId" (valueChange)="setAccount($index, $any($event))" class="w-full">
                   <hlm-select-trigger class="w-full"><hlm-select-value placeholder="Select account" /></hlm-select-trigger>
-                  <hlm-select-content>
+                  <hlm-select-content *hlmSelectPortal>
                     @for (a of postableAccounts(); track a.id) {
                       <hlm-select-item [value]="a.id">{{ a.number }} {{ a.name }}</hlm-select-item>
                     }

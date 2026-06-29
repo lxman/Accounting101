@@ -40,7 +40,7 @@ import { formatProfileDate } from '../../core/format/date-formatter';
           <hlm-select-trigger class="w-48">
             <hlm-select-value placeholder="All postings" />
           </hlm-select-trigger>
-          <hlm-select-content>
+          <hlm-select-content *hlmSelectPortal>
             <hlm-select-item value="">All</hlm-select-item>
             <hlm-select-item value="Posted">Posted</hlm-select-item>
             <hlm-select-item value="PendingApproval">Pending Approval</hlm-select-item>

@@ -25,7 +25,7 @@ import { NAV } from './nav';
             <hlm-select-trigger class="w-44">
               <hlm-select-value placeholder="Acting as…">Acting as: {{ identity.active().name }}</hlm-select-value>
             </hlm-select-trigger>
-            <hlm-select-content>
+            <hlm-select-content *hlmSelectPortal>
               @for (id of identity.identities; track id.sub) {
                 <hlm-select-item [value]="id.sub">{{ id.name }}</hlm-select-item>
               }
