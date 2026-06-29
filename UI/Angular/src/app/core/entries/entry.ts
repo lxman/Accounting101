@@ -28,3 +28,28 @@ export interface EntryResponse {
   memo: string | null;
   viaModule: string | null;
 }
+
+export interface PostLineRequest {
+  accountId: string;
+  direction: Direction;
+  amount: number;
+  dimensions?: Record<string, string> | null;
+}
+
+export interface PostEntryRequest {
+  effectiveDate: string;
+  reference?: string | null;
+  memo?: string | null;
+  lines: PostLineRequest[];
+  type?: 'Standard' | 'Adjusting' | null;
+}
+
+export interface PostEntryResponse {
+  id: string;
+  status: string;
+  posting: Posting;
+}
+
+export interface EntryValidationResponse {
+  valid: boolean;
+}
