@@ -1,1 +1,45 @@
-:root { --blue:#1D4DE8; }
+/* Brand palette (Accounting101Palette) */
+:root {
+  --teal: #24CCAB;
+  --blue: #1D4DE8;
+  --slate: #36413E;
+  --cream: #F3E3B3;
+  --lavender: #BFACC8;
+}
+
+/* Light (default) */
+:root,
+:root[data-theme="light"] {
+  --color-bg: #f5f7f6;
+  --color-surface: #ffffff;
+  --color-ink: #36413E;
+  --color-muted: #7a8a83;
+  --color-border: #e6ece9;
+  --color-sidebar: #36413E;
+  --color-sidebar-ink: #cbd6d1;
+  --color-primary: #24CCAB;
+  --color-accent: #1D4DE8;
+  --color-warm: #F3E3B3;
+  --color-muted-accent: #BFACC8;
+  --color-pending-bg: #BFACC8;
+  --color-pending-ink: #473a52;
+  --color-negative: #b3261e;
+}
+
+/* Dark */
+:root[data-theme="dark"] {
+  --color-bg: #2b3431;
+  --color-surface: #36413e;
+  --color-ink: #e3ebe8;
+  --color-muted: #9fb6ad;
+  --color-border: rgba(255, 255, 255, .08);
+  --color-sidebar: #222a28;
+  --color-sidebar-ink: #9fb0aa;
+  --color-primary: #24CCAB;
+  --color-accent: #1D4DE8;
+  --color-warm: #F3E3B3;
+  --color-muted-accent: #BFACC8;
+  --color-pending-bg: rgba(191, 172, 200, .22);
+  --color-pending-ink: #BFACC8;
+  --color-negative: #ff6b5e;
+}
