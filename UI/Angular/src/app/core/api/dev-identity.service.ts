@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { environment, DevIdentityConfig } from './environment';
+import { environment } from './environment';
 
 export interface DevIdentity { sub: string; name: string; claims: { type: string; value: string }[]; }
 

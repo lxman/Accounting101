@@ -5,7 +5,6 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ApprovalQueue } from './approval-queue';
 import { ClientContextService } from '../../core/client/client-context.service';
-import { DevIdentityService } from '../../core/api/dev-identity.service';
 import { environment } from '../../core/api/environment';
 
 describe('ApprovalQueue', () => {

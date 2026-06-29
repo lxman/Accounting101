@@ -7,6 +7,7 @@ import { EntriesService } from '../../core/entries/entries.service';
 import { EntryResponse } from '../../core/entries/entry';
 import { AuditService } from '../../core/audit/audit.service';
 import { DevIdentityService } from '../../core/api/dev-identity.service';
+import { extractProblem } from '../../core/api/problem-details';
 import { DEFAULT_FORMAT_PROFILE } from '../../core/format/format-profile';
 import { formatProfileDate } from '../../core/format/date-formatter';
 
@@ -69,7 +70,7 @@ export class ApprovalQueue {
           error: () => { /* cue only; leave authors empty → rows show not-approvable, safe default */ },
         });
       },
-      error: (e) => { this.error.set((e as { message?: string })?.message ?? 'Error loading queue'); this.loading.set(false); },
+      error: (e) => { this.error.set(extractProblem(e).detail); this.loading.set(false); },
     });
   }
 
