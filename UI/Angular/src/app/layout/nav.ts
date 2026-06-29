@@ -1,8 +1,11 @@
-export interface NavItem { label: string; path: string; }
+// `exact` forces exact-URL active matching. Default (prefix) is right for parents whose route
+// redirects to a child (e.g. Statements → balance-sheet). Set it only where a sibling nav item is a
+// sub-path that would otherwise also light the parent: /journal is a prefix of /journal/approvals.
+export interface NavItem { label: string; path: string; exact?: boolean; }
 
 export const NAV: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard' },
-  { label: 'Journal', path: '/journal' },
+  { label: 'Journal', path: '/journal', exact: true },
   { label: 'Approvals', path: '/journal/approvals' },
   { label: 'Accounts', path: '/accounts' },
   { label: 'Trial Balance', path: '/trial-balance' },

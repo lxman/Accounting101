@@ -37,7 +37,7 @@ import { NAV } from './nav';
         <aside class="w-44 min-h-[calc(100vh-3.5rem)] p-2 bg-sidebar text-sidebar-foreground">
           @for (item of nav; track item.path) {
             <a [routerLink]="item.path" routerLinkActive="bg-sidebar-accent text-sidebar-accent-foreground font-semibold"
-               [routerLinkActiveOptions]="{ exact: true }"
+               [routerLinkActiveOptions]="{ exact: !!item.exact }"
                class="block px-3 py-2 rounded-lg text-sm">{{ item.label }}</a>
           }
         </aside>
