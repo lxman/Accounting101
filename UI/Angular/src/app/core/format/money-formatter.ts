@@ -10,12 +10,16 @@ export function formatMoney(
   amount: number, currency: string, profile: FormatProfile, opts: MoneyFormatOptions = {},
 ): string {
   const scaled = applyScale(amount, profile.scale);
-  if (scaled === 0 && profile.zeroDisplay === 'dash') return '—';
+
+  const abs = Math.abs(scaled);
+  const digits = abs.toFixed(profile.decimals); // rounds to profile decimals
+
+  // Decide negativity AFTER rounding: a tiny magnitude that rounds to zero
+  // is zero, not negative-zero. Negative zero is meaningless in accounting.
+  const roundedIsZero = Number(digits) === 0;
+  if (roundedIsZero) return profile.zeroDisplay === 'dash' ? '—' : digits;
 
   const negative = scaled < 0;
-  const abs = Math.abs(scaled);
-
-  const digits = abs.toFixed(profile.decimals); // rounds
   const [intPart, fracPart] = digits.split('.');
   const grouped = profile.thousandsSep ? intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : intPart;
   let body = fracPart ? `${grouped}.${fracPart}` : grouped;

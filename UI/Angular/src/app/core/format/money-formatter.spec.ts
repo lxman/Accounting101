@@ -34,6 +34,15 @@ describe('formatMoney', () => {
   it('negative with symbol keeps symbol inside the sign treatment', () => {
     expect(formatMoney(-29, 'USD', P({ currencySymbol: 'every' }))).toBe('($29.00)');
   });
+  it('trailing style keeps symbol with the number, sign trails (C# mirror reference)', () => {
+    expect(formatMoney(-29, 'USD', P({ negativeStyle: 'trailing', currencySymbol: 'every' }))).toBe('$29.00-');
+  });
+  it('negative that rounds to zero is rendered as zero (no sign/parens)', () => {
+    expect(formatMoney(-0.001, 'USD', D)).toBe('0.00');
+  });
+  it('negative that rounds to zero honors zeroDisplay dash', () => {
+    expect(formatMoney(-0.001, 'USD', P({ zeroDisplay: 'dash' }))).toBe('—');
+  });
   it('zero display', () => {
     expect(formatMoney(0, 'USD', D)).toBe('0.00');
     expect(formatMoney(0, 'USD', P({ zeroDisplay: 'dash' }))).toBe('—');
