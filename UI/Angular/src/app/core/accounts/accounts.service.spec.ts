@@ -83,4 +83,22 @@ describe('AccountsService', () => {
     ctrl.expectNone(`${environment.apiBaseUrl}/clients/${clientId}/accounts`);
     expect(service.accounts()).toEqual([]);
   });
+
+  it('upsert PUTs the account and refreshes the cache', () => {
+    const svc = TestBed.inject(AccountsService);
+    const ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    const a = { id: 'A1', number: '1000', name: 'Cash', type: 'Asset' as const, parentId: null,
+      postable: true, requiredDimension: null, cashFlowActivity: 'Operating', isRetainedEarnings: false, active: true };
+    let saved: AccountResponse | undefined;
+    svc.upsert(a).subscribe(r => (saved = r));
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/accounts/A1');
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ number: '1000', name: 'Cash', type: 'Asset', parentId: null,
+      postable: true, requiredDimension: null, cashFlowActivity: 'Operating', isRetainedEarnings: false, active: true });
+    const resp = { ...a, normalSide: 'Debit', isRetainedEarnings: false, isTemporary: false } as AccountResponse;
+    req.flush(resp);
+    expect(saved).toEqual(resp);
+    expect(svc.accounts().find(x => x.id === 'A1')).toEqual(resp);
+  });
 });

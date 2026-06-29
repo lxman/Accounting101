@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { HlmTableImports } from '@spartan-ng/helm/table';
-import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { EntriesService } from '../../core/entries/entries.service';
@@ -10,22 +9,20 @@ import { AuditService } from '../../core/audit/audit.service';
 import { AuditRecordResponse } from '../../core/audit/audit';
 import { AccountsService } from '../../core/accounts/accounts.service';
 import { extractProblem } from '../../core/api/problem-details';
-import { DEFAULT_FORMAT_PROFILE } from '../../core/format/format-profile';
-import { formatMoney } from '../../core/format/money-formatter';
-import { formatProfileDate } from '../../core/format/date-formatter';
+import { money as fmtMoney, displayDate } from '../../core/format/display';
+import { PostingBadge } from '../../shared/posting-badge';
 
 @Component({
   selector: 'app-entry-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ...HlmTableImports, ...HlmBadgeImports, HlmButton, ...HlmInputImports],
+  imports: [RouterLink, PostingBadge, ...HlmTableImports, HlmButton, ...HlmInputImports],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-3xl">
       <a routerLink="/journal" class="text-sm text-muted-foreground hover:text-foreground w-fit">← Journal</a>
       @if (entry(); as e) {
         <div class="flex items-center gap-3">
           <h1 class="text-2xl font-bold">Entry #{{ e.sequenceNumber }}</h1>
-          @if (e.posting === 'PendingApproval') { <span hlmBadge class="bg-[color:var(--pending)] text-[color:var(--pending-foreground)]">Pending</span> }
-          @else { <span hlmBadge variant="secondary">{{ e.posting }}</span> }
+          <app-posting-badge [posting]="e.posting" />
         </div>
         <div class="text-sm text-muted-foreground">
           {{ formatDate(e.effectiveDate) }} · {{ e.type }} · {{ e.reference ?? '—' }} · {{ e.memo ?? '' }}
@@ -64,7 +61,7 @@ import { formatProfileDate } from '../../core/format/date-formatter';
         @if (e.posting === 'PendingApproval') {
           <div class="flex items-center gap-2">
             <button hlmBtn type="button" (click)="approve()" [disabled]="busy()">Approve</button>
-            <input hlmInput type="text" placeholder="Void reason" [value]="voidReason()" (input)="voidReason.set($any($event.target).value)" />
+            <input hlmInput type="text" aria-label="Void reason" placeholder="Void reason" [value]="voidReason()" (input)="voidReason.set($any($event.target).value)" />
             <button hlmBtn type="button" variant="outline" (click)="voidEntry()" [disabled]="busy()">Void</button>
           </div>
         }
@@ -99,8 +96,8 @@ export class EntryDetail {
   }
 
   accountLabel(id: string): string { return this.accounts.label(id); }
-  money(n: number): string { return formatMoney(n, 'USD', DEFAULT_FORMAT_PROFILE, { symbol: false }); }
-  formatDate(d: string): string { return formatProfileDate(d, DEFAULT_FORMAT_PROFILE); }
+  money(n: number): string { return fmtMoney(n); }
+  formatDate(d: string): string { return displayDate(d); }
 
   approve(): void {
     this.busy.set(true); this.message.set(null);
