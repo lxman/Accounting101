@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButton } from '@spartan-ng/helm/button';
@@ -17,9 +17,10 @@ import { formatProfileDate } from '../../core/format/date-formatter';
 @Component({
   selector: 'app-entry-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...HlmTableImports, ...HlmBadgeImports, HlmButton, ...HlmInputImports],
+  imports: [RouterLink, ...HlmTableImports, ...HlmBadgeImports, HlmButton, ...HlmInputImports],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-3xl">
+      <a routerLink="/journal" class="text-sm text-muted-foreground hover:text-foreground w-fit">← Journal</a>
       @if (entry(); as e) {
         <div class="flex items-center gap-3">
           <h1 class="text-2xl font-bold">Entry #{{ e.sequenceNumber }}</h1>
