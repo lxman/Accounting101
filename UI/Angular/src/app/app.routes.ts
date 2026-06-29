@@ -10,6 +10,7 @@ import { Placeholder } from './features/placeholder/placeholder';
 import { ApprovalQueue } from './features/journal/approval-queue';
 import { EntryDetail } from './features/journal/entry-detail';
 import { ChartOfAccounts } from './features/accounts/chart-of-accounts';
+import { AccountEditor } from './features/accounts/account-editor';
 import { NAV } from './layout/nav';
 
 export const routes: Routes = [
@@ -36,7 +37,8 @@ export const routes: Routes = [
   },
   { path: 'accounts', children: [
     { path: '', pathMatch: 'full', component: ChartOfAccounts },
-    // 'new' + ':id/edit' added in Task 5
+    { path: 'new', component: AccountEditor },
+    { path: ':id/edit', component: AccountEditor },
   ] },
   // remaining nav targets → placeholder
   ...NAV.filter(n => ![ '/dashboard', '/trial-balance', '/statements', '/accounts' ].includes(n.path) && !n.path.startsWith('/journal')).map(n => ({ path: n.path.slice(1), component: Placeholder })),
