@@ -21,7 +21,12 @@ describe('EntryDetail', () => {
     ctrl = TestBed.inject(HttpTestingController);
     TestBed.inject(ClientContextService).select('C1');
   }
+  const seedAccounts = [
+    { id: 'A', number: '1000', name: 'Cash', type: 'Asset', parentId: null, postable: true, requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active: true, normalSide: 'Debit', isTemporary: false },
+    { id: 'B', number: '4000', name: 'Revenue', type: 'Revenue', parentId: null, postable: true, requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active: true, normalSide: 'Credit', isTemporary: true },
+  ];
   function flushEntryAndAudit(authorSub: string) {
+    ctrl.expectOne('http://localhost:5000/clients/C1/accounts').flush(seedAccounts);
     const e = ctrl.expectOne('http://localhost:5000/clients/C1/entries/E1');
     e.flush({ id: 'E1', sequenceNumber: 1, effectiveDate: '2026-06-29', type: 'Standard', status: 'Active', posting: 'PendingApproval', lineCount: 2,
       lines: [{ accountId: 'A', direction: 'Debit', amount: 100, dimensions: {}, lineMemo: null }, { accountId: 'B', direction: 'Credit', amount: 100, dimensions: {}, lineMemo: null }],
@@ -47,6 +52,20 @@ describe('EntryDetail', () => {
     req.flush({ detail: 'Segregation of duties: must be approved by someone else.' }, { status: 403, statusText: 'Forbidden' });
     f.detectChanges();
     expect(f.componentInstance.message()).toContain('Segregation of duties');
+  });
+
+  it('renders source line when sourceRef is set', () => {
+    setup(); const f = TestBed.createComponent(EntryDetail); f.detectChanges();
+    ctrl.expectOne('http://localhost:5000/clients/C1/accounts').flush(seedAccounts);
+    ctrl.expectOne('http://localhost:5000/clients/C1/entries/E1').flush({
+      id: 'E1', sequenceNumber: 2, effectiveDate: '2026-06-29', type: 'Standard', status: 'Active', posting: 'Posted', lineCount: 2,
+      lines: [{ accountId: 'A', direction: 'Debit', amount: 50, dimensions: {}, lineMemo: null }, { accountId: 'B', direction: 'Credit', amount: 50, dimensions: {}, lineMemo: null }],
+      supersedes: null, supersededBy: null, reversalOf: null, reversedBy: null, memo: null, reference: null, sourceRef: 'INV-001', sourceType: 'Invoice',
+    });
+    ctrl.expectOne('http://localhost:5000/clients/C1/audit/E1').flush([]);
+    f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Invoice');
+    expect(f.nativeElement.textContent).toContain('INV-001');
   });
 
   it('void() posts the reason and re-fetches', () => {

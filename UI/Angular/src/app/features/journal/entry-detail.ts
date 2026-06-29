@@ -29,6 +29,9 @@ import { formatProfileDate } from '../../core/format/date-formatter';
         <div class="text-sm text-muted-foreground">
           {{ formatDate(e.effectiveDate) }} · {{ e.type }} · {{ e.reference ?? '—' }} · {{ e.memo ?? '' }}
         </div>
+        @if (e.sourceRef) {
+          <div class="text-sm text-muted-foreground">Source: {{ e.sourceType }} · {{ e.sourceRef }}</div>
+        }
 
         <div hlmTableContainer><table hlmTable>
           <thead hlmTHead><tr hlmTr><th hlmTh>Account</th><th hlmTh class="text-right">Debit</th><th hlmTh class="text-right">Credit</th></tr></thead>
@@ -41,7 +44,7 @@ import { formatProfileDate } from '../../core/format/date-formatter';
               </tr>
             }
           </tbody>
-          <tfoot><tr hlmTr class="font-semibold border-t-2 border-border">
+          <tfoot><tr hlmTr class="font-semibold border-double border-t-4 border-border">
             <td hlmTd class="text-right">Totals</td>
             <td hlmTd class="text-right tabular-nums">{{ money(totalDebit()) }}</td>
             <td hlmTd class="text-right tabular-nums">{{ money(totalCredit()) }}</td>
@@ -51,7 +54,7 @@ import { formatProfileDate } from '../../core/format/date-formatter';
         <div class="text-sm">
           <h2 class="font-semibold">Audit</h2>
           @for (r of audit(); track r.sequence) {
-            <div class="text-muted-foreground">{{ r.action }} by {{ r.actor.name ?? r.actor.userId }} at {{ r.at }}</div>
+            <div class="text-muted-foreground">{{ r.action }} by {{ r.actor.name ?? r.actor.userId }} at {{ formatDate(r.at) }}</div>
           }
         </div>
 
@@ -87,7 +90,7 @@ export class EntryDetail {
 
   readonly voidReason = signal('');
 
-  constructor() { this.load(); }
+  constructor() { if (this.accounts.accounts().length === 0) this.accounts.load(); this.load(); }
 
   private load(): void {
     this.entries.get(this.id).subscribe({ next: (e) => this.entry.set(e), error: (e) => this.loadError.set(extractProblem(e).detail) });
@@ -101,7 +104,7 @@ export class EntryDetail {
   approve(): void {
     this.busy.set(true); this.message.set(null);
     this.entries.approve(this.id).subscribe({
-      next: (e) => { this.entry.set(e); this.busy.set(false); this.load(); },
+      next: () => { this.busy.set(false); this.load(); },
       error: (err) => { this.message.set(extractProblem(err).detail); this.busy.set(false); },
     });
   }
