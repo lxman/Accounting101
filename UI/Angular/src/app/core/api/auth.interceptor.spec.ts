@@ -3,13 +3,17 @@ import { provideHttpClient, withInterceptors, HttpClient } from '@angular/common
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { authInterceptor } from './auth.interceptor';
 import { environment } from './environment';
+import { encodeDevToken } from './dev-token';
 
 describe('authInterceptor', () => {
   let http: HttpClient;
   let ctrl: HttpTestingController;
+  const devUserId = '00000000-0000-0000-0000-000000000001';
 
   beforeEach(() => {
-    environment.devToken = '';
+    environment.devUserId = devUserId;
+    environment.devUserName = 'Dev User';
+    environment.devClaims = [{ type: 'role', value: 'Controller' }, { type: 'admin', value: 'true' }];
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([authInterceptor])),
@@ -22,16 +26,17 @@ describe('authInterceptor', () => {
 
   afterEach(() => ctrl.verify());
 
-  it('attaches the bearer token when set', () => {
-    environment.devToken = 'tok123';
+  it('attaches the DevToken header when devUserId is set', () => {
+    environment.devUserId = devUserId;
     http.get('/x').subscribe();
     const r = ctrl.expectOne('/x');
-    expect(r.request.headers.get('Authorization')).toBe('Bearer tok123');
+    const expected = `DevToken ${encodeDevToken({ sub: devUserId, name: 'Dev User', claims: environment.devClaims })}`;
+    expect(r.request.headers.get('Authorization')).toBe(expected);
     r.flush({});
   });
 
-  it('omits the header when no token', () => {
-    environment.devToken = '';
+  it('omits the header when devUserId is empty', () => {
+    environment.devUserId = '';
     http.get('/y').subscribe();
     const r = ctrl.expectOne('/y');
     expect(r.request.headers.has('Authorization')).toBe(false);

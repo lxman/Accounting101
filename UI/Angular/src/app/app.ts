@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Shell } from './layout/shell';
+import { ClientContextService } from './core/client/client-context.service';
+import { environment } from './core/api/environment';
 
 @Component({
   selector: 'app-root',
@@ -7,4 +9,9 @@ import { Shell } from './layout/shell';
   imports: [Shell],
   template: `<app-shell />`,
 })
-export class App {}
+export class App {
+  constructor() {
+    const c = inject(ClientContextService);
+    if (environment.devClientId) c.select(environment.devClientId);
+  }
+}
