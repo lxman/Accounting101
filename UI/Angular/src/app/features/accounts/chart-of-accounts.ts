@@ -49,7 +49,7 @@ import { money } from '../../core/format/display';
         <div cdkDropList [cdkDropListData]="{ type, parentId: node.account.id }"
              [cdkDropListEnterPredicate]="enterPredicate(type, node.account.id)"
              (cdkDropListDropped)="dropped($event, type, node.account.id)">
-          <div class="flex items-center gap-2 py-1 border-b border-border/50 text-sm"
+          <div class="flex items-center gap-2 py-1 border-b border-border/50 text-sm cursor-grab active:cursor-grabbing"
                [style.padding-left.rem]="depth"
                cdkDrag [cdkDragData]="node.account.id"
                [class.opacity-50]="!node.account.active">
