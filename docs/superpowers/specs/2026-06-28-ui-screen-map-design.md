@@ -1,19 +1,20 @@
 # Accounting 101 — UI Screen Map & Inventory — Design
 
 **Date:** 2026-06-28
-**Status:** In review (screen inventory; precedes slice sequencing)
+**Status:** In review (screen inventory + design system; precedes slice sequencing)
 
 ## Purpose
 
 The complete screen inventory for the Accounting 101 SPA, grounded in the **real
-backend API as it exists today**, updated for everything shipped this session
-(Bank Reconciliation, CSV/OFX import, list pagination). Each screen lists its
-purpose, a rough wireframe, the exact backing endpoints, and whether it is
+backend API as it exists today**, updated for everything shipped recently (Bank
+Reconciliation, CSV/OFX import, list pagination) and for the look-and-feel +
+structural decisions settled in the 2026-06-28 design session. Each screen lists
+its purpose, a rough wireframe, the backing endpoints, and whether it is
 **Backed** (existing API), **Needs-BE** (requires new backend), or **Partial**.
 Once agreed, this map is sequenced into build slices.
 
 Supersedes the screen map in `UI/UI-UX-provisioning-plan.md` (which predates the
-Reconciliation/Import modules and listed them as "future").
+Reconciliation/Import modules and the design system below).
 
 ## Stack & conventions (decided)
 
@@ -23,303 +24,202 @@ Reconciliation/Import modules and listed them as "future").
   slice.
 - Static build → Azure Static Web Apps; the API is `api.accounting-101.com`
   (never navigated). JWT bearer on every call.
-- **Auth is greenfield** (Entra ID + a user-mapping store don't exist yet). For
-  building the accounting screens we can run against a **dev-token auth stub**
-  (the same dev tokens the tests use) and wire real Entra later.
+- **Auth is greenfield** (Entra ID + a user-mapping store don't exist yet). The
+  accounting screens build against a **dev-token auth stub** (the same dev tokens
+  the tests use); real Entra is wired in its own slice.
+
+## Design system (decided 2026-06-28)
+
+**Palette** — from `Accounting101Palette.pdf`, the default preset "Accounting 101":
+
+| Token role | Hex | Use |
+|---|---|---|
+| `--teal` | `#24CCAB` | primary / positive accents, active nav |
+| `--blue` | `#1D4DE8` | **buttons** (solid, no gradient) + links/interactive |
+| `--slate` | `#36413E` | ink / dark surfaces / sidebar |
+| `--cream` | `#F3E3B3` | warm highlight (e.g. the net-income KPI) |
+| `--lavender` | `#BFACC8` | muted / pending-state badges |
+
+- The palette lives in **CSS custom properties**; Light and Dark are two token
+  sets. **Light is the default.**
+- **Theme switch: Light / Dark / Follow-OS** (`prefers-color-scheme`), stored as a
+  user preference.
+- **Palette presets + per-client palette:** the palette is one of several
+  selectable **presets** (Accounting 101 is the default). A preset is
+  **assignable per client**, so switching clients can shift the accent — a
+  "which client am I in" cue. Stored in the client's display settings; rendered
+  by swapping the CSS-variable token set. (Infra-cheap; the preset *picker* UI is
+  a Settings screen — see area M.)
+- Buttons are **solid blue**; negatives default to **accounting parentheses**;
+  money columns are **decimal-aligned** (see below).
+
+**Number formatting — the Format Profile (per client):** one stored config,
+applied everywhere (screens **and** PDF reports). Default values in brackets.
+
+```
+FormatProfile (per client)
+  negativeStyle:    parens [default] | minus | red | trailing
+  decimals:         2 [default] | 0
+  scale:            none [default] | thousands | millions | auto
+  thousandsSep:     true [default]
+  currencySymbol:   firstAndTotal [default] | every | none
+  zeroDisplay:      0.00 [default] | dash
+  dateFormat:       ISO/locale [default]
+  accountCodeShown: true [default]
+```
+
+- Architecture (honors the standing rule *server owns numbers, client owns
+  formatting*): the API always returns raw `decimal` + ISO currency; the **Format
+  Profile is the single source of truth**, stored server-side per client, and
+  consumed by **two formatters sharing its schema** — a TypeScript formatter in
+  the SPA and a C# formatter in the PDF generator — kept in lockstep by a shared
+  spec + a golden-file test asserting identical output. Change the profile →
+  every screen and report reflows.
+- Money columns: right-aligned, tabular numerals, fixed decimals so points stack;
+  subtotals single-ruled, grand totals double-ruled (accounting convention).
 
 ## Cross-cutting patterns (apply to every screen)
 
 - **Paged tables** consume the `PagedResponse<T> { items, total, skip, limit }`
-  envelope shipped this session — server-side paging, "Page N of M", page-size,
-  `order=asc|desc`, and `includeVoided` where the list supports it. The UI uses
-  the *echoed effective* `skip`/`limit` for page math.
+  envelope shipped recently — server-side paging, "Page N of M", page-size,
+  `order=asc|desc`, and `includeVoided` where supported. Use the echoed effective
+  `skip`/`limit` for page math.
 - **Maker-checker is visible.** Posting a journal entry or a module document
-  lands **PendingApproval**; a distinct approver approves it (SoD). The UI must
-  show pending state, an approval queue, and "who created / who approved."
-- **Money** is USD, 2 dp, debit-positive convention; negatives in parentheses or
-  red per accounting norms. (Multi-currency is explicitly out — USD-only.)
-- **Lifecycle actions** on a posted entry/document: void (withdraw if pending /
-  reverse if posted), revise (supersede), reverse (closed-period-safe). Surface
-  the right action per state.
-- **Period-aware:** posting into a closed period is rejected; the UI surfaces the
-  engine's 409/422 messages (e.g. "closed through …", "run close-year instead")
-  inline, and offers the reverse-into-open-period path.
-- **Empty/loading/error** states on every data view; **client switcher** in the
-  shell scopes every call to `/clients/{clientId}/…`.
+  lands **PendingApproval**; a distinct approver approves it (SoD). Show pending
+  state, an approval queue, and creator/approver stamps.
+- **Money** is USD, formatted by the Format Profile; aligned decimals.
+- **Lifecycle actions** per state: void (withdraw if pending / reverse if posted),
+  revise (supersede), reverse (closed-period-safe).
+- **Period-aware:** posting into a closed period is rejected; surface the engine's
+  409/422 inline and offer the reverse-into-open-period path.
+- **Empty/loading/error** states on every data view; the **client switcher** in
+  the shell scopes every call to `/clients/{clientId}/…`.
 
 ---
 
 ## A. Global shell
 
-**A1. App shell / nav** — *Backed (nav only)*
-The persistent frame: top bar (client switcher, signed-in user, sign-out),
-left sidebar (progressive reveal per the blueprint), routed content area.
+**A1. App shell / nav + top bar** — *Backed (nav); Needs-BE (firm/client edit, my-clients)*
+The persistent frame: a **global top bar** and a left sidebar (progressive reveal).
 ```
-┌───────────────────────────────────────────────────────────────┐
-│  Accounting 101      [Acme Corp ▼]            Jordan ▼  (out)  │
-├───────────┬───────────────────────────────────────────────────┤
-│ Dashboard │                                                   │
-│ Journal   │            << routed screen content >>            │
-│ Accounts  │                                                   │
-│ Trial Bal │                                                   │
-│ Statements│                                                   │
-│ Periods   │                                                   │
-│ Subledgers│                                                   │
-│  Recvbl…  │                                                   │
-│  Payabl…  │                                                   │
-│  Payroll  │                                                   │
-│  Cash     │                                                   │
-│  Bank Rec │                                                   │
-│ Audit     │                                                   │
-└───────────┴───────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│ [ Acme Corp ▼ ]              Edit Firm   Edit Client   Jordan ▼ (out) │
+├──────────┬──────────────────────────────────────────────────────────┤
+│ Dashboard│                                                           │
+│ Journal  │            << routed screen content >>                    │
+│ Accounts │     (every nav selector is scoped to the selected client) │
+│ …        │                                                           │
+└──────────┴──────────────────────────────────────────────────────────┘
 ```
-- Client switcher → `GET /admin/clients` (the user's clients) [today admin-only;
-  needs a per-user "my clients" list — Needs-BE].
-- Progressive reveal (Setup → Clients → Accounting/Subledgers) per the blueprint.
+- **Client switcher** (upper-left) sets the active client; all nav scoped to it.
+  → `GET` the user's clients [today `GET /admin/clients` is all-clients/admin-only;
+  a per-user "my clients" list is Needs-BE].
+- **Global top-bar actions: Edit Firm** (business profile, area B2) and **Edit
+  Client** (selected client's metadata, B3) — reachable any time; open the B2/B3
+  forms in edit mode.
+- Progressive reveal (Setup → Clients → Accounting/Subledgers → Admin) per role.
 
 ---
 
-## B. Front door — *Needs-BE (auth + profile backend is greenfield)*
+## B. Front door & entities — *Needs-BE (auth + profile backend is greenfield)*
 
-**B1. Landing + Login** — *Needs-BE*
-Marketing-thin landing with "Sign in with Microsoft" → MSAL redirect → returns
-authenticated. Backend: Entra JWT wiring (~20 lines) + a `user_mappings` store
-(EntraOid → InternalUserId) consulted by `LedgerGateway`.
+**B1. Landing + Login** — *Needs-BE* — MSAL "Sign in with Microsoft" → Entra JWT
+wiring + a `user_mappings` store (EntraOid → InternalUserId) consulted by
+`LedgerGateway`.
 
-**B2. Business-profile setup** — *Needs-BE*
-First-run "tell us about your firm" (name, address, phone). Backend: a new
-`BusinessProfile` collection + CRUD (none today).
-```
-Tell us about your firm
-  Name      [___________]
-  Address   [___________]
-  Phone     [___________]            [ Save → ]
-```
+**B2. Firm (business) profile** — *Needs-BE* — name, address, phone (the firm
+itself). New `BusinessProfile` collection + CRUD. Serves first-run setup **and**
+the top-bar **Edit Firm**.
 
-**B3. Client setup** — *Partial*
-"Create your first client" (name, address, **fiscal year-end**, contact). Backend:
-`POST /admin/clients` exists (name, FY-end, SoD) + `PUT /admin/clients/{id}/fiscal-year-end`
-(shipped); address/contact metadata + COA seeding are Needs-BE; `POST
-/clients/{id}/onboarding` seeds opening balances (exists).
-```
-Create a client
-  Name            [___________]
-  Fiscal year-end [December ▼]
-  Address/contact [___________]
-  [ ] Require segregation of duties
-                                    [ Create → seeds chart ]
-```
+**B3. Client profile** — *Partial* — name, address, **fiscal year-end**, contact.
+`POST /admin/clients` + `PUT /admin/clients/{id}/fiscal-year-end` exist;
+address/contact metadata + COA seeding are Needs-BE; `POST /onboarding` seeds
+opening balances. Serves first-run setup **and** the top-bar **Edit Client**.
+
+> Because Edit Firm/Edit Client are permanent top-bar fixtures (not just a
+> wizard), their CRUD is worth building earlier than "front door last."
 
 ---
 
 ## C. Dashboard — *Backed*
-
-**C1. Dashboard** — *Backed*
-Landing after setup: quick actions + at-a-glance numbers (cash, A/R, A/P, net
-income MTD) + a pending-approvals badge.
-```
-Acme Corp — Dashboard
-┌── Quick actions ─────────────┐  ┌── At a glance ───────────┐
-│ + Journal entry              │  │ Cash        $ 12,400     │
-│ ▸ Trial balance              │  │ A/R         $  8,150     │
-│ ▸ Income statement           │  │ A/P         $  3,900     │
-│ ▸ Close period               │  │ Net income (MTD) $ 4,100 │
-└──────────────────────────────┘  └──────────────────────────┘
-⚠ 3 entries pending approval  →
-```
-- Numbers from `GET /trial-balance` / `GET /statements/*`; pending count from
-  `GET /entries?posting=PendingApproval&limit=1` (read `total`).
-
----
+Quick actions + at-a-glance (cash, A/R, A/P, net income MTD) + a pending-approvals
+badge. Numbers from `GET /trial-balance` / `/statements/*`; pending count from
+`GET /entries?posting=PendingApproval&limit=1` (read `total`).
 
 ## D. Journal — *Backed*
-
-**D1. Post journal entry** — *Backed*
-The core data-entry grid: balanced debit/credit lines, optional dimensions,
-effective date, memo. **Validate (dry-run) before post.** Posts PendingApproval.
-```
-New journal entry            Date [2026-06-30]  Ref [____]  Memo [______]
-┌ Account ──────────────┬ Dr ───────┬ Cr ───────┬ Dimension ─────┐
-│ 1000 Cash         ▼   │ 1,000.00  │           │  —             │
-│ 4000 Revenue      ▼   │           │ 1,000.00  │  Customer:Acme │
-│ + add line                                                     │
-└───────────────────────┴───────────┴───────────┴────────────────┘
-                         Dr 1,000.00  Cr 1,000.00  ✓ balanced
-                         [ Validate ]      [ Post (pending) ]
-```
-- `GET /accounts` (account picker), `POST /entries/validate` (pre-flight → inline
-  field errors via the ValidationProblemDetails the engine returns), `POST /entries`.
-
-**D2. Entry list** — *Backed*
-Paged, filterable list of all entries (date, account, posting state, reference).
-```
-Journal               [All ▼] [Posted ▼]  search…        Page 2 of 9
-┌ # ─┬ Date ──────┬ Memo ───────────┬ Dr/Cr ──┬ State ────────┐
-│ 142│ 2026-06-30 │ Sale to Acme    │ 1,000   │ Posted        │
-│ 141│ 2026-06-29 │ Office supplies │   240   │ PendingApprov │
-└────┴────────────┴─────────────────┴─────────┴───────────────┘
-                                     « 1 2 3 … 9 »  [50/page ▼]
-```
-- `GET /entries` (paged envelope; `?posting=`, `?account=`, `?reference=`).
-
-**D3. Pending-approval queue** — *Backed*
-The maker-checker worklist: entries awaiting approval; approve / void; shows
-creator (SoD blocks self-approval).
-- `GET /entries?posting=PendingApproval` (paged), `POST /entries/{id}/approve`,
-  `POST /entries/{id}/void`.
-
-**D4. Entry detail** — *Backed*
-One entry: lines, audit stamp (created/approved by + at), source back-link, and
-the state-appropriate actions (approve / void / revise / reverse).
-- `GET /entries/{id}`, `GET /audit/{id}`, the lifecycle POSTs.
-
----
+- **D1 Post entry** — balanced Dr/Cr grid, dimensions, effective date, memo;
+  **Validate (dry-run)** then post (PendingApproval). `GET /accounts`,
+  `POST /entries/validate`, `POST /entries`.
+- **D2 Entry list** — paged/filterable. `GET /entries` (`?posting/account/reference`).
+- **D3 Pending-approval queue** — maker-checker worklist; approve/void; shows
+  creator. `GET /entries?posting=PendingApproval`, `…/approve`, `…/void`.
+- **D4 Entry detail** — lines, audit stamp, source back-link, state actions
+  (approve/void/revise/reverse). `GET /entries/{id}`, `GET /audit/{id}`.
 
 ## E. Chart of Accounts — *Backed*
+- **E1 list/tree** by type with balances. `GET /accounts`, `…/balance`.
+- **E2 account editor** — number, name, type, normal side, RE flag, cash-flow
+  activity + running balance. `GET/PUT /accounts/{id}`.
 
-**E1. Accounts list / tree** — *Backed*
-The chart grouped by type (Asset/Liability/Equity/Revenue/Expense) with balances.
-- `GET /accounts`, `GET /accounts/{id}/balance` (or balances from trial balance).
-
-**E2. Account detail / editor** — *Backed*
-View/edit one account (number, name, type, normal side, RE flag, cash-flow
-activity) + its running balance/activity.
-- `GET /accounts/{id}`, `PUT /accounts/{id}`, `GET /accounts/{id}/balance`.
-
----
-
-## F. Trial Balance — *Backed*
-
-**F1. Trial balance** — *Backed*
-As-of trial balance; Dr/Cr columns foot equal; drill from a row → that account's
-entries.
-```
-Trial balance     as of [2026-06-30]                 Dr        Cr
-1000 Cash                                          12,400
-1100 Accounts Receivable                            8,150
-2000 Accounts Payable                                        3,900
-3000 Equity                                                 12,550
-4000 Revenue                                                 8,200
-5000 Expenses                                       4,100
-                                                  ───────   ───────
-                                                   24,650    24,650  ✓
-```
-- `GET /trial-balance?asOf=`.
-
----
+## F. Trial Balance — *Backed* — as-of, Dr/Cr foot equal, drill to entries.
+`GET /trial-balance?asOf=`.
 
 ## G. Financial Statements — *Backed*
-
-**G1. Balance sheet** — *Backed* (`GET /statements/balance-sheet`) — assets =
-liabilities + equity, `IsBalanced` badge, as-of selector.
-**G2. Income statement** — *Backed* (`GET /statements/income-statement`) — revenue
-− expenses → net income, period selector.
-**G3. Cash flow** — *Backed* (`GET /statements/cash-flow`) — operating/investing/
-financing.
-Each: a clean rendered statement + as-of/period selector + (later) export.
-
----
+**G1 Balance sheet** (`/statements/balance-sheet`), **G2 Income statement**
+(`/statements/income-statement`), **G3 Cash flow** (`/statements/cash-flow`) —
+each a rendered statement + as-of/period selector + Export (PDF/CSV, area N).
 
 ## H. Periods — *Backed*
+**H1 Close month** (`/periods/close`), **H2 Close year** (`/periods/close-year`,
+shows closing entry → RE), **H3 Reopen** (`/periods/reopen`, step-up gated). The
+FY-end + pending-blocker guards surface as inline 409s.
 
-**H1. Close month** — *Backed* — `POST /periods/close`; the UI surfaces the FY-end
-guard ("run close-year instead", 409) and the pending-blocker guard.
-**H2. Close year** — *Backed* — `POST /periods/close-year`; shows the closing
-entry → retained earnings; the wrong-date guard.
-**H3. Reopen period** — *Backed* — `POST /periods/reopen` (admin/step-up gated);
-the UI handles the step-up auth challenge.
-```
-Periods       Closed through: 2026-05-31
-  [ Close month (2026-06-30) ]   [ Close year ]   [ Reopen… ]
-```
+## I. Subledgers (four modules) — *Backed*
+Each: a customer/vendor/run list, a paged document list, a record form, and a
+document detail with void/lifecycle (all post PendingApproval via module identity).
+- **I-AR Receivables** — customers; invoices (draft→issue→void) + payments
+  (alloc) + credits (credit-apps/write-offs/credit-notes/refunds) + voids.
+- **I-AP Payables** — vendors; bills (draft→issue→void) + bill-payments + voids.
+- **I-PR Payroll** — payroll-runs + tax-remittances (record + void).
+- **I-CA Cash** — disbursements + deposits (record + void).
 
----
-
-## I. Subledgers (the four modules) — *Backed*
-
-Each module: a customer/vendor (or run) list, a document list (paged), a
-create/record form, and a document detail with void/lifecycle. All post
-PendingApproval via module identity.
-
-**I-AR. Receivables** — *Backed*
-- Customers list/create; **Invoices** (draft → issue → void) paged list + form +
-  detail; **Payments** (record + void) with allocation to invoices; **Credits**
-  (credit-applications, write-offs, credit-notes, refunds) + voids.
-- Endpoints: the Receivables module (customers, invoices, payments, credit-apps,
-  write-offs, credit-notes, refunds — paged lists). Invoice form is a line grid
-  like D1.
-```
-Receivables ▸ Invoices    customer [Acme ▼] [Open ▼]      Page 1 of 3
- INV-00007  2026-06-20  $1,200.00  Open  ($1,200 due)   ▸
- INV-00006  2026-06-12  $  800.00  Paid                 ▸
-```
-
-**I-AP. Payables** — *Backed*
-- Vendors; **Bills** (draft → issue → void) paged list + form + detail; **Bill
-  payments** (record + void) with allocation. Mirrors AR.
-
-**I-PR. Payroll** — *Backed*
-- **Payroll runs** (record + void) paged list + form; **Tax remittances** (record
-  + void). Form = the run inputs → the module composes the GL entry.
-
-**I-CA. Cash** — *Backed*
-- **Disbursements** + **Deposits** (record + void) paged lists + forms (line +
-  cash side). Quick "money in / money out" entry that isn't an invoice/bill.
-
----
-
-## J. Bank Reconciliation — *Backed (NEW this session — not in the old blueprint)*
-
-**J1. Bank statements list** — *Backed*
-Paged list of recorded statements for a cash account; + "Record statement" and
-"Import" actions.
-- `GET /bank-statements?cashAccountId=` (paged), `POST /bank-statements`.
-
-**J2. Statement import** — *Backed*
-Upload a CSV or OFX/QFX file → **parse-to-preview** (lines + detected balances +
-warnings) → review/edit → submit to create the statement. CSV needs a column
-mapping; OFX is automatic.
-```
-Import bank statement      format ( CSV | OFX )   [ choose file ]
-  [CSV] map: Date=DATE  Amount=AMOUNT  Desc=DESCRIPTION  Ref=CHECK#
-            skip status = Pending
-  ── Preview ───────────────────────────────────────────────
-   2026-06-28  PAYROLL          +1,200.00
-   2026-06-27  CHECK 1021        -300.00     ⚠ 1 row skipped
-   detected closing: 900.00     opening [____]
-                                  [ Create statement → ]
-```
-- `POST /bank-statements/import?format=csv|ofx` (multipart preview), then `POST
-  /bank-statements`.
-
-**J3. Reconciliation worksheet** — *Backed* — the heart of the module
-Start a reconciliation against a statement; the worksheet shows the bank lines +
-the ledger cash entries with cleared/uncleared, the **reconciled difference** and
-**balanced** verdict; clear/unclear, **auto-match by amount**, and **record a
-fee/interest adjustment** (which posts PendingApproval). Complete when balanced.
-```
-Reconciliation REC-00003   stmt closing 900.00   book 1,205.00
-  diff −305.00  ✗ not balanced            [ Auto-match ] [ + Adjustment ]
-┌ cleared ┬ date ───── entry ───────────── cash effect ┐
-│   ☑     │ 06-28  Deposit (payroll)        +1,200.00   │
-│   ☐     │ 06-27  Check 1021                 −300.00   │
-│   ☐     │ 06-30  Bank fee  (adjustment, pending appr) │
-└─────────┴────────────────────────────────────────────┘
-                              [ Clear ] [ Unclear ] [ Complete ]
-```
-- `POST /reconciliations`, `GET /reconciliations/{id}` (worksheet), `…/clear`,
-  `…/unclear`, `…/auto-match`(+`?apply`), `…/adjustments`(+`/void`), `…/complete`.
-
----
+## J. Bank Reconciliation — *Backed (newer than the old blueprint)*
+- **J1 Bank statements list** — `GET /bank-statements?cashAccountId=` (paged),
+  `POST /bank-statements`.
+- **J2 Statement import** — upload CSV or OFX/QFX → parse-to-preview (lines +
+  balances + warnings) → submit. `POST /bank-statements/import?format=csv|ofx`,
+  then `POST /bank-statements`.
+- **J3 Reconciliation worksheet** — bank lines vs ledger cash entries with
+  cleared/uncleared, the difference + balanced verdict; clear/unclear, auto-match,
+  record fee/interest adjustment (posts PendingApproval), complete.
+  `POST /reconciliations`, `GET /reconciliations/{id}`, `…/clear|unclear|auto-match|adjustments|complete`.
 
 ## K. Audit — *Backed*
+**K1 log** (`/audit`), **K2 verify** (`/audit/verify`, chain integrity),
+**K3 entry audit** (`/audit/{id}`).
 
-**K1. Audit log** — *Backed* — the tamper-evident chain for the client; verify
-badge.
-**K2. Audit verify** — *Backed* — runs the chain integrity check, shows pass/fail.
-**K3. Entry audit** — *Backed* — the audit trail for one entry (created/approved/
-revised/reversed lineage).
-- `GET /audit`, `GET /audit/verify`, `GET /audit/{id}`.
+## L. Admin / User management — *Needs-BE*
+Admin-only (per the security boundary). Leans on the control DB (the existing
+membership/role model) + the new user-mapping store.
+- **L1 Users** — list + **create user** (Entra invite/user + user-mapping row).
+- **L2 Permissions / roles** — edit a user's role/permissions.
+- **L3 Client memberships** — grant/revoke a user's access to clients + role per
+  client (`ControlStore.GetMembershipAsync` is the existing read side).
+
+## M. Settings (per client) — *Needs-BE (config store)*
+- **M1 Number & date formatting** — the **Format Profile** editor (negatives,
+  decimals, scale, separators, symbol placement, zero-as-dash, date format,
+  account-code display).
+- **M2 Palette / theme** — pick the **palette preset** for this client (+ the
+  user's Light/Dark/Follow-OS theme lives here too).
+
+## N. Reports / Export — *Backed data; Needs-BE (PDF generation)*
+- **Export PDF / CSV** actions on statements, trial balance, subledger,
+  reconciliation — server-side **PDF via the PdfLibrary** (`PdfRect`/`PdfColor`
+  builder), branded with the palette + formatted by the Format Profile.
+- **N-future. Report builder (deferred)** — a drag-and-drop report-layout editor
+  (canvas + field/block palette + bindings + save/load templates → rendered
+  through PdfLibrary). Stretch; built on top of the standard-reports pipeline.
 
 ---
 
@@ -327,44 +227,59 @@ revised/reversed lineage).
 
 | Area | Screens | Backed today? |
 |---|---|---|
-| A Shell | nav, client switcher | nav yes; "my clients" list Needs-BE |
-| B Front door | landing/login, business setup, client setup | **Needs-BE** (Entra + profile CRUD; FY-end exists) |
-| C Dashboard | dashboard | Backed |
-| D Journal | post, list, approvals, detail | Backed |
-| E Accounts | list/tree, editor | Backed |
-| F Trial balance | trial balance | Backed |
-| G Statements | BS, IS, CF | Backed |
-| H Periods | close month/year, reopen | Backed |
-| I Subledgers | AR, AP, Payroll, Cash (list/form/detail each) | Backed |
-| J Bank Rec | statements, import, worksheet | Backed (new) |
-| K Audit | log, verify, entry audit | Backed |
+| A Shell | nav + top bar (Edit Firm/Client, switcher) | nav yes; firm/client edit + my-clients Needs-BE |
+| B Front door | login, firm profile, client profile | **Needs-BE** (Entra + CRUD; FY-end exists) |
+| C–K | dashboard, journal, accounts, trial balance, statements, periods, subledgers, bank rec, audit | **Backed** |
+| L Admin | users, permissions, memberships | **Needs-BE** |
+| M Settings | formatting profile, palette/theme | **Needs-BE** (config store) |
+| N Reports | PDF/CSV export; report builder (deferred) | data Backed; PDF gen Needs-BE |
 
-**Headline:** the entire **accounting surface (C–K) is backed by the existing API
-today** and can be built against a dev-auth stub. Only the **front door (B)** +
-the per-user client list (A) need new backend.
+**Headline:** the whole accounting surface (C–K) is backed by the existing API
+today and builds against a dev-auth stub. The front door (B), admin (L), settings
+store (M), and PDF generation (N) need new backend.
 
-## Proposed slicing (to agree next — NOT yet decided)
+## Prioritized backlog / parking lot (from the 2026-06-28 riff)
 
-A natural sequencing once the map is agreed (each a shippable vertical):
-1. **Shell + the demo critical path** (dev-auth stub): app shell, dashboard,
-   journal post → approve → entry list, trial balance, balance sheet + income
-   statement. Proves the maker-checker loop end-to-end in the UI.
-2. **Chart of accounts + periods + cash flow** — round out core accounting.
-3. **Subledgers** (AR/AP first, then Payroll/Cash) — the module workflows.
-4. **Bank Reconciliation + Import** — the worksheet + the CSV/OFX upload.
-5. **Audit views.**
-6. **Real front door** — Entra auth + user-mapping + business/client setup wizard
-   + the per-user client switcher (the Needs-BE backend + its screens).
+| Item | Priority | Note |
+|---|---|---|
+| Palette tokens + Light/Dark/Follow-OS switch | **Foundational** | CSS vars; ships with slice 1 |
+| Format Profile schema + default + TS formatter | **Foundational** | default profile applied everywhere from day 1 |
+| Firm/Client profile CRUD (Edit Firm/Client) | **Early** | permanent top-bar fixtures |
+| Standard PDF reports (PdfLibrary) | Mid | reuses palette + profile |
+| Settings → Formatting editor (M1) | Mid | edit the profile |
+| Admin → user/permission management (L) | Mid | with the real front door |
+| Palette presets + per-client palette (M2) | Mid | infra cheap; picker is a settings screen |
+| Per-client display settings store (M) | Mid | backs M1/M2 |
+| Drag-and-drop report builder (N-future) | **Later / stretch** | on top of standard reports |
 
-Sequencing is deliberately accounting-first (all backed) with the greenfield
-front-door backend last, so the demo is clickable against the real engine
-quickly. To revisit together.
+## Proposed slicing (to agree next)
 
-## Open questions (for the slicing discussion)
+Accounting-first (all backed), greenfield backend folded in where it unblocks the
+permanent fixtures:
+1. **Shell + theming/format foundation + demo critical path** (dev-auth stub):
+   app shell + top bar, Light/Dark/Follow-OS + palette tokens, Format-Profile
+   default + TS formatter, dashboard, journal post → approve → entry list, trial
+   balance, balance sheet + income statement.
+2. **Chart of accounts + periods + cash flow.**
+3. **Firm/Client profile CRUD** (Edit Firm/Edit Client) + the per-user client list.
+4. **Subledgers** (AR/AP first, then Payroll/Cash).
+5. **Bank Reconciliation + Import.**
+6. **Standard PDF reports** (PdfLibrary) + **Settings → Formatting**.
+7. **Real front door** (Entra auth + user-mapping) + **Admin** (users/permissions/
+   memberships).
+8. **Palette presets / per-client palette**, **Audit views**.
+9. **Later:** drag-and-drop report builder.
 
+## Resolved decisions (2026-06-28)
+- Angular 22; component library (Material vs Bootstrap) still open.
+- Palette = the Accounting101Palette.pdf five colors; solid blue buttons; parens
+  negatives; aligned decimals; **Light default**; Light/Dark/Follow-OS switch.
+- Top bar = client switcher (left) + Edit Firm + Edit Client.
+- Per-client: Format Profile + palette preset (stored display settings).
+- Admin user/permission management is in scope (area L).
+- PDF reports via PdfLibrary; drag-and-drop report builder deferred.
+
+## Open (for the slicing/plan stage)
 - Component library: **Angular Material vs Bootstrap** (vs a Tailwind kit).
-- Auth-stub mechanism for early slices (reuse the dev-token the tests use).
-- How "deep" each subledger screen goes in its first cut (e.g. AR invoices +
-  payments first; credits/write-offs/refunds as a follow-up).
-- Whether the front door (B) moves earlier if a live multi-tenant demo is needed
-  sooner than the full accounting UI.
+- Auth-stub mechanism for early slices (reuse the dev token the tests use).
+- Depth of each subledger's first cut (AR invoices+payments first; credits later).
