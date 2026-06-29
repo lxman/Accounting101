@@ -28,6 +28,6 @@ export class ThemeService {
   }
 
   private systemPrefersDark(): boolean {
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
+    return window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ?? false;
   }
 }
