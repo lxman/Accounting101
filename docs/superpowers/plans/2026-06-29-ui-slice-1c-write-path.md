@@ -897,7 +897,7 @@ describe('ApprovalQueue', () => {
 ```ts
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { forkJoin, of } from 'rxjs';
+import { forkJoin } from 'rxjs';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { EntriesService } from '../../core/entries/entries.service';
@@ -968,13 +968,11 @@ export class ApprovalQueue {
       },
       error: (e) => { this.error.set((e as { message?: string })?.message ?? 'Error loading queue'); this.loading.set(false); },
     });
-    void of(null); // keep rxjs of import if unused elsewhere; remove if lint complains
   }
 
   formatDate(d: string): string { return formatProfileDate(d, DEFAULT_FORMAT_PROFILE); }
 }
 ```
-> Remove the `of`/`void of(null)` line if the linter flags the unused import; it's only there to avoid an accidental missing-import during editing.
 
 - [ ] **Step 4: Route + nav**
 
