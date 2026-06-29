@@ -53,6 +53,18 @@ describe('ApprovalQueue', () => {
     expect(f.componentInstance.cueById()['E1']).toBe('approvable');
   });
 
+  it('treats an empty-array audit (HTTP 200, zero records) as unknown cue', () => {
+    const f = TestBed.createComponent(ApprovalQueue); f.detectChanges();
+    ctrl.expectOne(r => r.params.get('posting') === 'PendingApproval').flush({ items: [
+      { id: 'E1', sequenceNumber: 1, effectiveDate: '2026-06-29', type: 'Standard', status: 'Active', posting: 'PendingApproval', lineCount: 2, lines: [], memo: null, supersedes: null, supersededBy: null, reversalOf: null, reversedBy: null },
+    ], total: 1, skip: 0, limit: 50 });
+    f.detectChanges();
+    // HTTP 200 but zero audit records → authorOf([]) returns null → cue must be 'unknown'
+    ctrl.expectOne('http://localhost:5000/clients/C1/audit/E1').flush([]);
+    f.detectChanges();
+    expect(f.componentInstance.cueById()['E1']).toBe('unknown');
+  });
+
   it('degrades a single audit failure to unknown without breaking other rows', () => {
     const f = TestBed.createComponent(ApprovalQueue); f.detectChanges();
     ctrl.expectOne(r => r.params.get('posting') === 'PendingApproval').flush({ items: [

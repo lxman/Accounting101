@@ -79,4 +79,24 @@ describe('EntryForm', () => {
     f.detectChanges();
     expect(cmp.serverMessage()).toContain('not postable');
   });
+
+  it('fresh-form balanceError shows min-lines message but not the per-line one-side message', () => {
+    const f = TestBed.createComponent(EntryForm); f.detectChanges();
+    const cmp = f.componentInstance;
+    // Two empty lines → validateTree fires min-lines; per-line one-side errors are NOT surfaced here.
+    const err = cmp.balanceError();
+    expect(err).toContain('At least two lines are required');
+    expect(err).not.toContain('Enter a debit OR a credit');
+  });
+
+  it('lineError is null when the line is untouched, then shows the message after markAsTouched', () => {
+    const f = TestBed.createComponent(EntryForm); f.detectChanges();
+    const cmp = f.componentInstance;
+    // Both debit and credit empty → one-side validator fires, but touch gate suppresses it.
+    expect(cmp.lineError(0)).toBeNull();
+    // Mark the line (not a leaf field) as touched — this is the signal-forms API.
+    cmp.entryForm.lines[0]().markAsTouched();
+    f.detectChanges();
+    expect(cmp.lineError(0)).toBe('Enter a debit OR a credit');
+  });
 });
