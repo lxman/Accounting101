@@ -3,12 +3,14 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ClientContextService } from '../core/client/client-context.service';
 import { ThemeSwitch } from '../core/theme/theme-switch';
 import { HlmButton } from '@spartan-ng/helm/button';
+import { HlmSelectImports } from '@spartan-ng/helm/select';
+import { DevIdentityService } from '../core/api/dev-identity.service';
 import { NAV } from './nav';
 
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, ThemeSwitch, HlmButton],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, ThemeSwitch, HlmButton, ...HlmSelectImports],
   template: `
     <div class="min-h-screen bg-background text-foreground">
       <header class="flex items-center gap-3 px-4 h-14 bg-card border-b border-border">
@@ -19,7 +21,16 @@ import { NAV } from './nav';
           <button hlmBtn type="button" variant="ghost" size="sm">Edit Firm</button>
           <button hlmBtn type="button" variant="ghost" size="sm">Edit Client</button>
           <app-theme-switch />
-          <span class="text-sm text-muted-foreground">Jordan ▾</span>
+          <div hlmSelect [value]="identity.active().sub" (valueChange)="identity.use($any($event))" class="w-44">
+            <hlm-select-trigger class="w-44">
+              <hlm-select-value placeholder="Acting as…">Acting as: {{ identity.active().name }}</hlm-select-value>
+            </hlm-select-trigger>
+            <hlm-select-content>
+              @for (id of identity.identities; track id.sub) {
+                <hlm-select-item [value]="id.sub">{{ id.name }}</hlm-select-item>
+              }
+            </hlm-select-content>
+          </div>
         </div>
       </header>
       <div class="flex">
@@ -36,4 +47,5 @@ import { NAV } from './nav';
 export class Shell {
   protected readonly nav = NAV;
   protected readonly client = inject(ClientContextService);
+  protected readonly identity = inject(DevIdentityService);
 }
