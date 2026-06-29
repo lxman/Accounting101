@@ -8,7 +8,7 @@ describe('ThemeService', () => {
       providers: [provideZonelessChangeDetection()],
     });
     localStorage.clear();
-    document.documentElement.removeAttribute('data-theme');
+    document.documentElement.classList.remove('dark');
   });
 
   it('defaults to light', () => {
@@ -17,14 +17,23 @@ describe('ThemeService', () => {
     expect(s.effective()).toBe('light');
   });
 
-  it('set() persists and updates effective + the data-theme attribute', () => {
+  it('set() persists and updates effective + the .dark class', () => {
     const s = TestBed.inject(ThemeService);
     s.set('dark');
     expect(s.preference()).toBe('dark');
     expect(s.effective()).toBe('dark');
     expect(localStorage.getItem('a101.theme')).toBe('dark');
     TestBed.flushEffects?.();
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+  });
+
+  it('removes the .dark class when set back to light', () => {
+    const s = TestBed.inject(ThemeService);
+    s.set('dark');
+    TestBed.flushEffects?.();
+    s.set('light');
+    TestBed.flushEffects?.();
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 
   it('system preference resolves through effective()', () => {

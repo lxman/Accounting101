@@ -1,12 +1,10 @@
 @use './theme/tokens.css';
-@import 'tailwindcss';
 
-@theme {
-  --color-bg: var(--color-bg);
-  --color-surface: var(--color-surface);
-  --color-ink: var(--color-ink);
-  --color-muted: var(--color-muted);
-  --color-border: var(--color-border);
-  --color-primary: var(--color-primary);
-  --color-accent: var(--color-accent);
-}
+@layer theme, base, components, utilities;
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/preflight.css' layer(base);
+@import 'tailwindcss/utilities.css';
+@import '@spartan-ng/brain/hlm-tailwind-preset.css';
+
+/* Class-based dark mode (Spartan/.dark convention) */
+@custom-variant dark (&:is(.dark *));

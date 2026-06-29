@@ -1,45 +1,45 @@
-/* Brand palette (Accounting101Palette) */
+/* Accounting101 brand hexes (reference): teal #24CCAB, blue #1D4DE8, slate #36413E, cream #F3E3B3, lavender #BFACC8 */
 :root {
-  --teal: #24CCAB;
-  --blue: #1D4DE8;
-  --slate: #36413E;
-  --cream: #F3E3B3;
-  --lavender: #BFACC8;
-}
+  color-scheme: light;
+  --radius: 0.625rem;
 
-/* Light (default) */
-:root,
-:root[data-theme="light"] {
-  --color-bg: #f5f7f6;
-  --color-surface: #ffffff;
-  --color-ink: #36413E;
-  --color-muted: #7a8a83;
-  --color-border: #e6ece9;
-  --color-sidebar: #36413E;
-  --color-sidebar-ink: #cbd6d1;
-  --color-primary: #24CCAB;
-  --color-accent: #1D4DE8;
-  --color-warm: #F3E3B3;
-  --color-muted-accent: #BFACC8;
-  --color-pending-bg: #BFACC8;
-  --color-pending-ink: #473a52;
-  --color-negative: #b3261e;
-}
+  --background:#f5f7f6;            --foreground:#36413E;
+  --card:#ffffff;                 --card-foreground:#36413E;
+  --popover:#ffffff;              --popover-foreground:#36413E;
+  --primary:#1D4DE8;              --primary-foreground:#ffffff;   /* solid blue buttons */
+  --secondary:#eef2f0;            --secondary-foreground:#36413E;
+  --muted:#eef2f0;                --muted-foreground:#7a8a83;
+  --accent:#e6f9f4;               --accent-foreground:#0e7a64;    /* teal-tint hover */
+  --destructive:#b3261e;          --destructive-foreground:#ffffff;
+  --border:#e6ece9;               --input:#e6ece9;               --ring:#1D4DE8;
 
-/* Dark */
-:root[data-theme="dark"] {
-  --color-bg: #2b3431;
-  --color-surface: #36413e;
-  --color-ink: #e3ebe8;
-  --color-muted: #9fb6ad;
-  --color-border: rgba(255, 255, 255, .08);
-  --color-sidebar: #222a28;
-  --color-sidebar-ink: #9fb0aa;
-  --color-primary: #24CCAB;
-  --color-accent: #1D4DE8;
-  --color-warm: #F3E3B3;
-  --color-muted-accent: #BFACC8;
-  --color-pending-bg: rgba(191, 172, 200, .22);
-  --color-pending-ink: #BFACC8;
-  --color-negative: #ff6b5e;
+  --sidebar:#36413E;              --sidebar-foreground:#cbd6d1;
+  --sidebar-primary:#24CCAB;      --sidebar-primary-foreground:#04231d;
+  --sidebar-accent:rgba(36,204,171,.18); --sidebar-accent-foreground:#9af0dc;
+  --sidebar-border:rgba(255,255,255,.08); --sidebar-ring:#1D4DE8;
+
+  /* brand extras (not in Spartan's set) — for badges/highlights */
+  --brand-teal:#24CCAB; --brand-cream:#F3E3B3; --brand-lavender:#BFACC8;
+  --pending:#BFACC8; --pending-foreground:#473a52;
+}
+.dark {
+  color-scheme: dark;
+
+  --background:#2b3431;           --foreground:#e3ebe8;
+  --card:#36413e;                 --card-foreground:#e3ebe8;
+  --popover:#36413e;              --popover-foreground:#e3ebe8;
+  --primary:#1D4DE8;              --primary-foreground:#ffffff;
+  --secondary:#3a4541;            --secondary-foreground:#e3ebe8;
+  --muted:#3a4541;                --muted-foreground:#9fb6ad;
+  --accent:rgba(36,204,171,.16);  --accent-foreground:#5fe6cb;
+  --destructive:#ff6b5e;          --destructive-foreground:#1a1a1a;
+  --border:rgba(255,255,255,.08); --input:rgba(255,255,255,.12); --ring:#7aa0ff;
+
+  --sidebar:#222a28;              --sidebar-foreground:#9fb0aa;
+  --sidebar-primary:#24CCAB;      --sidebar-primary-foreground:#04231d;
+  --sidebar-accent:rgba(36,204,171,.16); --sidebar-accent-foreground:#24CCAB;
+  --sidebar-border:rgba(255,255,255,.06); --sidebar-ring:#7aa0ff;
+
+  --brand-teal:#24CCAB; --brand-cream:#F3E3B3; --brand-lavender:#BFACC8;
+  --pending:rgba(191,172,200,.22); --pending-foreground:#BFACC8;
 }

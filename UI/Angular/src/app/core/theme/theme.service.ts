@@ -14,7 +14,7 @@ export class ThemeService {
   constructor() {
     const mq = window.matchMedia?.('(prefers-color-scheme: dark)');
     mq?.addEventListener('change', e => this.system.set(e.matches ? 'dark' : 'light'));
-    effect(() => document.documentElement.setAttribute('data-theme', this.effective()));
+    effect(() => document.documentElement.classList.toggle('dark', this.effective() === 'dark'));
   }
 
   set(pref: ThemePreference): void {

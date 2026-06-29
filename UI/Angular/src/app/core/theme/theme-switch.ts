@@ -10,8 +10,8 @@ import { ThemeService, ThemePreference } from './theme.service';
         <button
           type="button"
           class="px-2.5 py-1 text-xs transition-colors"
-          [style.backgroundColor]="theme.preference() === opt.value ? 'var(--color-accent)' : ''"
-          [style.color]="theme.preference() === opt.value ? '#fff' : ''"
+          [class.bg-primary]="theme.preference() === opt.value"
+          [class.text-primary-foreground]="theme.preference() === opt.value"
           (click)="theme.set(opt.value)"
           [attr.aria-pressed]="theme.preference() === opt.value">{{ opt.label }}</button>
       }
