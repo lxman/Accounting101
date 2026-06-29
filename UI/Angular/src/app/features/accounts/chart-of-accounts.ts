@@ -31,6 +31,7 @@ import { money } from '../../core/format/display';
           <section>
             <h2 class="font-semibold text-sm uppercase text-muted-foreground border-b border-border pb-1 mb-1"
                 cdkDropList [cdkDropListData]="{ type: section.type, parentId: null }"
+                [cdkDropListSortingDisabled]="true"
                 [cdkDropListEnterPredicate]="enterPredicate(section.type, null)"
                 (cdkDropListDropped)="dropped($event, section.type, null)">{{ section.type }}</h2>
             @for (node of section.nodes; track node.account.id) {
@@ -47,6 +48,7 @@ import { money } from '../../core/format/display';
         <!-- Drop target: dropping an account here re-parents it under this node.
              cdkDrag must live INSIDE a cdkDropList for CDK to fire drop events. -->
         <div cdkDropList [cdkDropListData]="{ type, parentId: node.account.id }"
+             [cdkDropListSortingDisabled]="true"
              [cdkDropListEnterPredicate]="enterPredicate(type, node.account.id)"
              (cdkDropListDropped)="dropped($event, type, node.account.id)">
           <div class="flex items-center gap-2 py-1 border-b border-border/50 text-sm cursor-grab active:cursor-grabbing"
