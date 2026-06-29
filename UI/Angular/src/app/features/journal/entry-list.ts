@@ -2,11 +2,11 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  effect,
   inject,
   signal,
-  untracked,
 } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { catchError, of, switchMap, tap } from 'rxjs';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmPaginationImports } from '@spartan-ng/helm/pagination';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
@@ -124,9 +124,43 @@ export class EntryList {
   readonly skip = signal(0);
   readonly limit = signal(50);
 
-  private readonly page = signal<PagedResponse<EntryResponse> | null>(null);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
+
+  // The query: re-emits whenever the client id or any filter/page signal changes.
+  private readonly query = computed(() => ({
+    id: this.client.clientId(),
+    posting: this.posting() ?? undefined,
+    skip: this.skip(),
+    limit: this.limit(),
+  }));
+
+  // Reactive load: switchMap cancels any in-flight request when the query changes,
+  // so a slow response can never overwrite newer filtered data, and there is no
+  // unmanaged subscription (toSignal is tied to the injection context).
+  private readonly page = toSignal(
+    toObservable(this.query).pipe(
+      tap(() => {
+        this.loading.set(true);
+        this.error.set(null);
+      }),
+      switchMap(({ id, posting, skip, limit }) => {
+        if (!id) {
+          this.loading.set(false);
+          return of(null);
+        }
+        return this.entriesSvc.listPaged({ posting, skip, limit }).pipe(
+          tap(() => this.loading.set(false)),
+          catchError((e: unknown) => {
+            this.error.set((e as { message?: string })?.message ?? 'Error loading entries');
+            this.loading.set(false);
+            return of(null);
+          }),
+        );
+      }),
+    ),
+    { initialValue: null as PagedResponse<EntryResponse> | null },
+  );
 
   readonly entries = computed(() => this.page()?.items ?? []);
   readonly pageCount = computed(() => {
@@ -139,35 +173,6 @@ export class EntryList {
     if (!p) return 1;
     return Math.floor(p.skip / p.limit) + 1;
   });
-
-  constructor() {
-    effect(() => {
-      const id = this.client.clientId();
-      const posting = this.posting();
-      const skip = this.skip();
-      const limit = this.limit();
-
-      if (!id) {
-        untracked(() => this.page.set(null));
-        return;
-      }
-
-      untracked(() => {
-        this.loading.set(true);
-        this.error.set(null);
-      });
-
-      this.entriesSvc
-        .listPaged({ posting: posting ?? undefined, skip, limit })
-        .subscribe({
-          next: p => untracked(() => { this.page.set(p); this.loading.set(false); }),
-          error: e => untracked(() => {
-            this.error.set(e?.message ?? 'Error loading entries');
-            this.loading.set(false);
-          }),
-        });
-    });
-  }
 
   onPostingChange(value: unknown): void {
     const v = value as string;
