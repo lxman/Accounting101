@@ -26,7 +26,7 @@ import { money } from '../../core/format/display';
       <p class="text-xs text-muted-foreground">Drag an account onto another (same type) to re-parent it, or onto a section header to make it a root. Order follows the account number — edit a number to reorder.</p>
       @if (error()) { <p class="text-destructive text-sm">{{ error() }}</p> }
 
-      <div cdkDropListGroup class="flex flex-col gap-4">
+      <div cdkDropListGroup class="coa-dnd flex flex-col gap-4">
         @for (section of sections(); track section.type) {
           <section>
             <h2 class="font-semibold text-sm uppercase text-muted-foreground border-b border-border pb-1 mb-1"

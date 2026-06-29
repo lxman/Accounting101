@@ -69,3 +69,10 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Chart-of-Accounts drag-to-reparent: this tree never reorders (a drop only sets
+   parentId; siblings always sort by number), so suppress CDK's placeholder gap.
+   The gap caused confusing reflow — especially dragging upward, where the
+   placeholder appeared above the cursor while the source gap sat below. With it
+   hidden, only the floating preview tracks the cursor; nothing else shifts. */
+.coa-dnd .cdk-drag-placeholder { display: none; }
