@@ -8,7 +8,6 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, of, switchMap, tap } from 'rxjs';
-import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmPaginationImports } from '@spartan-ng/helm/pagination';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
@@ -17,8 +16,8 @@ import { ClientContextService } from '../../core/client/client-context.service';
 import { EntriesService } from '../../core/entries/entries.service';
 import { EntryResponse, Posting } from '../../core/entries/entry';
 import { PagedResponse } from '../../core/api/paged-response';
-import { DEFAULT_FORMAT_PROFILE } from '../../core/format/format-profile';
-import { formatProfileDate } from '../../core/format/date-formatter';
+import { displayDate } from '../../core/format/display';
+import { PostingBadge } from '../../shared/posting-badge';
 
 @Component({
   selector: 'app-entry-list',
@@ -26,10 +25,10 @@ import { formatProfileDate } from '../../core/format/date-formatter';
   imports: [
     RouterLink,
     HlmButton,
+    PostingBadge,
     ...HlmTableImports,
     ...HlmSelectImports,
     ...HlmPaginationImports,
-    ...HlmBadgeImports,
   ],
   template: `
     <div class="flex flex-col gap-4 p-4">
@@ -81,19 +80,7 @@ import { formatProfileDate } from '../../core/format/date-formatter';
                     <td hlmTd>{{ formatDate(entry.effectiveDate) }}</td>
                     <td hlmTd>{{ entry.memo ?? '—' }}</td>
                     <td hlmTd>{{ entry.lineCount }}</td>
-                    <td hlmTd>
-                      @if (entry.posting === 'PendingApproval') {
-                        <span hlmBadge
-                          class="bg-[color:var(--pending)] text-[color:var(--pending-foreground)]"
-                          data-testid="badge-pending">
-                          Pending
-                        </span>
-                      } @else {
-                        <span hlmBadge variant="secondary" data-testid="badge-posted">
-                          Posted
-                        </span>
-                      }
-                    </td>
+                    <td hlmTd><app-posting-badge [posting]="entry.posting" /></td>
                   </tr>
                 }
               </tbody>
@@ -206,6 +193,6 @@ export class EntryList {
   }
 
   formatDate(date: string): string {
-    return formatProfileDate(date, DEFAULT_FORMAT_PROFILE);
+    return displayDate(date);
   }
 }
