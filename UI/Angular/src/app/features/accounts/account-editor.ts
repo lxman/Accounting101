@@ -23,7 +23,6 @@ const DEBIT_TYPES = new Set<AccountType>(['Asset', 'Expense']);
   imports: [RouterLink, FormField, ...HlmInputImports, ...HlmLabelImports, HlmButton, ...HlmSelectImports],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-xl">
-      <a routerLink="/accounts" class="text-sm text-muted-foreground hover:text-foreground w-fit">← Cancel (unsaved changes are discarded)</a>
       <h1 class="text-2xl font-bold">{{ editId ? 'Edit account' : 'New account' }}</h1>
 
       <div class="flex flex-col gap-1">
