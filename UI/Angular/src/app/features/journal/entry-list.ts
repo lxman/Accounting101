@@ -74,7 +74,7 @@ import { formatProfileDate } from '../../core/format/date-formatter';
               <tbody hlmTBody>
                 @for (entry of entries(); track entry.id) {
                   <tr hlmTr>
-                    <td hlmTd>{{ entry.sequenceNumber }}</td>
+                    <td hlmTd><a class="underline" [routerLink]="['/journal', entry.id]">{{ entry.sequenceNumber }}</a></td>
                     <td hlmTd>{{ formatDate(entry.effectiveDate) }}</td>
                     <td hlmTd>{{ entry.memo ?? '—' }}</td>
                     <td hlmTd>{{ entry.lineCount }}</td>
