@@ -1,10 +1,71 @@
-@use './theme/tokens.css';
-
 @layer theme, base, components, utilities;
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/preflight.css' layer(base);
 @import 'tailwindcss/utilities.css';
 @import '@spartan-ng/brain/hlm-tailwind-preset.css';
 
-/* Class-based dark mode (Spartan/.dark convention) */
+/* Class-based dark mode — ThemeService toggles `.dark` on <html> (Spartan convention). */
 @custom-variant dark (&:is(.dark *));
+
+/* =====================================================================
+   Accounting101 palette expressed on Spartan's CSS-variable contract.
+   This is the single theming source; every hlm component reads these.
+   Brand hexes: teal #24CCAB · blue #1D4DE8 · slate #36413E · cream #F3E3B3 · lavender #BFACC8
+   ===================================================================== */
+:root {
+  color-scheme: light;
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
+    sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --radius: 0.625rem;
+
+  --background: #f5f7f6;                  --foreground: #36413e;
+  --card: #ffffff;                       --card-foreground: #36413e;
+  --popover: #ffffff;                    --popover-foreground: #36413e;
+  --primary: #1d4de8;                    --primary-foreground: #ffffff;   /* solid blue */
+  --secondary: #eef2f0;                  --secondary-foreground: #36413e;
+  --muted: #eef2f0;                      --muted-foreground: #7a8a83;
+  --accent: #e6f9f4;                     --accent-foreground: #0e7a64;    /* teal tint */
+  --destructive: #b3261e;                --destructive-foreground: #ffffff;
+  --border: #e6ece9;                     --input: #e6ece9;                --ring: #1d4de8;
+
+  --sidebar: #36413e;                    --sidebar-foreground: #cbd6d1;
+  --sidebar-primary: #24ccab;            --sidebar-primary-foreground: #04231d;
+  --sidebar-accent: rgba(36, 204, 171, 0.18);  --sidebar-accent-foreground: #9af0dc;
+  --sidebar-border: rgba(255, 255, 255, 0.08); --sidebar-ring: #1d4de8;
+
+  /* brand extras (outside Spartan's set) — badges/highlights */
+  --brand-teal: #24ccab;  --brand-cream: #f3e3b3;  --brand-lavender: #bfacc8;
+  --pending: #bfacc8;     --pending-foreground: #473a52;
+}
+
+:root.dark {
+  color-scheme: dark;
+
+  --background: #2b3431;                 --foreground: #e3ebe8;
+  --card: #36413e;                       --card-foreground: #e3ebe8;
+  --popover: #36413e;                    --popover-foreground: #e3ebe8;
+  --primary: #1d4de8;                    --primary-foreground: #ffffff;
+  --secondary: #3a4541;                  --secondary-foreground: #e3ebe8;
+  --muted: #3a4541;                      --muted-foreground: #9fb6ad;
+  --accent: rgba(36, 204, 171, 0.16);    --accent-foreground: #5fe6cb;
+  --destructive: #ff6b5e;                --destructive-foreground: #1a1a1a;
+  --border: rgba(255, 255, 255, 0.08);   --input: rgba(255, 255, 255, 0.12);  --ring: #7aa0ff;
+
+  --sidebar: #222a28;                    --sidebar-foreground: #9fb0aa;
+  --sidebar-primary: #24ccab;            --sidebar-primary-foreground: #04231d;
+  --sidebar-accent: rgba(36, 204, 171, 0.16);  --sidebar-accent-foreground: #24ccab;
+  --sidebar-border: rgba(255, 255, 255, 0.06); --sidebar-ring: #7aa0ff;
+
+  --brand-teal: #24ccab;  --brand-cream: #f3e3b3;  --brand-lavender: #bfacc8;
+  --pending: rgba(191, 172, 200, 0.22);  --pending-foreground: #bfacc8;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

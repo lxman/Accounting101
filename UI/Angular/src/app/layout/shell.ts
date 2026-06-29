@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { ClientContextService } from '../core/client/client-context.service';
 import { ThemeSwitch } from '../core/theme/theme-switch';
-import { HlmButton } from '../shared/ui/ui-button-helm/hlm-button';
+import { HlmButton } from '@spartan-ng/helm/button';
 import { NAV } from './nav';
 
 @Component({
