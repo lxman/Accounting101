@@ -5,7 +5,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, of, switchMap, tap } from 'rxjs';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
@@ -73,8 +73,11 @@ import { formatProfileDate } from '../../core/format/date-formatter';
               </thead>
               <tbody hlmTBody>
                 @for (entry of entries(); track entry.id) {
-                  <tr hlmTr>
-                    <td hlmTd><a class="underline" [routerLink]="['/journal', entry.id]">{{ entry.sequenceNumber }}</a></td>
+                  <tr hlmTr class="cursor-pointer hover:bg-muted/50"
+                      tabindex="0"
+                      (click)="open(entry.id)"
+                      (keydown.enter)="open(entry.id)">
+                    <td hlmTd>{{ entry.sequenceNumber }}</td>
                     <td hlmTd>{{ formatDate(entry.effectiveDate) }}</td>
                     <td hlmTd>{{ entry.memo ?? '—' }}</td>
                     <td hlmTd>{{ entry.lineCount }}</td>
@@ -124,6 +127,11 @@ import { formatProfileDate } from '../../core/format/date-formatter';
 export class EntryList {
   private readonly entriesSvc = inject(EntriesService);
   private readonly client = inject(ClientContextService);
+  private readonly router = inject(Router);
+
+  open(id: string): void {
+    void this.router.navigate(['/journal', id]);
+  }
 
   readonly posting = signal<Posting | null>(null);
   readonly skip = signal(0);
