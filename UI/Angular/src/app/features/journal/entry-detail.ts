@@ -64,7 +64,7 @@ import { formatProfileDate } from '../../core/format/date-formatter';
         @if (e.posting === 'PendingApproval') {
           <div class="flex items-center gap-2">
             <button hlmBtn type="button" (click)="approve()" [disabled]="busy()">Approve</button>
-            <input hlmInput type="text" placeholder="Void reason" [value]="voidReason()" (input)="voidReason.set($any($event.target).value)" />
+            <input hlmInput type="text" aria-label="Void reason" placeholder="Void reason" [value]="voidReason()" (input)="voidReason.set($any($event.target).value)" />
             <button hlmBtn type="button" variant="outline" (click)="voidEntry()" [disabled]="busy()">Void</button>
           </div>
         }

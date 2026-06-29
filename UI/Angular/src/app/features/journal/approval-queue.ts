@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { catchError, forkJoin, of } from 'rxjs';
+import { AuditRecordResponse } from '../../core/audit/audit';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
 import { EntriesService } from '../../core/entries/entries.service';
@@ -33,8 +34,11 @@ import { formatProfileDate } from '../../core/format/date-formatter';
                   <td hlmTd>{{ e.memo ?? '—' }}</td>
                   <td hlmTd>{{ e.lineCount }}</td>
                   <td hlmTd>
-                    @if (approvableById()[e.id]) { <span hlmBadge variant="secondary">Approvable</span> }
-                    @else { <span hlmBadge class="bg-[color:var(--pending)] text-[color:var(--pending-foreground)]">Your entry — needs another approver</span> }
+                    @switch (cueById()[e.id]) {
+                      @case ('approvable') { <span hlmBadge variant="secondary">Approvable</span> }
+                      @case ('own') { <span hlmBadge class="bg-[color:var(--pending)] text-[color:var(--pending-foreground)]">Your entry — needs another approver</span> }
+                      @default { <span hlmBadge variant="outline">Author unknown — cannot approve</span> }
+                    }
                   </td>
                 </tr>
               }
@@ -55,9 +59,13 @@ export class ApprovalQueue {
   readonly entries = signal<EntryResponse[]>([]);
   private readonly authorById = signal<Record<string, string | null>>({});
 
-  readonly approvableById = computed(() => {
-    const me = this.identity.active().sub; const authors = this.authorById();
-    return Object.fromEntries(this.entries().map(e => [e.id, authors[e.id] != null && authors[e.id] !== me]));
+  readonly cueById = computed<Record<string, 'approvable' | 'own' | 'unknown'>>(() => {
+    const me = this.identity.active().sub;
+    const authors = this.authorById();
+    return Object.fromEntries(this.entries().map(e => {
+      const a = authors[e.id];
+      return [e.id, a == null ? 'unknown' : a === me ? 'own' : 'approvable'];
+    }));
   });
 
   constructor() {
@@ -65,10 +73,11 @@ export class ApprovalQueue {
       next: (page) => {
         this.entries.set(page.items); this.loading.set(false);
         if (page.items.length === 0) return;
-        forkJoin(Object.fromEntries(page.items.map(e => [e.id, this.audit.entryAudit(e.id)]))).subscribe({
-          next: (map) => this.authorById.set(Object.fromEntries(Object.entries(map).map(([id, recs]) => [id, this.audit.authorOf(recs)]))),
-          error: () => { /* cue only; leave authors empty → rows show not-approvable, safe default */ },
-        });
+        forkJoin(Object.fromEntries(page.items.map(e =>
+          [e.id, this.audit.entryAudit(e.id).pipe(catchError(() => of([] as AuditRecordResponse[])))]))).subscribe({
+            next: (map) => this.authorById.set(Object.fromEntries(
+              Object.entries(map).map(([id, recs]) => [id, this.audit.authorOf(recs)]))),
+          });
       },
       error: (e) => { this.error.set(extractProblem(e).detail); this.loading.set(false); },
     });

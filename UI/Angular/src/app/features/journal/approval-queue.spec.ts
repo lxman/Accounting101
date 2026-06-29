@@ -5,6 +5,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ApprovalQueue } from './approval-queue';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { DevIdentityService } from '../../core/api/dev-identity.service';
 import { environment } from '../../core/api/environment';
 
 describe('ApprovalQueue', () => {
@@ -18,7 +19,7 @@ describe('ApprovalQueue', () => {
   });
   afterEach(() => ctrl.verify());
 
-  it('lists pending entries and marks the active identity\'s own entry as not approvable', () => {
+  it('lists pending entries and marks own entry as own, other entry as approvable', () => {
     const f = TestBed.createComponent(ApprovalQueue); f.detectChanges();
     const page = ctrl.expectOne(r => r.url.includes('/clients/C1/entries') && r.params.get('posting') === 'PendingApproval');
     page.flush({ items: [
@@ -32,8 +33,40 @@ describe('ApprovalQueue', () => {
     const a2 = ctrl.expectOne('http://localhost:5000/clients/C1/audit/E2');
     a2.flush([{ sequence: 1, action: 'Created', entryId: 'E2', entryVersion: 1, at: '', reason: null, actor: { userId: environment.devApprover.sub, name: 'Other', claims: [] } }]);
     f.detectChanges();
-    // active identity defaults to the clerk → E1 is theirs (not approvable), E2 is approvable
-    expect(f.componentInstance.approvableById()['E1']).toBe(false);
-    expect(f.componentInstance.approvableById()['E2']).toBe(true);
+    // active identity defaults to the clerk → E1 is theirs ('own'), E2 is approvable
+    expect(f.componentInstance.cueById()['E1']).toBe('own');
+    expect(f.componentInstance.cueById()['E2']).toBe('approvable');
+  });
+
+  it('flips the cue when the active identity changes', () => {
+    const f = TestBed.createComponent(ApprovalQueue); f.detectChanges();
+    ctrl.expectOne(r => r.params.get('posting') === 'PendingApproval').flush({ items: [
+      { id: 'E1', sequenceNumber: 1, effectiveDate: '2026-06-29', type: 'Standard', status: 'Active', posting: 'PendingApproval', lineCount: 2, lines: [], memo: null, supersedes: null, supersededBy: null, reversalOf: null, reversedBy: null },
+    ], total: 1, skip: 0, limit: 50 });
+    f.detectChanges();
+    ctrl.expectOne('http://localhost:5000/clients/C1/audit/E1').flush([
+      { sequence: 1, action: 'Created', entryId: 'E1', entryVersion: 1, at: '', reason: null, actor: { userId: environment.devClerk.sub, name: 'C', claims: [] } }]);
+    f.detectChanges();
+    expect(f.componentInstance.cueById()['E1']).toBe('own');     // active = clerk = author
+    TestBed.inject(DevIdentityService).use(environment.devApprover.sub);
+    f.detectChanges();
+    expect(f.componentInstance.cueById()['E1']).toBe('approvable');
+  });
+
+  it('degrades a single audit failure to unknown without breaking other rows', () => {
+    const f = TestBed.createComponent(ApprovalQueue); f.detectChanges();
+    ctrl.expectOne(r => r.params.get('posting') === 'PendingApproval').flush({ items: [
+      { id: 'E1', sequenceNumber: 1, effectiveDate: '2026-06-29', type: 'Standard', status: 'Active', posting: 'PendingApproval', lineCount: 2, lines: [], memo: null, supersedes: null, supersededBy: null, reversalOf: null, reversedBy: null },
+      { id: 'E2', sequenceNumber: 2, effectiveDate: '2026-06-29', type: 'Standard', status: 'Active', posting: 'PendingApproval', lineCount: 2, lines: [], memo: null, supersedes: null, supersededBy: null, reversalOf: null, reversedBy: null },
+    ], total: 2, skip: 0, limit: 50 });
+    f.detectChanges();
+    // E1 audit fails — should degrade to 'unknown'
+    ctrl.expectOne('http://localhost:5000/clients/C1/audit/E1').flush('error', { status: 404, statusText: 'Not Found' });
+    // E2 audit succeeds — should still resolve to 'approvable'
+    ctrl.expectOne('http://localhost:5000/clients/C1/audit/E2').flush([
+      { sequence: 1, action: 'Created', entryId: 'E2', entryVersion: 1, at: '', reason: null, actor: { userId: environment.devApprover.sub, name: 'Other', claims: [] } }]);
+    f.detectChanges();
+    expect(f.componentInstance.cueById()['E1']).toBe('unknown');
+    expect(f.componentInstance.cueById()['E2']).toBe('approvable');
   });
 });

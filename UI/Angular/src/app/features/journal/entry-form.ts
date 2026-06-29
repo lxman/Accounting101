@@ -12,10 +12,10 @@ import { extractProblem } from '../../core/api/problem-details';
 import { formatMoney } from '../../core/format/money-formatter';
 import { DEFAULT_FORMAT_PROFILE } from '../../core/format/format-profile';
 
-interface LineModel { accountId: string; debit: number | null; credit: number | null; }
+interface LineModel { lineId: string; accountId: string; debit: number | null; credit: number | null; }
 interface EntryFormValue { effectiveDate: string; reference: string; memo: string; type: 'Standard' | 'Adjusting'; lines: LineModel[]; }
 
-const emptyLine = (): LineModel => ({ accountId: '', debit: null, credit: null });
+const emptyLine = (): LineModel => ({ lineId: crypto.randomUUID(), accountId: '', debit: null, credit: null });
 
 @Component({
   selector: 'app-entry-form',
@@ -57,10 +57,10 @@ const emptyLine = (): LineModel => ({ accountId: '', debit: null, credit: null }
           </tr>
         </thead>
         <tbody>
-          @for (line of model().lines; track $index) {
+          @for (line of model().lines; track line.lineId; let i = $index) {
             <tr>
               <td class="py-1 pr-2">
-                <div hlmSelect [value]="line.accountId" [itemToString]="accountItemToString" (valueChange)="setAccount($index, $any($event))" class="w-full">
+                <div hlmSelect [value]="line.accountId" [itemToString]="accountItemToString" (valueChange)="setAccount(i, $any($event))" class="w-full">
                   <hlm-select-trigger class="w-full"><hlm-select-value placeholder="Select account" /></hlm-select-trigger>
                   <hlm-select-content *hlmSelectPortal>
                     @for (a of postableAccounts(); track a.id) {
@@ -68,10 +68,11 @@ const emptyLine = (): LineModel => ({ accountId: '', debit: null, credit: null }
                     }
                   </hlm-select-content>
                 </div>
+                @if (lineError(i)) { <span class="text-destructive text-xs">{{ lineError(i) }}</span> }
               </td>
-              <td class="pr-2"><input hlmInput type="number" class="text-right tabular-nums" [formField]="entryForm.lines[$index].debit" /></td>
-              <td class="pr-2"><input hlmInput type="number" class="text-right tabular-nums" [formField]="entryForm.lines[$index].credit" /></td>
-              <td><button hlmBtn type="button" variant="ghost" size="sm" (click)="removeLine($index)" [disabled]="model().lines.length <= 2">✕</button></td>
+              <td class="pr-2"><input hlmInput type="number" class="text-right tabular-nums" [formField]="entryForm.lines[i].debit" /></td>
+              <td class="pr-2"><input hlmInput type="number" class="text-right tabular-nums" [formField]="entryForm.lines[i].credit" /></td>
+              <td><button hlmBtn type="button" variant="ghost" size="sm" (click)="removeLine(i)" [disabled]="model().lines.length <= 2">✕</button></td>
             </tr>
           }
         </tbody>
@@ -140,7 +141,16 @@ export class EntryForm {
   readonly totalDebit = computed(() => this.model().lines.reduce((s, l) => s + (l.debit ?? 0), 0));
   readonly totalCredit = computed(() => this.model().lines.reduce((s, l) => s + (l.credit ?? 0), 0));
   readonly canPost = computed(() => this.entryForm().valid());
-  readonly balanceError = computed(() => this.entryForm.lines().errors().map(e => e.message).filter(Boolean).join('; ') || null);
+  readonly balanceError = computed(() =>
+    this.entryForm.lines().errors()
+      .filter(e => e.kind === 'unbalanced' || e.kind === 'min-lines')
+      .map(e => e.message).join('; ') || null);
+
+  // Per-line error, shown on the row once that line is touched (keeps a fresh form quiet).
+  lineError(i: number): string | null {
+    const f = this.entryForm.lines[i]();
+    return f.touched() ? (f.errors().find(e => e.kind === 'one-side')?.message ?? null) : null;
+  }
 
   constructor() { if (this.accounts.accounts().length === 0) this.accounts.load(); }
 
