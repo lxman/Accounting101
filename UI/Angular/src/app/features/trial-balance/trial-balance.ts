@@ -17,6 +17,7 @@ import { formatMoney } from '../../core/format/money-formatter';
 import { DEFAULT_FORMAT_PROFILE } from '../../core/format/format-profile';
 
 interface DisplayRow {
+  accountId: string;
   label: string;
   debit: string | null;
   credit: string | null;
@@ -71,7 +72,7 @@ interface DisplayRow {
                 </tr>
               </thead>
               <tbody hlmTBody>
-                @for (row of rows(); track row.label) {
+                @for (row of rows(); track row.accountId) {
                   <tr hlmTr>
                     <td hlmTd>{{ row.label }}</td>
                     <td hlmTd class="text-end tabular-nums" data-testid="debit-cell">
@@ -156,6 +157,7 @@ export class TrialBalance {
     const tb = this.result();
     if (!tb) return [];
     return tb.accounts.map(row => ({
+      accountId: row.accountId,
       label: this.accountsSvc.label(row.accountId),
       debit:
         row.balance > 0

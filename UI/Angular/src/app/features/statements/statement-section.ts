@@ -11,7 +11,7 @@ import { DEFAULT_FORMAT_PROFILE } from '../../core/format/format-profile';
       <h3 class="text-base font-semibold mb-1">{{ section().title }}</h3>
       <table class="w-full text-sm">
         <tbody>
-          @for (line of section().lines; track line.name) {
+          @for (line of section().lines; track line.accountId ?? $index) {
             <tr>
               <td class="py-0.5 pr-4">
                 @if (line.number) {
