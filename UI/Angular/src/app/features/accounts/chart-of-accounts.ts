@@ -39,27 +39,33 @@ import { money } from '../../core/format/display';
             @if (section.nodes.length === 0) { <p class="text-xs text-muted-foreground italic">No accounts.</p> }
           </section>
         }
-      </div>
 
+      <!-- Declared INSIDE cdkDropListGroup so the recursive row drop-lists inherit the
+           group from their declaration injector and register as connected drop targets.
+           (ngTemplateOutlet resolves directive DI from the template's declaration site.) -->
       <ng-template #row let-node="node" let-type="type" let-depth="depth">
-        <div class="flex items-center gap-2 py-1 border-b border-border/50 text-sm"
-             [style.padding-left.rem]="depth"
-             cdkDropList [cdkDropListData]="{ type, parentId: node.account.id }"
+        <!-- Drop target: dropping an account here re-parents it under this node.
+             cdkDrag must live INSIDE a cdkDropList for CDK to fire drop events. -->
+        <div cdkDropList [cdkDropListData]="{ type, parentId: node.account.id }"
              [cdkDropListEnterPredicate]="enterPredicate(type, node.account.id)"
-             (cdkDropListDropped)="dropped($event, type, node.account.id)"
-             cdkDrag [cdkDragData]="node.account.id"
-             [class.opacity-50]="!node.account.active">
-          <span class="font-mono">{{ node.account.number }}</span>
-          <span> {{ node.account.name }}</span>
-          @if (!node.account.postable) { <span class="text-xs px-1 rounded bg-muted text-muted-foreground">header</span> }
-          @if (!node.account.active) { <span class="text-xs px-1 rounded bg-muted text-muted-foreground">inactive</span> }
-          <span class="ms-auto tabular-nums">{{ money(node.balance) }}</span>
-          <a class="underline text-xs" [routerLink]="['/accounts', node.account.id, 'edit']">Edit</a>
+             (cdkDropListDropped)="dropped($event, type, node.account.id)">
+          <div class="flex items-center gap-2 py-1 border-b border-border/50 text-sm"
+               [style.padding-left.rem]="depth"
+               cdkDrag [cdkDragData]="node.account.id"
+               [class.opacity-50]="!node.account.active">
+            <span class="font-mono">{{ node.account.number }}</span>
+            <span> {{ node.account.name }}</span>
+            @if (!node.account.postable) { <span class="text-xs px-1 rounded bg-muted text-muted-foreground">header</span> }
+            @if (!node.account.active) { <span class="text-xs px-1 rounded bg-muted text-muted-foreground">inactive</span> }
+            <span class="ms-auto tabular-nums">{{ money(node.balance) }}</span>
+            <a class="underline text-xs" [routerLink]="['/accounts', node.account.id, 'edit']">Edit</a>
+          </div>
         </div>
         @for (child of node.children; track child.account.id) {
           <ng-container [ngTemplateOutlet]="row" [ngTemplateOutletContext]="{ node: child, type, depth: depth + 1 }" />
         }
       </ng-template>
+      </div>
     </div>
   `,
 })
