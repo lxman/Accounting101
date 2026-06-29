@@ -17,6 +17,16 @@ builder.Services.AddPayroll(builder.Configuration);
 builder.Services.AddCash(builder.Configuration);
 builder.Services.AddReconciliation(builder.Configuration);
 
+// Dev-only: let the Angular dev server (localhost:4200) call the API cross-origin.
+// Not registered outside Development, so production is unaffected.
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
+        .WithOrigins("http://localhost:4200")
+        .AllowAnyHeader()
+        .AllowAnyMethod()));
+}
+
 // Reject any JSON body that contains fields not mapped to the target DTO. This catches typos like
 // "date" instead of "effectiveDate" early — before the value is silently dropped — and gives the
 // caller an actionable 400 that names the offending property.
@@ -52,6 +62,9 @@ app.Use(async (ctx, next) =>
         }, ctx.RequestAborted);
     }
 });
+
+if (app.Environment.IsDevelopment())
+    app.UseCors();
 
 app.UseAuthentication();
 app.UseAuthorization();
