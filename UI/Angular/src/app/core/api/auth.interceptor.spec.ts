@@ -1,45 +1,35 @@
 import { TestBed } from '@angular/core/testing';
-import { provideHttpClient, withInterceptors, HttpClient } from '@angular/common/http';
+import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { authInterceptor } from './auth.interceptor';
-import { environment } from './environment';
+import { DevIdentityService } from './dev-identity.service';
 import { encodeDevToken } from './dev-token';
+import { environment } from './environment';
 
 describe('authInterceptor', () => {
-  let http: HttpClient;
-  let ctrl: HttpTestingController;
-  const devUserId = '00000000-0000-0000-0000-000000000001';
-
+  let http: HttpClient; let ctrl: HttpTestingController; let ids: DevIdentityService;
   beforeEach(() => {
-    environment.devUserId = devUserId;
-    environment.devUserName = 'Dev User';
-    environment.devClaims = [{ type: 'role', value: 'Controller' }, { type: 'admin', value: 'true' }];
     TestBed.configureTestingModule({
-      providers: [
-        provideHttpClient(withInterceptors([authInterceptor])),
-        provideHttpClientTesting(),
-      ],
+      providers: [provideHttpClient(withInterceptors([authInterceptor])), provideHttpClientTesting()],
     });
-    http = TestBed.inject(HttpClient);
-    ctrl = TestBed.inject(HttpTestingController);
+    http = TestBed.inject(HttpClient); ctrl = TestBed.inject(HttpTestingController); ids = TestBed.inject(DevIdentityService);
   });
-
   afterEach(() => ctrl.verify());
 
-  it('attaches the DevToken header when devUserId is set', () => {
-    environment.devUserId = devUserId;
+  it('sets a DevToken for the active (clerk) identity', () => {
     http.get('/x').subscribe();
-    const r = ctrl.expectOne('/x');
-    const expected = `DevToken ${encodeDevToken({ sub: devUserId, name: 'Dev User', claims: environment.devClaims })}`;
-    expect(r.request.headers.get('Authorization')).toBe(expected);
-    r.flush({});
+    const req = ctrl.expectOne('/x');
+    const expected = encodeDevToken({ sub: environment.devClerk.sub, name: environment.devClerk.name, claims: environment.devClerk.claims });
+    expect(req.request.headers.get('Authorization')).toBe(`DevToken ${expected}`);
+    req.flush({});
   });
 
-  it('omits the header when devUserId is empty', () => {
-    environment.devUserId = '';
+  it('re-mints the token after switching identity', () => {
+    ids.use(environment.devApprover.sub);
     http.get('/y').subscribe();
-    const r = ctrl.expectOne('/y');
-    expect(r.request.headers.has('Authorization')).toBe(false);
-    r.flush({});
+    const req = ctrl.expectOne('/y');
+    const expected = encodeDevToken({ sub: environment.devApprover.sub, name: environment.devApprover.name, claims: environment.devApprover.claims });
+    expect(req.request.headers.get('Authorization')).toBe(`DevToken ${expected}`);
+    req.flush({});
   });
 });

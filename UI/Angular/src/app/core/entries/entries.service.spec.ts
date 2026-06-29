@@ -5,7 +5,7 @@ import { EntriesService } from './entries.service';
 import { ClientContextService } from '../client/client-context.service';
 import { environment } from '../api/environment';
 import { PagedResponse } from '../api/paged-response';
-import { EntryResponse } from './entry';
+import { EntryResponse, PostEntryRequest, PostEntryResponse } from './entry';
 
 const clientId = 'aaaaaaaa-0000-0000-0000-000000000002';
 
@@ -98,5 +98,46 @@ describe('EntriesService', () => {
     );
     expect(req.request.params.has('order')).toBe(false);
     req.flush(mockPage);
+  });
+
+  it('post() POSTs to /entries and returns PostEntryResponse', () => {
+    const client = TestBed.inject(ClientContextService); client.select('C1');
+    const req: PostEntryRequest = { effectiveDate: '2026-06-29', reference: 'R', memo: 'M', type: 'Standard',
+      lines: [{ accountId: 'A', direction: 'Debit', amount: 10 }, { accountId: 'B', direction: 'Credit', amount: 10 }] };
+    let res: PostEntryResponse | undefined;
+    service.post(req).subscribe(r => (res = r));
+    const http = ctrl.expectOne('http://localhost:5000/clients/C1/entries');
+    expect(http.request.method).toBe('POST');
+    expect(http.request.body).toEqual(req);
+    http.flush({ id: 'E1', status: 'Active', posting: 'PendingApproval' });
+    expect(res).toEqual({ id: 'E1', status: 'Active', posting: 'PendingApproval' });
+  });
+
+  it('validate() POSTs to /entries/validate', () => {
+    TestBed.inject(ClientContextService).select('C1');
+    service.validate({ effectiveDate: '2026-06-29', lines: [] }).subscribe();
+    const http = ctrl.expectOne('http://localhost:5000/clients/C1/entries/validate');
+    expect(http.request.method).toBe('POST'); http.flush({ valid: true });
+  });
+
+  it('approve() POSTs to /entries/{id}/approve', () => {
+    TestBed.inject(ClientContextService).select('C1');
+    service.approve('E1').subscribe();
+    const http = ctrl.expectOne('http://localhost:5000/clients/C1/entries/E1/approve');
+    expect(http.request.method).toBe('POST'); http.flush({});
+  });
+
+  it('void() POSTs reason to /entries/{id}/void', () => {
+    TestBed.inject(ClientContextService).select('C1');
+    service.void('E1', 'oops').subscribe();
+    const http = ctrl.expectOne('http://localhost:5000/clients/C1/entries/E1/void');
+    expect(http.request.method).toBe('POST'); expect(http.request.body).toEqual({ reason: 'oops' }); http.flush({});
+  });
+
+  it('get() GETs a single entry', () => {
+    TestBed.inject(ClientContextService).select('C1');
+    service.get('E1').subscribe();
+    const http = ctrl.expectOne('http://localhost:5000/clients/C1/entries/E1');
+    expect(http.request.method).toBe('GET'); http.flush({});
   });
 });

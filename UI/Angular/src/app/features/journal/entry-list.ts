@@ -5,9 +5,11 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, of, switchMap, tap } from 'rxjs';
 import { HlmBadgeImports } from '@spartan-ng/helm/badge';
+import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmPaginationImports } from '@spartan-ng/helm/pagination';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { HlmTableImports } from '@spartan-ng/helm/table';
@@ -22,6 +24,8 @@ import { formatProfileDate } from '../../core/format/date-formatter';
   selector: 'app-entry-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    RouterLink,
+    HlmButton,
     ...HlmTableImports,
     ...HlmSelectImports,
     ...HlmPaginationImports,
@@ -31,7 +35,8 @@ import { formatProfileDate } from '../../core/format/date-formatter';
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-3">
         <h1 class="text-2xl font-bold">Journal Entries</h1>
-        <div hlmSelect (valueChange)="onPostingChange($event)" class="ms-auto">
+        <a hlmBtn size="sm" routerLink="/journal/new" class="ms-auto">New entry</a>
+        <div hlmSelect (valueChange)="onPostingChange($event)">
           <hlm-select-trigger class="w-48">
             <hlm-select-value placeholder="All postings" />
           </hlm-select-trigger>
