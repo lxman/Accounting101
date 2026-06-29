@@ -3,6 +3,7 @@ export interface NavItem { label: string; path: string; }
 export const NAV: NavItem[] = [
   { label: 'Dashboard', path: '/dashboard' },
   { label: 'Journal', path: '/journal' },
+  { label: 'Approvals', path: '/journal/approvals' },
   { label: 'Accounts', path: '/accounts' },
   { label: 'Trial Balance', path: '/trial-balance' },
   { label: 'Statements', path: '/statements' },

@@ -7,6 +7,7 @@ import { Statements } from './features/statements/statements';
 import { BalanceSheet } from './features/statements/balance-sheet';
 import { IncomeStatement } from './features/statements/income-statement';
 import { Placeholder } from './features/placeholder/placeholder';
+import { ApprovalQueue } from './features/journal/approval-queue';
 import { NAV } from './layout/nav';
 
 export const routes: Routes = [
@@ -17,7 +18,8 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', component: EntryList },
       { path: 'new', component: EntryForm },
-      // approvals + :id added in Tasks 5–6
+      { path: 'approvals', component: ApprovalQueue },
+      // :id added in Task 6
     ],
   },
   { path: 'trial-balance', component: TrialBalance },
