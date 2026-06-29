@@ -35,7 +35,7 @@ describe('AccountEditor', () => {
     f.detectChanges();
     expect(cmp.canSave()).toBe(true);
     expect(cmp.normalSide()).toBe('Credit');             // Revenue is a credit-normal type
-    const nav = vi.spyOn(TestBed.inject(Router), 'navigate');
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     cmp.save();
     const put = ctrl.expectOne(r => r.method === 'PUT' && /\/clients\/C1\/accounts\/.+/.test(r.url));
     expect(put.request.body.number).toBe('4100'); expect(put.request.body.type).toBe('Revenue');
@@ -49,10 +49,12 @@ describe('AccountEditor', () => {
     const cmp = f.componentInstance;
     expect(cmp.accountForm.number().value()).toBe('1000');
     cmp.accountForm.number().value.set('1001');
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     f.detectChanges(); cmp.save();
     const put = ctrl.expectOne('http://localhost:5000/clients/C1/accounts/cash');
     expect(put.request.body.number).toBe('1001');
     put.flush({ id: 'cash', number: '1001', name: 'n1000', type: 'Asset', parentId: null, postable: true, requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active: true, normalSide: 'Debit', isTemporary: false });
+    expect(nav).toHaveBeenCalledWith(['/accounts']);
   });
 
   it('edit: loads form reactively on cold cache (direct nav / hard refresh)', () => {
