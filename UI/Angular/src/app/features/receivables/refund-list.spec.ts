@@ -1,0 +1,81 @@
+import { TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { RefundList } from './refund-list';
+import { ClientContextService } from '../../core/client/client-context.service';
+
+function setup() {
+  localStorage.clear();
+  TestBed.configureTestingModule({
+    providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+  });
+  TestBed.inject(ClientContextService).select('C1');
+  return TestBed.inject(HttpTestingController);
+}
+
+const refund = (id: string, amount: number, memo: string | null, voided = false) =>
+  ({ id, customerId: 'cu1', date: '2026-06-30', amount, memo, voided });
+
+function loadCustomerAndRefunds(ctrl: HttpTestingController, f: any, rows: unknown[]) {
+  ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme Co', email: null }]);
+  f.detectChanges();
+  f.componentInstance.svc.setSelectedCustomer('cu1'); f.detectChanges();
+  ctrl.expectOne(r => r.url.endsWith('/clients/C1/refunds') && r.params.get('customerId') === 'cu1').flush(rows);
+  f.detectChanges();
+}
+
+describe('RefundList', () => {
+  it('loads refunds for the selected customer and renders amount/memo', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(RefundList); f.detectChanges();
+    loadCustomerAndRefunds(ctrl, f, [refund('rf1', 50, 'overpayment')]);
+    const text = f.nativeElement.textContent;
+    expect(text).toContain('50.00');
+    expect(text).toContain('overpayment');
+  });
+
+  it('Void shows on non-voided rows, posts to the right path, and reloads', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(RefundList); f.detectChanges();
+    loadCustomerAndRefunds(ctrl, f, [refund('rf1', 50, 'x')]);
+    const voidBtn = [...f.nativeElement.querySelectorAll('button')].find(b => b.textContent.trim() === 'Void') as HTMLButtonElement;
+    expect(voidBtn).toBeTruthy();
+    voidBtn.click();
+    ctrl.expectOne('http://localhost:5000/clients/C1/refunds/rf1/void').flush({});
+    ctrl.expectOne(r => r.url.endsWith('/clients/C1/refunds')).flush([refund('rf1', 50, 'x', true)]);
+    f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Voided');
+  });
+
+  it('hides Void on a voided row', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(RefundList); f.detectChanges();
+    loadCustomerAndRefunds(ctrl, f, [refund('rf1', 50, 'x', true)]);
+    const voidBtn = [...f.nativeElement.querySelectorAll('button')].find(b => b.textContent.trim() === 'Void');
+    expect(voidBtn).toBeUndefined();
+  });
+
+  it('Issue refund link targets the editor for the selected customer; disabled with none', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(RefundList); f.detectChanges();
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme Co', email: null }]);
+    f.detectChanges();
+    const link = () => [...f.nativeElement.querySelectorAll('a')].find(a => a.textContent.trim() === 'Issue refund') as HTMLAnchorElement;
+    expect(link().className).toContain('opacity-50');
+    f.componentInstance.svc.setSelectedCustomer('cu1'); f.detectChanges();
+    ctrl.expectOne(r => r.url.endsWith('/clients/C1/refunds')).flush([]);
+    f.detectChanges();
+    expect(link().getAttribute('href')).toContain('/receivables/refunds/new');
+    expect(link().getAttribute('href')).toContain('customer=cu1');
+  });
+
+  it('shows the empty states', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(RefundList); f.detectChanges();
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([]);
+    f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('No customers yet');
+  });
+});
