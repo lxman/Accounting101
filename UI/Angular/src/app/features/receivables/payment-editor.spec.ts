@@ -76,4 +76,17 @@ describe('PaymentEditor', () => {
     expect(cmp.valid()).toBe(true);
     ctrl.verify();
   });
+
+  it('shows the existing customer credit when the customer has one', () => {
+    const ctrl = setup({ customer: 'cu1' });
+    const f = TestBed.createComponent(PaymentEditor); f.detectChanges();
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme', email: null }]);
+    ctrl.expectOne(r => r.url.endsWith('/clients/C1/invoices') && r.params.get('settlement') === 'open')
+      .flush({ items: [], total: 0, skip: 0, limit: 200 });
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers/cu1/credit-balance').flush({ customerId: 'cu1', creditBalance: 25 });
+    f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Existing customer credit');
+    expect(f.nativeElement.textContent).toContain('25.00');
+    ctrl.verify();
+  });
 });

@@ -18,6 +18,9 @@ import { CurrencyInput } from '../../shared/currency-input';
       <a routerLink="/receivables" class="text-sm text-muted-foreground hover:text-foreground w-fit">← Invoices</a>
       <h1 class="text-2xl font-bold">Record payment</h1>
       <p class="text-sm text-muted-foreground">{{ svc.customerName(customerId!) }}</p>
+      @if (creditBalance() > 0) {
+        <p class="text-sm text-muted-foreground">Existing customer credit: {{ money(creditBalance()) }}</p>
+      }
 
       <div class="grid grid-cols-3 gap-4">
         <div class="flex flex-col gap-1">
