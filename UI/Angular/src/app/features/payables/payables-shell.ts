@@ -13,6 +13,11 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
            [routerLinkActiveOptions]="{ exact: false }"
            class="px-3 py-2 text-sm rounded-t text-muted-foreground hover:text-foreground transition-colors"
            data-testid="tab-bills">Bills</a>
+        <a routerLink="payments"
+           routerLinkActive="border-b-2 border-primary font-semibold text-foreground"
+           [routerLinkActiveOptions]="{ exact: false }"
+           class="px-3 py-2 text-sm rounded-t text-muted-foreground hover:text-foreground transition-colors"
+           data-testid="tab-payments">Payments</a>
         <a routerLink="vendors"
            routerLinkActive="border-b-2 border-primary font-semibold text-foreground"
            [routerLinkActiveOptions]="{ exact: false }"

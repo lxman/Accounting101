@@ -28,6 +28,8 @@ import { VendorList } from './features/payables/vendor-list';
 import { BillList } from './features/payables/bill-list';
 import { BillEditor } from './features/payables/bill-editor';
 import { BillDetail } from './features/payables/bill-detail';
+import { BillPaymentList } from './features/payables/bill-payment-list';
+import { BillPaymentEditor } from './features/payables/bill-payment-editor';
 import { NAV } from './layout/nav';
 
 export const routes: Routes = [
@@ -77,6 +79,8 @@ export const routes: Routes = [
     { path: 'bills', component: BillList },
     { path: 'bills/new', component: BillEditor },
     { path: 'bills/:id', component: BillDetail },
+    { path: 'payments', component: BillPaymentList },
+    { path: 'payments/new', component: BillPaymentEditor },
     { path: 'vendors', component: VendorList },
   ] },
   // remaining nav targets → placeholder
