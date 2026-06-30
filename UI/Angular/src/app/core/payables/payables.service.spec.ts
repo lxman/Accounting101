@@ -112,4 +112,14 @@ describe('PayablesService', () => {
 
     ctrl.verify();
   });
+
+  it('gets a vendor account', () => {
+    const { svc, ctrl } = setup();
+    svc.getVendorAccount('v1').subscribe();
+    ctrl.expectOne('http://localhost:5000/clients/C1/vendors/v1/account').flush({
+      vendor: { id: 'v1', name: 'Acme Parts', email: null }, apBalance: 800, creditBalance: 200,
+      aging: { current: 0, d1To30: 0, d31To60: 800, d61To90: 0, d90Plus: 0 },
+      openBills: [], statementLines: [], creditLines: [] });
+    ctrl.verify();
+  });
 });

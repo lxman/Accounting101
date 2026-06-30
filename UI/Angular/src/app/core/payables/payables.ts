@@ -66,3 +66,12 @@ export interface VendorCreditApplication {
 export interface ApplyVendorCreditRequest {
   vendorId: string; date: string; allocations: PaymentAllocation[];
 }
+
+export interface AgingBuckets { current: number; d1To30: number; d31To60: number; d61To90: number; d90Plus: number; }
+export interface OpenBillLine { billId: string; number: string | null; billDate: string; dueDate: string | null; openBalance: number; daysOverdue: number; }
+export interface StatementLine { date: string; type: string; reference: string | null; charge: number; payment: number; balance: number; }
+export interface CreditActivityLine { date: string; type: string; reference: string | null; amount: number; creditBalance: number; }
+export interface VendorAccountView {
+  vendor: Vendor; apBalance: number; creditBalance: number; aging: AgingBuckets;
+  openBills: OpenBillLine[]; statementLines: StatementLine[]; creditLines: CreditActivityLine[];
+}
