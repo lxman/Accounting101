@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { EMPTY, Observable, tap } from 'rxjs';
 import { environment } from '../api/environment';
@@ -17,12 +17,40 @@ export class ReceivablesService {
   private readonly _loadError = signal<string | null>(null);
   readonly loadError = this._loadError.asReadonly();
 
+  // The customer chosen on the invoice list, kept here (root singleton) so it survives navigating
+  // away and back, and persisted per-client in localStorage so it also survives a reload.
+  private readonly _selectedCustomerId = signal<string>('');
+  readonly selectedCustomerId = this._selectedCustomerId.asReadonly();
+
+  constructor() {
+    // Restore the per-client selection whenever the active client changes (incl. initial set).
+    effect(() => {
+      const cid = this.client.clientId();
+      this._selectedCustomerId.set(cid ? (localStorage.getItem(this.customerKey(cid)) ?? '') : '');
+    });
+  }
+
+  private customerKey(clientId: string): string { return `a101.recv.customer.${clientId}`; }
+
+  setSelectedCustomer(id: string): void {
+    this._selectedCustomerId.set(id);
+    const cid = this.client.clientId(); if (!cid) return;
+    if (id) localStorage.setItem(this.customerKey(cid), id);
+    else localStorage.removeItem(this.customerKey(cid));
+  }
+
   private base(path = ''): string { return `${environment.apiBaseUrl}/clients/${this.client.clientId()}${path}`; }
 
   load(): void {
     const id = this.client.clientId(); if (!id) return;
     this.http.get<Customer[]>(this.base('/customers')).subscribe({
-      next: cs => { this._customers.set(cs); this._loadError.set(null); },
+      next: cs => {
+        this._customers.set(cs);
+        this._loadError.set(null);
+        // Drop a restored selection that points at a customer who no longer exists.
+        const sel = this._selectedCustomerId();
+        if (sel && !cs.some(c => c.id === sel)) this.setSelectedCustomer('');
+      },
       error: e => this._loadError.set(extractProblem(e).detail),
     });
   }

@@ -142,7 +142,8 @@ export class InvoiceList {
   readonly svc = inject(ReceivablesService);
   private readonly router = inject(Router);
 
-  readonly customerId = signal('');
+  // Selection lives in the service so it survives leaving and returning (and a reload); see ReceivablesService.
+  readonly customerId = this.svc.selectedCustomerId;
   readonly settlement = signal<SettlementFilter | ''>('');
   readonly skip = signal(0);
   readonly limit = signal(50);
@@ -194,7 +195,7 @@ export class InvoiceList {
   constructor() { this.svc.load(); }
 
   onCustomerChange(value: unknown): void {
-    this.customerId.set(value as string ?? '');
+    this.svc.setSelectedCustomer((value as string) ?? '');
     this.skip.set(0);
   }
 
