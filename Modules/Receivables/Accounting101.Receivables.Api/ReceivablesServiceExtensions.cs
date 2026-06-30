@@ -30,6 +30,7 @@ public static class ReceivablesServiceExtensions
         services.AddScoped<IPaymentStore>(sp => new DocumentPaymentStore(sp.GetRequiredKeyedService<IDocumentStore>("receivables")));
         services.AddScoped<InvoiceService>();
         services.AddScoped<PaymentService>();
+        services.AddScoped<CustomerAccountService>();
         services.AddSingleton<IInvoiceAccountsProvider, ConfiguredInvoiceAccountsProvider>();
         services.AddSingleton<IPaymentAccountsProvider, ConfiguredPaymentAccountsProvider>();
 

@@ -26,6 +26,7 @@ public static class ReceivablesEndpoints
         clients.MapGet("/credits", ListCredits);
         clients.MapPost("/credit-applications", ApplyCredit);
         clients.MapGet("/customers/{customerId:guid}/credit-balance", GetCreditBalance);
+        clients.MapGet("/customers/{customerId:guid}/account", GetCustomerAccount);
         clients.MapPost("/write-offs", RecordWriteOff);
         clients.MapPost("/write-offs/{writeOffId:guid}/void", VoidWriteOff);
         clients.MapPost("/credit-notes", RecordCreditNote);
@@ -177,6 +178,19 @@ public static class ReceivablesEndpoints
             return Results.Problem("customerId query parameter is required.", statusCode: StatusCodes.Status400BadRequest);
         IReadOnlyList<Payment> payments = await service.GetPaymentsByCustomerAsync(clientId, customerId.Value, cancellationToken);
         return Results.Ok(payments);
+    }
+
+    private static async Task<IResult> GetCustomerAccount(
+        Guid clientId, Guid customerId, string? asOf, CustomerAccountService service, CancellationToken cancellationToken)
+    {
+        DateOnly date;
+        if (string.IsNullOrEmpty(asOf))
+            date = DateOnly.FromDateTime(DateTime.UtcNow);
+        else if (!DateOnly.TryParse(asOf, out date))
+            return Results.Problem("asOf must be a date (yyyy-MM-dd).", statusCode: StatusCodes.Status400BadRequest);
+
+        CustomerAccountView? view = await service.GetAccountAsync(clientId, customerId, date, cancellationToken);
+        return view is null ? Results.NotFound() : Results.Ok(view);
     }
 
     private static async Task<IResult> ListCredits(
