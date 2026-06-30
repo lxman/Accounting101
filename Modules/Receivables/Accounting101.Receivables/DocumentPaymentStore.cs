@@ -146,13 +146,13 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
     private static WriteOff MapWriteOff(DocumentResult<WriteOffBody> r) => new()
     {
         Id = r.Id, CustomerId = r.Body.CustomerId, Date = r.Body.Date,
-        Allocations = r.Body.Allocations, Voided = IsVoided(r.State),
+        Allocations = r.Body.Allocations, Memo = r.Body.Memo, Voided = IsVoided(r.State),
     };
 
     private static CreditNote MapCreditNote(DocumentResult<CreditNoteBody> r) => new()
     {
         Id = r.Id, CustomerId = r.Body.CustomerId, Date = r.Body.Date,
-        Allocations = r.Body.Allocations, Voided = IsVoided(r.State),
+        Allocations = r.Body.Allocations, Memo = r.Body.Memo, Voided = IsVoided(r.State),
     };
 
     private static Refund MapRefund(DocumentResult<RefundBody> r) => new()

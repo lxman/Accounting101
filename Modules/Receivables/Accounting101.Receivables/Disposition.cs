@@ -9,6 +9,7 @@ public sealed record WriteOff
     public required Guid CustomerId { get; init; }
     public required DateOnly Date { get; init; }
     public required IReadOnlyList<Allocation> Allocations { get; init; }
+    public string? Memo { get; init; }
     public bool Voided { get; init; }
     public decimal Total => Allocations.Sum(a => a.Amount);
 }
@@ -20,6 +21,7 @@ public sealed record CreditNote
     public required Guid CustomerId { get; init; }
     public required DateOnly Date { get; init; }
     public required IReadOnlyList<Allocation> Allocations { get; init; }
+    public string? Memo { get; init; }
     public bool Voided { get; init; }
     public decimal Total => Allocations.Sum(a => a.Amount);
 }

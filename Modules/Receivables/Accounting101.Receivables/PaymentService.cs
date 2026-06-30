@@ -94,6 +94,24 @@ public sealed class PaymentService(
     public Task<IReadOnlyList<Payment>> GetPaymentsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default) =>
         payments.GetPaymentsByCustomerAsync(clientId, customerId, ct);
 
+    /// <summary>The customer's allocation-based dispositions — credit notes, write-offs, and credit
+    /// applications — as one date-descending list. Read-only; powers the Credits list. Memo comes from the
+    /// stored note/write-off; credit applications carry none.</summary>
+    public async Task<IReadOnlyList<CreditDocument>> GetCreditsByCustomerAsync(
+        Guid clientId, Guid customerId, CancellationToken ct = default)
+    {
+        IReadOnlyList<CreditNote> notes = await payments.GetCreditNotesByCustomerAsync(clientId, customerId, ct);
+        IReadOnlyList<WriteOff> writeOffs = await payments.GetWriteOffsByCustomerAsync(clientId, customerId, ct);
+        IReadOnlyList<CreditApplication> apps = await payments.GetCreditApplicationsByCustomerAsync(clientId, customerId, ct);
+
+        IEnumerable<CreditDocument> all =
+            notes.Select(n => new CreditDocument("credit-note", n.Id, n.CustomerId, n.Date, n.Total, n.Memo, n.Allocations, n.Voided))
+            .Concat(writeOffs.Select(w => new CreditDocument("write-off", w.Id, w.CustomerId, w.Date, w.Total, w.Memo, w.Allocations, w.Voided)))
+            .Concat(apps.Select(a => new CreditDocument("credit-application", a.Id, a.CustomerId, a.Date, a.Applied, null, a.Allocations, a.Voided)));
+
+        return all.OrderByDescending(c => c.Date).ToList();
+    }
+
     /// <summary>Unapplied customer credit = non-voided payment remainders minus non-voided credit applications minus non-voided refunds.</summary>
     public async Task<decimal> GetCustomerCreditBalanceAsync(Guid clientId, Guid customerId, CancellationToken ct = default)
     {
