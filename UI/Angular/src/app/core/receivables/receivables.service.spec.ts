@@ -271,7 +271,7 @@ describe('ReceivablesService', () => {
     expect(req.request.method).toBe('GET');
     req.flush({
       customer: { id: 'cu1', name: 'Acme Co', email: null }, arBalance: 1900, creditBalance: 50,
-      aging: { current: 0, d1to30: 0, d31to60: 0, d61to90: 0, d90plus: 1900 },
+      aging: { current: 0, d1To30: 0, d31To60: 0, d61To90: 0, d90Plus: 1900 },
       openInvoices: [], statementLines: [], creditLines: [],
     });
     expect(result!.arBalance).toBe(1900);

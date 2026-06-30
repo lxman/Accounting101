@@ -19,7 +19,7 @@ function setup(id: string) {
 
 const view = () => ({
   customer: { id: 'cu1', name: 'Acme Co', email: 'acme@x.com' }, arBalance: 1900, creditBalance: 50,
-  aging: { current: 100, d1to30: 200, d31to60: 300, d61to90: 400, d90plus: 900 },
+  aging: { current: 100, d1To30: 200, d31To60: 300, d61To90: 400, d90Plus: 900 },
   openInvoices: [{ invoiceId: 'i1', number: '1001', issueDate: '2026-03-01', dueDate: '2026-03-31', openBalance: 400, daysOverdue: 45 }],
   statementLines: [{ date: '2026-03-01', type: 'Invoice', reference: '1001', charge: 1000, payment: 0, balance: 1000 }],
   creditLines: [{ date: '2026-03-18', type: 'Overpayment', reference: null, amount: 100, creditBalance: 100 }],
@@ -37,6 +37,8 @@ describe('CustomerAccount', () => {
     expect(text).toContain('1,900.00');     // AR balance
     expect(text).toContain('1001');          // open invoice + statement ref
     expect(text).toContain('Overpayment');   // credit activity
+    // Wire-contract guard: d1To30 bucket value must render (catches future casing regressions)
+    expect(text).toContain('200.00');        // aging d1To30 = 200
   });
 
   it('relays a not-found error', () => {

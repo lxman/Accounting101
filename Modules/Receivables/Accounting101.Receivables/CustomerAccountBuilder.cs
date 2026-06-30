@@ -65,6 +65,10 @@ public static class CustomerAccountBuilder
         List<(DateOnly Date, int Order, string Type, string? Reference, decimal Charge, decimal Payment)> raw = [];
         foreach (Invoice i in invoices.Where(i => i.Status == InvoiceStatus.Issued))
             raw.Add((i.IssueDate, 0, "Invoice", i.Number, i.Total, 0m));
+        // Settlement.Payment column = sum of a payment's allocations (total cash applied to invoices).
+        // The running balance subtracts each settlement allocation in full, while ArBalance floors each
+        // invoice's open balance at 0 via Settlement.OpenBalance; these agree as long as allocations never
+        // over-apply an invoice (enforced upstream by allocation validation).
         foreach (Payment p in payments.Where(p => !p.Voided))
             raw.Add((p.Date, 1, "Payment", null, 0m, p.Allocations.Sum(a => a.Amount)));
         foreach (CreditNote n in creditNotes.Where(n => !n.Voided))

@@ -25,10 +25,10 @@ import { extractProblem } from '../../core/api/problem-details';
 
         <div class="flex flex-wrap gap-4 text-sm">
           <div>Current <span class="tabular-nums">{{ money(a.aging.current) }}</span></div>
-          <div>1–30 <span class="tabular-nums">{{ money(a.aging.d1to30) }}</span></div>
-          <div>31–60 <span class="tabular-nums">{{ money(a.aging.d31to60) }}</span></div>
-          <div>61–90 <span class="tabular-nums">{{ money(a.aging.d61to90) }}</span></div>
-          <div [class.text-destructive]="a.aging.d90plus > 0">90+ <span class="tabular-nums">{{ money(a.aging.d90plus) }}</span></div>
+          <div>1–30 <span class="tabular-nums">{{ money(a.aging.d1To30) }}</span></div>
+          <div>31–60 <span class="tabular-nums">{{ money(a.aging.d31To60) }}</span></div>
+          <div>61–90 <span class="tabular-nums">{{ money(a.aging.d61To90) }}</span></div>
+          <div [class.text-destructive]="a.aging.d90Plus > 0">90+ <span class="tabular-nums">{{ money(a.aging.d90Plus) }}</span></div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">

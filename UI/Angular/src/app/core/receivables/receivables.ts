@@ -72,7 +72,7 @@ export function autoAllocate(amount: number, rows: readonly AllocRow[]): AllocRo
   });
 }
 
-export interface AgingBuckets { current: number; d1to30: number; d31to60: number; d61to90: number; d90plus: number; }
+export interface AgingBuckets { current: number; d1To30: number; d31To60: number; d61To90: number; d90Plus: number; }
 export interface OpenInvoiceLine { invoiceId: string; number: string | null; issueDate: string; dueDate: string | null; openBalance: number; daysOverdue: number; }
 export interface StatementLine { date: string; type: string; reference: string | null; charge: number; payment: number; balance: number; }
 export interface CreditActivityLine { date: string; type: string; reference: string | null; amount: number; creditBalance: number; }
