@@ -23,6 +23,9 @@ public sealed class InvoiceService(
         return customer;
     }
 
+    public Task<IReadOnlyList<Customer>> ListCustomersAsync(Guid clientId, CancellationToken cancellationToken = default) =>
+        customers.ListAsync(clientId, cancellationToken);
+
     /// <summary>Create a draft invoice. It has no number and no ledger effect until issued.</summary>
     public async Task<Invoice> DraftAsync(
         Guid clientId, Guid customerId, IReadOnlyList<InvoiceLine> lines, decimal taxRate,

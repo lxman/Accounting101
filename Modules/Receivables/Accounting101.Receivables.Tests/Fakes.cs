@@ -85,6 +85,13 @@ internal sealed class InMemoryCustomerStore : ICustomerStore
 
     public Task<Customer?> GetAsync(Guid clientId, Guid customerId, CancellationToken cancellationToken = default) =>
         Task.FromResult(_store.GetValueOrDefault((clientId, customerId)));
+
+    public Task<IReadOnlyList<Customer>> ListAsync(Guid clientId, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<Customer>>(
+            _store.Where(kv => kv.Key.Item1 == clientId)
+                  .Select(kv => kv.Value)
+                  .OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+                  .ToList());
 }
 
 internal sealed class InMemoryInvoiceStore : IInvoiceStore

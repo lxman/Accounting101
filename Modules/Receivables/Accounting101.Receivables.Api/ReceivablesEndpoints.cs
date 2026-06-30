@@ -12,6 +12,7 @@ public static class ReceivablesEndpoints
         RouteGroupBuilder clients = app.MapGroup("/clients/{clientId:guid}").RequireAuthorization();
 
         clients.MapPost("/customers", CreateCustomer);
+        clients.MapGet("/customers", ListCustomers);
         clients.MapPost("/invoices", DraftInvoice);
         clients.MapPut("/invoices/{invoiceId:guid}", EditInvoice);
         clients.MapDelete("/invoices/{invoiceId:guid}", DiscardInvoice);
@@ -37,6 +38,10 @@ public static class ReceivablesEndpoints
         Customer customer = await service.CreateCustomerAsync(clientId, request.Name, request.Email, cancellationToken);
         return Results.Created($"/clients/{clientId}/customers/{customer.Id}", customer);
     }
+
+    private static async Task<IResult> ListCustomers(
+        Guid clientId, InvoiceService service, CancellationToken cancellationToken) =>
+        Results.Ok(await service.ListCustomersAsync(clientId, cancellationToken));
 
     private static async Task<IResult> DraftInvoice(
         Guid clientId, DraftInvoiceRequest request, InvoiceService service, CancellationToken cancellationToken)

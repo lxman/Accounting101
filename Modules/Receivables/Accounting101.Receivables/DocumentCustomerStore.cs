@@ -27,4 +27,14 @@ public sealed class DocumentCustomerStore(IDocumentStore documents) : ICustomerS
             ? null
             : new Customer { Id = result.Id, Name = result.Body.Name, Email = result.Body.Email };
     }
+
+    public async Task<IReadOnlyList<Customer>> ListAsync(Guid clientId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<DocumentResult<CustomerBody>> results = await documents.QueryAsync<CustomerBody>(
+            clientId, Collection, new Dictionary<string, string>(), cancellationToken: cancellationToken);
+        return results
+            .Select(r => new Customer { Id = r.Id, Name = r.Body.Name, Email = r.Body.Email })
+            .OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 }

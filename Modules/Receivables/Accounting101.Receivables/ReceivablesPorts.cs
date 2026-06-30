@@ -5,6 +5,7 @@ public interface ICustomerStore
 {
     Task SaveAsync(Guid clientId, Customer customer, CancellationToken cancellationToken = default);
     Task<Customer?> GetAsync(Guid clientId, Guid customerId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Customer>> ListAsync(Guid clientId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
