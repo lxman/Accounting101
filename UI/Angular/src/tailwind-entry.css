@@ -1,0 +1,10 @@
+/* IDE/LSP-only Tailwind v4 entry point.
+   Gives the WebStorm/IntelliJ Tailwind language server a plain-CSS anchor so it stops
+   crashing on src/styles.scss (Tailwind's split imports + @custom-variant inside SCSS).
+
+   NOT part of the build: this file is intentionally absent from angular.json "styles"
+   and is imported nowhere, so the Angular/PostCSS pipeline never processes it. The real
+   build entry remains src/styles.scss. Point WebStorm's Tailwind config at this file
+   (Settings → Languages & Frameworks → Style Sheets → Tailwind CSS) if it isn't
+   auto-detected. */
+@import "tailwindcss";
