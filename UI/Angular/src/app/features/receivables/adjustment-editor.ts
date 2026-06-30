@@ -25,7 +25,6 @@ interface AdjustRow {
   imports: [RouterLink, ...HlmInputImports, ...HlmLabelImports, HlmButton, CurrencyInput],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-3xl">
-      <a routerLink="/receivables/credits" class="text-sm text-muted-foreground hover:text-foreground w-fit">← Credits</a>
       <h1 class="text-2xl font-bold">Record adjustment</h1>
       <p class="text-sm text-muted-foreground">{{ svc.customerName(customerId!) }}</p>
 
