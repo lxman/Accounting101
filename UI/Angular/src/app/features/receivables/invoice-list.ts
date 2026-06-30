@@ -109,7 +109,7 @@ import { extractProblem } from '../../core/api/problem-details';
           </div>
 
           <div class="flex items-center justify-between text-sm text-muted-foreground">
-            <span>Page {{ currentPage() }} of {{ pageCount() }}</span>
+            <span class="whitespace-nowrap">Page {{ currentPage() }} of {{ pageCount() }}</span>
             <nav hlmPagination aria-label="Invoices pagination">
               <ul hlmPaginationContent>
                 <li hlmPaginationItem>
