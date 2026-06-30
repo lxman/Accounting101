@@ -51,7 +51,7 @@ import { extractProblem } from '../../core/api/problem-details';
             </tr></thead>
             <tbody hlmTBody>
               @for (v of bills(); track v.bill.id) {
-                <tr hlmTr class="cursor-pointer hover:bg-muted/50" tabindex="0"
+                <tr hlmTr role="button" class="cursor-pointer hover:bg-muted/50" tabindex="0"
                     (click)="openBill(v.bill.id)" (keydown.enter)="openBill(v.bill.id)">
                   <td hlmTd>{{ v.bill.number ?? '—' }}</td>
                   <td hlmTd>{{ fmtDate(v.bill.billDate) }}</td>
