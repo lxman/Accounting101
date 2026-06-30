@@ -25,8 +25,15 @@ public sealed class BillService(
         if (draft.Total <= 0m)
             throw new InvalidOperationException($"Bill {billId} must total more than zero.");
 
-        Bill entered = await bills.PromoteDraftAsync(clientId, billId, ct);
+        // Resolve accounts and pre-flight against the draft (Number is null → Reference is null, which validation ignores).
+        // If the engine would reject (closed period, chart violation, unbalanced entry), this throws LedgerClientException
+        // and the document remains a Draft — promote has not run, so there is no orphan.
         BillPostingAccounts posting = await accounts.GetBillAccountsAsync(clientId, ct);
+        PostEntryRequest preflight = BillPosting.ComposeBill(draft, posting);
+        await ledger.ValidateAsync(clientId, preflight, ct);
+
+        // Validation passed — commit the document on a new evidentiary id, then post under that id.
+        Bill entered = await bills.PromoteDraftAsync(clientId, billId, ct);
         PostEntryRequest entry = BillPosting.ComposeBill(entered, posting);
         await ledger.PostAsync(clientId, entry, ct);
         return entered;

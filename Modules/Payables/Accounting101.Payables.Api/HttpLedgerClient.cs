@@ -12,11 +12,11 @@ namespace Accounting101.Payables.Api;
 /// user and applies its full endpoint policy (chart validation, SoD, RBAC). In the monolith this is a
 /// loopback call; going out-of-process is only a base-address change.
 /// <para>
-/// For new-entry posts (<see cref="PostAsync"/>) the module credential is attached as
-/// <c>X-Module-Key</c> / <c>X-Module-Secret</c> alongside the forwarded bearer token. This lets the
-/// engine authorize the post under the module path and stamp <c>ViaModule = "payables"</c> on the
-/// resulting entry. The credential comes from DI (<see cref="ModuleCredential"/>) so the secret is
-/// never hardcoded.
+/// For new-entry posts (<see cref="PostAsync"/>) and the pre-flight dry-run (<see cref="ValidateAsync"/>)
+/// the module credential is attached as <c>X-Module-Key</c> / <c>X-Module-Secret</c> alongside the
+/// forwarded bearer token. This lets the engine authorize the post under the module path and stamp
+/// <c>ViaModule = "payables"</c> on the resulting entry. The credential comes from DI
+/// (<see cref="ModuleCredential"/>) so the secret is never hardcoded.
 /// </para>
 /// <para>
 /// <see cref="ApproveAsync"/>, <see cref="ReverseAsync"/>, and <see cref="VoidAsync"/> do NOT attach
@@ -67,6 +67,17 @@ public sealed class HttpLedgerClient(
         using HttpResponseMessage response = await http.SendAsync(message, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
         return (await response.Content.ReadFromJsonAsync<EntryResponse>(cancellationToken))!;
+    }
+
+    public async Task ValidateAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
+    {
+        using HttpRequestMessage request = Forwarded(HttpMethod.Post, $"clients/{clientId}/entries/validate");
+        // Attach the module credential so the engine's pre-flight dry-run authorizes via the module path.
+        request.Headers.TryAddWithoutValidation("X-Module-Key", credential.Key);
+        request.Headers.TryAddWithoutValidation("X-Module-Secret", credential.Secret);
+        request.Content = JsonContent.Create(entry);
+        using HttpResponseMessage response = await http.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
     }
 
     public async Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default)

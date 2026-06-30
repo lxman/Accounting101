@@ -15,6 +15,20 @@ public sealed class HttpLedgerClientTests
             => Task.FromResult(response);
     }
 
+    private sealed class CapturingHandler : HttpMessageHandler
+    {
+        public HttpRequestMessage? Last;
+        public HttpResponseMessage Response = new(HttpStatusCode.OK);
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.Content is not null)
+                await request.Content.LoadIntoBufferAsync(cancellationToken);
+            Last = request;
+            return Response;
+        }
+    }
+
     private static IHttpContextAccessor Context()
     {
         DefaultHttpContext ctx = new();
@@ -80,5 +94,30 @@ public sealed class HttpLedgerClientTests
         Assert.Contains("lines[0].accountId", ex.Reason, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("2000", ex.Reason);
         Assert.DoesNotContain("One or more fields are invalid", ex.Reason);
+    }
+
+    [Fact]
+    public async Task Validate_targets_the_validate_endpoint_and_attaches_the_module_credential()
+    {
+        Guid clientId = Guid.NewGuid();
+        CapturingHandler handler = new()
+        {
+            Response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(new { valid = true }),
+            },
+        };
+        HttpClient http = new(handler) { BaseAddress = new Uri("http://engine.local") };
+        HttpLedgerClient client = new(http, Context(), new ModuleCredential("test-key", "test-secret"));
+
+        PostEntryRequest entry = new(
+            Id: null, EffectiveDate: new DateOnly(2026, 3, 31), Reference: null, Memo: null,
+            Lines: [new PostLineRequest(Guid.NewGuid(), "Debit", 100m)]);
+
+        await client.ValidateAsync(clientId, entry);
+
+        Assert.Equal(HttpMethod.Post, handler.Last!.Method);
+        Assert.Equal($"http://engine.local/clients/{clientId}/entries/validate", handler.Last.RequestUri!.ToString());
+        Assert.Equal("test-key", handler.Last.Headers.GetValues("X-Module-Key").Single());
     }
 }

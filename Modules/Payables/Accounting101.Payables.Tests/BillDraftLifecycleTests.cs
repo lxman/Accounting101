@@ -96,4 +96,31 @@ public sealed class BillDraftLifecycleTests
         Assert.Equal(entered.Id, voided.Id);
         Assert.Equal(BillStatus.Void, voided.Status);
     }
+
+    [Fact]
+    public async Task Enter_that_fails_preflight_leaves_the_bill_a_draft_and_posts_nothing()
+    {
+        // Same harness shape as the other tests, but we need the fake ledger's OnValidate hook.
+        InMemoryVendorStore vendors = new();
+        InMemoryBillStore bills = new();
+        FakeLedgerClient ledger = new();
+        ledger.OnValidate = _ => throw new LedgerClientException(409, "period closed");
+        // EnterAsync only consults the bill accounts; the payment accounts is required by the provider ctor but unused here.
+        BillService service = new(bills, vendors,
+            new FixedBillAccountsProvider(
+                new BillPostingAccounts { PayableAccountId = Guid.NewGuid() },
+                new BillPaymentPostingAccounts { PayableAccountId = Guid.NewGuid(), CashAccountId = Guid.NewGuid(), VendorCreditsAccountId = Guid.NewGuid() }),
+            ledger);
+        Guid clientId = Guid.NewGuid();
+        Guid vendorId = Guid.NewGuid();
+        await vendors.SaveAsync(clientId, new Vendor { Id = vendorId, Name = "Acme" });
+
+        Bill draft = await service.DraftAsync(clientId, Body(vendorId));
+
+        await Assert.ThrowsAsync<LedgerClientException>(() => service.EnterAsync(clientId, draft.Id));
+        Assert.Empty(ledger.Posted);
+        Bill? stillDraft = await bills.GetAsync(clientId, draft.Id);
+        Assert.NotNull(stillDraft);
+        Assert.Equal(BillStatus.Draft, stillDraft!.Status);   // NOT entered — no orphan
+    }
 }

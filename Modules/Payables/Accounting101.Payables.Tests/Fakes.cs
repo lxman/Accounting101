@@ -22,6 +22,19 @@ internal sealed class FakeLedgerClient : ILedgerClient
         return Task.FromResult(new PostEntryResponse(id, "Active", "PendingApproval"));
     }
 
+    /// <summary>
+    /// Optional hook: tests set this to drive the validation outcome. When null (the default), validation
+    /// succeeds silently. Set to a delegate that throws <see cref="LedgerClientException"/> to simulate a
+    /// rejection (e.g. a closed-period 409) without HTTP.
+    /// </summary>
+    public Func<PostEntryRequest, Task>? OnValidate { get; set; }
+
+    public async Task ValidateAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
+    {
+        if (OnValidate is not null)
+            await OnValidate(entry);
+    }
+
     public Task<EntryResponse> ApproveAsync(Guid clientId, Guid entryId, CancellationToken cancellationToken = default)
     {
         EntryResponse posted = _entries[entryId] with { Posting = "Posted" };
