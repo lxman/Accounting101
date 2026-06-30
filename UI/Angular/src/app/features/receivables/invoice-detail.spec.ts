@@ -48,18 +48,22 @@ describe('InvoiceDetail', () => {
 
   afterEach(() => ctrl.verify());
 
-  it('draft: shows Edit/Delete/Issue; Issue POSTs and reloads', () => {
+  it('draft: Issue POSTs, then re-points the page at the new evidentiary id (not the deleted draft id)', () => {
     setup();
     const f = TestBed.createComponent(InvoiceDetail); f.detectChanges();
     ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme Co', email: null }]);
     ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1').flush(view('Draft', null));
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('110.00');           // footed total (100 + 10% tax)
-    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     (f.componentInstance as InvoiceDetail).issue();
     const issue = ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1/issue');
-    expect(issue.request.method).toBe('POST'); issue.flush(view('Issued', '1001').invoice);
-    ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1').flush(view('Issued', '1001')); // reload
+    expect(issue.request.method).toBe('POST');
+    // Issuing promotes the draft to a NEW id — the engine returns the issued invoice under that id.
+    issue.flush({ ...view('Issued', '1001').invoice, id: 'inv2' });
+    expect(nav).toHaveBeenCalledWith(['/receivables/invoices', 'inv2'], { replaceUrl: true });
+    // Reload must target the new id; the old draft id is gone (would 404).
+    ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv2').flush(view('Issued', '1001'));
   });
 
   it('reload failure after issue clears busy', () => {
@@ -69,10 +73,11 @@ describe('InvoiceDetail', () => {
     ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1').flush(view('Draft', null));
     f.detectChanges();
     const cmp = f.componentInstance as InvoiceDetail;
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     cmp.issue();
-    ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1/issue').flush(view('Issued', '1001').invoice);
-    // reload after issue fails
-    ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1').flush('Server Error', { status: 500, statusText: 'Server Error' });
+    ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1/issue').flush({ ...view('Issued', '1001').invoice, id: 'inv2' });
+    // reload (of the new issued id) after issue fails
+    ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv2').flush('Server Error', { status: 500, statusText: 'Server Error' });
     expect(cmp.busy()).toBe(false);
   });
 

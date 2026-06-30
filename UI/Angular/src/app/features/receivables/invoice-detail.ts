@@ -98,7 +98,8 @@ export class InvoiceDetail {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
 
-  readonly id = this.route.snapshot.paramMap.get('id')!;
+  // Not readonly: issuing a draft promotes it to a new evidentiary id, after which the page re-points here.
+  id = this.route.snapshot.paramMap.get('id')!;
   readonly view = signal<InvoiceView | null>(null);
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
@@ -125,7 +126,13 @@ export class InvoiceDetail {
   issue(): void {
     this.busy.set(true); this.message.set(null);
     this.svc.issue(this.id).subscribe({
-      next: () => { this.reload(true); },
+      // Issuing promotes the draft to a brand-new evidentiary invoice (new id + number) and deletes the
+      // draft. Re-point the page at the issued id; reloading the old draft id would 404 (it's gone).
+      next: (issued) => {
+        this.id = issued.id;
+        this.router.navigate(['/receivables/invoices', issued.id], { replaceUrl: true });
+        this.reload(true);
+      },
       error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
     });
   }
