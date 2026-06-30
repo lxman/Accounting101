@@ -13,6 +13,7 @@ import { ChartOfAccounts } from './features/accounts/chart-of-accounts';
 import { AccountEditor } from './features/accounts/account-editor';
 import { CustomerList } from './features/receivables/customer-list';
 import { InvoiceList } from './features/receivables/invoice-list';
+import { InvoiceEditor } from './features/receivables/invoice-editor';
 import { NAV } from './layout/nav';
 
 export const routes: Routes = [
@@ -45,6 +46,8 @@ export const routes: Routes = [
   { path: 'receivables', children: [
     { path: '', pathMatch: 'full', component: InvoiceList },
     { path: 'customers', component: CustomerList },
+    { path: 'invoices/new', component: InvoiceEditor },
+    { path: 'invoices/:id/edit', component: InvoiceEditor },
   ] },
   // remaining nav targets → placeholder
   ...NAV.filter(n => ![ '/dashboard', '/trial-balance', '/statements', '/accounts', '/receivables' ].includes(n.path) && !n.path.startsWith('/journal')).map(n => ({ path: n.path.slice(1), component: Placeholder })),
