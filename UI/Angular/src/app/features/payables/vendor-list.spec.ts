@@ -38,9 +38,8 @@ describe('VendorList', () => {
     ctrl.verify();
   });
 
-  it('clicking a vendor row selects it and navigates to bills', () => {
+  it('clicking a vendor row navigates to the vendor 360', () => {
     const ctrl = setup();
-    const svc = TestBed.inject(PayablesService);
     const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const f = TestBed.createComponent(VendorList);
     f.detectChanges();
@@ -48,8 +47,7 @@ describe('VendorList', () => {
     f.detectChanges();
     const row = f.nativeElement.querySelector('[data-testid="vendor-row"]') as HTMLElement;
     row.click();
-    expect(svc.selectedVendorId()).toBe('v1');
-    expect(nav).toHaveBeenCalledWith(['/payables/bills']);
+    expect(nav).toHaveBeenCalledWith(['/payables/vendors', 'v1']);
     ctrl.verify();
   });
 });

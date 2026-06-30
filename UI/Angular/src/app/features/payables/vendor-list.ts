@@ -55,5 +55,5 @@ export class VendorList {
     });
   }
 
-  open(id: string): void { this.svc.setSelectedVendor(id); void this.router.navigate(['/payables/bills']); }
+  open(id: string): void { void this.router.navigate(['/payables/vendors', id]); }
 }

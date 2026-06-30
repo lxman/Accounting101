@@ -32,6 +32,7 @@ import { BillPaymentList } from './features/payables/bill-payment-list';
 import { BillPaymentEditor } from './features/payables/bill-payment-editor';
 import { VendorCreditList } from './features/payables/vendor-credit-list';
 import { VendorCreditApplyEditor } from './features/payables/vendor-credit-apply-editor';
+import { VendorAccount } from './features/payables/vendor-account';
 import { NAV } from './layout/nav';
 
 export const routes: Routes = [
@@ -84,6 +85,7 @@ export const routes: Routes = [
     { path: 'payments', component: BillPaymentList },
     { path: 'payments/new', component: BillPaymentEditor },
     { path: 'vendors', component: VendorList },
+    { path: 'vendors/:id', component: VendorAccount },
     { path: 'credits', component: VendorCreditList },
     { path: 'credits/new', component: VendorCreditApplyEditor },
   ] },
