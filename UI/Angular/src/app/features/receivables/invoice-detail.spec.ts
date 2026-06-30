@@ -64,6 +64,7 @@ describe('InvoiceDetail', () => {
     expect(nav).toHaveBeenCalledWith(['/receivables/invoices', 'inv2'], { replaceUrl: true });
     // Reload must target the new id; the old draft id is gone (would 404).
     ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv2').flush(view('Issued', '1001'));
+    ctrl.expectOne(r => r.url.endsWith('/clients/C1/payments') && r.params.get('customerId') === 'cu1').flush([]);
   });
 
   it('reload failure after issue clears busy', () => {
@@ -86,11 +87,32 @@ describe('InvoiceDetail', () => {
     const f = TestBed.createComponent(InvoiceDetail); f.detectChanges();
     ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme Co', email: null }]);
     ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1').flush(view('Issued', '1001'));
+    ctrl.expectOne(r => r.url.endsWith('/clients/C1/payments') && r.params.get('customerId') === 'cu1').flush([]);
     f.detectChanges();
     const cmp = f.componentInstance as InvoiceDetail; cmp.voidReason.set('dup'); cmp.voidInvoice();
     const v = ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1/void');
     expect(v.request.body).toEqual({ reason: 'dup' });
     v.flush(view('Issued', '1001').invoice);
     ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1').flush({ ...view('Issued', '1001'), invoice: { ...view('Issued', '1001').invoice, status: 'Void' } });
+    // Reloaded invoice is now Void, so no payments request fires.
+  });
+
+  it('lists payments applied to this invoice and voids one, reloading after', () => {
+    setup();
+    const f = TestBed.createComponent(InvoiceDetail); f.detectChanges();
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme Co', email: null }]);
+    ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1').flush(view('Issued', '1001'));
+    ctrl.expectOne(r => r.url.endsWith('/clients/C1/payments') && r.params.get('customerId') === 'cu1')
+      .flush([{ id: 'p1', customerId: 'cu1', date: '2026-06-30', amount: 110, method: 'check', allocations: [{ targetId: 'inv1', amount: 110 }], voided: false }]);
+    f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('110.00');
+    const cmp = f.componentInstance as InvoiceDetail;
+    cmp.voidPayment({ id: 'p1', customerId: 'cu1', date: '2026-06-30', amount: 110, method: 'check', allocations: [{ targetId: 'inv1', amount: 110 }], voided: false });
+    ctrl.expectOne('http://localhost:5000/clients/C1/payments/p1/void').flush({ id: 'p1', customerId: 'cu1', date: '2026-06-30', amount: 110, method: 'check', allocations: [{ targetId: 'inv1', amount: 110 }], voided: true });
+    // reload: invoice view + payments
+    ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1').flush(view('Issued', '1001'));
+    ctrl.expectOne(r => r.url.endsWith('/clients/C1/payments')).flush([]);
+    f.detectChanges();
+    expect(cmp.busy()).toBe(false);
   });
 });
