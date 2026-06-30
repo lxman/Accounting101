@@ -9,6 +9,7 @@ import { ReceivablesService } from '../../core/receivables/receivables.service';
 import { Invoice, InvoiceLine, DraftInvoiceRequest, invoiceTotals } from '../../core/receivables/receivables';
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney } from '../../core/format/display';
+import { CurrencyInput } from '../../shared/currency-input';
 
 interface LineModel {
   lineId: string;
@@ -40,7 +41,7 @@ const emptyLine = (): LineModel => ({
 @Component({
   selector: 'app-invoice-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, FormField, ...HlmInputImports, ...HlmLabelImports, HlmButton, ...HlmSelectImports],
+  imports: [RouterLink, FormField, ...HlmInputImports, ...HlmLabelImports, HlmButton, ...HlmSelectImports, CurrencyInput],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-4xl">
       <h1 class="text-2xl font-bold">{{ editId ? 'Edit invoice' : 'New invoice' }}</h1>
@@ -112,9 +113,9 @@ const emptyLine = (): LineModel => ({
               </td>
               <td class="pr-2">
                 <div class="flex justify-end">
-                  <input hlmInput type="number" step="0.01" class="text-right tabular-nums w-28"
-                         [value]="form.lines[i].unitPrice().value()"
-                         (input)="form.lines[i].unitPrice().value.set(+$any($event.target).value)" />
+                  <app-currency-input class="w-32" ariaLabel="Unit price"
+                       [value]="form.lines[i].unitPrice().value()"
+                       (valueChange)="form.lines[i].unitPrice().value.set($event)" />
                 </div>
               </td>
               <td>
