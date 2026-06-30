@@ -90,10 +90,10 @@ const emptyLine = (): LineModel => ({
         <thead>
           <tr class="text-left text-muted-foreground">
             <th class="py-1">Description</th>
-            <th class="text-right">Qty</th>
-            <th class="text-right">Unit price</th>
-            <th>Taxable</th>
-            <th>Category</th>
+            <th class="text-right pr-2">Qty</th>
+            <th class="text-right pr-2">Unit price</th>
+            <th class="pr-2">Taxable</th>
+            <th class="pr-2">Category</th>
             <th></th>
           </tr>
         </thead>
@@ -104,14 +104,18 @@ const emptyLine = (): LineModel => ({
                 <input hlmInput type="text" [formField]="form.lines[i].description" />
               </td>
               <td class="pr-2">
-                <input hlmInput type="number" class="text-right tabular-nums w-20"
-                       [value]="form.lines[i].quantity().value()"
-                       (input)="form.lines[i].quantity().value.set(+$any($event.target).value)" />
+                <div class="flex justify-end">
+                  <input hlmInput type="number" class="text-right tabular-nums w-20"
+                         [value]="form.lines[i].quantity().value()"
+                         (input)="form.lines[i].quantity().value.set(+$any($event.target).value)" />
+                </div>
               </td>
               <td class="pr-2">
-                <input hlmInput type="number" step="0.01" class="text-right tabular-nums w-28"
-                       [value]="form.lines[i].unitPrice().value()"
-                       (input)="form.lines[i].unitPrice().value.set(+$any($event.target).value)" />
+                <div class="flex justify-end">
+                  <input hlmInput type="number" step="0.01" class="text-right tabular-nums w-28"
+                         [value]="form.lines[i].unitPrice().value()"
+                         (input)="form.lines[i].unitPrice().value.set(+$any($event.target).value)" />
+                </div>
               </td>
               <td>
                 <input type="checkbox"
@@ -133,7 +137,7 @@ const emptyLine = (): LineModel => ({
 
       <button hlmBtn type="button" variant="outline" size="sm" (click)="addLine()">+ Add line</button>
 
-      <div class="text-right text-sm tabular-nums flex flex-col gap-1 max-w-xs ms-auto">
+      <div class="text-right text-sm tabular-nums flex flex-col gap-1 w-56 ms-auto">
         <div class="flex justify-between"><span>Subtotal</span><span>{{ money(totals().subtotal) }}</span></div>
         <div class="flex justify-between"><span>Tax</span><span>{{ money(totals().tax) }}</span></div>
         <div class="flex justify-between font-semibold border-t border-border pt-1">
