@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ReceivablesService } from './receivables.service';
 import { ClientContextService } from '../client/client-context.service';
-import { Customer, DraftInvoiceRequest, InvoiceLine, invoiceTotals, lineAmount, autoAllocate, AllocRow } from './receivables';
+import { Customer, DraftInvoiceRequest, InvoiceLine, invoiceTotals, lineAmount, autoAllocate, AllocRow, Payment } from './receivables';
 
 describe('pure math', () => {
   const makeLine = (quantity: number, unitPrice: number, taxable: boolean): InvoiceLine =>
@@ -136,5 +136,46 @@ describe('ReceivablesService', () => {
     const v = ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1/void');
     expect(v.request.method).toBe('POST'); expect(v.request.body).toEqual({ reason: 'mistake' });
     v.flush({ id: 'inv1', customerId: 'cu1', number: '1001', issueDate: '2026-06-29', dueDate: null, status: 'Void', taxRate: 0.07, memo: null, lines: req.lines });
+  });
+
+  it('listPayments GETs /payments?customerId=', () => {
+    const svc = TestBed.inject(ReceivablesService); const ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    let result: Payment[] | undefined;
+    svc.listPayments('cu1').subscribe(p => (result = p));
+    const req = ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/payments' && r.params.get('customerId') === 'cu1');
+    expect(req.request.method).toBe('GET');
+    req.flush([{ id: 'p1', customerId: 'cu1', date: '2026-06-30', amount: 60, method: 'check', allocations: [{ targetId: 'inv1', amount: 60 }], voided: false }] as Payment[]);
+    expect(result!.length).toBe(1);
+  });
+
+  it('recordPayment POSTs the request to /payments', () => {
+    const svc = TestBed.inject(ReceivablesService); const ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    svc.recordPayment({ customerId: 'cu1', date: '2026-06-30', amount: 60, method: null, allocations: [{ targetId: 'inv1', amount: 60 }] }).subscribe();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/payments');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body.allocations).toEqual([{ targetId: 'inv1', amount: 60 }]);
+    req.flush({ id: 'p1', customerId: 'cu1', date: '2026-06-30', amount: 60, method: null, allocations: [{ targetId: 'inv1', amount: 60 }], voided: false });
+  });
+
+  it('voidPayment POSTs the reason to /payments/{id}/void', () => {
+    const svc = TestBed.inject(ReceivablesService); const ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    svc.voidPayment('p1', 'oops').subscribe();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/payments/p1/void');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ reason: 'oops' });
+    req.flush({ id: 'p1', customerId: 'cu1', date: '2026-06-30', amount: 60, method: null, allocations: [], voided: true });
+  });
+
+  it('creditBalance GETs and unwraps creditBalance', () => {
+    const svc = TestBed.inject(ReceivablesService); const ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    let bal: number | undefined;
+    svc.creditBalance('cu1').subscribe(b => (bal = b));
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers/cu1/credit-balance')
+      .flush({ customerId: 'cu1', creditBalance: 42.5 });
+    expect(bal).toBe(42.5);
   });
 });

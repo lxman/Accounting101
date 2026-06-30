@@ -1,10 +1,10 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { EMPTY, Observable, tap } from 'rxjs';
+import { EMPTY, Observable, map, tap } from 'rxjs';
 import { environment } from '../api/environment';
 import { ClientContextService } from '../client/client-context.service';
 import { PagedResponse } from '../api/paged-response';
-import { Customer, DraftInvoiceRequest, Invoice, InvoiceListQuery, InvoiceView } from './receivables';
+import { Customer, DraftInvoiceRequest, Invoice, InvoiceListQuery, InvoiceView, Payment, RecordPaymentRequest } from './receivables';
 import { extractProblem } from '../api/problem-details';
 
 @Injectable({ providedIn: 'root' })
@@ -88,5 +88,22 @@ export class ReceivablesService {
   void(id: string, reason?: string | null): Observable<Invoice> {
     const clientId = this.client.clientId(); if (!clientId) return EMPTY;
     return this.http.post<Invoice>(this.base(`/invoices/${id}/void`), { reason: reason ?? null });
+  }
+  listPayments(customerId: string): Observable<Payment[]> {
+    const id = this.client.clientId(); if (!id) return EMPTY;
+    return this.http.get<Payment[]>(this.base('/payments'), { params: new HttpParams().set('customerId', customerId) });
+  }
+  recordPayment(req: RecordPaymentRequest): Observable<Payment> {
+    const id = this.client.clientId(); if (!id) return EMPTY;
+    return this.http.post<Payment>(this.base('/payments'), req);
+  }
+  voidPayment(id: string, reason?: string | null): Observable<Payment> {
+    const clientId = this.client.clientId(); if (!clientId) return EMPTY;
+    return this.http.post<Payment>(this.base(`/payments/${id}/void`), { reason: reason ?? null });
+  }
+  creditBalance(customerId: string): Observable<number> {
+    const id = this.client.clientId(); if (!id) return EMPTY;
+    return this.http.get<{ creditBalance: number }>(this.base(`/customers/${customerId}/credit-balance`))
+      .pipe(map(r => r.creditBalance));
   }
 }
