@@ -30,6 +30,8 @@ describe('PayablesService', () => {
     const req = ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/bills');
     expect(req.request.params.get('vendorId')).toBe('v1');
     expect(req.request.params.get('settlement')).toBe('open');
+    expect(req.request.params.get('skip')).toBe('0');
+    expect(req.request.params.get('limit')).toBe('50');
     req.flush({ items: [], total: 0, skip: 0, limit: 50 });
     ctrl.verify();
   });
@@ -54,6 +56,16 @@ describe('PayablesService', () => {
     const v = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/bills/b1/void');
     expect(v.request.body).toEqual({ reason: 'oops' });
     v.flush({});
+    ctrl.verify();
+  });
+
+  it('gets a bill by id', () => {
+    const { svc, ctrl } = setup();
+    svc.getBill('b1').subscribe();
+    ctrl.expectOne(r => r.method === 'GET' && r.url === 'http://localhost:5000/clients/C1/bills/b1').flush(
+      { bill: { id: 'b1', vendorId: 'v1', number: 'B-1', billDate: '2026-06-30', dueDate: null,
+        vendorReference: null, memo: null, status: 'Entered',
+        lines: [{ description: 'Rent', amount: 100, expenseAccountId: 'a1' }] }, openBalance: 100, settlementStatus: 'Open' });
     ctrl.verify();
   });
 });

@@ -68,7 +68,10 @@ export class PayablesService {
     return this.http.get<PagedResponse<BillView>>(this.base('/bills'), { params });
   }
 
-  getBill(id: string): Observable<BillView> { return this.http.get<BillView>(this.base(`/bills/${id}`)); }
+  getBill(id: string): Observable<BillView> {
+    const clientId = this.client.clientId(); if (!clientId) return EMPTY;
+    return this.http.get<BillView>(this.base(`/bills/${id}`));
+  }
 
   draftBill(req: DraftBillRequest): Observable<Bill> {
     const id = this.client.clientId(); if (!id) return EMPTY;
