@@ -15,7 +15,6 @@ import { CurrencyInput } from '../../shared/currency-input';
   imports: [RouterLink, ...HlmInputImports, ...HlmLabelImports, HlmButton, CurrencyInput],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-3xl">
-      <a routerLink="/receivables/refunds" class="text-sm text-muted-foreground hover:text-foreground w-fit">← Refunds</a>
       <h1 class="text-2xl font-bold">Issue refund</h1>
       <p class="text-sm text-muted-foreground">{{ svc.customerName(customerId!) }}</p>
       <p class="text-sm" [class.text-destructive]="amount() > creditBalance()">
