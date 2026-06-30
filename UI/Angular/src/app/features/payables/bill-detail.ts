@@ -5,7 +5,7 @@ import { HlmTableImports } from '@spartan-ng/helm/table';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { PayablesService } from '../../core/payables/payables.service';
-import { BillView, billTotal } from '../../core/payables/payables';
+import { BillView, BillPayment, billTotal } from '../../core/payables/payables';
 import { AccountsService } from '../../core/accounts/accounts.service';
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
@@ -69,6 +69,30 @@ import { SettlementBadge } from '../../shared/settlement-badge';
                      [value]="voidReason()" (input)="voidReason.set($any($event.target).value)" />
               <button hlmBtn type="button" variant="outline" (click)="voidBill()" [disabled]="busy()">Void</button>
             </div>
+            @if (applied().length > 0) {
+              <div class="flex flex-col gap-1">
+                <h2 class="text-sm font-semibold text-muted-foreground">Applied payments</h2>
+                <table class="text-sm w-full max-w-md">
+                  <tbody>
+                    @for (a of applied(); track a.payment.id) {
+                      <tr [class.opacity-50]="a.payment.voided">
+                        <td class="py-1">{{ formatDate(a.payment.date) }}</td>
+                        <td class="tabular-nums">{{ money(a.here) }}</td>
+                        <td class="text-muted-foreground">{{ a.payment.method ?? '—' }}</td>
+                        <td class="text-right">
+                          @if (!a.payment.voided) {
+                            <button hlmBtn type="button" variant="ghost" size="sm"
+                                    (click)="voidPayment(a.payment)" [disabled]="busy()">Void</button>
+                          } @else {
+                            <span class="text-xs text-muted-foreground">Voided</span>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
           }
         }
       } @else {
@@ -88,6 +112,10 @@ export class BillDetail {
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
   readonly voidReason = signal('');
+  readonly payments = signal<BillPayment[]>([]);
+  readonly applied = computed(() => this.payments()
+    .map(p => ({ payment: p, here: p.allocations.filter(a => a.targetId === this.id).reduce((s, a) => s + a.amount, 0) }))
+    .filter(x => x.here > 0));
 
   readonly total = computed(() => this.view() ? billTotal(this.view()!.bill.lines) : 0);
 
@@ -99,8 +127,27 @@ export class BillDetail {
 
   reload(clearBusy = false): void {
     this.svc.getBill(this.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (v) => { this.view.set(v); if (clearBusy) this.busy.set(false); },
+      next: (v) => {
+        this.view.set(v);
+        if (v.bill.status === 'Entered') this.loadPayments(v.bill.vendorId);
+        if (clearBusy) this.busy.set(false);
+      },
       error: (e) => { this.message.set(extractProblem(e).detail); if (clearBusy) this.busy.set(false); },
+    });
+  }
+
+  private loadPayments(vendorId: string): void {
+    this.svc.listBillPayments(vendorId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (ps) => this.payments.set(ps),
+      error: () => this.payments.set([]),
+    });
+  }
+
+  voidPayment(p: BillPayment): void {
+    this.busy.set(true); this.message.set(null);
+    this.svc.voidBillPayment(p.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.reload(true); },
+      error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
     });
   }
 

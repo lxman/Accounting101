@@ -45,6 +45,7 @@ describe('BillDetail', () => {
     ctrl.expectOne('http://localhost:5000/clients/C1/bills/b1').flush({ bill: { id: 'b1', vendorId: 'v1', number: 'B-1',
       billDate: '2026-06-30', dueDate: null, vendorReference: 'INV-9', memo: null, status: 'Entered',
       lines: [{ description: 'Rent', amount: 1200, expenseAccountId: 'a1' }] }, openBalance: 1200, settlementStatus: 'Open' });
+    ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/bill-payments').flush([]);
     ctrl.verify();
   });
 
@@ -53,6 +54,7 @@ describe('BillDetail', () => {
     const f = TestBed.createComponent(BillDetail);
     f.detectChanges();
     flushLoads(ctrl, 'Entered');
+    ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/bill-payments').flush([]);
     f.detectChanges();
     const cmp = f.componentInstance;
     cmp.voidReason.set('duplicate');
@@ -64,6 +66,30 @@ describe('BillDetail', () => {
     ctrl.expectOne('http://localhost:5000/clients/C1/bills/b1').flush({ bill: { id: 'b1', vendorId: 'v1', number: 'B-1',
       billDate: '2026-06-30', dueDate: null, vendorReference: 'INV-9', memo: null, status: 'Void',
       lines: [{ description: 'Rent', amount: 1200, expenseAccountId: 'a1' }] }, openBalance: 0, settlementStatus: 'Open' });
+    ctrl.verify();
+  });
+
+  it('shows applied payments on an entered bill and voids one', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(BillDetail);
+    f.detectChanges();
+    flushLoads(ctrl, 'Entered');
+    // Entered bills load the vendor's payments for the applied-payments section.
+    ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/bill-payments' && r.params.get('vendorId') === 'v1')
+      .flush([{ id: 'p1', vendorId: 'v1', date: '2026-06-10', amount: 1200, method: 'check',
+        allocations: [{ targetId: 'b1', amount: 1200 }], voided: false }]);
+    f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Applied payments');
+
+    f.componentInstance.voidPayment({ id: 'p1', vendorId: 'v1', date: '2026-06-10', amount: 1200, method: 'check',
+      allocations: [{ targetId: 'b1', amount: 1200 }], voided: false } as any);
+    const v = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/bill-payments/p1/void');
+    v.flush({});
+    // reload: bill + payments fetched again
+    ctrl.expectOne('http://localhost:5000/clients/C1/bills/b1').flush({ bill: { id: 'b1', vendorId: 'v1', number: 'B-1',
+      billDate: '2026-06-30', dueDate: null, vendorReference: 'INV-9', memo: null, status: 'Entered',
+      lines: [{ description: 'Rent', amount: 1200, expenseAccountId: 'a1' }] }, openBalance: 1200, settlementStatus: 'Open' });
+    ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/bill-payments').flush([]);
     ctrl.verify();
   });
 });
