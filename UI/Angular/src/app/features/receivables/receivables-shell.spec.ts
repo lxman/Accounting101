@@ -28,4 +28,13 @@ describe('ReceivablesShell', () => {
     expect(tab.textContent!.trim()).toBe('Credits');
     expect(tab.getAttribute('href')).toContain('credits');
   });
+
+  it('renders the Refunds tab linking to refunds', () => {
+    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection(), provideRouter([])] });
+    const f = TestBed.createComponent(ReceivablesShell); f.detectChanges();
+    const tab = f.nativeElement.querySelector('[data-testid="tab-refunds"]') as HTMLAnchorElement;
+    expect(tab).toBeTruthy();
+    expect(tab.textContent!.trim()).toBe('Refunds');
+    expect(tab.getAttribute('href')).toContain('refunds');
+  });
 });
