@@ -1,0 +1,53 @@
+import { TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { InvoiceList } from './invoice-list';
+import { ClientContextService } from '../../core/client/client-context.service';
+import { InvoiceView } from '../../core/receivables/receivables';
+
+function inv(id: string, number: string | null, status: 'Draft' | 'Issued', open = 0): InvoiceView {
+  return {
+    invoice: { id, customerId: 'cu1', number, issueDate: '2026-06-29', dueDate: null, status, taxRate: 0, memo: null, lines: [] },
+    openBalance: open,
+    settlementStatus: open > 0 ? 'Open' : 'Paid',
+  };
+}
+
+describe('InvoiceList', () => {
+  beforeEach(() => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+      ],
+    });
+    TestBed.inject(ClientContextService).select('C1');
+  });
+
+  afterEach(() => TestBed.inject(HttpTestingController).verify());
+
+  it('selecting a customer loads their invoices; row links to detail', () => {
+    const f = TestBed.createComponent(InvoiceList); f.detectChanges();
+    const ctrl = TestBed.inject(HttpTestingController);
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme Co', email: null }]);
+    f.detectChanges();
+    f.componentInstance.customerId.set('cu1'); f.detectChanges();
+    const req = ctrl.expectOne(r => r.url.endsWith('/clients/C1/invoices') && r.params.get('customerId') === 'cu1');
+    req.flush({ items: [inv('inv1', '1001', 'Issued', 500)], total: 1, skip: 0, limit: 50 });
+    f.detectChanges();
+    const text = f.nativeElement.textContent;
+    expect(text).toContain('1001'); expect(text).toContain('500.00');
+    expect(f.nativeElement.querySelector('a[href="/receivables/invoices/inv1"]')).toBeTruthy();
+  });
+
+  it('shows a prompt when no customer is selected', () => {
+    const f = TestBed.createComponent(InvoiceList); f.detectChanges();
+    TestBed.inject(HttpTestingController).expectOne('http://localhost:5000/clients/C1/customers').flush([]);
+    f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Select a customer');
+  });
+});
