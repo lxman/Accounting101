@@ -93,7 +93,7 @@ const emptyLine = (): LineModel => ({
             <th class="py-1">Description</th>
             <th class="text-right pr-2">Qty</th>
             <th class="text-right pr-2">Unit price</th>
-            <th class="pr-2">Taxable</th>
+            <th class="text-center px-2">Taxable</th>
             <th class="pr-2">Category</th>
             <th></th>
           </tr>
@@ -118,7 +118,7 @@ const emptyLine = (): LineModel => ({
                        (valueChange)="form.lines[i].unitPrice().value.set($event)" />
                 </div>
               </td>
-              <td>
+              <td class="text-center">
                 <input type="checkbox"
                        [checked]="form.lines[i].taxable().value()"
                        (change)="form.lines[i].taxable().value.set($any($event.target).checked)" />
