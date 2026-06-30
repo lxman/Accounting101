@@ -18,6 +18,7 @@ import { InvoiceDetail } from './features/receivables/invoice-detail';
 import { PaymentEditor } from './features/receivables/payment-editor';
 import { ReceivablesShell } from './features/receivables/receivables-shell';
 import { PaymentList } from './features/receivables/payment-list';
+import { CreditList } from './features/receivables/credit-list';
 import { NAV } from './layout/nav';
 
 export const routes: Routes = [
@@ -56,6 +57,7 @@ export const routes: Routes = [
     { path: 'payments', component: PaymentList },
     { path: 'payments/new', component: PaymentEditor },
     { path: 'customers', component: CustomerList },
+    { path: 'credits', component: CreditList },
   ] },
   // remaining nav targets → placeholder
   ...NAV.filter(n => ![ '/dashboard', '/trial-balance', '/statements', '/accounts', '/receivables' ].includes(n.path) && !n.path.startsWith('/journal')).map(n => ({ path: n.path.slice(1), component: Placeholder })),
