@@ -106,6 +106,7 @@ describe('InvoiceDetail', () => {
       .flush([{ id: 'p1', customerId: 'cu1', date: '2026-06-30', amount: 110, method: 'check', allocations: [{ targetId: 'inv1', amount: 110 }], voided: false }]);
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('110.00');
+    expect([...f.nativeElement.querySelectorAll('a')].find(a => a.textContent.trim() === 'Record payment')).toBeFalsy();
     const cmp = f.componentInstance as InvoiceDetail;
     cmp.voidPayment({ id: 'p1', customerId: 'cu1', date: '2026-06-30', amount: 110, method: 'check', allocations: [{ targetId: 'inv1', amount: 110 }], voided: false });
     ctrl.expectOne('http://localhost:5000/clients/C1/payments/p1/void').flush({ id: 'p1', customerId: 'cu1', date: '2026-06-30', amount: 110, method: 'check', allocations: [{ targetId: 'inv1', amount: 110 }], voided: true });

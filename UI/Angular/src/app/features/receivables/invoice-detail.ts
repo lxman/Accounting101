@@ -81,8 +81,6 @@ import { SettlementBadge } from '../../shared/settlement-badge';
           }
           @case ('Issued') {
             <div class="flex items-center gap-2">
-              <a hlmBtn variant="outline" routerLink="/receivables/payments/new"
-                 [queryParams]="{ customer: v.invoice.customerId, invoice: id }">Record payment</a>
               <input hlmInput type="text" aria-label="Void reason" placeholder="Void reason"
                      [value]="voidReason()" (input)="voidReason.set($any($event.target).value)" />
               <button hlmBtn type="button" variant="outline" (click)="voidInvoice()" [disabled]="busy()">Void</button>
