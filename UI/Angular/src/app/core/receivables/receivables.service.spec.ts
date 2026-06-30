@@ -4,7 +4,25 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ReceivablesService } from './receivables.service';
 import { ClientContextService } from '../client/client-context.service';
-import { Customer, DraftInvoiceRequest } from './receivables';
+import { Customer, DraftInvoiceRequest, InvoiceLine, invoiceTotals, lineAmount } from './receivables';
+
+describe('pure math', () => {
+  const makeLine = (quantity: number, unitPrice: number, taxable: boolean): InvoiceLine =>
+    ({ description: 'x', quantity, unitPrice, taxable, revenueCategory: null });
+
+  it('lineAmount multiplies quantity × unitPrice', () => {
+    expect(lineAmount({ quantity: 2, unitPrice: 100 })).toBe(200);
+  });
+
+  it('invoiceTotals: taxableBase excludes non-taxable lines', () => {
+    const lines = [makeLine(2, 100, true), makeLine(1, 50, false)];
+    expect(invoiceTotals(lines, 0.07)).toEqual({ subtotal: 250, tax: 14, total: 264 });
+  });
+
+  it('invoiceTotals: zero tax rate yields tax=0', () => {
+    expect(invoiceTotals([makeLine(1, 100, true)], 0)).toEqual({ subtotal: 100, tax: 0, total: 100 });
+  });
+});
 
 describe('ReceivablesService', () => {
   beforeEach(() => {
@@ -50,6 +68,16 @@ describe('ReceivablesService', () => {
       && r.params.get('skip') === '0' && r.params.get('limit') === '50' && r.params.get('order') === 'desc');
     req.flush({ items: [], total: 0, skip: 0, limit: 50 });
     expect(req.request.method).toBe('GET');
+  });
+
+  it('draft() returns EMPTY (no HTTP) when no client is selected', () => {
+    const svc = TestBed.inject(ReceivablesService); const ctrl = TestBed.inject(HttpTestingController);
+    // no ClientContextService.select() → clientId() stays null
+    const req: DraftInvoiceRequest = { customerId: 'cu1', lines: [], taxRate: 0, issueDate: '2026-06-29', dueDate: null, memo: null };
+    let emitted = false;
+    svc.draft(req).subscribe({ next: () => (emitted = true) });
+    ctrl.verify(); // no requests expected
+    expect(emitted).toBe(false);
   });
 
   it('draft/issue/void hit the right method, URL and body', () => {

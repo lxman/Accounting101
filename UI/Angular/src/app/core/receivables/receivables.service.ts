@@ -35,9 +35,24 @@ export class ReceivablesService {
     return this.http.get<PagedResponse<InvoiceView>>(this.base('/invoices'), { params });
   }
   getInvoice(id: string): Observable<InvoiceView> { return this.http.get<InvoiceView>(this.base(`/invoices/${id}`)); }
-  draft(req: DraftInvoiceRequest): Observable<Invoice> { return this.http.post<Invoice>(this.base('/invoices'), req); }
-  updateDraft(id: string, req: DraftInvoiceRequest): Observable<Invoice> { return this.http.put<Invoice>(this.base(`/invoices/${id}`), req); }
-  deleteDraft(id: string): Observable<void> { return this.http.delete<void>(this.base(`/invoices/${id}`)); }
-  issue(id: string): Observable<Invoice> { return this.http.post<Invoice>(this.base(`/invoices/${id}/issue`), {}); }
-  void(id: string, reason?: string | null): Observable<Invoice> { return this.http.post<Invoice>(this.base(`/invoices/${id}/void`), { reason: reason ?? null }); }
+  draft(req: DraftInvoiceRequest): Observable<Invoice> {
+    const id = this.client.clientId(); if (!id) return EMPTY;
+    return this.http.post<Invoice>(this.base('/invoices'), req);
+  }
+  updateDraft(id: string, req: DraftInvoiceRequest): Observable<Invoice> {
+    const clientId = this.client.clientId(); if (!clientId) return EMPTY;
+    return this.http.put<Invoice>(this.base(`/invoices/${id}`), req);
+  }
+  deleteDraft(id: string): Observable<void> {
+    const clientId = this.client.clientId(); if (!clientId) return EMPTY;
+    return this.http.delete<void>(this.base(`/invoices/${id}`));
+  }
+  issue(id: string): Observable<Invoice> {
+    const clientId = this.client.clientId(); if (!clientId) return EMPTY;
+    return this.http.post<Invoice>(this.base(`/invoices/${id}/issue`), {});
+  }
+  void(id: string, reason?: string | null): Observable<Invoice> {
+    const clientId = this.client.clientId(); if (!clientId) return EMPTY;
+    return this.http.post<Invoice>(this.base(`/invoices/${id}/void`), { reason: reason ?? null });
+  }
 }
