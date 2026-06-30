@@ -58,3 +58,11 @@ export function autoAllocate(amount: number, rows: readonly AllocRow[]): AllocRo
     return { ...r, allocation: Math.round(take * 100) / 100 };
   });
 }
+
+export interface VendorCreditApplication {
+  id: string; vendorId: string; date: string; allocations: PaymentAllocation[]; voided: boolean;
+}
+
+export interface ApplyVendorCreditRequest {
+  vendorId: string; date: string; allocations: PaymentAllocation[];
+}

@@ -95,4 +95,21 @@ describe('PayablesService', () => {
 
     ctrl.verify();
   });
+
+  it('lists and applies vendor credit applications', () => {
+    const { svc, ctrl } = setup();
+
+    svc.listVendorCreditApplications('v1').subscribe();
+    const list = ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/vendor-credit-applications');
+    expect(list.request.params.get('vendorId')).toBe('v1');
+    list.flush([]);
+
+    svc.applyVendorCredit({ vendorId: 'v1', date: '2026-06-30',
+      allocations: [{ targetId: 'b1', amount: 50 }] }).subscribe();
+    const post = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/vendor-credit-applications');
+    expect(post.request.body).toEqual({ vendorId: 'v1', date: '2026-06-30', allocations: [{ targetId: 'b1', amount: 50 }] });
+    post.flush({ id: 'ca1', vendorId: 'v1', date: '2026-06-30', allocations: [{ targetId: 'b1', amount: 50 }], voided: false });
+
+    ctrl.verify();
+  });
 });

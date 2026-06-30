@@ -5,7 +5,7 @@ import { environment } from '../api/environment';
 import { ClientContextService } from '../client/client-context.service';
 import { PagedResponse } from '../api/paged-response';
 import { extractProblem } from '../api/problem-details';
-import { Vendor, Bill, BillView, DraftBillRequest, BillListQuery, BillPayment, RecordBillPaymentRequest } from './payables';
+import { Vendor, Bill, BillView, DraftBillRequest, BillListQuery, BillPayment, RecordBillPaymentRequest, VendorCreditApplication, ApplyVendorCreditRequest } from './payables';
 
 @Injectable({ providedIn: 'root' })
 export class PayablesService {
@@ -107,5 +107,16 @@ export class PayablesService {
     const id = this.client.clientId(); if (!id) return EMPTY;
     return this.http.get<{ creditBalance: number }>(this.base(`/vendors/${vendorId}/credit-balance`))
       .pipe(map(r => r.creditBalance));
+  }
+
+  listVendorCreditApplications(vendorId: string): Observable<VendorCreditApplication[]> {
+    const id = this.client.clientId(); if (!id) return EMPTY;
+    return this.http.get<VendorCreditApplication[]>(this.base('/vendor-credit-applications'),
+      { params: new HttpParams().set('vendorId', vendorId) });
+  }
+
+  applyVendorCredit(req: ApplyVendorCreditRequest): Observable<VendorCreditApplication> {
+    const id = this.client.clientId(); if (!id) return EMPTY;
+    return this.http.post<VendorCreditApplication>(this.base('/vendor-credit-applications'), req);
   }
 }
