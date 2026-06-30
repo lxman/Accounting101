@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router } from '@angular/router';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { ReceivablesService } from '../../core/receivables/receivables.service';
@@ -23,7 +24,10 @@ import { extractProblem } from '../../core/api/problem-details';
       @if (error()) { <p class="text-destructive text-sm">{{ error() }}</p> }
       @if (svc.customers().length === 0 && !svc.loadError()) { <p class="text-sm text-muted-foreground italic">No customers yet.</p> }
       @for (c of svc.customers(); track c.id) {
-        <div class="flex items-center gap-3 py-1 border-b border-border/50 text-sm">
+        <div data-testid="customer-row"
+             class="flex items-center gap-3 py-1 border-b border-border/50 text-sm cursor-pointer hover:bg-muted/50"
+             role="button" tabindex="0"
+             (click)="open(c.id)" (keydown.enter)="open(c.id)">
           <span>{{ c.name }}</span><span class="text-muted-foreground">{{ c.email }}</span>
         </div>
       }
@@ -32,6 +36,7 @@ import { extractProblem } from '../../core/api/problem-details';
 export class CustomerList {
   readonly svc = inject(ReceivablesService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly router = inject(Router);
   readonly newName = signal('');
   readonly newEmail = signal('');
   readonly busy = signal(false);
@@ -49,4 +54,6 @@ export class CustomerList {
       error: (e) => { this.error.set(extractProblem(e).detail); this.busy.set(false); },
     });
   }
+
+  open(id: string): void { void this.router.navigate(['/receivables/customers', id]); }
 }

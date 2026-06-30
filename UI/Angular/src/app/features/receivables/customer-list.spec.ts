@@ -3,12 +3,12 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { Router } from '@angular/router';
 import { CustomerList } from './customer-list';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { vi } from 'vitest';
 
 describe('CustomerList', () => {
-  let ctrl: HttpTestingController;
-
   function setup() {
     TestBed.configureTestingModule({
       providers: [
@@ -18,17 +18,19 @@ describe('CustomerList', () => {
         provideHttpClientTesting(),
       ],
     });
-    ctrl = TestBed.inject(HttpTestingController);
     TestBed.inject(ClientContextService).select('C1');
+    return TestBed.inject(HttpTestingController);
   }
 
-  afterEach(() => ctrl.verify());
+  afterEach(() => {
+    // verify is called per-test if ctrl is used
+  });
 
   it('lists customers and creates one inline', () => {
-    setup();
+    const ctrl = setup();
     const f = TestBed.createComponent(CustomerList);
     f.detectChanges();
-    TestBed.inject(HttpTestingController)
+    ctrl
       .expectOne('http://localhost:5000/clients/C1/customers')
       .flush([{ id: 'cu1', name: 'Acme Co', email: null }]);
     f.detectChanges();
@@ -45,5 +47,19 @@ describe('CustomerList', () => {
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('Beta LLC');
     expect(cmp.newName()).toBe(''); // form cleared
+    ctrl.verify();
+  });
+
+  it('clicking a customer row navigates to the account screen', () => {
+    const ctrl = setup();
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(CustomerList);
+    f.detectChanges();
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme Co', email: null }]);
+    f.detectChanges();
+    const row = f.nativeElement.querySelector('[data-testid="customer-row"]') as HTMLElement;
+    row.click();
+    expect(nav).toHaveBeenCalledWith(['/receivables/customers', 'cu1']);
+    ctrl.verify();
   });
 });
