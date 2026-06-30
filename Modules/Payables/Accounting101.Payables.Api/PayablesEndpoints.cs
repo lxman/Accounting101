@@ -19,6 +19,7 @@ public static class PayablesEndpoints
         clients.MapGet("/bills/{billId:guid}", GetBill);
         clients.MapGet("/bills", ListBills);
         clients.MapPost("/bill-payments", RecordPayment);
+        clients.MapGet("/bill-payments", ListBillPayments);
         clients.MapPost("/bill-payments/{paymentId:guid}/void", VoidPayment);
         clients.MapPost("/vendor-credit-applications", ApplyCredit);
         clients.MapGet("/vendors/{vendorId:guid}/credit-balance", GetCreditBalance);
@@ -129,6 +130,15 @@ public static class PayablesEndpoints
         if (string.Equals(order, "desc", StringComparison.OrdinalIgnoreCase)) { descending = true; return true; }
         if (string.Equals(order, "asc", StringComparison.OrdinalIgnoreCase)) { descending = false; return true; }
         return false;
+    }
+
+    private static async Task<IResult> ListBillPayments(
+        Guid clientId, Guid? vendorId, IBillPaymentStore store, CancellationToken cancellationToken)
+    {
+        if (vendorId is null || vendorId == Guid.Empty)
+            return Results.Problem("vendorId query parameter is required.", statusCode: StatusCodes.Status400BadRequest);
+        IReadOnlyList<BillPayment> payments = await store.GetPaymentsByVendorAsync(clientId, vendorId.Value, cancellationToken);
+        return Results.Ok(payments);
     }
 
     private static async Task<IResult> RecordPayment(
