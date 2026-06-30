@@ -22,6 +22,7 @@ public static class PayablesEndpoints
         clients.MapGet("/bill-payments", ListBillPayments);
         clients.MapPost("/bill-payments/{paymentId:guid}/void", VoidPayment);
         clients.MapPost("/vendor-credit-applications", ApplyCredit);
+        clients.MapGet("/vendor-credit-applications", ListCreditApplications);
         clients.MapGet("/vendors/{vendorId:guid}/credit-balance", GetCreditBalance);
     }
 
@@ -196,6 +197,15 @@ public static class PayablesEndpoints
         {
             return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
         }
+    }
+
+    private static async Task<IResult> ListCreditApplications(
+        Guid clientId, Guid? vendorId, IBillPaymentStore store, CancellationToken cancellationToken)
+    {
+        if (vendorId is null || vendorId == Guid.Empty)
+            return Results.Problem("vendorId query parameter is required.", statusCode: StatusCodes.Status400BadRequest);
+        IReadOnlyList<VendorCreditApplication> apps = await store.GetCreditApplicationsByVendorAsync(clientId, vendorId.Value, cancellationToken);
+        return Results.Ok(apps);
     }
 
     private static async Task<IResult> GetCreditBalance(
