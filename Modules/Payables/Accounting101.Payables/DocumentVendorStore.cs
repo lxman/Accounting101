@@ -27,4 +27,14 @@ public sealed class DocumentVendorStore(IDocumentStore documents) : IVendorStore
             ? null
             : new Vendor { Id = result.Id, Name = result.Body.Name, Email = result.Body.Email };
     }
+
+    public async Task<IReadOnlyList<Vendor>> ListAsync(Guid clientId, CancellationToken ct = default)
+    {
+        IReadOnlyList<DocumentResult<VendorBody>> results = await documents.QueryAsync<VendorBody>(
+            clientId, Collection, new Dictionary<string, string>(), cancellationToken: ct);
+        return results
+            .Select(r => new Vendor { Id = r.Id, Name = r.Body.Name, Email = r.Body.Email })
+            .OrderBy(v => v.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 }

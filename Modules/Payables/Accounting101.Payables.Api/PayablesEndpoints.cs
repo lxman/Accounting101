@@ -12,6 +12,7 @@ public static class PayablesEndpoints
         RouteGroupBuilder clients = app.MapGroup("/clients/{clientId:guid}").RequireAuthorization();
 
         clients.MapPost("/vendors", CreateVendor);
+        clients.MapGet("/vendors", ListVendors);
         clients.MapPost("/bills", DraftBill);
         clients.MapPost("/bills/{billId:guid}/enter", EnterBill);
         clients.MapPost("/bills/{billId:guid}/void", VoidBill);
@@ -30,6 +31,10 @@ public static class PayablesEndpoints
         await store.SaveAsync(clientId, vendor, cancellationToken);
         return Results.Created($"/clients/{clientId}/vendors/{vendor.Id}", vendor);
     }
+
+    private static async Task<IResult> ListVendors(
+        Guid clientId, IVendorStore store, CancellationToken cancellationToken) =>
+        Results.Ok(await store.ListAsync(clientId, cancellationToken));
 
     private static async Task<IResult> DraftBill(
         Guid clientId, DraftBillRequest request, BillService service, CancellationToken cancellationToken)
