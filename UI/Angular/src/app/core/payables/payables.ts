@@ -29,3 +29,32 @@ export interface BillListQuery {
 /** Bill total — sum of line amounts (bills carry no tax). */
 export const billTotal = (lines: readonly Pick<BillLine, 'amount'>[]): number =>
   lines.reduce((s, l) => s + l.amount, 0);
+
+export interface PaymentAllocation { targetId: string; amount: number; }
+
+export interface BillPayment {
+  id: string; vendorId: string; date: string; amount: number;
+  method: string | null; allocations: PaymentAllocation[]; voided: boolean;
+}
+
+export interface RecordBillPaymentRequest {
+  vendorId: string; date: string; amount: number;
+  method: string | null; allocations: PaymentAllocation[];
+}
+
+/** One open bill the user can apply cash to in the payment editor. */
+export interface AllocRow {
+  billId: string; number: string | null; billDate: string; openBalance: number; allocation: number;
+}
+
+/** Distribute `amount` across rows in their given (oldest-first) order, each capped at its open
+ *  balance. Returns new rows; any remainder beyond the rows' open balances is left unallocated
+ *  (→ vendor credit). Mirror of the receivables helper. */
+export function autoAllocate(amount: number, rows: readonly AllocRow[]): AllocRow[] {
+  let remaining = Math.max(0, amount);
+  return rows.map(r => {
+    const take = Math.min(r.openBalance, remaining);
+    remaining = Math.round((remaining - take) * 100) / 100;
+    return { ...r, allocation: Math.round(take * 100) / 100 };
+  });
+}
