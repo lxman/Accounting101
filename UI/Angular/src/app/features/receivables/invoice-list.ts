@@ -63,13 +63,22 @@ import { extractProblem } from '../../core/api/problem-details';
           </hlm-select-content>
         </div>
 
-        <a hlmBtn size="sm" class="ms-auto"
-           routerLink="/receivables/invoices/new"
-           [queryParams]="{ customer: customerId() }"
-           [class.pointer-events-none]="!customerId()"
-           [class.opacity-50]="!customerId()">
-          New invoice
-        </a>
+        <div class="ms-auto flex items-center gap-2">
+          <a hlmBtn size="sm" variant="outline"
+             routerLink="/receivables/payments/new"
+             [queryParams]="{ customer: customerId() }"
+             [class.pointer-events-none]="!customerId()"
+             [class.opacity-50]="!customerId()">
+            Record payment
+          </a>
+          <a hlmBtn size="sm"
+             routerLink="/receivables/invoices/new"
+             [queryParams]="{ customer: customerId() }"
+             [class.pointer-events-none]="!customerId()"
+             [class.opacity-50]="!customerId()">
+            New invoice
+          </a>
+        </div>
       </div>
 
       @if (svc.customers().length === 0) {
