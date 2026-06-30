@@ -50,7 +50,7 @@ public sealed class VendorAccountEndpointE2eTests(PayablesHostFixture fixture) :
         await ApproveBySourceRefAsync(clerk, approver, clientId, entered1.Id);
         BillPayment pay = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/bill-payments",
             new RecordBillPaymentRequest(vendor.Id, new DateOnly(2026, 3, 15), 1200m, "check",
-                [new Allocation(bill1.Id, 1000m)]))).Content.ReadFromJsonAsync<BillPayment>())!;
+                [new Allocation(entered1.Id, 1000m)]))).Content.ReadFromJsonAsync<BillPayment>())!;
         await ApproveBySourceRefAsync(clerk, approver, clientId, pay.Id);
 
         // Bill 2 = $800 due 2026-02-15 (overdue as of asOf), enter+approve, leave unpaid.

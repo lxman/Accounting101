@@ -75,7 +75,8 @@ internal sealed class InMemoryVendorStore : IVendorStore
 
 internal sealed class InMemoryBillStore : IBillStore
 {
-    private readonly ConcurrentDictionary<(Guid, Guid), Bill> _store = new();
+    private readonly ConcurrentDictionary<(Guid, Guid), Bill> _drafts = new();
+    private readonly ConcurrentDictionary<(Guid, Guid), Bill> _entered = new();
     private int _next;
 
     public Task<Bill> CreateDraftAsync(Guid clientId, BillBody body, CancellationToken ct = default)
@@ -83,42 +84,68 @@ internal sealed class InMemoryBillStore : IBillStore
         ArgumentNullException.ThrowIfNull(body);
         Bill draft = new()
         {
-            Id = Guid.NewGuid(),
-            VendorId = body.VendorId,
-            Number = null,
-            BillDate = body.BillDate,
-            DueDate = body.DueDate,
-            VendorReference = body.VendorReference,
-            Memo = body.Memo,
-            Status = BillStatus.Draft,
+            Id = Guid.NewGuid(), VendorId = body.VendorId, Number = null,
+            BillDate = body.BillDate, DueDate = body.DueDate,
+            VendorReference = body.VendorReference, Memo = body.Memo, Status = BillStatus.Draft,
             Lines = body.Lines.Select(l => new BillLine { Description = l.Description, Amount = l.Amount, ExpenseAccountId = l.ExpenseAccountId }).ToList(),
         };
-        _store[(clientId, draft.Id)] = draft;
+        _drafts[(clientId, draft.Id)] = draft;
         return Task.FromResult(draft);
     }
 
-    public Task<Bill> FinalizeAsync(Guid clientId, Guid billId, CancellationToken ct = default)
+    public Task<Bill> UpdateDraftAsync(Guid clientId, Guid billId, BillBody body, CancellationToken ct = default)
     {
-        Bill draft = _store[(clientId, billId)];
-        Bill entered = draft with { Number = $"BILL-{Interlocked.Increment(ref _next):D5}", Status = BillStatus.Entered };
-        _store[(clientId, billId)] = entered;
+        if (!_drafts.ContainsKey((clientId, billId)))
+            throw new InvalidOperationException($"Bill {billId} is not an editable draft.");
+        Bill updated = new()
+        {
+            Id = billId, VendorId = body.VendorId, Number = null,
+            BillDate = body.BillDate, DueDate = body.DueDate,
+            VendorReference = body.VendorReference, Memo = body.Memo, Status = BillStatus.Draft,
+            Lines = body.Lines.Select(l => new BillLine { Description = l.Description, Amount = l.Amount, ExpenseAccountId = l.ExpenseAccountId }).ToList(),
+        };
+        _drafts[(clientId, billId)] = updated;
+        return Task.FromResult(updated);
+    }
+
+    public Task DiscardDraftAsync(Guid clientId, Guid billId, CancellationToken ct = default)
+    {
+        if (!_drafts.TryRemove((clientId, billId), out _))
+            throw new InvalidOperationException($"Bill {billId} is not a discardable draft.");
+        return Task.CompletedTask;
+    }
+
+    public Task<Bill> PromoteDraftAsync(Guid clientId, Guid billId, CancellationToken ct = default)
+    {
+        if (!_drafts.TryRemove((clientId, billId), out Bill? draft))
+            throw new InvalidOperationException($"Bill {billId} is not a draft awaiting enter.");
+        Guid enteredId = Guid.NewGuid();
+        Bill entered = draft with { Id = enteredId, Number = $"BILL-{Interlocked.Increment(ref _next):D5}", Status = BillStatus.Entered };
+        _entered[(clientId, enteredId)] = entered;
         return Task.FromResult(entered);
     }
 
     public Task VoidAsync(Guid clientId, Guid billId, CancellationToken ct = default)
     {
-        _store[(clientId, billId)] = _store[(clientId, billId)] with { Status = BillStatus.Void };
+        if (_entered.TryGetValue((clientId, billId), out Bill? b))
+            _entered[(clientId, billId)] = b with { Status = BillStatus.Void };
         return Task.CompletedTask;
     }
 
-    public Task<Bill?> GetAsync(Guid clientId, Guid billId, CancellationToken ct = default) =>
-        Task.FromResult(_store.GetValueOrDefault((clientId, billId)));
+    public Task<Bill?> GetAsync(Guid clientId, Guid billId, CancellationToken ct = default)
+    {
+        if (_drafts.TryGetValue((clientId, billId), out Bill? draft))
+            return Task.FromResult<Bill?>(draft);
+        return Task.FromResult(_entered.GetValueOrDefault((clientId, billId)));
+    }
 
-    /// <summary>Returns ALL bills including voided — the service filters voided itself.</summary>
-    public Task<IReadOnlyList<Bill>> GetByVendorAsync(Guid clientId, Guid vendorId, CancellationToken ct = default) =>
-        Task.FromResult<IReadOnlyList<Bill>>(
-            _store.Where(kv => kv.Key.Item1 == clientId && kv.Value.VendorId == vendorId)
-                .Select(kv => kv.Value).ToList());
+    /// <summary>Returns ALL bills (drafts + entered, including voided) — the service filters itself.</summary>
+    public Task<IReadOnlyList<Bill>> GetByVendorAsync(Guid clientId, Guid vendorId, CancellationToken ct = default)
+    {
+        IEnumerable<Bill> drafts = _drafts.Where(kv => kv.Key.Item1 == clientId && kv.Value.VendorId == vendorId).Select(kv => kv.Value);
+        IEnumerable<Bill> entered = _entered.Where(kv => kv.Key.Item1 == clientId && kv.Value.VendorId == vendorId).Select(kv => kv.Value);
+        return Task.FromResult<IReadOnlyList<Bill>>(drafts.Concat(entered).ToList());
+    }
 }
 
 internal sealed class InMemoryBillPaymentStore : IBillPaymentStore

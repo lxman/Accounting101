@@ -39,6 +39,7 @@ public sealed class PayablesDocumentStoreFixture : IAsyncLifetime
 
         ModuleManifest manifest = new ModuleManifestBuilder()
             .Reference("vendors")
+            .Plain("bill-drafts")
             .Evidentiary("bills", "Vendor")
             .Evidentiary("bill-payments", "Vendor")
             .Evidentiary("vendor-credit-applications", "Vendor")

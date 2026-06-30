@@ -20,7 +20,7 @@ public sealed class BillPaymentServiceTests
         Bill draft = await billStore.CreateDraftAsync(clientId, new BillBody(
             vendorId, new DateOnly(2026, 3, 1), null, null, null,
             [new BillLineBody("Rent", total, Guid.NewGuid())]));
-        Bill entered = await billStore.FinalizeAsync(clientId, draft.Id);
+        Bill entered = await billStore.PromoteDraftAsync(clientId, draft.Id);
 
         FakeLedgerClient ledger = new();
         InMemoryBillPaymentStore paymentStore = new();
@@ -95,7 +95,7 @@ public sealed class BillPaymentServiceTests
         await h.Payments.RecordPaymentAsync(clientId, new BillPaymentBody(vendorId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(first.Id, 100m)]));
         // A second entered bill to apply credit against.
         Bill draft2 = await h.BillStore.CreateDraftAsync(clientId, new BillBody(vendorId, new DateOnly(2026, 4, 1), null, null, null, [new BillLineBody("More", 100m, Guid.NewGuid())]));
-        Bill second = await h.BillStore.FinalizeAsync(clientId, draft2.Id);
+        Bill second = await h.BillStore.PromoteDraftAsync(clientId, draft2.Id);
 
         VendorCreditApplication applied = await h.Payments.RecordCreditApplicationAsync(clientId,
             new VendorCreditApplicationBody(vendorId, new DateOnly(2026, 4, 2), [new Allocation(second.Id, 50m)]));
@@ -136,7 +136,7 @@ public sealed class BillPaymentServiceTests
         await h.Payments.RecordPaymentAsync(clientId, new BillPaymentBody(vendorId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(first.Id, 100m)]));
         // A second, unpaid bill -> Open.
         Bill d2 = await h.BillStore.CreateDraftAsync(clientId, new BillBody(vendorId, new DateOnly(2026, 4, 1), null, null, null, [new BillLineBody("More", 100m, Guid.NewGuid())]));
-        Bill second = await h.BillStore.FinalizeAsync(clientId, d2.Id);
+        Bill second = await h.BillStore.PromoteDraftAsync(clientId, d2.Id);
 
         IReadOnlyList<BillView> open = await h.Payments.ListBillViewsAsync(clientId, vendorId, SettlementFilter.Open);
         IReadOnlyList<BillView> paid = await h.Payments.ListBillViewsAsync(clientId, vendorId, SettlementFilter.Paid);
@@ -248,7 +248,7 @@ public sealed class BillPaymentServiceTests
     {
         Bill draft = await h.BillStore.CreateDraftAsync(clientId, new BillBody(
             vendorId, new DateOnly(2026, 3, 1), null, null, null, [new BillLineBody("Rent", total, Guid.NewGuid())]));
-        return await h.BillStore.FinalizeAsync(clientId, draft.Id);
+        return await h.BillStore.PromoteDraftAsync(clientId, draft.Id);
     }
 
     [Fact]

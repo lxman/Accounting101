@@ -31,10 +31,38 @@ public sealed class BillServiceTests
             [new BillLineBody("Rent", 6000m, Guid.NewGuid())]));
         Bill entered = await h.Bills.EnterAsync(clientId, draft.Id);
 
+        Assert.NotEqual(draft.Id, entered.Id);
         Assert.Equal(BillStatus.Entered, entered.Status);
+        Assert.StartsWith("BILL-", entered.Number);
         PostEntryRequest entry = Assert.Single(h.Ledger.Posted);
         Assert.Equal("Bill", entry.SourceType);
-        Assert.Equal(draft.Id, entry.SourceRef);
+        Assert.Equal(entered.Id, entry.SourceRef);
+    }
+
+    [Fact]
+    public async Task Edit_draft_replaces_body_and_keeps_it_a_draft()
+    {
+        (Harness h, Guid clientId, Guid vendorId) = await SetupAsync();
+        Bill draft = await h.Bills.DraftAsync(clientId, new BillBody(vendorId, new DateOnly(2026, 3, 1), null, null, null,
+            [new BillLineBody("Rent", 6000m, Guid.NewGuid())]));
+
+        Bill updated = await h.Bills.EditDraftAsync(clientId, draft.Id, new BillBody(vendorId, new DateOnly(2026, 3, 1), null, null, "edited",
+            [new BillLineBody("Rent", 6000m, Guid.NewGuid())]));
+
+        Assert.Equal(BillStatus.Draft, updated.Status);
+        Assert.Equal("edited", (await h.BillStore.GetAsync(clientId, draft.Id))!.Memo);
+    }
+
+    [Fact]
+    public async Task Discard_draft_removes_it()
+    {
+        (Harness h, Guid clientId, Guid vendorId) = await SetupAsync();
+        Bill draft = await h.Bills.DraftAsync(clientId, new BillBody(vendorId, new DateOnly(2026, 3, 1), null, null, null,
+            [new BillLineBody("Rent", 6000m, Guid.NewGuid())]));
+
+        await h.Bills.DiscardDraftAsync(clientId, draft.Id);
+
+        Assert.Null(await h.BillStore.GetAsync(clientId, draft.Id));
     }
 
     [Fact]

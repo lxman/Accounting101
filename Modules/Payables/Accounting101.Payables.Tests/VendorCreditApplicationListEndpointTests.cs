@@ -52,7 +52,7 @@ public sealed class VendorCreditApplicationListEndpointTests(PayablesHostFixture
         await ApproveBySourceRefAsync(clerk, approver, clientId, entered1.Id);
         BillPayment pay = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/bill-payments",
             new RecordBillPaymentRequest(vendor.Id, new DateOnly(2026, 3, 2), 150m, "check",
-                [new Allocation(bill1.Id, 100m)]))).Content.ReadFromJsonAsync<BillPayment>())!;
+                [new Allocation(entered1.Id, 100m)]))).Content.ReadFromJsonAsync<BillPayment>())!;
         await ApproveBySourceRefAsync(clerk, approver, clientId, pay.Id);
 
         // Bill 2 ($40), enter+approve, then apply $40 of the vendor credit to it.
@@ -63,7 +63,7 @@ public sealed class VendorCreditApplicationListEndpointTests(PayablesHostFixture
             .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Bill>())!;
         await ApproveBySourceRefAsync(clerk, approver, clientId, entered2.Id);
         (await clerk.PostAsJsonAsync($"/clients/{clientId}/vendor-credit-applications",
-            new VendorCreditApplicationRequest(vendor.Id, new DateOnly(2026, 4, 2), [new Allocation(bill2.Id, 40m)])))
+            new VendorCreditApplicationRequest(vendor.Id, new DateOnly(2026, 4, 2), [new Allocation(entered2.Id, 40m)])))
             .EnsureSuccessStatusCode();
 
         VendorCreditApplication[] apps = (await clerk.GetFromJsonAsync<VendorCreditApplication[]>(

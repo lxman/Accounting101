@@ -1,11 +1,14 @@
 namespace Accounting101.Payables;
 
-/// <summary>The module's bill store — evidentiary documents backed by the engine's document store.
-/// Draft/finalize/void lifecycle mirrors the invoicing module with vendor-scoped tags.</summary>
+/// <summary>The module's bill store. Drafts live in a plain collection (editable, discardable scratch);
+/// entered bills live in an evidentiary collection (append-only). Enter promotes a draft to a NEW evidentiary
+/// document with a new id and deletes the draft — mirrors the invoicing module's two-tier split.</summary>
 public interface IBillStore
 {
     Task<Bill> CreateDraftAsync(Guid clientId, BillBody body, CancellationToken ct = default);
-    Task<Bill> FinalizeAsync(Guid clientId, Guid billId, CancellationToken ct = default);
+    Task<Bill> UpdateDraftAsync(Guid clientId, Guid billId, BillBody body, CancellationToken ct = default);
+    Task DiscardDraftAsync(Guid clientId, Guid billId, CancellationToken ct = default);
+    Task<Bill> PromoteDraftAsync(Guid clientId, Guid billId, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid billId, CancellationToken ct = default);
     Task<Bill?> GetAsync(Guid clientId, Guid billId, CancellationToken ct = default);
     Task<IReadOnlyList<Bill>> GetByVendorAsync(Guid clientId, Guid vendorId, CancellationToken ct = default);

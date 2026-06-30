@@ -14,6 +14,7 @@ public static class PayablesServiceExtensions
         services.AddModule(new ModuleIdentity("payables"), "Payables", manifest =>
         {
             manifest.Reference("vendors");
+            manifest.Plain("bill-drafts");                 // drafts are scratch — editable, discardable
             manifest.Evidentiary("bills", "Vendor");
             manifest.Evidentiary("bill-payments", "Vendor");
             manifest.Evidentiary("vendor-credit-applications", "Vendor");

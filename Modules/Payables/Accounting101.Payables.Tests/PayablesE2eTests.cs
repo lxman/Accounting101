@@ -78,7 +78,7 @@ public sealed class PayablesE2eTests(PayablesHostFixture fixture) : IClassFixtur
             Date: new DateOnly(2026, 3, 31),
             Amount: 7000m,
             Method: "check",
-            Allocations: [new Allocation(bill1.Id, 6800m)]);
+            Allocations: [new Allocation(entered1.Id, 6800m)]);
 
         BillPayment payment = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/bill-payments", paymentRequest))
             .Content.ReadFromJsonAsync<BillPayment>())!;
@@ -87,7 +87,7 @@ public sealed class PayablesE2eTests(PayablesHostFixture fixture) : IClassFixtur
         await ApproveBySourceRefAsync(clerk, approver, clientId, payment.Id);
 
         // Assert bill1 is fully paid with zero open balance.
-        BillView v1 = (await clerk.GetFromJsonAsync<BillView>($"/clients/{clientId}/bills/{bill1.Id}"))!;
+        BillView v1 = (await clerk.GetFromJsonAsync<BillView>($"/clients/{clientId}/bills/{entered1.Id}"))!;
         Assert.Equal(SettlementStatus.Paid, v1.SettlementStatus);
         Assert.Equal(0m, v1.OpenBalance);
 
@@ -116,14 +116,14 @@ public sealed class PayablesE2eTests(PayablesHostFixture fixture) : IClassFixtur
         VendorCreditApplicationRequest creditAppRequest = new(
             vendor.Id,
             Date: new DateOnly(2026, 4, 15),
-            Allocations: [new Allocation(bill2.Id, 200m)]);
+            Allocations: [new Allocation(entered2.Id, 200m)]);
         VendorCreditApplication creditApp = (await (await clerk.PostAsJsonAsync(
                 $"/clients/{clientId}/vendor-credit-applications", creditAppRequest))
             .Content.ReadFromJsonAsync<VendorCreditApplication>())!;
         await ApproveBySourceRefAsync(clerk, approver, clientId, creditApp.Id);
 
         // Assert bill2's open balance dropped by $200 ($1000 - $200 = $800).
-        BillView v2 = (await clerk.GetFromJsonAsync<BillView>($"/clients/{clientId}/bills/{bill2.Id}"))!;
+        BillView v2 = (await clerk.GetFromJsonAsync<BillView>($"/clients/{clientId}/bills/{entered2.Id}"))!;
         Assert.Equal(800m, v2.OpenBalance);
 
         // Assert BOTH subledger reconciliations tie out.
