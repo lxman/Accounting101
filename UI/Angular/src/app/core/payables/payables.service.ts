@@ -1,11 +1,11 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { EMPTY, Observable, tap } from 'rxjs';
+import { EMPTY, Observable, map, tap } from 'rxjs';
 import { environment } from '../api/environment';
 import { ClientContextService } from '../client/client-context.service';
 import { PagedResponse } from '../api/paged-response';
 import { extractProblem } from '../api/problem-details';
-import { Vendor, Bill, BillView, DraftBillRequest, BillListQuery } from './payables';
+import { Vendor, Bill, BillView, DraftBillRequest, BillListQuery, BillPayment, RecordBillPaymentRequest } from './payables';
 
 @Injectable({ providedIn: 'root' })
 export class PayablesService {
@@ -86,5 +86,26 @@ export class PayablesService {
   void(id: string, reason?: string | null): Observable<Bill> {
     const clientId = this.client.clientId(); if (!clientId) return EMPTY;
     return this.http.post<Bill>(this.base(`/bills/${id}/void`), { reason: reason ?? null });
+  }
+
+  listBillPayments(vendorId: string): Observable<BillPayment[]> {
+    const id = this.client.clientId(); if (!id) return EMPTY;
+    return this.http.get<BillPayment[]>(this.base('/bill-payments'), { params: new HttpParams().set('vendorId', vendorId) });
+  }
+
+  recordBillPayment(req: RecordBillPaymentRequest): Observable<BillPayment> {
+    const id = this.client.clientId(); if (!id) return EMPTY;
+    return this.http.post<BillPayment>(this.base('/bill-payments'), req);
+  }
+
+  voidBillPayment(id: string, reason?: string | null): Observable<BillPayment> {
+    const clientId = this.client.clientId(); if (!clientId) return EMPTY;
+    return this.http.post<BillPayment>(this.base(`/bill-payments/${id}/void`), { reason: reason ?? null });
+  }
+
+  vendorCreditBalance(vendorId: string): Observable<number> {
+    const id = this.client.clientId(); if (!id) return EMPTY;
+    return this.http.get<{ creditBalance: number }>(this.base(`/vendors/${vendorId}/credit-balance`))
+      .pipe(map(r => r.creditBalance));
   }
 }

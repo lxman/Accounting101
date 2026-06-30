@@ -68,4 +68,31 @@ describe('PayablesService', () => {
         lines: [{ description: 'Rent', amount: 100, expenseAccountId: 'a1' }] }, openBalance: 100, settlementStatus: 'Open' });
     ctrl.verify();
   });
+
+  it('lists, records, and voids bill payments; reads vendor credit balance', () => {
+    const { svc, ctrl } = setup();
+
+    svc.listBillPayments('v1').subscribe();
+    const list = ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/bill-payments');
+    expect(list.request.params.get('vendorId')).toBe('v1');
+    list.flush([]);
+
+    svc.recordBillPayment({ vendorId: 'v1', date: '2026-06-30', amount: 100, method: 'check',
+      allocations: [{ targetId: 'b1', amount: 80 }] }).subscribe();
+    const post = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/bill-payments');
+    expect(post.request.body).toEqual({ vendorId: 'v1', date: '2026-06-30', amount: 100, method: 'check',
+      allocations: [{ targetId: 'b1', amount: 80 }] });
+    post.flush({ id: 'p1', vendorId: 'v1', date: '2026-06-30', amount: 100, method: 'check',
+      allocations: [{ targetId: 'b1', amount: 80 }], voided: false });
+
+    svc.voidBillPayment('p1', 'oops').subscribe();
+    const v = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/bill-payments/p1/void');
+    expect(v.request.body).toEqual({ reason: 'oops' });
+    v.flush({});
+
+    svc.vendorCreditBalance('v1').subscribe(bal => expect(bal).toBe(25));
+    ctrl.expectOne('http://localhost:5000/clients/C1/vendors/v1/credit-balance').flush({ vendorId: 'v1', creditBalance: 25 });
+
+    ctrl.verify();
+  });
 });
