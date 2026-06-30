@@ -16,6 +16,8 @@ import { InvoiceList } from './features/receivables/invoice-list';
 import { InvoiceEditor } from './features/receivables/invoice-editor';
 import { InvoiceDetail } from './features/receivables/invoice-detail';
 import { PaymentEditor } from './features/receivables/payment-editor';
+import { ReceivablesShell } from './features/receivables/receivables-shell';
+import { PaymentList } from './features/receivables/payment-list';
 import { NAV } from './layout/nav';
 
 export const routes: Routes = [
@@ -45,13 +47,15 @@ export const routes: Routes = [
     { path: 'new', component: AccountEditor },
     { path: ':id/edit', component: AccountEditor },
   ] },
-  { path: 'receivables', children: [
-    { path: '', pathMatch: 'full', component: InvoiceList },
-    { path: 'customers', component: CustomerList },
+  { path: 'receivables', component: ReceivablesShell, children: [
+    { path: '', pathMatch: 'full', redirectTo: 'invoices' },
+    { path: 'invoices', component: InvoiceList },
     { path: 'invoices/new', component: InvoiceEditor },
-    { path: 'payments/new', component: PaymentEditor },
     { path: 'invoices/:id/edit', component: InvoiceEditor },
     { path: 'invoices/:id', component: InvoiceDetail },
+    { path: 'payments', component: PaymentList },
+    { path: 'payments/new', component: PaymentEditor },
+    { path: 'customers', component: CustomerList },
   ] },
   // remaining nav targets → placeholder
   ...NAV.filter(n => ![ '/dashboard', '/trial-balance', '/statements', '/accounts', '/receivables' ].includes(n.path) && !n.path.startsWith('/journal')).map(n => ({ path: n.path.slice(1), component: Placeholder })),
