@@ -89,6 +89,37 @@ public sealed class GetCreditsEndpointTests(ReceivablesHostFixture fixture) : IC
     }
 
     [Fact]
+    public async Task GET_credits_includes_voided_dispositions()
+    {
+        // Regression test: voided credit-notes must appear in GET /credits with Voided==true.
+        // Before the fix, QueryAsync excluded voided docs by default and they vanished.
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId);
+        Customer customer = (await (await clerk.PostAsJsonAsync(
+            $"/clients/{clientId}/customers", new CreateCustomerRequest("Wayne", null)))
+            .Content.ReadFromJsonAsync<Customer>())!;
+
+        Guid inv = await IssueInvoiceAsync(clerk, clientId, customer.Id, 100m);
+
+        // Record a credit-note as clerk.
+        CreditNote cn = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/credit-notes",
+            new CreditNoteRequest(customer.Id, new DateOnly(2026, 3, 10), [new Allocation(inv, 100m)], "issued in error")))
+            .Content.ReadFromJsonAsync<CreditNote>())!;
+
+        // Void requires Approver — Clerk has only Read permission under SoD.
+        (await approver.PostAsync($"/clients/{clientId}/credit-notes/{cn.Id}/void", null)).EnsureSuccessStatusCode();
+
+        CreditDocument[] list = (await clerk.GetFromJsonAsync<CreditDocument[]>(
+            $"/clients/{clientId}/credits?customerId={customer.Id}"))!;
+
+        // The voided credit-note must be present (not silently dropped).
+        CreditDocument? voided = list.FirstOrDefault(d => d.Id == cn.Id);
+        Assert.NotNull(voided);
+        Assert.Equal("credit-note", voided.Type);
+        Assert.True(voided.Voided);
+    }
+
+    [Fact]
     public async Task GET_credits_without_customerId_is_400()
     {
         (Guid clientId, _, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
