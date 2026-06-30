@@ -21,6 +21,7 @@ import { PaymentList } from './features/receivables/payment-list';
 import { CreditList } from './features/receivables/credit-list';
 import { AdjustmentEditor } from './features/receivables/adjustment-editor';
 import { RefundList } from './features/receivables/refund-list';
+import { RefundEditor } from './features/receivables/refund-editor';
 import { NAV } from './layout/nav';
 
 export const routes: Routes = [
@@ -62,6 +63,7 @@ export const routes: Routes = [
     { path: 'credits', component: CreditList },
     { path: 'credits/new', component: AdjustmentEditor },
     { path: 'refunds', component: RefundList },
+    { path: 'refunds/new', component: RefundEditor },
   ] },
   // remaining nav targets → placeholder
   ...NAV.filter(n => ![ '/dashboard', '/trial-balance', '/statements', '/accounts', '/receivables' ].includes(n.path) && !n.path.startsWith('/journal')).map(n => ({ path: n.path.slice(1), component: Placeholder })),
