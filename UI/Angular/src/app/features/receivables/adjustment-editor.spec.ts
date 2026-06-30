@@ -4,7 +4,6 @@ import { provideRouter, Router } from '@angular/router';
 import { ActivatedRoute } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { of } from 'rxjs';
 import { AdjustmentEditor } from './adjustment-editor';
 import { ClientContextService } from '../../core/client/client-context.service';
 
