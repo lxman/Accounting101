@@ -33,5 +33,6 @@ public sealed record Refund
     public required Guid CustomerId { get; init; }
     public required DateOnly Date { get; init; }
     public required decimal Amount { get; init; }
+    public string? Memo { get; init; }
     public bool Voided { get; init; }
 }

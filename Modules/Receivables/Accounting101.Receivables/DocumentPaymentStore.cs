@@ -119,7 +119,7 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
 
     public async Task<IReadOnlyList<Refund>> GetRefundsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default)
     {
-        IReadOnlyList<DocumentResult<RefundBody>> rs = await documents.QueryAsync<RefundBody>(clientId, Refunds, Tags(customerId), cancellationToken: ct);
+        IReadOnlyList<DocumentResult<RefundBody>> rs = await documents.QueryAsync<RefundBody>(clientId, Refunds, Tags(customerId), includeVoided: true, cancellationToken: ct);
         return rs.Select(MapRefund).ToList();
     }
 
@@ -158,6 +158,6 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
     private static Refund MapRefund(DocumentResult<RefundBody> r) => new()
     {
         Id = r.Id, CustomerId = r.Body.CustomerId, Date = r.Body.Date,
-        Amount = r.Body.Amount, Voided = IsVoided(r.State),
+        Amount = r.Body.Amount, Memo = r.Body.Memo, Voided = IsVoided(r.State),
     };
 }

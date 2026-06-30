@@ -94,6 +94,15 @@ public sealed class PaymentService(
     public Task<IReadOnlyList<Payment>> GetPaymentsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default) =>
         payments.GetPaymentsByCustomerAsync(clientId, customerId, ct);
 
+    /// <summary>The customer's refunds (cash returned against credit), date-descending. Read-only; powers the
+    /// Refunds list. Includes voided refunds (greyed in the UI).</summary>
+    public async Task<IReadOnlyList<Refund>> GetRefundsByCustomerAsync(
+        Guid clientId, Guid customerId, CancellationToken ct = default)
+    {
+        IReadOnlyList<Refund> refunds = await payments.GetRefundsByCustomerAsync(clientId, customerId, ct);
+        return refunds.OrderByDescending(r => r.Date).ToList();
+    }
+
     /// <summary>The customer's allocation-based dispositions — credit notes, write-offs, and credit
     /// applications — as one date-descending list. Read-only; powers the Credits list. Memo comes from the
     /// stored note/write-off; credit applications carry none.</summary>
