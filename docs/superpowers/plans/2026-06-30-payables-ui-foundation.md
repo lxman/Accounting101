@@ -213,7 +213,7 @@ describe('billTotal', () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `cd UI/Angular && npx vitest run src/app/core/payables/payables.spec.ts`
+Run: `cd UI/Angular && npx ng test --include="src/app/core/payables/payables.spec.ts" --watch=false`
 Expected: FAIL — cannot resolve `./payables`.
 
 - [ ] **Step 3: Create the models file**
@@ -256,7 +256,7 @@ export const billTotal = (lines: readonly Pick<BillLine, 'amount'>[]): number =>
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `cd UI/Angular && npx vitest run src/app/core/payables/payables.spec.ts`
+Run: `cd UI/Angular && npx ng test --include="src/app/core/payables/payables.spec.ts" --watch=false`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -352,7 +352,7 @@ describe('PayablesService', () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `cd UI/Angular && npx vitest run src/app/core/payables/payables.service.spec.ts`
+Run: `cd UI/Angular && npx ng test --include="src/app/core/payables/payables.service.spec.ts" --watch=false`
 Expected: FAIL — cannot resolve `./payables.service`.
 
 - [ ] **Step 3: Create the service**
@@ -451,7 +451,7 @@ export class PayablesService {
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `cd UI/Angular && npx vitest run src/app/core/payables/payables.service.spec.ts`
+Run: `cd UI/Angular && npx ng test --include="src/app/core/payables/payables.service.spec.ts" --watch=false`
 Expected: PASS (4 tests).
 
 - [ ] **Step 5: Commit**
@@ -508,7 +508,7 @@ describe('VendorSelect', () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `cd UI/Angular && npx vitest run src/app/shared/vendor-select.spec.ts`
+Run: `cd UI/Angular && npx ng test --include="src/app/shared/vendor-select.spec.ts" --watch=false`
 Expected: FAIL — cannot resolve `./vendor-select`.
 
 - [ ] **Step 3: Create the component**
@@ -548,7 +548,7 @@ export class VendorSelect {
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `cd UI/Angular && npx vitest run src/app/shared/vendor-select.spec.ts`
+Run: `cd UI/Angular && npx ng test --include="src/app/shared/vendor-select.spec.ts" --watch=false`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -636,7 +636,7 @@ describe('VendorList', () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `cd UI/Angular && npx vitest run src/app/features/payables/vendor-list.spec.ts`
+Run: `cd UI/Angular && npx ng test --include="src/app/features/payables/vendor-list.spec.ts" --watch=false`
 Expected: FAIL — cannot resolve `./vendor-list`.
 
 - [ ] **Step 3: Create the component**
@@ -707,7 +707,7 @@ export class VendorList {
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `cd UI/Angular && npx vitest run src/app/features/payables/vendor-list.spec.ts`
+Run: `cd UI/Angular && npx ng test --include="src/app/features/payables/vendor-list.spec.ts" --watch=false`
 Expected: PASS (2 tests).
 
 - [ ] **Step 5: Commit**
@@ -810,7 +810,7 @@ describe('BillList', () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `cd UI/Angular && npx vitest run src/app/features/payables/bill-list.spec.ts`
+Run: `cd UI/Angular && npx ng test --include="src/app/features/payables/bill-list.spec.ts" --watch=false`
 Expected: FAIL — cannot resolve `./bill-list`.
 
 - [ ] **Step 3: Create the component**
@@ -962,7 +962,7 @@ export class BillList {
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `cd UI/Angular && npx vitest run src/app/features/payables/bill-list.spec.ts`
+Run: `cd UI/Angular && npx ng test --include="src/app/features/payables/bill-list.spec.ts" --watch=false`
 Expected: PASS (3 tests).
 
 - [ ] **Step 5: Commit**
@@ -1061,7 +1061,7 @@ describe('BillEditor', () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `cd UI/Angular && npx vitest run src/app/features/payables/bill-editor.spec.ts`
+Run: `cd UI/Angular && npx ng test --include="src/app/features/payables/bill-editor.spec.ts" --watch=false`
 Expected: FAIL — cannot resolve `./bill-editor`.
 
 - [ ] **Step 3: Create the component**
@@ -1244,7 +1244,7 @@ export class BillEditor {
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `cd UI/Angular && npx vitest run src/app/features/payables/bill-editor.spec.ts`
+Run: `cd UI/Angular && npx ng test --include="src/app/features/payables/bill-editor.spec.ts" --watch=false`
 Expected: PASS (2 tests).
 
 - [ ] **Step 5: Commit**
@@ -1346,7 +1346,7 @@ describe('BillDetail', () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `cd UI/Angular && npx vitest run src/app/features/payables/bill-detail.spec.ts`
+Run: `cd UI/Angular && npx ng test --include="src/app/features/payables/bill-detail.spec.ts" --watch=false`
 Expected: FAIL — cannot resolve `./bill-detail`.
 
 - [ ] **Step 3: Create the component**
@@ -1489,7 +1489,7 @@ export class BillDetail {
 
 - [ ] **Step 4: Run it to verify it passes**
 
-Run: `cd UI/Angular && npx vitest run src/app/features/payables/bill-detail.spec.ts`
+Run: `cd UI/Angular && npx ng test --include="src/app/features/payables/bill-detail.spec.ts" --watch=false`
 Expected: PASS (2 tests).
 
 - [ ] **Step 5: Commit**
@@ -1540,7 +1540,7 @@ describe('PayablesShell', () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `cd UI/Angular && npx vitest run src/app/features/payables/payables-shell.spec.ts`
+Run: `cd UI/Angular && npx ng test --include="src/app/features/payables/payables-shell.spec.ts" --watch=false`
 Expected: FAIL — cannot resolve `./payables-shell`.
 
 - [ ] **Step 3: Create the shell**
@@ -1578,7 +1578,7 @@ export class PayablesShell {}
 
 - [ ] **Step 4: Run the shell test to verify it passes**
 
-Run: `cd UI/Angular && npx vitest run src/app/features/payables/payables-shell.spec.ts`
+Run: `cd UI/Angular && npx ng test --include="src/app/features/payables/payables-shell.spec.ts" --watch=false`
 Expected: PASS.
 
 - [ ] **Step 5: Wire the routes**
@@ -1613,7 +1613,7 @@ Exclude `/payables` from the placeholder filter — change the `.includes([...])
 
 - [ ] **Step 6: Verify the app compiles + full UI suite is green**
 
-Run: `cd UI/Angular && npx tsc -p tsconfig.app.json --noEmit && npx vitest run`
+Run: `cd UI/Angular && npx tsc -p tsconfig.app.json --noEmit && npx ng test --watch=false`
 Expected: type-check clean; ALL specs pass (existing + new payables specs).
 
 - [ ] **Step 7: Commit**
