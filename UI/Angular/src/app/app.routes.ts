@@ -22,6 +22,7 @@ import { CreditList } from './features/receivables/credit-list';
 import { AdjustmentEditor } from './features/receivables/adjustment-editor';
 import { RefundList } from './features/receivables/refund-list';
 import { RefundEditor } from './features/receivables/refund-editor';
+import { CustomerAccount } from './features/receivables/customer-account';
 import { NAV } from './layout/nav';
 
 export const routes: Routes = [
@@ -60,6 +61,7 @@ export const routes: Routes = [
     { path: 'payments', component: PaymentList },
     { path: 'payments/new', component: PaymentEditor },
     { path: 'customers', component: CustomerList },
+    { path: 'customers/:id', component: CustomerAccount },
     { path: 'credits', component: CreditList },
     { path: 'credits/new', component: AdjustmentEditor },
     { path: 'refunds', component: RefundList },
