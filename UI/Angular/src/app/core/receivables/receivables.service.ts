@@ -122,9 +122,9 @@ export class ReceivablesService {
     const id = this.client.clientId(); if (!id) return EMPTY;
     return this.http.post(this.base('/credit-applications'), req);
   }
-  voidCredit(type: CreditType, id: string, reason?: string | null): Observable<unknown> {
+  voidCredit(type: 'credit-note' | 'write-off', id: string, reason?: string | null): Observable<unknown> {
     const clientId = this.client.clientId(); if (!clientId) return EMPTY;
-    const segment = type === 'write-off' ? 'write-offs' : 'credit-notes';   // credit-application: never called (no endpoint)
+    const segment = type === 'write-off' ? 'write-offs' : 'credit-notes';   // credit-application excluded: no void endpoint
     return this.http.post(this.base(`/${segment}/${id}/void`), { reason: reason ?? null });
   }
 }
