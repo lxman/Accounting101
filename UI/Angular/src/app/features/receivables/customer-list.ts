@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { ReceivablesService } from '../../core/receivables/receivables.service';
@@ -9,13 +8,10 @@ import { extractProblem } from '../../core/api/problem-details';
 @Component({
   selector: 'app-customer-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ...HlmInputImports, HlmButton],
+  imports: [...HlmInputImports, HlmButton],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-2xl">
-      <div class="flex items-center gap-3">
-        <h1 class="text-2xl font-bold">Customers</h1>
-        <a routerLink="/receivables" class="ms-auto text-sm underline">Invoices →</a>
-      </div>
+      <h1 class="text-2xl font-bold">Customers</h1>
       <div class="flex items-end gap-2">
         <div class="flex flex-col gap-1 flex-1"><label class="text-xs text-muted-foreground">Name</label>
           <input hlmInput [value]="newName()" (input)="newName.set($any($event.target).value)" /></div>
