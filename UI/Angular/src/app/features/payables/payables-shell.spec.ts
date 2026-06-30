@@ -4,7 +4,7 @@ import { provideRouter } from '@angular/router';
 import { PayablesShell } from './payables-shell';
 
 describe('PayablesShell', () => {
-  it('renders Bills, Payments and Vendors tabs', () => {
+  it('renders Bills, Payments, Vendors and Credits tabs', () => {
     TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection(), provideRouter([])] });
     const f = TestBed.createComponent(PayablesShell);
     f.detectChanges();
@@ -12,5 +12,6 @@ describe('PayablesShell', () => {
     expect(tabs).toContain('Bills');
     expect(tabs).toContain('Payments');
     expect(tabs).toContain('Vendors');
+    expect(tabs).toContain('Credits');
   });
 });

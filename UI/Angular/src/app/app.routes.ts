@@ -30,6 +30,8 @@ import { BillEditor } from './features/payables/bill-editor';
 import { BillDetail } from './features/payables/bill-detail';
 import { BillPaymentList } from './features/payables/bill-payment-list';
 import { BillPaymentEditor } from './features/payables/bill-payment-editor';
+import { VendorCreditList } from './features/payables/vendor-credit-list';
+import { VendorCreditApplyEditor } from './features/payables/vendor-credit-apply-editor';
 import { NAV } from './layout/nav';
 
 export const routes: Routes = [
@@ -82,6 +84,8 @@ export const routes: Routes = [
     { path: 'payments', component: BillPaymentList },
     { path: 'payments/new', component: BillPaymentEditor },
     { path: 'vendors', component: VendorList },
+    { path: 'credits', component: VendorCreditList },
+    { path: 'credits/new', component: VendorCreditApplyEditor },
   ] },
   // remaining nav targets → placeholder
   ...NAV.filter(n => ![ '/dashboard', '/trial-balance', '/statements', '/accounts', '/receivables', '/payables' ].includes(n.path) && !n.path.startsWith('/journal')).map(n => ({ path: n.path.slice(1), component: Placeholder })),
