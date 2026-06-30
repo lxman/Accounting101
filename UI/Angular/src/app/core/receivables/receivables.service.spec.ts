@@ -261,4 +261,19 @@ describe('ReceivablesService', () => {
     expect(req.request.body).toEqual({ reason: 'oops' });
     req.flush({});
   });
+
+  it('getCustomerAccount GETs /customers/{id}/account', () => {
+    const svc = TestBed.inject(ReceivablesService); const ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    let result: { arBalance: number } | undefined;
+    svc.getCustomerAccount('cu1').subscribe(v => (result = v));
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/customers/cu1/account');
+    expect(req.request.method).toBe('GET');
+    req.flush({
+      customer: { id: 'cu1', name: 'Acme Co', email: null }, arBalance: 1900, creditBalance: 50,
+      aging: { current: 0, d1to30: 0, d31to60: 0, d61to90: 0, d90plus: 1900 },
+      openInvoices: [], statementLines: [], creditLines: [],
+    });
+    expect(result!.arBalance).toBe(1900);
+  });
 });

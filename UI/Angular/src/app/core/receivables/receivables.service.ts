@@ -4,7 +4,7 @@ import { EMPTY, Observable, map, tap } from 'rxjs';
 import { environment } from '../api/environment';
 import { ClientContextService } from '../client/client-context.service';
 import { PagedResponse } from '../api/paged-response';
-import { Customer, DraftInvoiceRequest, Invoice, InvoiceListQuery, InvoiceView, Payment, RecordPaymentRequest, CreditDocument, CreditType, CreditNoteRequest, WriteOffRequest, CreditApplyRequest, Refund, RefundRequest } from './receivables';
+import { Customer, DraftInvoiceRequest, Invoice, InvoiceListQuery, InvoiceView, Payment, RecordPaymentRequest, CreditDocument, CreditType, CreditNoteRequest, WriteOffRequest, CreditApplyRequest, Refund, RefundRequest, CustomerAccountView } from './receivables';
 import { extractProblem } from '../api/problem-details';
 
 @Injectable({ providedIn: 'root' })
@@ -138,5 +138,9 @@ export class ReceivablesService {
   voidRefund(id: string, reason?: string | null): Observable<unknown> {
     const clientId = this.client.clientId(); if (!clientId) return EMPTY;
     return this.http.post(this.base(`/refunds/${id}/void`), { reason: reason ?? null });
+  }
+  getCustomerAccount(customerId: string): Observable<CustomerAccountView> {
+    const id = this.client.clientId(); if (!id) return EMPTY;
+    return this.http.get<CustomerAccountView>(this.base(`/customers/${customerId}/account`));
   }
 }
