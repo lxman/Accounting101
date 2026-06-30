@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ReceivablesService } from './receivables.service';
 import { ClientContextService } from '../client/client-context.service';
-import { Customer, DraftInvoiceRequest, InvoiceLine, invoiceTotals, lineAmount, autoAllocate, AllocRow, Payment } from './receivables';
+import { Customer, DraftInvoiceRequest, InvoiceLine, invoiceTotals, lineAmount, autoAllocate, AllocRow, Payment, CreditDocument } from './receivables';
 
 describe('pure math', () => {
   const makeLine = (quantity: number, unitPrice: number, taxable: boolean): InvoiceLine =>
@@ -177,5 +177,57 @@ describe('ReceivablesService', () => {
     ctrl.expectOne('http://localhost:5000/clients/C1/customers/cu1/credit-balance')
       .flush({ customerId: 'cu1', creditBalance: 42.5 });
     expect(bal).toBe(42.5);
+  });
+
+  it('listCredits GETs /credits?customerId=', () => {
+    const svc = TestBed.inject(ReceivablesService); const ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    let result: unknown[] | undefined;
+    svc.listCredits('cu1').subscribe(c => (result = c));
+    const req = ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/credits' && r.params.get('customerId') === 'cu1');
+    expect(req.request.method).toBe('GET');
+    req.flush([{ type: 'credit-note', id: 'cn1', customerId: 'cu1', date: '2026-06-30', amount: 100, memo: 'x', allocations: [{ targetId: 'inv1', amount: 100 }], voided: false }]);
+    expect(result!.length).toBe(1);
+  });
+
+  it('recordCreditNote POSTs to /credit-notes', () => {
+    const svc = TestBed.inject(ReceivablesService); const ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    svc.recordCreditNote({ customerId: 'cu1', date: '2026-06-30', allocations: [{ targetId: 'inv1', amount: 100 }], memo: 'returned' }).subscribe();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/credit-notes');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ customerId: 'cu1', date: '2026-06-30', allocations: [{ targetId: 'inv1', amount: 100 }], memo: 'returned' });
+    req.flush({});
+  });
+
+  it('recordWriteOff POSTs to /write-offs', () => {
+    const svc = TestBed.inject(ReceivablesService); const ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    svc.recordWriteOff({ customerId: 'cu1', date: '2026-06-30', allocations: [{ targetId: 'inv1', amount: 100 }], memo: 'bad debt' }).subscribe();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/write-offs');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body.memo).toBe('bad debt');
+    req.flush({});
+  });
+
+  it('applyCredit POSTs to /credit-applications (no memo field)', () => {
+    const svc = TestBed.inject(ReceivablesService); const ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    svc.applyCredit({ customerId: 'cu1', date: '2026-06-30', allocations: [{ targetId: 'inv1', amount: 50 }] }).subscribe();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/credit-applications');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ customerId: 'cu1', date: '2026-06-30', allocations: [{ targetId: 'inv1', amount: 50 }] });
+    req.flush({});
+  });
+
+  it('voidCredit maps type to the right path (credit-note / write-off)', () => {
+    const svc = TestBed.inject(ReceivablesService); const ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    svc.voidCredit('credit-note', 'cn1', 'oops').subscribe();
+    const a = ctrl.expectOne('http://localhost:5000/clients/C1/credit-notes/cn1/void');
+    expect(a.request.method).toBe('POST'); expect(a.request.body).toEqual({ reason: 'oops' }); a.flush({});
+    svc.voidCredit('write-off', 'wo1').subscribe();
+    const b = ctrl.expectOne('http://localhost:5000/clients/C1/write-offs/wo1/void');
+    expect(b.request.method).toBe('POST'); expect(b.request.body).toEqual({ reason: null }); b.flush({});
   });
 });

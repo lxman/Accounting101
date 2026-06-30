@@ -4,7 +4,7 @@ import { EMPTY, Observable, map, tap } from 'rxjs';
 import { environment } from '../api/environment';
 import { ClientContextService } from '../client/client-context.service';
 import { PagedResponse } from '../api/paged-response';
-import { Customer, DraftInvoiceRequest, Invoice, InvoiceListQuery, InvoiceView, Payment, RecordPaymentRequest } from './receivables';
+import { Customer, DraftInvoiceRequest, Invoice, InvoiceListQuery, InvoiceView, Payment, RecordPaymentRequest, CreditDocument, CreditType, CreditNoteRequest, WriteOffRequest, CreditApplyRequest } from './receivables';
 import { extractProblem } from '../api/problem-details';
 
 @Injectable({ providedIn: 'root' })
@@ -105,5 +105,26 @@ export class ReceivablesService {
     const id = this.client.clientId(); if (!id) return EMPTY;
     return this.http.get<{ creditBalance: number }>(this.base(`/customers/${customerId}/credit-balance`))
       .pipe(map(r => r.creditBalance));
+  }
+  listCredits(customerId: string): Observable<CreditDocument[]> {
+    const id = this.client.clientId(); if (!id) return EMPTY;
+    return this.http.get<CreditDocument[]>(this.base('/credits'), { params: new HttpParams().set('customerId', customerId) });
+  }
+  recordCreditNote(req: CreditNoteRequest): Observable<unknown> {
+    const id = this.client.clientId(); if (!id) return EMPTY;
+    return this.http.post(this.base('/credit-notes'), req);
+  }
+  recordWriteOff(req: WriteOffRequest): Observable<unknown> {
+    const id = this.client.clientId(); if (!id) return EMPTY;
+    return this.http.post(this.base('/write-offs'), req);
+  }
+  applyCredit(req: CreditApplyRequest): Observable<unknown> {
+    const id = this.client.clientId(); if (!id) return EMPTY;
+    return this.http.post(this.base('/credit-applications'), req);
+  }
+  voidCredit(type: CreditType, id: string, reason?: string | null): Observable<unknown> {
+    const clientId = this.client.clientId(); if (!clientId) return EMPTY;
+    const segment = type === 'write-off' ? 'write-offs' : 'credit-notes';   // credit-application: never called (no endpoint)
+    return this.http.post(this.base(`/${segment}/${id}/void`), { reason: reason ?? null });
   }
 }

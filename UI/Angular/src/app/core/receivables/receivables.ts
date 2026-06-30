@@ -44,6 +44,15 @@ export interface RecordPaymentRequest {
   method: string | null; allocations: PaymentAllocation[];
 }
 
+export type CreditType = 'credit-note' | 'write-off' | 'credit-application';
+export interface CreditDocument {
+  type: CreditType; id: string; customerId: string; date: string;
+  amount: number; memo: string | null; allocations: PaymentAllocation[]; voided: boolean;
+}
+export interface CreditNoteRequest { customerId: string; date: string; allocations: PaymentAllocation[]; memo: string | null; }
+export interface WriteOffRequest   { customerId: string; date: string; allocations: PaymentAllocation[]; memo: string | null; }
+export interface CreditApplyRequest { customerId: string; date: string; allocations: PaymentAllocation[]; }
+
 /** A payment-allocation editor row: one open invoice the user can apply cash to. */
 export interface AllocRow {
   invoiceId: string; number: string | null; issueDate: string; openBalance: number; allocation: number;
