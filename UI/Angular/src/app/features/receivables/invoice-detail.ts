@@ -112,7 +112,10 @@ export class InvoiceDetail {
   }
 
   reload(clearBusy = false): void {
-    this.svc.getInvoice(this.id).subscribe(v => { this.view.set(v); if (clearBusy) this.busy.set(false); });
+    this.svc.getInvoice(this.id).subscribe({
+      next: (v) => { this.view.set(v); if (clearBusy) this.busy.set(false); },
+      error: (e) => { this.message.set(extractProblem(e).detail); if (clearBusy) this.busy.set(false); },
+    });
   }
 
   lineAmt(l: { quantity: number; unitPrice: number }): number { return lineAmount(l); }

@@ -78,7 +78,7 @@ import { extractProblem } from '../../core/api/problem-details';
         <p class="text-muted-foreground text-sm">Select a customer to view invoices.</p>
       } @else {
         @if (listError()) { <p class="text-destructive text-sm">{{ listError() }}</p> }
-        @if (invoices().length === 0) {
+        @if (invoices().length === 0 && !listError()) {
           <p class="text-muted-foreground text-sm">No invoices found.</p>
         } @else {
           <div hlmTableContainer>

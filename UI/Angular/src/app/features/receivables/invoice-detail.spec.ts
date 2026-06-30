@@ -62,6 +62,20 @@ describe('InvoiceDetail', () => {
     ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1').flush(view('Issued', '1001')); // reload
   });
 
+  it('reload failure after issue clears busy', () => {
+    setup();
+    const f = TestBed.createComponent(InvoiceDetail); f.detectChanges();
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme Co', email: null }]);
+    ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1').flush(view('Draft', null));
+    f.detectChanges();
+    const cmp = f.componentInstance as InvoiceDetail;
+    cmp.issue();
+    ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1/issue').flush(view('Issued', '1001').invoice);
+    // reload after issue fails
+    ctrl.expectOne('http://localhost:5000/clients/C1/invoices/inv1').flush('Server Error', { status: 500, statusText: 'Server Error' });
+    expect(cmp.busy()).toBe(false);
+  });
+
   it('issued: void POSTs the reason', () => {
     setup();
     const f = TestBed.createComponent(InvoiceDetail); f.detectChanges();
