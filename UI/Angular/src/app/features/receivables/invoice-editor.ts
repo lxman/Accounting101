@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { form, applyEach, required, FormField } from '@angular/forms/signals';
 import { HlmInputImports } from '@spartan-ng/helm/input';
@@ -160,6 +161,7 @@ export class InvoiceEditor {
   readonly svc = inject(ReceivablesService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly editId = this.route.snapshot.paramMap.get('id');
   private readonly prefillCustomer = this.route.snapshot.queryParamMap.get('customer');
@@ -197,7 +199,7 @@ export class InvoiceEditor {
         const customers = this.svc.customers();
         if (!customers.length) return;
         this.#loaded = true;
-        this.svc.getInvoice(this.editId!).subscribe(view => {
+        this.svc.getInvoice(this.editId!).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(view => {
           this.model.set(this.fromInvoice(view.invoice));
         });
       });
@@ -246,7 +248,7 @@ export class InvoiceEditor {
     const obs = this.editId
       ? this.svc.updateDraft(this.editId, req)
       : this.svc.draft(req);
-    obs.subscribe({
+    obs.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (saved) => { this.busy.set(false); this.router.navigate(['/receivables/invoices', saved.id]); },
       error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
     });

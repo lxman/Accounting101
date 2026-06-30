@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { HlmButton } from '@spartan-ng/helm/button';
@@ -122,6 +123,7 @@ export class InvoiceDetail {
   readonly svc = inject(ReceivablesService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
 
   // Not readonly: issuing a draft promotes it to a new evidentiary id, after which the page re-points here.
   id = this.route.snapshot.paramMap.get('id')!;
@@ -142,7 +144,7 @@ export class InvoiceDetail {
   }
 
   reload(clearBusy = false): void {
-    this.svc.getInvoice(this.id).subscribe({
+    this.svc.getInvoice(this.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (v) => {
         this.view.set(v);
         if (v.invoice.status === 'Issued') this.loadPayments(v.invoice.customerId);
@@ -153,7 +155,7 @@ export class InvoiceDetail {
   }
 
   private loadPayments(customerId: string): void {
-    this.svc.listPayments(customerId).subscribe({
+    this.svc.listPayments(customerId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (ps) => this.payments.set(ps),
       error: () => this.payments.set([]),
     });
@@ -161,7 +163,7 @@ export class InvoiceDetail {
 
   voidPayment(p: Payment): void {
     this.busy.set(true); this.message.set(null);
-    this.svc.voidPayment(p.id).subscribe({
+    this.svc.voidPayment(p.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => { this.reload(true); },
       error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
     });
@@ -173,7 +175,7 @@ export class InvoiceDetail {
 
   issue(): void {
     this.busy.set(true); this.message.set(null);
-    this.svc.issue(this.id).subscribe({
+    this.svc.issue(this.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       // Issuing promotes the draft to a brand-new evidentiary invoice (new id + number) and deletes the
       // draft. Re-point the page at the issued id; reloading the old draft id would 404 (it's gone).
       next: (issued) => {
@@ -187,7 +189,7 @@ export class InvoiceDetail {
 
   voidInvoice(): void {
     this.busy.set(true); this.message.set(null);
-    this.svc.void(this.id, this.voidReason() || null).subscribe({
+    this.svc.void(this.id, this.voidReason() || null).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => { this.reload(true); },
       error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
     });
@@ -195,7 +197,7 @@ export class InvoiceDetail {
 
   deleteInvoice(): void {
     this.busy.set(true); this.message.set(null);
-    this.svc.deleteDraft(this.id).subscribe({
+    this.svc.deleteDraft(this.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => { this.busy.set(false); this.router.navigate(['/receivables']); },
       error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
     });

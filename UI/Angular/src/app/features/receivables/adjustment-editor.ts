@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
@@ -111,6 +112,7 @@ export class AdjustmentEditor {
   readonly svc = inject(ReceivablesService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly customerId = this.route.snapshot.queryParamMap.get('customer');
   readonly types: { value: CreditType; label: string }[] = [
@@ -142,6 +144,7 @@ export class AdjustmentEditor {
     if (!this.customerId) { void this.router.navigate(['/receivables/credits']); return; }
     this.svc.load();
     this.svc.listInvoices({ customerId: this.customerId, settlement: 'open', skip: 0, limit: 200, order: 'asc' })
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(page => this.rows.set(page.items.map(v => ({
         invoiceId: v.invoice.id,
         number: v.invoice.number,
@@ -150,7 +153,7 @@ export class AdjustmentEditor {
         included: false,
         amount: 0,
       }))));
-    this.svc.creditBalance(this.customerId).subscribe(b => this.creditBalance.set(b));
+    this.svc.creditBalance(this.customerId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(b => this.creditBalance.set(b));
   }
 
   setType(t: CreditType): void { this.type.set(t); }
@@ -182,13 +185,13 @@ export class AdjustmentEditor {
 
     switch (this.type()) {
       case 'credit-note':
-        this.svc.recordCreditNote({ customerId, date, allocations, memo }).subscribe(done);
+        this.svc.recordCreditNote({ customerId, date, allocations, memo }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(done);
         break;
       case 'write-off':
-        this.svc.recordWriteOff({ customerId, date, allocations, memo }).subscribe(done);
+        this.svc.recordWriteOff({ customerId, date, allocations, memo }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(done);
         break;
       case 'credit-application':
-        this.svc.applyCredit({ customerId, date, allocations }).subscribe(done);
+        this.svc.applyCredit({ customerId, date, allocations }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(done);
         break;
     }
   }

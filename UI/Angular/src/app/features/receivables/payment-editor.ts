@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
@@ -90,6 +91,7 @@ export class PaymentEditor {
   readonly svc = inject(ReceivablesService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly customerId = this.route.snapshot.queryParamMap.get('customer');
   private readonly focusInvoice = this.route.snapshot.queryParamMap.get('invoice');
@@ -113,6 +115,7 @@ export class PaymentEditor {
     if (!this.customerId) { void this.router.navigate(['/receivables']); return; }
     this.svc.load();
     this.svc.listInvoices({ customerId: this.customerId, settlement: 'open', skip: 0, limit: 200, order: 'asc' })
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(page => {
         let rows: AllocRow[] = page.items.map(v => ({
           invoiceId: v.invoice.id, number: v.invoice.number, issueDate: v.invoice.issueDate,
@@ -126,7 +129,7 @@ export class PaymentEditor {
         this.amount.set(initialAmount);
         this.rows.set(autoAllocate(initialAmount, rows));
       });
-    this.svc.creditBalance(this.customerId).subscribe(b => this.creditBalance.set(b));
+    this.svc.creditBalance(this.customerId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(b => this.creditBalance.set(b));
   }
 
   onAmount(v: number): void { this.amount.set(v); this.rows.update(rs => autoAllocate(v, rs)); }
@@ -139,7 +142,7 @@ export class PaymentEditor {
       customerId: this.customerId, date: this.date(), amount: this.amount(),
       method: this.method().trim() || null,
       allocations: this.rows().filter(r => r.allocation > 0).map(r => ({ targetId: r.invoiceId, amount: r.allocation })),
-    }).subscribe({
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => { this.busy.set(false); void this.router.navigate(['/receivables']); },
       error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
     });

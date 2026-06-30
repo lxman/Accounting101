@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { BehaviorSubject, catchError, combineLatest, of, switchMap } from 'rxjs';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmTableImports } from '@spartan-ng/helm/table';
@@ -70,6 +70,7 @@ import { CustomerSelect } from '../../shared/customer-select';
 })
 export class CreditList {
   readonly svc = inject(ReceivablesService);
+  private readonly destroyRef = inject(DestroyRef);
   readonly customerId = this.svc.selectedCustomerId;
   readonly listError = signal<string | null>(null);
   readonly busy = signal(false);
@@ -93,7 +94,7 @@ export class CreditList {
   doVoid(c: CreditDocument): void {
     if (c.type === 'credit-application') return;
     this.busy.set(true); this.listError.set(null);
-    this.svc.voidCredit(c.type, c.id).subscribe({
+    this.svc.voidCredit(c.type, c.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => { this.busy.set(false); this.refresh$.next(this.refresh$.value + 1); },
       error: e => { this.listError.set(extractProblem(e).detail); this.busy.set(false); },
     });

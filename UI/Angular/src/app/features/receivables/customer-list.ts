@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmButton } from '@spartan-ng/helm/button';
@@ -34,6 +35,7 @@ import { extractProblem } from '../../core/api/problem-details';
 })
 export class CustomerList {
   readonly svc = inject(ReceivablesService);
+  private readonly destroyRef = inject(DestroyRef);
   readonly newName = signal('');
   readonly newEmail = signal('');
   readonly busy = signal(false);
@@ -46,7 +48,7 @@ export class CustomerList {
     if (!name) return;
     this.busy.set(true);
     this.error.set(null);
-    this.svc.create(name, this.newEmail().trim() || null).subscribe({
+    this.svc.create(name, this.newEmail().trim() || null).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => { this.newName.set(''); this.newEmail.set(''); this.busy.set(false); },
       error: (e) => { this.error.set(extractProblem(e).detail); this.busy.set(false); },
     });
