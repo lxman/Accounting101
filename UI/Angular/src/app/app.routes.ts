@@ -15,6 +15,7 @@ import { CustomerList } from './features/receivables/customer-list';
 import { InvoiceList } from './features/receivables/invoice-list';
 import { InvoiceEditor } from './features/receivables/invoice-editor';
 import { InvoiceDetail } from './features/receivables/invoice-detail';
+import { PaymentEditor } from './features/receivables/payment-editor';
 import { NAV } from './layout/nav';
 
 export const routes: Routes = [
@@ -48,6 +49,7 @@ export const routes: Routes = [
     { path: '', pathMatch: 'full', component: InvoiceList },
     { path: 'customers', component: CustomerList },
     { path: 'invoices/new', component: InvoiceEditor },
+    { path: 'payments/new', component: PaymentEditor },
     { path: 'invoices/:id/edit', component: InvoiceEditor },
     { path: 'invoices/:id', component: InvoiceDetail },
   ] },
