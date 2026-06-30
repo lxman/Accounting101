@@ -113,4 +113,63 @@ public sealed class CustomerAccountBuilderTests
         Assert.Equal(-30m, lines[1].Amount); Assert.Equal(70m, lines[1].CreditBalance);    // applied -30
         Assert.Equal(-20m, lines[2].Amount); Assert.Equal(50m, lines[2].CreditBalance);    // refund -20
     }
+
+    [Fact]
+    public void Statement_orders_same_date_charges_before_settlements()
+    {
+        Guid inv = Guid.NewGuid();
+        Invoice invoice = IssuedInvoice(inv, "1001", new(2026, 3, 1), null, 1000m);
+        List<Payment> payments = [new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 1), Amount = 400m, Allocations = [new Allocation(inv, 400m)] }];
+
+        IReadOnlyList<StatementLine> lines = CustomerAccountBuilder.Statement([invoice], payments, [], [], []);
+
+        Assert.Equal(2, lines.Count);
+        Assert.Equal(1000m, lines[0].Charge);    // Charge comes first on 3/1
+        Assert.Equal(1000m, lines[0].Balance);   // 0 + 1000
+        Assert.Equal(400m, lines[1].Payment);    // Payment comes second on same 3/1
+        Assert.Equal(600m, lines[1].Balance);    // 1000 - 400
+    }
+
+    [Fact]
+    public void Aging_buckets_exact_fencepost_boundaries()
+    {
+        List<OpenInvoiceLine> lines =
+        [
+            new(Guid.NewGuid(), "current", new(2026, 1, 1), null, 100m, 0),      // Current: 0
+            new(Guid.NewGuid(), "d1to30_30", new(2026, 1, 1), null, 50m, 30),    // D1To30: exactly 30
+            new(Guid.NewGuid(), "d31to60_31", new(2026, 1, 1), null, 75m, 31),   // D31To60: exactly 31
+            new(Guid.NewGuid(), "d31to60_60", new(2026, 1, 1), null, 60m, 60),   // D31To60: exactly 60
+            new(Guid.NewGuid(), "d61to90_61", new(2026, 1, 1), null, 85m, 61),   // D61To90: exactly 61
+            new(Guid.NewGuid(), "d61to90_90", new(2026, 1, 1), null, 90m, 90),   // D61To90: exactly 90
+            new(Guid.NewGuid(), "d90plus_91", new(2026, 1, 1), null, 110m, 91),  // D90Plus: exactly 91
+        ];
+
+        AgingBuckets aging = CustomerAccountBuilder.Aging(lines);
+
+        Assert.Equal(100m, aging.Current);      // 0
+        Assert.Equal(50m, aging.D1To30);        // 30
+        Assert.Equal(135m, aging.D31To60);      // 31 + 60
+        Assert.Equal(175m, aging.D61To90);      // 61 + 90
+        Assert.Equal(110m, aging.D90Plus);      // 91
+    }
+
+    [Fact]
+    public void AppliedByInvoice_excludes_voided_credit_applications_and_write_offs()
+    {
+        Guid inv = Guid.NewGuid();
+        List<CreditApplication> creditApps =
+        [
+            new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 1), Allocations = [new Allocation(inv, 50m)] },
+            new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 2), Allocations = [new Allocation(inv, 30m)], Voided = true },
+        ];
+        List<WriteOff> writeOffs =
+        [
+            new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 3), Allocations = [new Allocation(inv, 25m)] },
+            new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 4), Allocations = [new Allocation(inv, 15m)], Voided = true },
+        ];
+
+        Dictionary<Guid, decimal> applied = CustomerAccountBuilder.AppliedByInvoice([], creditApps, writeOffs, []);
+
+        Assert.Equal(75m, applied[inv]);  // 50 (credit app) + 25 (write-off); voided 30 + 15 excluded
+    }
 }
