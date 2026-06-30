@@ -53,6 +53,9 @@ export interface CreditNoteRequest { customerId: string; date: string; allocatio
 export interface WriteOffRequest   { customerId: string; date: string; allocations: PaymentAllocation[]; memo: string | null; }
 export interface CreditApplyRequest { customerId: string; date: string; allocations: PaymentAllocation[]; }
 
+export interface Refund { id: string; customerId: string; date: string; amount: number; memo: string | null; voided: boolean; }
+export interface RefundRequest { customerId: string; date: string; amount: number; memo: string | null; }
+
 /** A payment-allocation editor row: one open invoice the user can apply cash to. */
 export interface AllocRow {
   invoiceId: string; number: string | null; issueDate: string; openBalance: number; allocation: number;

@@ -230,4 +230,35 @@ describe('ReceivablesService', () => {
     const b = ctrl.expectOne('http://localhost:5000/clients/C1/write-offs/wo1/void');
     expect(b.request.method).toBe('POST'); expect(b.request.body).toEqual({ reason: null }); b.flush({});
   });
+
+  it('listRefunds GETs /refunds?customerId=', () => {
+    const svc = TestBed.inject(ReceivablesService); const ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    let result: unknown[] | undefined;
+    svc.listRefunds('cu1').subscribe(r => (result = r));
+    const req = ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/refunds' && r.params.get('customerId') === 'cu1');
+    expect(req.request.method).toBe('GET');
+    req.flush([{ id: 'rf1', customerId: 'cu1', date: '2026-06-30', amount: 50, memo: 'x', voided: false }]);
+    expect(result!.length).toBe(1);
+  });
+
+  it('recordRefund POSTs to /refunds', () => {
+    const svc = TestBed.inject(ReceivablesService); const ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    svc.recordRefund({ customerId: 'cu1', date: '2026-06-30', amount: 50, memo: 'overpay' }).subscribe();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/refunds');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ customerId: 'cu1', date: '2026-06-30', amount: 50, memo: 'overpay' });
+    req.flush({});
+  });
+
+  it('voidRefund POSTs the reason to /refunds/{id}/void', () => {
+    const svc = TestBed.inject(ReceivablesService); const ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    svc.voidRefund('rf1', 'oops').subscribe();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/refunds/rf1/void');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ reason: 'oops' });
+    req.flush({});
+  });
 });
