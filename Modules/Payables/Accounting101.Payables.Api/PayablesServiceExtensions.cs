@@ -24,6 +24,7 @@ public static class PayablesServiceExtensions
         services.AddScoped<IBillPaymentStore>(sp => new DocumentBillPaymentStore(sp.GetRequiredKeyedService<IDocumentStore>("payables")));
         services.AddScoped<BillService>();
         services.AddScoped<BillPaymentService>();
+        services.AddScoped<VendorAccountService>();
         services.AddSingleton<IBillAccountsProvider, ConfiguredBillAccountsProvider>();
 
         // Use an explicit name to avoid a short-name collision with Accounting101.Invoicing.ILedgerClient

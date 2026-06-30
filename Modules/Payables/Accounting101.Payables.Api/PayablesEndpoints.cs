@@ -24,6 +24,7 @@ public static class PayablesEndpoints
         clients.MapPost("/vendor-credit-applications", ApplyCredit);
         clients.MapGet("/vendor-credit-applications", ListCreditApplications);
         clients.MapGet("/vendors/{vendorId:guid}/credit-balance", GetCreditBalance);
+        clients.MapGet("/vendors/{vendorId:guid}/account", GetVendorAccount);
     }
 
     private static async Task<IResult> CreateVendor(
@@ -213,5 +214,18 @@ public static class PayablesEndpoints
     {
         decimal balance = await service.GetVendorCreditBalanceAsync(clientId, vendorId, cancellationToken);
         return Results.Ok(new { vendorId, creditBalance = balance });
+    }
+
+    private static async Task<IResult> GetVendorAccount(
+        Guid clientId, Guid vendorId, string? asOf, VendorAccountService service, CancellationToken cancellationToken)
+    {
+        DateOnly date;
+        if (string.IsNullOrEmpty(asOf))
+            date = DateOnly.FromDateTime(DateTime.UtcNow);
+        else if (!DateOnly.TryParse(asOf, out date))
+            return Results.Problem("asOf must be a date (yyyy-MM-dd).", statusCode: StatusCodes.Status400BadRequest);
+
+        VendorAccountView? view = await service.GetAccountAsync(clientId, vendorId, date, cancellationToken);
+        return view is null ? Results.NotFound() : Results.Ok(view);
     }
 }
