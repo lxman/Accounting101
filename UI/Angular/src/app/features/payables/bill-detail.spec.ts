@@ -1,0 +1,69 @@
+import { TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { provideRouter, ActivatedRoute } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { BillDetail } from './bill-detail';
+import { ClientContextService } from '../../core/client/client-context.service';
+
+describe('BillDetail', () => {
+  function setup(id = 'b1') {
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => id } } } },
+      ],
+    });
+    TestBed.inject(ClientContextService).select('C1');
+    return TestBed.inject(HttpTestingController);
+  }
+
+  function flushLoads(ctrl: HttpTestingController, status: string) {
+    ctrl.expectOne('http://localhost:5000/clients/C1/vendors').flush([{ id: 'v1', name: 'Acme Parts', email: null }]);
+    ctrl.expectOne('http://localhost:5000/clients/C1/accounts').flush([
+      { id: 'a1', number: '6100', name: 'Rent Expense', type: 'Expense', parentId: null, postable: true,
+        requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active: true,
+        normalSide: 'Debit', isTemporary: true }]);
+    ctrl.expectOne('http://localhost:5000/clients/C1/bills/b1').flush({ bill: { id: 'b1', vendorId: 'v1',
+      number: status === 'Draft' ? null : 'B-1', billDate: '2026-06-30', dueDate: null, vendorReference: 'INV-9',
+      memo: null, status, lines: [{ description: 'Rent', amount: 1200, expenseAccountId: 'a1' }] },
+      openBalance: 1200, settlementStatus: 'Open' });
+  }
+
+  it('renders a draft bill and enters it', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(BillDetail);
+    f.detectChanges();
+    flushLoads(ctrl, 'Draft');
+    f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Rent Expense');
+    f.componentInstance.enter();
+    const req = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/bills/b1/enter');
+    req.flush({ id: 'b1', vendorId: 'v1', number: 'B-1', billDate: '2026-06-30', dueDate: null,
+      vendorReference: 'INV-9', memo: null, status: 'Entered', lines: [{ description: 'Rent', amount: 1200, expenseAccountId: 'a1' }] });
+    // reload after enter
+    ctrl.expectOne('http://localhost:5000/clients/C1/bills/b1').flush({ bill: { id: 'b1', vendorId: 'v1', number: 'B-1',
+      billDate: '2026-06-30', dueDate: null, vendorReference: 'INV-9', memo: null, status: 'Entered',
+      lines: [{ description: 'Rent', amount: 1200, expenseAccountId: 'a1' }] }, openBalance: 1200, settlementStatus: 'Open' });
+    ctrl.verify();
+  });
+
+  it('voids an entered bill with a reason', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(BillDetail);
+    f.detectChanges();
+    flushLoads(ctrl, 'Entered');
+    f.detectChanges();
+    const cmp = f.componentInstance;
+    cmp.voidReason.set('duplicate');
+    cmp.voidBill();
+    const req = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/bills/b1/void');
+    expect(req.request.body).toEqual({ reason: 'duplicate' });
+    req.flush({ id: 'b1', vendorId: 'v1', number: 'B-1', billDate: '2026-06-30', dueDate: null,
+      vendorReference: 'INV-9', memo: null, status: 'Void', lines: [{ description: 'Rent', amount: 1200, expenseAccountId: 'a1' }] });
+    ctrl.expectOne('http://localhost:5000/clients/C1/bills/b1').flush({ bill: { id: 'b1', vendorId: 'v1', number: 'B-1',
+      billDate: '2026-06-30', dueDate: null, vendorReference: 'INV-9', memo: null, status: 'Void',
+      lines: [{ description: 'Rent', amount: 1200, expenseAccountId: 'a1' }] }, openBalance: 0, settlementStatus: 'Open' });
+    ctrl.verify();
+  });
+});
