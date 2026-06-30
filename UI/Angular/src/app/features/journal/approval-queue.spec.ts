@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ApprovalQueue } from './approval-queue';
@@ -80,5 +80,18 @@ describe('ApprovalQueue', () => {
     f.detectChanges();
     expect(f.componentInstance.cueById()['E1']).toBe('unknown');
     expect(f.componentInstance.cueById()['E2']).toBe('approvable');
+  });
+
+  it('clicking a row navigates to the entry detail (whole-row click)', () => {
+    const f = TestBed.createComponent(ApprovalQueue); f.detectChanges();
+    ctrl.expectOne(r => r.params.get('posting') === 'PendingApproval').flush({ items: [
+      { id: 'E1', sequenceNumber: 1, effectiveDate: '2026-06-29', type: 'Standard', status: 'Active', posting: 'PendingApproval', lineCount: 2, lines: [], memo: null, supersedes: null, supersededBy: null, reversalOf: null, reversedBy: null },
+    ], total: 1, skip: 0, limit: 50 });
+    f.detectChanges();
+    ctrl.expectOne('http://localhost:5000/clients/C1/audit/E1').flush([]);
+    f.detectChanges();
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    f.nativeElement.querySelector('tbody tr').click();
+    expect(nav).toHaveBeenCalledWith(['/journal', 'E1']);
   });
 });

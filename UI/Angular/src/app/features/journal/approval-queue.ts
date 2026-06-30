@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { catchError, forkJoin, of } from 'rxjs';
 import { AuditRecordResponse } from '../../core/audit/audit';
 import { HlmTableImports } from '@spartan-ng/helm/table';
@@ -15,7 +15,7 @@ import { formatProfileDate } from '../../core/format/date-formatter';
 @Component({
   selector: 'app-approval-queue',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ...HlmTableImports, ...HlmBadgeImports],
+  imports: [...HlmTableImports, ...HlmBadgeImports],
   template: `
     <div class="flex flex-col gap-4 p-4">
       <h1 class="text-2xl font-bold">Pending Approval</h1>
@@ -28,8 +28,11 @@ import { formatProfileDate } from '../../core/format/date-formatter';
             <thead hlmTHead><tr hlmTr><th hlmTh>#</th><th hlmTh>Date</th><th hlmTh>Memo</th><th hlmTh>Lines</th><th hlmTh>Approvable</th></tr></thead>
             <tbody hlmTBody>
               @for (e of entries(); track e.id) {
-                <tr hlmTr>
-                  <td hlmTd><a class="underline" [routerLink]="['/journal', e.id]">{{ e.sequenceNumber }}</a></td>
+                <tr hlmTr class="cursor-pointer hover:bg-muted/50"
+                    tabindex="0"
+                    (click)="open(e.id)"
+                    (keydown.enter)="open(e.id)">
+                  <td hlmTd>{{ e.sequenceNumber }}</td>
                   <td hlmTd>{{ formatDate(e.effectiveDate) }}</td>
                   <td hlmTd>{{ e.memo ?? '—' }}</td>
                   <td hlmTd>{{ e.lineCount }}</td>
@@ -53,6 +56,7 @@ export class ApprovalQueue {
   private readonly entriesSvc = inject(EntriesService);
   private readonly audit = inject(AuditService);
   private readonly identity = inject(DevIdentityService);
+  private readonly router = inject(Router);
 
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
@@ -82,6 +86,8 @@ export class ApprovalQueue {
       error: (e) => { this.error.set(extractProblem(e).detail); this.loading.set(false); },
     });
   }
+
+  open(id: string): void { void this.router.navigate(['/journal', id]); }
 
   formatDate(d: string): string { return formatProfileDate(d, DEFAULT_FORMAT_PROFILE); }
 }
