@@ -91,8 +91,8 @@ const emptyLine = (): LineModel => ({
         <thead>
           <tr class="text-left text-muted-foreground">
             <th class="py-1">Description</th>
-            <th class="text-right pr-2">Qty</th>
-            <th class="text-right pr-2">Unit price</th>
+            <th class="text-right pr-5">Qty</th>
+            <th class="text-right pr-5">Unit price</th>
             <th class="text-center px-2">Taxable</th>
             <th class="pr-2">Category</th>
             <th></th>
