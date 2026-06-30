@@ -112,18 +112,12 @@ describe('InvoiceList', () => {
     expect(f.nativeElement.textContent).toContain('Forbidden');
   });
 
-  it('Record payment link targets the payment editor for the selected customer', () => {
+  it('has no Record-payment control in the invoice-list header (moved to the Payments tab)', () => {
     const ctrl = TestBed.inject(HttpTestingController);
     const f = TestBed.createComponent(InvoiceList); f.detectChanges();
     ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme Co', email: null }]);
     f.detectChanges();
-    f.componentInstance.svc.setSelectedCustomer('cu1'); f.detectChanges();
-    ctrl.expectOne(r => r.url.endsWith('/clients/C1/invoices') && r.params.get('customerId') === 'cu1')
-      .flush({ items: [], total: 0, skip: 0, limit: 50 });
-    f.detectChanges();
-    const link = [...f.nativeElement.querySelectorAll('a')].find(a => a.textContent.trim() === 'Record payment') as HTMLAnchorElement;
-    expect(link).toBeTruthy();
-    expect(link.getAttribute('href')).toContain('/receivables/payments/new');
-    expect(link.getAttribute('href')).toContain('customer=cu1');
+    const recordLink = [...f.nativeElement.querySelectorAll('a')].find(a => a.textContent.trim() === 'Record payment');
+    expect(recordLink).toBeFalsy();
   });
 });

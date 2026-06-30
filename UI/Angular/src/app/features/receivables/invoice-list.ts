@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -20,6 +21,7 @@ import {
 } from '../../core/receivables/receivables';
 import { PagedResponse } from '../../core/api/paged-response';
 import { money, displayDate } from '../../core/format/display';
+import { CustomerSelect } from '../../shared/customer-select';
 import { InvoiceStatusBadge } from '../../shared/invoice-status-badge';
 import { SettlementBadge } from '../../shared/settlement-badge';
 import { extractProblem } from '../../core/api/problem-details';
@@ -30,6 +32,7 @@ import { extractProblem } from '../../core/api/problem-details';
   imports: [
     RouterLink,
     HlmButton,
+    CustomerSelect,
     InvoiceStatusBadge,
     SettlementBadge,
     ...HlmSelectImports,
@@ -41,16 +44,7 @@ import { extractProblem } from '../../core/api/problem-details';
       <div class="flex items-center gap-3 flex-wrap">
         <h1 class="text-2xl font-bold">Invoices</h1>
 
-        <div hlmSelect [value]="customerId()" (valueChange)="onCustomerChange($event)" [itemToString]="toCustomerName">
-          <hlm-select-trigger class="w-64">
-            <hlm-select-value placeholder="Select a customer" />
-          </hlm-select-trigger>
-          <hlm-select-content *hlmSelectPortal>
-            @for (c of svc.customers(); track c.id) {
-              <hlm-select-item [value]="c.id">{{ c.name }}</hlm-select-item>
-            }
-          </hlm-select-content>
-        </div>
+        <app-customer-select />
 
         <div hlmSelect [value]="settlement()" (valueChange)="onSettlementChange($event)" [itemToString]="settlementToLabel">
           <hlm-select-trigger class="w-36">
@@ -63,22 +57,13 @@ import { extractProblem } from '../../core/api/problem-details';
           </hlm-select-content>
         </div>
 
-        <div class="ms-auto flex items-center gap-2">
-          <a hlmBtn size="sm" variant="outline"
-             routerLink="/receivables/payments/new"
-             [queryParams]="{ customer: customerId() }"
-             [class.pointer-events-none]="!customerId()"
-             [class.opacity-50]="!customerId()">
-            Record payment
-          </a>
-          <a hlmBtn size="sm"
-             routerLink="/receivables/invoices/new"
-             [queryParams]="{ customer: customerId() }"
-             [class.pointer-events-none]="!customerId()"
-             [class.opacity-50]="!customerId()">
-            New invoice
-          </a>
-        </div>
+        <a hlmBtn size="sm" class="ms-auto"
+           routerLink="/receivables/invoices/new"
+           [queryParams]="{ customer: customerId() }"
+           [class.pointer-events-none]="!customerId()"
+           [class.opacity-50]="!customerId()">
+          New invoice
+        </a>
       </div>
 
       @if (svc.customers().length === 0) {
@@ -197,15 +182,13 @@ export class InvoiceList {
     return Math.floor(p.skip / p.limit) + 1;
   });
 
-  /** Passed to [itemToString] so the trigger shows the customer name rather than the raw GUID. */
-  readonly toCustomerName = (id: string): string => this.svc.customerName(id);
   readonly settlementToLabel = (v: string): string => v === 'open' ? 'Open' : v === 'paid' ? 'Paid' : 'All';
 
-  constructor() { this.svc.load(); }
-
-  onCustomerChange(value: unknown): void {
-    this.svc.setSelectedCustomer((value as string) ?? '');
-    this.skip.set(0);
+  constructor() {
+    this.svc.load();
+    // The shared <app-customer-select> writes the selection directly; reset paging to page 1
+    // whenever the selected customer changes (a no-op when skip is already 0).
+    effect(() => { this.customerId(); this.skip.set(0); });
   }
 
   onSettlementChange(value: unknown): void {
