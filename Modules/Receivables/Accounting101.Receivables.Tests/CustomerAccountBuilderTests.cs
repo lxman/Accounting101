@@ -1,0 +1,116 @@
+using Accounting101.Receivables;
+using Accounting101.Settlement;
+
+namespace Accounting101.Receivables.Tests;
+
+/// <summary>Pure-function tests for the customer-account folds: applied-per-invoice, open invoices + age,
+/// aging buckets, the AR statement running balance, and the credit-activity ledger. No host needed.</summary>
+public sealed class CustomerAccountBuilderTests
+{
+    private static Invoice IssuedInvoice(Guid id, string number, DateOnly issue, DateOnly? due, decimal amount) => new()
+    {
+        Id = id, CustomerId = Guid.NewGuid(), Number = number, IssueDate = issue, DueDate = due,
+        Status = InvoiceStatus.Issued, TaxRate = 0m,
+        Lines = [new InvoiceLine { Description = "x", Quantity = 1m, UnitPrice = amount, Taxable = false }],
+    };
+
+    [Fact]
+    public void AppliedByInvoice_sums_nonvoided_allocations_across_doc_types()
+    {
+        Guid inv = Guid.NewGuid();
+        List<Payment> payments =
+        [
+            new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 2), Amount = 40m, Allocations = [new Allocation(inv, 40m)] },
+            new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 3), Amount = 10m, Allocations = [new Allocation(inv, 10m)], Voided = true },
+        ];
+        List<CreditNote> notes = [new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 4), Allocations = [new Allocation(inv, 25m)] }];
+
+        Dictionary<Guid, decimal> applied = CustomerAccountBuilder.AppliedByInvoice(payments, [], [], notes);
+
+        Assert.Equal(65m, applied[inv]);   // 40 (payment) + 25 (note); voided 10 excluded
+    }
+
+    [Fact]
+    public void OpenInvoices_computes_open_balance_and_days_overdue()
+    {
+        Guid inv = Guid.NewGuid();
+        Invoice invoice = IssuedInvoice(inv, "1001", new(2026, 3, 1), new(2026, 3, 31), 100m);
+        Dictionary<Guid, decimal> applied = new() { [inv] = 30m };
+
+        IReadOnlyList<OpenInvoiceLine> open = CustomerAccountBuilder.OpenInvoices([invoice], applied, asOf: new(2026, 4, 20));
+
+        OpenInvoiceLine line = Assert.Single(open);
+        Assert.Equal(70m, line.OpenBalance);     // 100 - 30
+        Assert.Equal(20, line.DaysOverdue);      // 2026-04-20 minus 2026-03-31
+    }
+
+    [Fact]
+    public void OpenInvoices_excludes_fully_paid_and_uses_zero_overdue_when_no_due_date()
+    {
+        Guid paid = Guid.NewGuid(), noDue = Guid.NewGuid();
+        Invoice paidInv = IssuedInvoice(paid, "1001", new(2026, 3, 1), new(2026, 3, 31), 100m);
+        Invoice noDueInv = IssuedInvoice(noDue, "1002", new(2026, 3, 1), null, 50m);
+        Dictionary<Guid, decimal> applied = new() { [paid] = 100m };   // fully paid
+
+        IReadOnlyList<OpenInvoiceLine> open = CustomerAccountBuilder.OpenInvoices([paidInv, noDueInv], applied, asOf: new(2026, 6, 1));
+
+        OpenInvoiceLine line = Assert.Single(open);                   // paid one excluded
+        Assert.Equal(noDue, line.InvoiceId);
+        Assert.Equal(0, line.DaysOverdue);                            // null due date → 0
+    }
+
+    [Fact]
+    public void Aging_buckets_by_days_overdue_and_sums_to_ar_balance()
+    {
+        List<OpenInvoiceLine> lines =
+        [
+            new(Guid.NewGuid(), "a", new(2026, 1, 1), null, 100m, 0),     // Current
+            new(Guid.NewGuid(), "b", new(2026, 1, 1), null, 200m, 15),    // 1-30
+            new(Guid.NewGuid(), "c", new(2026, 1, 1), null, 300m, 45),    // 31-60
+            new(Guid.NewGuid(), "d", new(2026, 1, 1), null, 400m, 75),    // 61-90
+            new(Guid.NewGuid(), "e", new(2026, 1, 1), null, 500m, 120),   // 90+
+        ];
+
+        AgingBuckets aging = CustomerAccountBuilder.Aging(lines);
+
+        Assert.Equal(100m, aging.Current);
+        Assert.Equal(200m, aging.D1To30);
+        Assert.Equal(300m, aging.D31To60);
+        Assert.Equal(400m, aging.D61To90);
+        Assert.Equal(500m, aging.D90Plus);
+        Assert.Equal(1500m, aging.Current + aging.D1To30 + aging.D31To60 + aging.D61To90 + aging.D90Plus);
+    }
+
+    [Fact]
+    public void Statement_orders_by_date_charges_first_with_running_balance()
+    {
+        Guid i1 = Guid.NewGuid(), i2 = Guid.NewGuid();
+        Invoice inv1 = IssuedInvoice(i1, "1001", new(2026, 3, 1), null, 1000m);
+        Invoice inv2 = IssuedInvoice(i2, "1002", new(2026, 3, 25), null, 1500m);
+        List<Payment> payments = [new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 15), Amount = 400m, Allocations = [new Allocation(i1, 400m)] }];
+        List<CreditNote> notes = [new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 20), Allocations = [new Allocation(i1, 200m)] }];
+
+        IReadOnlyList<StatementLine> lines = CustomerAccountBuilder.Statement([inv1, inv2], payments, notes, [], []);
+
+        Assert.Equal(4, lines.Count);
+        Assert.Equal(1000m, lines[0].Charge); Assert.Equal(1000m, lines[0].Balance);   // 3/1 invoice
+        Assert.Equal(400m, lines[1].Payment); Assert.Equal(600m, lines[1].Balance);    // 3/15 payment
+        Assert.Equal(200m, lines[2].Payment); Assert.Equal(400m, lines[2].Balance);    // 3/20 credit note
+        Assert.Equal(1500m, lines[3].Charge); Assert.Equal(1900m, lines[3].Balance);   // 3/25 invoice
+    }
+
+    [Fact]
+    public void CreditActivity_signs_and_runs_to_final_balance()
+    {
+        List<Payment> payments = [new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 2), Amount = 150m, Allocations = [new Allocation(Guid.NewGuid(), 50m)] }]; // 100 unapplied
+        List<CreditApplication> apps = [new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 10), Allocations = [new Allocation(Guid.NewGuid(), 30m)] }];
+        List<Refund> refunds = [new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 20), Amount = 20m }];
+
+        IReadOnlyList<CreditActivityLine> lines = CustomerAccountBuilder.CreditActivity(payments, apps, refunds);
+
+        Assert.Equal(3, lines.Count);
+        Assert.Equal(100m, lines[0].Amount); Assert.Equal(100m, lines[0].CreditBalance);   // overpayment +100
+        Assert.Equal(-30m, lines[1].Amount); Assert.Equal(70m, lines[1].CreditBalance);    // applied -30
+        Assert.Equal(-20m, lines[2].Amount); Assert.Equal(50m, lines[2].CreditBalance);    // refund -20
+    }
+}
