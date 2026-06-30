@@ -33,3 +33,29 @@ export function invoiceTotals(lines: readonly InvoiceLine[], taxRate: number): {
   const tax = Math.round(taxRate * taxableBase * 100) / 100;   // 2dp, half-away-from-zero for non-negative inputs
   return { subtotal, tax, total: subtotal + tax };
 }
+
+export interface PaymentAllocation { targetId: string; amount: number; }
+export interface Payment {
+  id: string; customerId: string; date: string; amount: number;
+  method: string | null; allocations: PaymentAllocation[]; voided: boolean;
+}
+export interface RecordPaymentRequest {
+  customerId: string; date: string; amount: number;
+  method: string | null; allocations: PaymentAllocation[];
+}
+
+/** A payment-allocation editor row: one open invoice the user can apply cash to. */
+export interface AllocRow {
+  invoiceId: string; number: string | null; issueDate: string; openBalance: number; allocation: number;
+}
+
+/** Distribute `amount` across rows in their given (oldest-first) order, each capped at its open balance.
+ *  Returns new rows; any remainder beyond the rows' open balances is left unallocated (→ customer credit). */
+export function autoAllocate(amount: number, rows: readonly AllocRow[]): AllocRow[] {
+  let remaining = Math.max(0, amount);
+  return rows.map(r => {
+    const take = Math.min(r.openBalance, remaining);
+    remaining = Math.round((remaining - take) * 100) / 100;
+    return { ...r, allocation: Math.round(take * 100) / 100 };
+  });
+}

@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideZonelessChangeDetection } from '@angular/core';
 import { ReceivablesService } from './receivables.service';
 import { ClientContextService } from '../client/client-context.service';
-import { Customer, DraftInvoiceRequest, InvoiceLine, invoiceTotals, lineAmount } from './receivables';
+import { Customer, DraftInvoiceRequest, InvoiceLine, invoiceTotals, lineAmount, autoAllocate, AllocRow } from './receivables';
 
 describe('pure math', () => {
   const makeLine = (quantity: number, unitPrice: number, taxable: boolean): InvoiceLine =>
@@ -21,6 +21,32 @@ describe('pure math', () => {
 
   it('invoiceTotals: zero tax rate yields tax=0', () => {
     expect(invoiceTotals([makeLine(1, 100, true)], 0)).toEqual({ subtotal: 100, tax: 0, total: 100 });
+  });
+});
+
+describe('autoAllocate', () => {
+  const row = (invoiceId: string, openBalance: number): AllocRow =>
+    ({ invoiceId, number: invoiceId, issueDate: '2026-06-01', openBalance, allocation: 0 });
+
+  it('fills oldest-first, capping each row at its open balance', () => {
+    const out = autoAllocate(300, [row('a', 105), row('b', 150), row('c', 200)]);
+    expect(out.map(r => r.allocation)).toEqual([105, 150, 45]);
+  });
+
+  it('partial first row when amount is less than the first open balance', () => {
+    const out = autoAllocate(60, [row('a', 105), row('b', 150)]);
+    expect(out.map(r => r.allocation)).toEqual([60, 0]);
+  });
+
+  it('excess over total open balances stays unallocated (rows capped)', () => {
+    const out = autoAllocate(500, [row('a', 105), row('b', 150)]);
+    expect(out.map(r => r.allocation)).toEqual([105, 150]);
+    expect(out.reduce((s, r) => s + r.allocation, 0)).toBe(255);
+  });
+
+  it('zero amount allocates nothing', () => {
+    const out = autoAllocate(0, [row('a', 105)]);
+    expect(out.map(r => r.allocation)).toEqual([0]);
   });
 });
 
