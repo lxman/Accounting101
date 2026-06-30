@@ -14,6 +14,8 @@ public static class PayablesEndpoints
         clients.MapPost("/vendors", CreateVendor);
         clients.MapGet("/vendors", ListVendors);
         clients.MapPost("/bills", DraftBill);
+        clients.MapPut("/bills/{billId:guid}", EditBill);
+        clients.MapDelete("/bills/{billId:guid}", DiscardBill);
         clients.MapPost("/bills/{billId:guid}/enter", EnterBill);
         clients.MapPost("/bills/{billId:guid}/void", VoidBill);
         clients.MapGet("/bills/{billId:guid}", GetBill);
@@ -53,6 +55,37 @@ public static class PayablesEndpoints
         catch (InvalidOperationException ex) // unknown vendor, or no lines
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+    }
+
+    private static async Task<IResult> EditBill(
+        Guid clientId, Guid billId, DraftBillRequest request, BillService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            Bill updated = await service.EditDraftAsync(
+                clientId, billId,
+                new BillBody(request.VendorId, request.BillDate, request.DueDate, request.VendorReference, request.Memo, request.Lines),
+                cancellationToken);
+            return Results.Ok(updated);
+        }
+        catch (InvalidOperationException ex) // not an editable draft, unknown vendor, or bad body
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+    }
+
+    private static async Task<IResult> DiscardBill(
+        Guid clientId, Guid billId, BillService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await service.DiscardDraftAsync(clientId, billId, cancellationToken);
+            return Results.NoContent();
+        }
+        catch (InvalidOperationException ex) // not a discardable draft
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
         }
     }
 
