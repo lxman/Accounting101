@@ -8,7 +8,7 @@ import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { ReceivablesService } from '../../core/receivables/receivables.service';
 import { Invoice, InvoiceLine, DraftInvoiceRequest, invoiceTotals } from '../../core/receivables/receivables';
 import { extractProblem } from '../../core/api/problem-details';
-import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
+import { money as fmtMoney } from '../../core/format/display';
 
 interface LineModel {
   lineId: string;
@@ -76,7 +76,7 @@ const emptyLine = (): LineModel => ({
           <label hlmLabel>Tax rate</label>
           <input hlmInput type="number" step="0.01"
                  [value]="form.taxRate().value()"
-                 (change)="form.taxRate().value.set(+$any($event.target).value)" />
+                 (input)="form.taxRate().value.set(+$any($event.target).value)" />
         </div>
         <div class="flex flex-col gap-1">
           <label hlmLabel>Memo</label>
@@ -106,12 +106,12 @@ const emptyLine = (): LineModel => ({
               <td class="pr-2">
                 <input hlmInput type="number" class="text-right tabular-nums w-20"
                        [value]="form.lines[i].quantity().value()"
-                       (change)="form.lines[i].quantity().value.set(+$any($event.target).value)" />
+                       (input)="form.lines[i].quantity().value.set(+$any($event.target).value)" />
               </td>
               <td class="pr-2">
                 <input hlmInput type="number" step="0.01" class="text-right tabular-nums w-28"
                        [value]="form.lines[i].unitPrice().value()"
-                       (change)="form.lines[i].unitPrice().value.set(+$any($event.target).value)" />
+                       (input)="form.lines[i].unitPrice().value.set(+$any($event.target).value)" />
               </td>
               <td>
                 <input type="checkbox"
@@ -203,7 +203,6 @@ export class InvoiceEditor {
   removeLine(i: number): void { this.model.update(v => ({ ...v, lines: v.lines.filter((_, idx) => idx !== i) })); }
 
   money(n: number): string { return fmtMoney(n); }
-  displayDate(d: string): string { return fmtDate(d); }
 
   private fromInvoice(inv: Invoice): InvoiceFormValue {
     return {

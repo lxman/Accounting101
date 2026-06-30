@@ -111,8 +111,8 @@ export class InvoiceDetail {
     this.reload();
   }
 
-  reload(): void {
-    this.svc.getInvoice(this.id).subscribe(v => this.view.set(v));
+  reload(clearBusy = false): void {
+    this.svc.getInvoice(this.id).subscribe(v => { this.view.set(v); if (clearBusy) this.busy.set(false); });
   }
 
   lineAmt(l: { quantity: number; unitPrice: number }): number { return lineAmount(l); }
@@ -122,15 +122,15 @@ export class InvoiceDetail {
   issue(): void {
     this.busy.set(true); this.message.set(null);
     this.svc.issue(this.id).subscribe({
-      next: () => { this.busy.set(false); this.reload(); },
+      next: () => { this.reload(true); },
       error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
     });
   }
 
   voidInvoice(): void {
     this.busy.set(true); this.message.set(null);
-    this.svc.void(this.id, this.voidReason()).subscribe({
-      next: () => { this.busy.set(false); this.reload(); },
+    this.svc.void(this.id, this.voidReason() || null).subscribe({
+      next: () => { this.reload(true); },
       error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
     });
   }

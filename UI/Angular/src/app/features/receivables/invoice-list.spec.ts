@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { InvoiceList } from './invoice-list';
@@ -30,7 +30,7 @@ describe('InvoiceList', () => {
 
   afterEach(() => TestBed.inject(HttpTestingController).verify());
 
-  it('selecting a customer loads their invoices; row links to detail', () => {
+  it('selecting a customer loads their invoices; clicking row navigates to detail', () => {
     const f = TestBed.createComponent(InvoiceList); f.detectChanges();
     const ctrl = TestBed.inject(HttpTestingController);
     ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme Co', email: null }]);
@@ -41,13 +41,39 @@ describe('InvoiceList', () => {
     f.detectChanges();
     const text = f.nativeElement.textContent;
     expect(text).toContain('1001'); expect(text).toContain('500.00');
-    expect(f.nativeElement.querySelector('a[href="/receivables/invoices/inv1"]')).toBeTruthy();
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const row = f.nativeElement.querySelector('tbody tr');
+    row.click();
+    expect(nav).toHaveBeenCalledWith(['/receivables/invoices', 'inv1']);
   });
 
-  it('shows a prompt when no customer is selected', () => {
+  it('shows no-customers empty state when customer list is empty', () => {
     const f = TestBed.createComponent(InvoiceList); f.detectChanges();
     TestBed.inject(HttpTestingController).expectOne('http://localhost:5000/clients/C1/customers').flush([]);
     f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('No customers yet');
+  });
+
+  it('shows a prompt when customers exist but none is selected', () => {
+    const f = TestBed.createComponent(InvoiceList); f.detectChanges();
+    TestBed.inject(HttpTestingController).expectOne('http://localhost:5000/clients/C1/customers')
+      .flush([{ id: 'cu1', name: 'Acme Co', email: null }]);
+    f.detectChanges();
     expect(f.nativeElement.textContent).toContain('Select a customer');
+  });
+
+  it('sets listError when listInvoices fails', () => {
+    const f = TestBed.createComponent(InvoiceList); f.detectChanges();
+    const ctrl = TestBed.inject(HttpTestingController);
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme Co', email: null }]);
+    f.detectChanges();
+    f.componentInstance.customerId.set('cu1'); f.detectChanges();
+    ctrl.expectOne(r => r.url.endsWith('/clients/C1/invoices')).flush(
+      { type: 'https://tools.ietf.org/html/rfc7807', title: 'Error', detail: 'Forbidden', status: 403 },
+      { status: 403, statusText: 'Forbidden' },
+    );
+    f.detectChanges();
+    expect(f.componentInstance.listError()).toBe('Forbidden');
+    expect(f.nativeElement.textContent).toContain('Forbidden');
   });
 });

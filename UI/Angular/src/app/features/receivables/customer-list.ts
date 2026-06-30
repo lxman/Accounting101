@@ -22,8 +22,9 @@ import { extractProblem } from '../../core/api/problem-details';
           <input hlmInput [value]="newEmail()" (input)="newEmail.set($any($event.target).value)" /></div>
         <button hlmBtn type="button" (click)="add()" [disabled]="!newName().trim() || busy()">Add</button>
       </div>
+      @if (svc.loadError()) { <p class="text-destructive text-sm">{{ svc.loadError() }}</p> }
       @if (error()) { <p class="text-destructive text-sm">{{ error() }}</p> }
-      @if (svc.customers().length === 0) { <p class="text-sm text-muted-foreground italic">No customers yet.</p> }
+      @if (svc.customers().length === 0 && !svc.loadError()) { <p class="text-sm text-muted-foreground italic">No customers yet.</p> }
       @for (c of svc.customers(); track c.id) {
         <div class="flex items-center gap-3 py-1 border-b border-border/50 text-sm">
           <span>{{ c.name }}</span><span class="text-muted-foreground">{{ c.email }}</span>

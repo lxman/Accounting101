@@ -46,6 +46,19 @@ describe('ReceivablesService', () => {
     expect(svc.customers().length).toBe(1);
     expect(svc.customerName('cu1')).toBe('Acme Co');
     expect(svc.customerName('nope')).toBe('nope');           // fallback
+    expect(svc.loadError()).toBeNull();
+  });
+
+  it('load() sets loadError when the GET fails', () => {
+    const svc = TestBed.inject(ReceivablesService); const ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    svc.load();
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush(
+      { type: 'https://tools.ietf.org/html/rfc7807', title: 'Error', detail: 'Unauthorized', status: 401 },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+    expect(svc.loadError()).toBe('Unauthorized');
+    expect(svc.customers().length).toBe(0);
   });
 
   it('create() POSTs and appends to the cache', () => {

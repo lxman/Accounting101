@@ -5,6 +5,7 @@ import { environment } from '../api/environment';
 import { ClientContextService } from '../client/client-context.service';
 import { PagedResponse } from '../api/paged-response';
 import { Customer, DraftInvoiceRequest, Invoice, InvoiceListQuery, InvoiceView } from './receivables';
+import { extractProblem } from '../api/problem-details';
 
 @Injectable({ providedIn: 'root' })
 export class ReceivablesService {
@@ -13,12 +14,17 @@ export class ReceivablesService {
   private readonly _customers = signal<Customer[]>([]);
   readonly customers = this._customers.asReadonly();
   private readonly byId = computed(() => new Map(this._customers().map(c => [c.id, c])));
+  private readonly _loadError = signal<string | null>(null);
+  readonly loadError = this._loadError.asReadonly();
 
   private base(path = ''): string { return `${environment.apiBaseUrl}/clients/${this.client.clientId()}${path}`; }
 
   load(): void {
     const id = this.client.clientId(); if (!id) return;
-    this.http.get<Customer[]>(this.base('/customers')).subscribe(cs => this._customers.set(cs));
+    this.http.get<Customer[]>(this.base('/customers')).subscribe({
+      next: cs => { this._customers.set(cs); this._loadError.set(null); },
+      error: e => this._loadError.set(extractProblem(e).detail),
+    });
   }
   create(name: string, email?: string | null): Observable<Customer> {
     const id = this.client.clientId(); if (!id) return EMPTY;

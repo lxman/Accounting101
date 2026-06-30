@@ -5,9 +5,9 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { of, switchMap } from 'rxjs';
+import { catchError, of, switchMap } from 'rxjs';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { HlmTableImports } from '@spartan-ng/helm/table';
@@ -22,6 +22,7 @@ import { PagedResponse } from '../../core/api/paged-response';
 import { money, displayDate } from '../../core/format/display';
 import { InvoiceStatusBadge } from '../../shared/invoice-status-badge';
 import { SettlementBadge } from '../../shared/settlement-badge';
+import { extractProblem } from '../../core/api/problem-details';
 
 @Component({
   selector: 'app-invoice-list',
@@ -51,7 +52,7 @@ import { SettlementBadge } from '../../shared/settlement-badge';
           </hlm-select-content>
         </div>
 
-        <div hlmSelect [value]="settlement()" (valueChange)="onSettlementChange($event)">
+        <div hlmSelect [value]="settlement()" (valueChange)="onSettlementChange($event)" [itemToString]="settlementToLabel">
           <hlm-select-trigger class="w-36">
             <hlm-select-value placeholder="All" />
           </hlm-select-trigger>
@@ -71,9 +72,12 @@ import { SettlementBadge } from '../../shared/settlement-badge';
         </a>
       </div>
 
-      @if (!customerId()) {
+      @if (svc.customers().length === 0) {
+        <p class="text-muted-foreground text-sm">No customers yet — <a routerLink="/receivables/customers" class="underline">add one first</a>.</p>
+      } @else if (!customerId()) {
         <p class="text-muted-foreground text-sm">Select a customer to view invoices.</p>
       } @else {
+        @if (listError()) { <p class="text-destructive text-sm">{{ listError() }}</p> }
         @if (invoices().length === 0) {
           <p class="text-muted-foreground text-sm">No invoices found.</p>
         } @else {
@@ -91,12 +95,11 @@ import { SettlementBadge } from '../../shared/settlement-badge';
               </thead>
               <tbody hlmTBody>
                 @for (v of invoices(); track v.invoice.id) {
-                  <tr hlmTr>
-                    <td hlmTd>
-                      <a [routerLink]="'/receivables/invoices/' + v.invoice.id">
-                        {{ v.invoice.number ?? '—' }}
-                      </a>
-                    </td>
+                  <tr hlmTr class="cursor-pointer hover:bg-muted/50"
+                      tabindex="0"
+                      (click)="openInvoice(v.invoice.id)"
+                      (keydown.enter)="openInvoice(v.invoice.id)">
+                    <td hlmTd>{{ v.invoice.number ?? '—' }}</td>
                     <td hlmTd>{{ fmtDate(v.invoice.issueDate) }}</td>
                     <td hlmTd>{{ v.invoice.dueDate ? fmtDate(v.invoice.dueDate) : '—' }}</td>
                     <td hlmTd>{{ fmtMoney(calcTotal(v)) }}</td>
@@ -137,11 +140,13 @@ import { SettlementBadge } from '../../shared/settlement-badge';
 })
 export class InvoiceList {
   readonly svc = inject(ReceivablesService);
+  private readonly router = inject(Router);
 
   readonly customerId = signal('');
   readonly settlement = signal<SettlementFilter | ''>('');
   readonly skip = signal(0);
   readonly limit = signal(50);
+  readonly listError = signal<string | null>(null);
 
   // Mirrors entry-list: computed query re-emits when any filter/page signal changes;
   // switchMap cancels in-flight request so a stale response can never overwrite newer data.
@@ -156,12 +161,15 @@ export class InvoiceList {
     toObservable(this.query).pipe(
       switchMap(q => {
         if (!q.customerId) return of(null);
+        this.listError.set(null);
         return this.svc.listInvoices({
           customerId: q.customerId,
           settlement: q.settlement as SettlementFilter | undefined,
           skip: q.skip,
           limit: q.limit,
-        });
+        }).pipe(
+          catchError(e => { this.listError.set(extractProblem(e).detail); return of(null); }),
+        );
       }),
     ),
     { initialValue: null as PagedResponse<InvoiceView> | null },
@@ -181,6 +189,7 @@ export class InvoiceList {
 
   /** Passed to [itemToString] so the trigger shows the customer name rather than the raw GUID. */
   readonly toCustomerName = (id: string): string => this.svc.customerName(id);
+  readonly settlementToLabel = (v: string): string => v === 'open' ? 'Open' : v === 'paid' ? 'Paid' : 'All';
 
   constructor() { this.svc.load(); }
 
@@ -193,6 +202,8 @@ export class InvoiceList {
     this.settlement.set((value as string ?? '') as SettlementFilter | '');
     this.skip.set(0);
   }
+
+  openInvoice(id: string): void { void this.router.navigate(['/receivables/invoices', id]); }
 
   prevPage(): void {
     const s = this.skip();
