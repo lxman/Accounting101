@@ -11,6 +11,7 @@ import { ApprovalQueue } from './features/journal/approval-queue';
 import { EntryDetail } from './features/journal/entry-detail';
 import { ChartOfAccounts } from './features/accounts/chart-of-accounts';
 import { AccountEditor } from './features/accounts/account-editor';
+import { CustomerList } from './features/receivables/customer-list';
 import { NAV } from './layout/nav';
 
 export const routes: Routes = [
@@ -40,7 +41,12 @@ export const routes: Routes = [
     { path: 'new', component: AccountEditor },
     { path: ':id/edit', component: AccountEditor },
   ] },
+  { path: 'receivables', children: [
+    { path: '', pathMatch: 'full', redirectTo: 'customers' },
+    { path: 'customers', component: CustomerList },
+    // '' (InvoiceList) + invoices/* added in Tasks 5–7
+  ] },
   // remaining nav targets → placeholder
-  ...NAV.filter(n => ![ '/dashboard', '/trial-balance', '/statements', '/accounts' ].includes(n.path) && !n.path.startsWith('/journal')).map(n => ({ path: n.path.slice(1), component: Placeholder })),
+  ...NAV.filter(n => ![ '/dashboard', '/trial-balance', '/statements', '/accounts', '/receivables' ].includes(n.path) && !n.path.startsWith('/journal')).map(n => ({ path: n.path.slice(1), component: Placeholder })),
   { path: '**', redirectTo: 'dashboard' },
 ];
