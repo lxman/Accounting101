@@ -21,6 +21,7 @@ public static class ReceivablesEndpoints
         clients.MapGet("/invoices/{invoiceId:guid}", GetInvoice);
         clients.MapGet("/invoices", ListInvoices);
         clients.MapPost("/payments", RecordPayment);
+        clients.MapGet("/payments", ListPayments);
         clients.MapPost("/payments/{paymentId:guid}/void", VoidPayment);
         clients.MapPost("/credit-applications", ApplyCredit);
         clients.MapGet("/customers/{customerId:guid}/credit-balance", GetCreditBalance);
@@ -165,6 +166,15 @@ public static class ReceivablesEndpoints
         if (string.Equals(order, "desc", StringComparison.OrdinalIgnoreCase)) { descending = true; return true; }
         if (string.Equals(order, "asc", StringComparison.OrdinalIgnoreCase)) { descending = false; return true; }
         return false;
+    }
+
+    private static async Task<IResult> ListPayments(
+        Guid clientId, Guid? customerId, PaymentService service, CancellationToken cancellationToken)
+    {
+        if (customerId is null || customerId == Guid.Empty)
+            return Results.Problem("customerId query parameter is required.", statusCode: StatusCodes.Status400BadRequest);
+        IReadOnlyList<Payment> payments = await service.GetPaymentsByCustomerAsync(clientId, customerId.Value, cancellationToken);
+        return Results.Ok(payments);
     }
 
     private static async Task<IResult> RecordPayment(

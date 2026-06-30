@@ -89,6 +89,11 @@ public sealed class PaymentService(
         return new InvoiceView(invoice, Accounting101.Settlement.Settlement.OpenBalance(invoice.Total, applied), Accounting101.Settlement.Settlement.Status(invoice.Total, applied));
     }
 
+    /// <summary>All payments recorded for a customer (including voided), newest-or-stored order. Read-only;
+    /// powers the UI's applied-payments view.</summary>
+    public Task<IReadOnlyList<Payment>> GetPaymentsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default) =>
+        payments.GetPaymentsByCustomerAsync(clientId, customerId, ct);
+
     /// <summary>Unapplied customer credit = non-voided payment remainders minus non-voided credit applications minus non-voided refunds.</summary>
     public async Task<decimal> GetCustomerCreditBalanceAsync(Guid clientId, Guid customerId, CancellationToken ct = default)
     {
