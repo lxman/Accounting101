@@ -85,4 +85,23 @@ public sealed class GetCustomerAccountEndpointTests(ReceivablesHostFixture fixtu
         HttpResponseMessage res = await clerk.GetAsync($"/clients/{clientId}/customers/{Guid.NewGuid()}/account");
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
     }
+
+    [Fact]
+    public async Task GET_account_rejects_non_iso_asOf_and_accepts_iso()
+    {
+        (Guid clientId, _, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        Customer customer = (await (await clerk.PostAsJsonAsync(
+            $"/clients/{clientId}/customers", new CreateCustomerRequest("Stark", null)))
+            .Content.ReadFromJsonAsync<Customer>())!;
+
+        // Slash-format date: accepted by the old current-culture TryParse (en-US), rejected by strict ISO.
+        HttpResponseMessage bad = await clerk.GetAsync(
+            $"/clients/{clientId}/customers/{customer.Id}/account?asOf={Uri.EscapeDataString("06/15/2026")}");
+        Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+
+        // ISO parses regardless of server culture.
+        HttpResponseMessage ok = await clerk.GetAsync(
+            $"/clients/{clientId}/customers/{customer.Id}/account?asOf=2026-06-15");
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+    }
 }

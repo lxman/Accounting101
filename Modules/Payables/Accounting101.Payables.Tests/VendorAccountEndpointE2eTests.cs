@@ -87,5 +87,22 @@ public sealed class VendorAccountEndpointE2eTests(PayablesHostFixture fixture) :
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Fact]
+    public async Task GET_account_rejects_non_iso_asOf_and_accepts_iso()
+    {
+        (Guid clientId, _, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        Vendor vendor = (await (await clerk.PostAsJsonAsync(
+            $"/clients/{clientId}/vendors", new CreateVendorRequest("PropCo", null)))
+            .Content.ReadFromJsonAsync<Vendor>())!;
+
+        HttpResponseMessage bad = await clerk.GetAsync(
+            $"/clients/{clientId}/vendors/{vendor.Id}/account?asOf={Uri.EscapeDataString("06/15/2026")}");
+        Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+
+        HttpResponseMessage ok = await clerk.GetAsync(
+            $"/clients/{clientId}/vendors/{vendor.Id}/account?asOf=2026-06-15");
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+    }
+
     private sealed record CreditBalanceDto(Guid VendorId, decimal CreditBalance);
 }

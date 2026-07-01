@@ -1,5 +1,6 @@
 using Accounting101.Ledger.Contracts;
 using Accounting101.Settlement;
+using System.Globalization;
 
 namespace Accounting101.Payables.Api;
 
@@ -255,7 +256,7 @@ public static class PayablesEndpoints
         DateOnly date;
         if (string.IsNullOrEmpty(asOf))
             date = DateOnly.FromDateTime(DateTime.UtcNow);
-        else if (!DateOnly.TryParse(asOf, out date))
+        else if (!DateOnly.TryParseExact(asOf, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
             return Results.Problem("asOf must be a date (yyyy-MM-dd).", statusCode: StatusCodes.Status400BadRequest);
 
         VendorAccountView? view = await service.GetAccountAsync(clientId, vendorId, date, cancellationToken);
