@@ -89,4 +89,23 @@ describe('PaymentEditor', () => {
     expect(f.nativeElement.textContent).toContain('25.00');
     ctrl.verify();
   });
+
+  it('warns and disables Save when allocations exceed the payment amount', () => {
+    const ctrl = setup({ customer: 'cu1' });
+    const f = TestBed.createComponent(PaymentEditor); f.detectChanges();
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme', email: null }]);
+    ctrl.expectOne(r => r.url.endsWith('/clients/C1/invoices') && r.params.get('settlement') === 'open')
+      .flush({ items: [openInvoice('inv1', '1001', 105)], total: 1, skip: 0, limit: 200 });
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers/cu1/credit-balance').flush({ customerId: 'cu1', creditBalance: 0 });
+    f.detectChanges();
+    const cmp = f.componentInstance as PaymentEditor;
+    cmp.onAmount(50); cmp.onRow(0, 80); f.detectChanges();   // allocated 80 > amount 50 (row 80 <= open 105)
+    expect(cmp.valid()).toBe(false);
+    expect(cmp.allocationWarning()).toContain('exceeds the payment amount');
+    expect(f.nativeElement.textContent).toContain('exceeds the payment amount');
+    cmp.onRow(0, 40); f.detectChanges();                      // 40 <= amount 50 → valid
+    expect(cmp.valid()).toBe(true);
+    expect(cmp.allocationWarning()).toBeNull();
+    ctrl.verify();
+  });
 });

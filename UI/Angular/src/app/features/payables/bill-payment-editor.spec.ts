@@ -60,4 +60,19 @@ describe('BillPaymentEditor', () => {
     expect(nav).toHaveBeenCalledWith(['/payables/payments']);
     ctrl.verify();
   });
+
+  it('warns and disables Save when allocations exceed the payment amount', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(BillPaymentEditor); f.detectChanges();
+    flushInit(ctrl); f.detectChanges();                       // bill b1 open 100
+    const cmp = f.componentInstance;
+    cmp.onAmount(50); cmp.onRow(0, 80); f.detectChanges();    // allocated 80 > amount 50 (row 80 <= open 100)
+    expect(cmp.valid()).toBe(false);
+    expect(cmp.allocationWarning()).toContain('exceeds the payment amount');
+    expect(f.nativeElement.textContent).toContain('exceeds the payment amount');
+    cmp.onRow(0, 40); f.detectChanges();
+    expect(cmp.valid()).toBe(true);
+    expect(cmp.allocationWarning()).toBeNull();
+    ctrl.verify();
+  });
 });

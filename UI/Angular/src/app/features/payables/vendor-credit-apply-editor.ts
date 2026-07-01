@@ -67,6 +67,8 @@ import { CurrencyInput } from '../../shared/currency-input';
         The bill's open balance updates immediately.
       </p>
 
+      @if (allocationWarning()) { <p class="text-destructive text-sm">{{ allocationWarning() }}</p> }
+
       @if (message()) { <p class="text-destructive text-sm">{{ message() }}</p> }
 
       <div class="flex items-center gap-2">
@@ -96,6 +98,14 @@ export class VendorCreditApplyEditor {
     this.allocated() > 0 &&
     this.rows().every(r => r.allocation >= 0 && r.allocation <= r.openBalance) &&
     this.allocated() <= this.available());
+  readonly allocationWarning = computed<string | null>(() => {
+    const over = Math.round((this.allocated() - this.available()) * 100) / 100;
+    if (over > 0)
+      return `Applied ${this.money(this.allocated())} exceeds available credit by ${this.money(over)}.`;
+    if (this.rows().some(r => r.allocation > r.openBalance))
+      return 'A line is applied more than its open balance.';
+    return null;
+  });
 
   constructor() {
     if (!this.vendorId) { void this.router.navigate(['/payables']); return; }

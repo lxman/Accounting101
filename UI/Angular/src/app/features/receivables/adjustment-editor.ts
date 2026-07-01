@@ -98,6 +98,8 @@ interface AdjustRow {
         The invoice's open balance updates immediately.
       </p>
 
+      @if (allocationWarning()) { <p class="text-destructive text-sm">{{ allocationWarning() }}</p> }
+
       @if (message()) { <p class="text-destructive text-sm">{{ message() }}</p> }
 
       <div class="flex items-center gap-2">
@@ -137,6 +139,17 @@ export class AdjustmentEditor {
     if (!included.every(r => r.amount > 0 && r.amount <= r.openBalance)) return false;
     if (this.type() === 'credit-application' && this.total() > this.creditBalance()) return false;
     return true;
+  });
+
+  readonly allocationWarning = computed<string | null>(() => {
+    if (this.type() === 'credit-application') {
+      const over = Math.round((this.total() - this.creditBalance()) * 100) / 100;
+      if (over > 0)
+        return `Applied ${this.money(this.total())} exceeds available credit by ${this.money(over)}.`;
+    }
+    if (this.rows().some(r => r.included && r.amount > r.openBalance))
+      return 'A line is adjusted more than its open balance.';
+    return null;
   });
 
   constructor() {

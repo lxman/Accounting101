@@ -108,4 +108,21 @@ describe('AdjustmentEditor', () => {
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('Allocation exceeds open balance.');
   });
+
+  it('warns and disables Save when applied credit exceeds available credit', () => {
+    const ctrl = setup('cu1');
+    const f = TestBed.createComponent(AdjustmentEditor); f.detectChanges();
+    loadInvoices(ctrl, f, [{ id: 'inv1', number: '1001', open: 200 }], 30);  // available credit 30
+    const cmp = f.componentInstance as AdjustmentEditor;
+    cmp.setType('credit-application');
+    cmp.toggleRow(0, true);          // include → amount defaults to open 200; total 200 > credit 30
+    f.detectChanges();
+    expect(cmp.valid()).toBe(false);
+    expect(cmp.allocationWarning()).toContain('exceeds available credit');
+    expect(f.nativeElement.textContent).toContain('exceeds available credit');
+    cmp.setAmount(0, 20); f.detectChanges();                 // 20 <= credit 30 → valid
+    expect(cmp.valid()).toBe(true);
+    expect(cmp.allocationWarning()).toBeNull();
+    ctrl.verify();
+  });
 });

@@ -58,4 +58,19 @@ describe('VendorCreditApplyEditor', () => {
     expect(nav).toHaveBeenCalledWith(['/payables/credits']);
     ctrl.verify();
   });
+
+  it('warns and disables Save when applied exceeds available credit', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(VendorCreditApplyEditor); f.detectChanges();
+    flushInit(ctrl); f.detectChanges();                       // available 50; bill b1 open 100
+    const cmp = f.componentInstance;
+    cmp.onRow(0, 80); f.detectChanges();                      // allocated 80 > available 50 (row 80 <= open 100)
+    expect(cmp.valid()).toBe(false);
+    expect(cmp.allocationWarning()).toContain('exceeds available credit');
+    expect(f.nativeElement.textContent).toContain('exceeds available credit');
+    cmp.onRow(0, 40); f.detectChanges();                      // 40 <= available 50 → valid
+    expect(cmp.valid()).toBe(true);
+    expect(cmp.allocationWarning()).toBeNull();
+    ctrl.verify();
+  });
 });
