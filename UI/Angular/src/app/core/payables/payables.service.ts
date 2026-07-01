@@ -83,6 +83,16 @@ export class PayablesService {
     return this.http.post<Bill>(this.base(`/bills/${id}/enter`), {});
   }
 
+  editBill(id: string, req: DraftBillRequest): Observable<Bill> {
+    const clientId = this.client.clientId(); if (!clientId) return EMPTY;
+    return this.http.put<Bill>(this.base(`/bills/${id}`), req);
+  }
+
+  discardBill(id: string): Observable<void> {
+    const clientId = this.client.clientId(); if (!clientId) return EMPTY;
+    return this.http.delete<void>(this.base(`/bills/${id}`));
+  }
+
   void(id: string, reason?: string | null): Observable<Bill> {
     const clientId = this.client.clientId(); if (!clientId) return EMPTY;
     return this.http.post<Bill>(this.base(`/bills/${id}/void`), { reason: reason ?? null });

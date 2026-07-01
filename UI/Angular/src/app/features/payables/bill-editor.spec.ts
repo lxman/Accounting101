@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { provideRouter, Router } from '@angular/router';
+import { provideRouter, Router, ActivatedRoute } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { BillEditor } from './bill-editor';
@@ -9,9 +9,12 @@ import { ClientContextService } from '../../core/client/client-context.service';
 import { vi } from 'vitest';
 
 describe('BillEditor', () => {
-  function setup() {
+  function setup(editId?: string) {
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      providers: [
+        provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
+        ...(editId ? [{ provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => editId } } } }] : []),
+      ],
     });
     TestBed.inject(ClientContextService).select('C1');
     const ctrl = TestBed.inject(HttpTestingController);
@@ -67,6 +70,37 @@ describe('BillEditor', () => {
     post.flush({ id: 'b9', vendorId: 'v1', number: null, billDate: '2026-06-30', dueDate: null,
       vendorReference: null, memo: null, status: 'Draft', lines: post.request.body.lines });
     expect(nav).toHaveBeenCalledWith(['/payables/bills', 'b9']);
+    ctrl.verify();
+  });
+
+  it('edit mode loads the draft and PUTs on save', async () => {
+    const ctrl = setup('d1');
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(BillEditor);
+    f.detectChanges();
+    flushRefData(ctrl);                                  // vendors + accounts
+    f.detectChanges();                                    // let the effect observe vendors loaded → calls getBill
+    // prefill effect loads the existing draft via GET.
+    ctrl.expectOne('http://localhost:5000/clients/C1/bills/d1').flush({ bill: { id: 'd1', vendorId: 'v1',
+      number: null, billDate: '2026-06-30', dueDate: null, vendorReference: 'INV-9', memo: null,
+      status: 'Draft', lines: [{ description: 'June rent', amount: 1200, expenseAccountId: 'a1' }] },
+      openBalance: 1200, settlementStatus: 'Open' });
+    f.detectChanges();
+
+    expect(f.componentInstance.editId).toBe('d1');
+    expect(f.componentInstance.model().vendorId).toBe('v1');
+    expect(f.componentInstance.model().lines.length).toBe(1);
+    expect(f.componentInstance.canSave()).toBe(true);
+
+    f.componentInstance.save();
+    const put = ctrl.expectOne(r => r.method === 'PUT' && r.url === 'http://localhost:5000/clients/C1/bills/d1');
+    expect(put.request.body).toEqual({ vendorId: 'v1', billDate: '2026-06-30', dueDate: null,
+      vendorReference: 'INV-9', memo: null,
+      lines: [{ description: 'June rent', amount: 1200, expenseAccountId: 'a1' }] });
+    put.flush({ id: 'd1', vendorId: 'v1', number: null, billDate: '2026-06-30', dueDate: null,
+      vendorReference: 'INV-9', memo: null, status: 'Draft',
+      lines: [{ description: 'June rent', amount: 1200, expenseAccountId: 'a1' }] });
+    expect(nav).toHaveBeenCalledWith(['/payables/bills', 'd1']);
     ctrl.verify();
   });
 });

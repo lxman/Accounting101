@@ -1,13 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { form, applyEach, required, FormField } from '@angular/forms/signals';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { PayablesService } from '../../core/payables/payables.service';
-import { DraftBillRequest, billTotal } from '../../core/payables/payables';
+import { Bill, DraftBillRequest, billTotal } from '../../core/payables/payables';
 import { AccountsService } from '../../core/accounts/accounts.service';
 import { AccountResponse } from '../../core/accounts/account';
 import { extractProblem } from '../../core/api/problem-details';
@@ -28,12 +28,12 @@ const emptyLine = (): LineModel => ({ lineId: crypto.randomUUID(), description: 
   imports: [RouterLink, FormField, ...HlmInputImports, ...HlmLabelImports, HlmButton, ...HlmSelectImports, CurrencyInput],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-4xl">
-      <h1 class="text-2xl font-bold">New bill</h1>
+      <h1 class="text-2xl font-bold">{{ editId ? 'Edit bill' : 'New bill' }}</h1>
 
       <div class="flex flex-col gap-1">
         <label hlmLabel>Vendor</label>
         <div hlmSelect [value]="form.vendorId().value()" [itemToString]="vendorLabel"
-             (valueChange)="form.vendorId().value.set($any($event))">
+             (valueChange)="form.vendorId().value.set($any($event))" [disabled]="!!editId">
           <hlm-select-trigger class="w-full"><hlm-select-value placeholder="Select a vendor" /></hlm-select-trigger>
           <hlm-select-content *hlmSelectPortal>
             @for (v of svc.vendors(); track v.id) { <hlm-select-item [value]="v.id">{{ v.name }}</hlm-select-item> }
@@ -100,15 +100,22 @@ const emptyLine = (): LineModel => ({ lineId: crypto.randomUUID(), description: 
       <div class="flex items-center gap-2">
         <button hlmBtn type="button" (click)="save()" [disabled]="!canSave() || busy()">Save</button>
         <a hlmBtn variant="outline" routerLink="/payables">Cancel</a>
+        @if (editId) {
+          <button hlmBtn type="button" variant="ghost" (click)="discard()" [disabled]="busy()">Discard</button>
+        }
       </div>
     </div>
   `,
 })
 export class BillEditor {
+  #loaded = false;
   readonly svc = inject(PayablesService);
   readonly accountsSvc = inject(AccountsService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
+
+  readonly editId = this.route.snapshot.paramMap.get('id');
 
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
@@ -144,11 +151,33 @@ export class BillEditor {
   constructor() {
     this.svc.load();
     this.accountsSvc.load();
+    if (this.editId) {
+      effect(() => {
+        if (this.#loaded) return;
+        const vendors = this.svc.vendors();
+        if (!vendors.length) return;
+        this.#loaded = true;
+        this.svc.getBill(this.editId!).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(view => {
+          this.model.set(this.fromBill(view.bill));
+        });
+      });
+    }
   }
 
   addLine(): void { this.model.update(v => ({ ...v, lines: [...v.lines, emptyLine()] })); }
   removeLine(i: number): void { this.model.update(v => ({ ...v, lines: v.lines.filter((_, idx) => idx !== i) })); }
   money(n: number): string { return fmtMoney(n); }
+
+  private fromBill(b: Bill): BillFormValue {
+    return {
+      vendorId: b.vendorId,
+      billDate: b.billDate,
+      dueDate: b.dueDate,
+      vendorReference: b.vendorReference,
+      memo: b.memo,
+      lines: (b.lines ?? []).map(l => ({ lineId: crypto.randomUUID(), description: l.description, amount: l.amount, expenseAccountId: l.expenseAccountId })),
+    };
+  }
 
   private toRequest(): DraftBillRequest {
     const v = this.model();
@@ -163,8 +192,19 @@ export class BillEditor {
     if (!this.canSave()) return;
     this.busy.set(true);
     this.message.set(null);
-    this.svc.draftBill(this.toRequest()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    const req = this.toRequest();
+    const obs = this.editId ? this.svc.editBill(this.editId, req) : this.svc.draftBill(req);
+    obs.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (saved) => { this.busy.set(false); void this.router.navigate(['/payables/bills', saved.id]); },
+      error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
+    });
+  }
+
+  discard(): void {
+    if (!this.editId) return;
+    this.busy.set(true); this.message.set(null);
+    this.svc.discardBill(this.editId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.busy.set(false); void this.router.navigate(['/payables']); },
       error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
     });
   }

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmInputImports } from '@spartan-ng/helm/input';
@@ -60,6 +60,8 @@ import { SettlementBadge } from '../../shared/settlement-badge';
         @switch (v.bill.status) {
           @case ('Draft') {
             <div class="flex items-center gap-2">
+              <a hlmBtn variant="outline" [routerLink]="['/payables/bills', id, 'edit']">Edit</a>
+              <button hlmBtn type="button" variant="outline" (click)="deleteBill()" [disabled]="busy()">Delete</button>
               <button hlmBtn type="button" (click)="enter()" [disabled]="busy()">Enter</button>
             </div>
           }
@@ -104,10 +106,12 @@ import { SettlementBadge } from '../../shared/settlement-badge';
 export class BillDetail {
   readonly svc = inject(PayablesService);
   readonly accountsSvc = inject(AccountsService);
+  private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
 
-  readonly id = this.route.snapshot.paramMap.get('id')!;
+  // Not readonly: entering a draft promotes it to a new evidentiary id, after which the page re-points here.
+  id = this.route.snapshot.paramMap.get('id')!;
   readonly view = signal<BillView | null>(null);
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
@@ -162,7 +166,21 @@ export class BillDetail {
   enter(): void {
     this.busy.set(true); this.message.set(null);
     this.svc.enter(this.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.reload(true); },
+      // Entering promotes the draft to a brand-new evidentiary bill (new id + number) and deletes the draft.
+      // Re-point the page at the entered id; reloading the old draft id would 404 (it's gone).
+      next: (entered) => {
+        this.id = entered.id;
+        this.router.navigate(['/payables/bills', entered.id], { replaceUrl: true });
+        this.reload(true);
+      },
+      error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
+    });
+  }
+
+  deleteBill(): void {
+    this.busy.set(true); this.message.set(null);
+    this.svc.discardBill(this.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.busy.set(false); this.router.navigate(['/payables']); },
       error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
     });
   }
