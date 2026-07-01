@@ -103,4 +103,24 @@ describe('BillEditor', () => {
     expect(nav).toHaveBeenCalledWith(['/payables/bills', 'd1']);
     ctrl.verify();
   });
+
+  it('edit mode discards the draft and returns to the list', async () => {
+    const ctrl = setup('d1');
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(BillEditor);
+    f.detectChanges();
+    flushRefData(ctrl);                                  // vendors + accounts
+    f.detectChanges();                                    // effect observes vendors loaded → prefill GET
+    ctrl.expectOne('http://localhost:5000/clients/C1/bills/d1').flush({ bill: { id: 'd1', vendorId: 'v1',
+      number: null, billDate: '2026-06-30', dueDate: null, vendorReference: 'INV-9', memo: null,
+      status: 'Draft', lines: [{ description: 'June rent', amount: 1200, expenseAccountId: 'a1' }] },
+      openBalance: 1200, settlementStatus: 'Open' });
+    f.detectChanges();
+
+    f.componentInstance.discard();
+    const del = ctrl.expectOne(r => r.method === 'DELETE' && r.url === 'http://localhost:5000/clients/C1/bills/d1');
+    del.flush(null, { status: 204, statusText: 'No Content' });
+    expect(nav).toHaveBeenCalledWith(['/payables']);
+    ctrl.verify();
+  });
 });
