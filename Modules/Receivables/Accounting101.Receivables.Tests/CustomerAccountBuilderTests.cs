@@ -172,4 +172,38 @@ public sealed class CustomerAccountBuilderTests
 
         Assert.Equal(75m, applied[inv]);  // 50 (credit app) + 25 (write-off); voided 30 + 15 excluded
     }
+
+    [Fact]
+    public void OpenInvoices_orders_same_date_by_number()
+    {
+        Invoice inv1002 = IssuedInvoice(Guid.NewGuid(), "1002", new(2026, 3, 1), null, 100m);
+        Invoice inv1001 = IssuedInvoice(Guid.NewGuid(), "1001", new(2026, 3, 1), null, 100m);
+        // fed in reversed number order; same issue date
+        IReadOnlyList<OpenInvoiceLine> open =
+            CustomerAccountBuilder.OpenInvoices([inv1002, inv1001], new Dictionary<Guid, decimal>(), asOf: new(2026, 3, 1));
+
+        Assert.Equal(["1001", "1002"], open.Select(l => l.Number));
+    }
+
+    [Fact]
+    public void CreditActivity_orders_same_date_deterministically_by_type_then_id()
+    {
+        DateOnly d = new(2026, 3, 5);
+        Guid pA = new("00000000-0000-0000-0000-000000000001");
+        Guid pB = new("00000000-0000-0000-0000-000000000002");
+        // Two same-date overpayments fed high-Id first (Id tiebreak) + a same-date credit application (type Order after overpayments).
+        List<Payment> payments =
+        [
+            new() { Id = pB, CustomerId = Guid.NewGuid(), Date = d, Amount = 20m, Allocations = [] }, // unapplied 20
+            new() { Id = pA, CustomerId = Guid.NewGuid(), Date = d, Amount = 10m, Allocations = [] }, // unapplied 10
+        ];
+        List<CreditApplication> apps =
+            [new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = d, Allocations = [new Allocation(Guid.NewGuid(), 5m)] }];
+
+        IReadOnlyList<CreditActivityLine> lines = CustomerAccountBuilder.CreditActivity(payments, apps, []);
+
+        // Overpayments first (Order 0), ordered by Id (pA=…01 before pB=…02) → 10 then 20; then Credit applied (Order 1) → -5.
+        Assert.Equal([10m, 20m, -5m], lines.Select(l => l.Amount));
+        Assert.Equal(["Overpayment", "Overpayment", "Credit applied"], lines.Select(l => l.Type));
+    }
 }

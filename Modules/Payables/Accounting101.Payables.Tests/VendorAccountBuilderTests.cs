@@ -83,4 +83,35 @@ public sealed class VendorAccountBuilderTests
         Assert.Equal(-20m, lines[1].Amount);
         Assert.Equal(30m, lines[1].CreditBalance); // 50 - 20
     }
+
+    [Fact]
+    public void OpenBills_orders_same_date_by_number()
+    {
+        Bill b1002 = EnteredBill(Guid.NewGuid(), 100m, new DateOnly(2026, 3, 1), null, "B-1002");
+        Bill b1001 = EnteredBill(Guid.NewGuid(), 100m, new DateOnly(2026, 3, 1), null, "B-1001");
+        var open = VendorAccountBuilder.OpenBills([b1002, b1001], new Dictionary<Guid, decimal>(), new DateOnly(2026, 3, 1));
+
+        Assert.Equal(["B-1001", "B-1002"], open.Select(l => l.Number));
+    }
+
+    [Fact]
+    public void CreditActivity_orders_same_date_deterministically_by_type_then_id()
+    {
+        DateOnly d = new(2026, 3, 5);
+        Guid pA = new("00000000-0000-0000-0000-000000000001");
+        Guid pB = new("00000000-0000-0000-0000-000000000002");
+        // Two same-date overpayments fed high-Id first + a same-date vendor-credit application.
+        List<BillPayment> payments =
+        [
+            new() { Id = pB, VendorId = Guid.NewGuid(), Date = d, Amount = 20m, Method = null, Allocations = [] }, // unapplied 20
+            new() { Id = pA, VendorId = Guid.NewGuid(), Date = d, Amount = 10m, Method = null, Allocations = [] }, // unapplied 10
+        ];
+        List<VendorCreditApplication> apps =
+            [new() { Id = Guid.NewGuid(), VendorId = Guid.NewGuid(), Date = d, Allocations = [new Allocation(Guid.NewGuid(), 5m)] }];
+
+        var lines = VendorAccountBuilder.CreditActivity(payments, apps);
+
+        Assert.Equal([10m, 20m, -5m], lines.Select(l => l.Amount));
+        Assert.Equal(["Overpayment", "Overpayment", "Credit applied"], lines.Select(l => l.Type));
+    }
 }

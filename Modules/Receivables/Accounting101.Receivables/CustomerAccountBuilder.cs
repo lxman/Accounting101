@@ -36,7 +36,7 @@ public static class CustomerAccountBuilder
                 return new OpenInvoiceLine(i.Id, i.Number, i.IssueDate, i.DueDate, open, overdue);
             })
             .Where(l => l.OpenBalance > 0m)
-            .OrderBy(l => l.IssueDate).ToList();
+            .OrderBy(l => l.IssueDate).ThenBy(l => l.Number).ToList();
 
     public static AgingBuckets Aging(IReadOnlyList<OpenInvoiceLine> openInvoices)
     {
@@ -92,16 +92,16 @@ public static class CustomerAccountBuilder
     public static IReadOnlyList<CreditActivityLine> CreditActivity(
         IReadOnlyList<Payment> payments, IReadOnlyList<CreditApplication> creditApps, IReadOnlyList<Refund> refunds)
     {
-        List<(DateOnly Date, string Type, string? Reference, decimal Amount)> raw = [];
+        List<(DateOnly Date, int Order, Guid Id, string Type, string? Reference, decimal Amount)> raw = [];
         foreach (Payment p in payments.Where(p => !p.Voided && p.Unapplied > 0m))
-            raw.Add((p.Date, "Overpayment", null, p.Unapplied));
+            raw.Add((p.Date, 0, p.Id, "Overpayment", null, p.Unapplied));
         foreach (CreditApplication c in creditApps.Where(c => !c.Voided))
-            raw.Add((c.Date, "Credit applied", null, -c.Applied));
+            raw.Add((c.Date, 1, c.Id, "Credit applied", null, -c.Applied));
         foreach (Refund r in refunds.Where(r => !r.Voided))
-            raw.Add((r.Date, "Refund", r.Memo, -r.Amount));
+            raw.Add((r.Date, 2, r.Id, "Refund", r.Memo, -r.Amount));
 
         decimal balance = 0m;
-        return raw.OrderBy(r => r.Date)
+        return raw.OrderBy(r => r.Date).ThenBy(r => r.Order).ThenBy(r => r.Id)
             .Select(r =>
             {
                 balance += r.Amount;

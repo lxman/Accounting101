@@ -30,7 +30,7 @@ public static class VendorAccountBuilder
                 return new OpenBillLine(b.Id, b.Number, b.BillDate, b.DueDate, open, overdue);
             })
             .Where(l => l.OpenBalance > 0m)
-            .OrderBy(l => l.BillDate).ToList();
+            .OrderBy(l => l.BillDate).ThenBy(l => l.Number).ToList();
 
     public static AgingBuckets Aging(IReadOnlyList<OpenBillLine> openBills)
     {
@@ -71,14 +71,14 @@ public static class VendorAccountBuilder
     public static IReadOnlyList<CreditActivityLine> CreditActivity(
         IReadOnlyList<BillPayment> payments, IReadOnlyList<VendorCreditApplication> creditApps)
     {
-        List<(DateOnly Date, string Type, string? Reference, decimal Amount)> raw = [];
+        List<(DateOnly Date, int Order, Guid Id, string Type, string? Reference, decimal Amount)> raw = [];
         foreach (BillPayment p in payments.Where(p => !p.Voided && p.Unapplied > 0m))
-            raw.Add((p.Date, "Overpayment", null, p.Unapplied));
+            raw.Add((p.Date, 0, p.Id, "Overpayment", null, p.Unapplied));
         foreach (VendorCreditApplication c in creditApps.Where(c => !c.Voided))
-            raw.Add((c.Date, "Credit applied", null, -c.Applied));
+            raw.Add((c.Date, 1, c.Id, "Credit applied", null, -c.Applied));
 
         decimal balance = 0m;
-        return raw.OrderBy(r => r.Date)
+        return raw.OrderBy(r => r.Date).ThenBy(r => r.Order).ThenBy(r => r.Id)
             .Select(r =>
             {
                 balance += r.Amount;
