@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
@@ -7,7 +7,7 @@ import { ThemeSwitch } from '../core/theme/theme-switch';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { DevIdentityService } from '../core/api/dev-identity.service';
-import { NAV } from './nav';
+import { NAV, NavLink, navLeafPaths } from './nav';
 
 @Component({
   selector: 'app-shell',
@@ -20,8 +20,6 @@ import { NAV } from './nav';
           {{ client.clientId() ?? 'Select client' }} ▾
         </button>
         <div class="ml-auto flex items-center gap-2">
-          <button hlmBtn type="button" variant="ghost" size="sm">Edit Firm</button>
-          <button hlmBtn type="button" variant="ghost" size="sm">Edit Client</button>
           <app-theme-switch />
           <div hlmSelect [value]="identity.active().sub" [itemToString]="identityItemToString" (valueChange)="identity.use($any($event))" class="w-44">
             <hlm-select-trigger class="w-44">
@@ -36,13 +34,34 @@ import { NAV } from './nav';
         </div>
       </header>
       <div class="flex">
-        <aside class="w-44 min-h-[calc(100vh-3.5rem)] p-2 bg-sidebar text-sidebar-foreground">
-          @for (item of nav; track item.path) {
-            <a [routerLink]="item.path"
-               class="block px-3 py-2 rounded-lg text-sm"
-               [class.bg-sidebar-accent]="activePath() === item.path"
-               [class.text-sidebar-accent-foreground]="activePath() === item.path"
-               [class.font-semibold]="activePath() === item.path">{{ item.label }}</a>
+        <aside class="w-56 min-h-[calc(100vh-3.5rem)] p-2 bg-sidebar text-sidebar-foreground">
+          @for (section of nav; track section.label) {
+            <div class="mt-3 first:mt-0">
+              <button type="button" data-testid="nav-section-header"
+                      (click)="toggle(section.label)"
+                      class="w-full flex items-center justify-between px-3 py-1 text-xs uppercase tracking-wide text-muted-foreground">
+                <span>{{ section.label }}</span>
+                <span>{{ isOpen(section.label) ? '▾' : '▸' }}</span>
+              </button>
+              @if (isOpen(section.label)) {
+                @for (item of section.items; track item.path) {
+                  <a [routerLink]="item.path"
+                     class="block px-3 py-2 rounded-lg text-sm"
+                     [class.bg-sidebar-accent]="activePath() === item.path"
+                     [class.text-sidebar-accent-foreground]="activePath() === item.path"
+                     [class.font-semibold]="activePath() === item.path">{{ item.label }}</a>
+                  @if (item.children && parentOpen(item)) {
+                    @for (child of item.children; track child.path) {
+                      <a [routerLink]="child.path"
+                         class="block pl-6 pr-3 py-1.5 rounded-lg text-sm"
+                         [class.bg-sidebar-accent]="activePath() === child.path"
+                         [class.text-sidebar-accent-foreground]="activePath() === child.path"
+                         [class.font-semibold]="activePath() === child.path">{{ child.label }}</a>
+                    }
+                  }
+                }
+              }
+            </div>
           }
         </aside>
         <main class="flex-1 p-6"><router-outlet /></main>
@@ -55,7 +74,9 @@ export class Shell {
   protected readonly identity = inject(DevIdentityService);
   private readonly router = inject(Router);
 
-  // Current URL as a signal (seeded with the initial URL, updated on each navigation).
+  private readonly leafPaths = navLeafPaths();
+  private readonly collapsed = signal<Set<string>>(new Set());
+
   private readonly url = toSignal(
     this.router.events.pipe(
       filter((e): e is NavigationEnd => e instanceof NavigationEnd),
@@ -64,20 +85,45 @@ export class Shell {
     { initialValue: this.router.url },
   );
 
-  // The highlighted nav item is the one whose path is the LONGEST prefix of the current URL, so a
-  // child route lights its section (e.g. /journal/:id → Journal, /statements/balance-sheet →
-  // Statements) while a more specific sibling still wins (/journal/approvals → Approvals).
+  // Highlighted item = longest nav leaf path that prefixes the current URL.
   protected readonly activePath = computed(() => {
     const u = this.url();
     return (
-      this.nav
-        .filter((n) => u === n.path || u.startsWith(n.path + '/'))
-        .sort((a, b) => b.path.length - a.path.length)[0]?.path ?? null
+      this.leafPaths
+        .filter((p) => u === p || u.startsWith(p + '/'))
+        .sort((a, b) => b.length - a.length)[0] ?? null
     );
   });
 
-  // The trigger renders the active value (a user sub) via itemToString; map it back to a readable
-  // "Acting as: <name>" (a bare value would display the raw GUID).
+  toggle(key: string): void {
+    this.collapsed.update((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
+  // A group is open when not explicitly collapsed OR when it contains the active path
+  // (so navigating never hides the current page).
+  isOpen(sectionLabel: string): boolean {
+    if (!this.collapsed().has(sectionLabel)) return true;
+    return this.sectionContainsActive(sectionLabel);
+  }
+
+  parentOpen(item: NavLink): boolean {
+    if (!this.collapsed().has(item.path)) return true;
+    const a = this.activePath();
+    return a === item.path || (item.children?.some((c) => c.path === a) ?? false);
+  }
+
+  private sectionContainsActive(sectionLabel: string): boolean {
+    const a = this.activePath();
+    if (!a) return false;
+    const section = NAV.find((s) => s.label === sectionLabel);
+    if (!section) return false;
+    return section.items.some((i) => i.path === a || (i.children?.some((c) => c.path === a) ?? false));
+  }
+
   protected readonly identityItemToString = (sub: string): string =>
     `Acting as: ${this.identity.identities.find((i) => i.sub === sub)?.name ?? sub}`;
 }

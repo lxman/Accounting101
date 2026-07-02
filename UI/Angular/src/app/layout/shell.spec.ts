@@ -5,7 +5,7 @@ import { DevIdentityService } from '../core/api/dev-identity.service';
 import { environment } from '../core/api/environment';
 
 describe('Shell', () => {
-  it('renders the nav and top-bar actions', async () => {
+  async function make() {
     await TestBed.configureTestingModule({
       imports: [Shell],
       providers: [provideRouter([])],
@@ -13,24 +13,46 @@ describe('Shell', () => {
     const fixture = TestBed.createComponent(Shell);
     fixture.detectChanges();
     await fixture.whenStable();
-    const el = fixture.nativeElement as HTMLElement;
+    return fixture;
+  }
+
+  it('renders section headers and Dashboard', async () => {
+    const el = (await make()).nativeElement as HTMLElement;
+    expect(el.textContent).toContain('General Ledger');
+    expect(el.textContent).toContain('Subledgers');
+    expect(el.textContent).toContain('Administration');
     expect(el.textContent).toContain('Dashboard');
-    expect(el.textContent).toContain('Edit Firm');
-    expect(el.textContent).toContain('Edit Client');
   });
 
-  it('switches the active dev identity from the top bar', () => {
-    TestBed.configureTestingModule({
-      imports: [Shell],
-      providers: [provideRouter([])],
-    });
-    const fixture = TestBed.createComponent(Shell);
+  it('shows Administration Firm/Client links (moved out of the header)', async () => {
+    const el = (await make()).nativeElement as HTMLElement;
+    expect(el.textContent).toContain('Firm');
+    expect(el.textContent).toContain('Client');
+    expect(el.textContent).not.toContain('Edit Firm');
+    expect(el.textContent).not.toContain('Edit Client');
+  });
+
+  it('shows a nested child under its parent (default expanded)', async () => {
+    const el = (await make()).nativeElement as HTMLElement;
+    expect(el.textContent).toContain('Bank Reconciliation');
+  });
+
+  it('collapsing a section hides its items', async () => {
+    const fixture = await make();
+    const el = fixture.nativeElement as HTMLElement;
+    // find the Administration section header toggle and click it
+    const header = Array.from(el.querySelectorAll('[data-testid="nav-section-header"]'))
+      .find((h) => h.textContent?.includes('Administration')) as HTMLElement;
+    header.click();
     fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Posting accounts');
+  });
+
+  it('switches the active dev identity from the top bar', async () => {
+    const fixture = await make();
     const ids = TestBed.inject(DevIdentityService);
     ids.use(environment.devApprover.sub);
     fixture.detectChanges();
-    // The trigger renders the active identity via itemToString ("Acting as: <name>"). Options live in a
-    // deferred overlay (*hlmSelectPortal), so this asserts the trigger label, not an inline option.
     expect(fixture.nativeElement.textContent).toContain('Dev Approver');
   });
 });
