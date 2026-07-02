@@ -6,12 +6,13 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { BillList } from './bill-list';
 import { PayablesService } from '../../core/payables/payables.service';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 import { vi } from 'vitest';
 
 describe('BillList', () => {
   function setup() {
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideCapabilities('ap.write')],
     });
     TestBed.inject(ClientContextService).select('C1');
     return TestBed.inject(HttpTestingController);
@@ -66,5 +67,19 @@ describe('BillList', () => {
     (f.nativeElement.querySelector('tbody tr') as HTMLElement).click();
     expect(nav).toHaveBeenCalledWith(['/payables/bills', 'b1']);
     ctrl.verify();
+  });
+
+  it('hides "New bill" without ap.write', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideCapabilities()],
+    });
+    TestBed.inject(ClientContextService).select('C1');
+    const ctrl = TestBed.inject(HttpTestingController);
+    const f = TestBed.createComponent(BillList);
+    f.detectChanges();
+    ctrl.expectOne('http://localhost:5000/clients/C1/vendors').flush([{ id: 'v1', name: 'Acme Parts', email: null }]);
+    f.detectChanges();
+    expect((f.nativeElement as HTMLElement).textContent).not.toContain('New bill');
   });
 });

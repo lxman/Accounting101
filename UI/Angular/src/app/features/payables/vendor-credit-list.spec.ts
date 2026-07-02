@@ -6,11 +6,12 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { VendorCreditList } from './vendor-credit-list';
 import { PayablesService } from '../../core/payables/payables.service';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 describe('VendorCreditList', () => {
   function setup() {
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideCapabilities('ap.write')],
     });
     TestBed.inject(ClientContextService).select('C1');
     return TestBed.inject(HttpTestingController);

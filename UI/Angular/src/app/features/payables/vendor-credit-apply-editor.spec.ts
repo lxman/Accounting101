@@ -5,6 +5,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { VendorCreditApplyEditor } from './vendor-credit-apply-editor';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 import { vi } from 'vitest';
 
 describe('VendorCreditApplyEditor', () => {
@@ -12,6 +13,7 @@ describe('VendorCreditApplyEditor', () => {
     TestBed.configureTestingModule({
       providers: [
         provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
+        provideCapabilities('ap.write'),
         { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: (k: string) => k === 'vendor' ? vendor : null } } } },
       ],
     });

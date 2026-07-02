@@ -9,11 +9,12 @@ import { VendorCreditApplication } from '../../core/payables/payables';
 import { money, displayDate } from '../../core/format/display';
 import { extractProblem } from '../../core/api/problem-details';
 import { VendorSelect } from '../../shared/vendor-select';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
   selector: 'app-vendor-credit-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, HlmButton, ...HlmTableImports, VendorSelect],
+  imports: [RouterLink, HlmButton, ...HlmTableImports, VendorSelect, CanDirective],
   template: `
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-3 flex-wrap">
@@ -22,7 +23,7 @@ import { VendorSelect } from '../../shared/vendor-select';
         @if (vendorId()) {
           <span class="text-sm text-muted-foreground">Available credit: <span class="tabular-nums font-semibold text-foreground">{{ fmtMoney(balance()) }}</span></span>
         }
-        <a hlmBtn size="sm" class="ms-auto"
+        <a *appCan="'ap.write'" hlmBtn size="sm" class="ms-auto"
            routerLink="/payables/credits/new"
            [queryParams]="{ vendor: vendorId() }"
            [class.pointer-events-none]="!vendorId() || balance() <= 0"

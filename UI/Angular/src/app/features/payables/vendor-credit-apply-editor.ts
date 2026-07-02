@@ -9,11 +9,12 @@ import { AllocRow, autoAllocate } from '../../core/payables/payables';
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
 import { CurrencyInput } from '../../shared/currency-input';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
   selector: 'app-vendor-credit-apply-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ...HlmInputImports, ...HlmLabelImports, HlmButton, CurrencyInput],
+  imports: [RouterLink, ...HlmInputImports, ...HlmLabelImports, HlmButton, CurrencyInput, CanDirective],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-3xl">
       <h1 class="text-2xl font-bold">Apply vendor credit</h1>
@@ -72,7 +73,7 @@ import { CurrencyInput } from '../../shared/currency-input';
       @if (message()) { <p class="text-destructive text-sm">{{ message() }}</p> }
 
       <div class="flex items-center gap-2">
-        <button hlmBtn type="button" (click)="save()" [disabled]="!valid() || busy()">Apply credit</button>
+        <button *appCan="'ap.write'" hlmBtn type="button" (click)="save()" [disabled]="!valid() || busy()">Apply credit</button>
         <a hlmBtn variant="outline" routerLink="/payables/credits">Cancel</a>
       </div>
     </div>

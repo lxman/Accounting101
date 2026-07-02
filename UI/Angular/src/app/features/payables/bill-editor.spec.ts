@@ -6,6 +6,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { BillEditor } from './bill-editor';
 import { PayablesService } from '../../core/payables/payables.service';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 import { vi } from 'vitest';
 
 describe('BillEditor', () => {
@@ -13,6 +14,7 @@ describe('BillEditor', () => {
     TestBed.configureTestingModule({
       providers: [
         provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
+        provideCapabilities('ap.write'),
         ...(editId ? [{ provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => editId } } } }] : []),
       ],
     });

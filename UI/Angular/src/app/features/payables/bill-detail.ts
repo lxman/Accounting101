@@ -10,11 +10,12 @@ import { AccountsService } from '../../core/accounts/accounts.service';
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
 import { SettlementBadge } from '../../shared/settlement-badge';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
   selector: 'app-bill-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, SettlementBadge, ...HlmTableImports, HlmButton, ...HlmInputImports],
+  imports: [RouterLink, SettlementBadge, CanDirective, ...HlmTableImports, HlmButton, ...HlmInputImports],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-3xl">
       <a routerLink="/payables" class="text-sm text-muted-foreground hover:text-foreground w-fit">← Bills</a>
@@ -60,16 +61,16 @@ import { SettlementBadge } from '../../shared/settlement-badge';
         @switch (v.bill.status) {
           @case ('Draft') {
             <div class="flex items-center gap-2">
-              <a hlmBtn variant="outline" [routerLink]="['/payables/bills', id, 'edit']">Edit</a>
-              <button hlmBtn type="button" variant="outline" (click)="deleteBill()" [disabled]="busy()">Delete</button>
-              <button hlmBtn type="button" (click)="enter()" [disabled]="busy()">Enter</button>
+              <a *appCan="'ap.write'" hlmBtn variant="outline" [routerLink]="['/payables/bills', id, 'edit']">Edit</a>
+              <button *appCan="'ap.write'" hlmBtn type="button" variant="outline" (click)="deleteBill()" [disabled]="busy()">Delete</button>
+              <button *appCan="'ap.write'" hlmBtn type="button" (click)="enter()" [disabled]="busy()">Enter</button>
             </div>
           }
           @case ('Entered') {
             <div class="flex items-center gap-2">
               <input hlmInput type="text" aria-label="Void reason" placeholder="Void reason"
                      [value]="voidReason()" (input)="voidReason.set($any($event.target).value)" />
-              <button hlmBtn type="button" variant="outline" (click)="voidBill()" [disabled]="busy()">Void</button>
+              <button *appCan="'ap.write'" hlmBtn type="button" variant="outline" (click)="voidBill()" [disabled]="busy()">Void</button>
             </div>
             @if (applied().length > 0) {
               <div class="flex flex-col gap-1">
@@ -83,7 +84,7 @@ import { SettlementBadge } from '../../shared/settlement-badge';
                         <td class="text-muted-foreground">{{ a.payment.method ?? '—' }}</td>
                         <td class="text-right">
                           @if (!a.payment.voided) {
-                            <button hlmBtn type="button" variant="ghost" size="sm"
+                            <button *appCan="'ap.write'" hlmBtn type="button" variant="ghost" size="sm"
                                     (click)="voidPayment(a.payment)" [disabled]="busy()">Void</button>
                           } @else {
                             <span class="text-xs text-muted-foreground">Voided</span>

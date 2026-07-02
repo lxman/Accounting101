@@ -13,6 +13,7 @@ import { AccountResponse } from '../../core/accounts/account';
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney } from '../../core/format/display';
 import { CurrencyInput } from '../../shared/currency-input';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 interface LineModel { lineId: string; description: string; amount: number; expenseAccountId: string | null; }
 interface BillFormValue {
@@ -25,7 +26,7 @@ const emptyLine = (): LineModel => ({ lineId: crypto.randomUUID(), description: 
 @Component({
   selector: 'app-bill-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, FormField, ...HlmInputImports, ...HlmLabelImports, HlmButton, ...HlmSelectImports, CurrencyInput],
+  imports: [RouterLink, FormField, ...HlmInputImports, ...HlmLabelImports, HlmButton, ...HlmSelectImports, CurrencyInput, CanDirective],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-4xl">
       <h1 class="text-2xl font-bold">{{ editId ? 'Edit bill' : 'New bill' }}</h1>
@@ -98,10 +99,10 @@ const emptyLine = (): LineModel => ({ lineId: crypto.randomUUID(), description: 
       @if (message()) { <p class="text-destructive text-sm">{{ message() }}</p> }
 
       <div class="flex items-center gap-2">
-        <button hlmBtn type="button" (click)="save()" [disabled]="!canSave() || busy()">Save</button>
+        <button *appCan="'ap.write'" hlmBtn type="button" (click)="save()" [disabled]="!canSave() || busy()">Save</button>
         <a hlmBtn variant="outline" routerLink="/payables">Cancel</a>
         @if (editId) {
-          <button hlmBtn type="button" variant="ghost" (click)="discard()" [disabled]="busy()">Discard</button>
+          <button *appCan="'ap.write'" hlmBtn type="button" variant="ghost" (click)="discard()" [disabled]="busy()">Discard</button>
         }
       </div>
     </div>

@@ -6,12 +6,14 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { vi } from 'vitest';
 import { BillDetail } from './bill-detail';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 describe('BillDetail', () => {
   function setup(id = 'b1') {
     TestBed.configureTestingModule({
       providers: [
         provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
+        provideCapabilities('ap.write'),
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => id } } } },
       ],
     });

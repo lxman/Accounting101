@@ -13,11 +13,12 @@ import { money, displayDate } from '../../core/format/display';
 import { VendorSelect } from '../../shared/vendor-select';
 import { SettlementBadge } from '../../shared/settlement-badge';
 import { extractProblem } from '../../core/api/problem-details';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
   selector: 'app-bill-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, HlmButton, VendorSelect, SettlementBadge, ...HlmSelectImports, ...HlmTableImports, ...HlmPaginationImports],
+  imports: [RouterLink, HlmButton, VendorSelect, SettlementBadge, CanDirective, ...HlmSelectImports, ...HlmTableImports, ...HlmPaginationImports],
   template: `
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-3 flex-wrap">
@@ -31,7 +32,7 @@ import { extractProblem } from '../../core/api/problem-details';
             <hlm-select-item value="paid">Paid</hlm-select-item>
           </hlm-select-content>
         </div>
-        <a hlmBtn size="sm" class="ms-auto" routerLink="/payables/bills/new"
+        <a *appCan="'ap.write'" hlmBtn size="sm" class="ms-auto" routerLink="/payables/bills/new"
            [class.pointer-events-none]="!vendorId()" [class.opacity-50]="!vendorId()">New bill</a>
       </div>
 
