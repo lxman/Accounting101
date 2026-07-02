@@ -40,10 +40,10 @@ import { CanDirective } from '../../core/capabilities/can.directive';
         }
 
         @if (m.status === 'Posted') {
-          <div class="flex items-center gap-2 border-t border-border pt-4">
+          <div *appCan="'payroll.write'" class="flex items-center gap-2 border-t border-border pt-4">
             <input hlmInput type="text" placeholder="Void reason (optional)"
                    [value]="reason() ?? ''" (input)="reason.set($any($event.target).value || null)" class="w-64" />
-            <button *appCan="'payroll.write'" hlmBtn type="button" variant="outline" (click)="this.void()" [disabled]="busy()">Void</button>
+            <button hlmBtn type="button" variant="outline" (click)="this.void()" [disabled]="busy()">Void</button>
           </div>
         }
       }

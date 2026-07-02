@@ -72,4 +72,25 @@ describe('ChartOfAccounts', () => {
     expect(lists.length).toBeGreaterThan(drags.length);   // headers + rows
     expect(group._items.size).toBe(lists.length);
   });
+
+  it('onDrop is a no-op without gl.manageAccounts (blocks the reparent write)', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideCapabilities()] });
+    ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    const f = TestBed.createComponent(ChartOfAccounts); f.detectChanges(); flushData(); f.detectChanges();
+    // Valid drop payload (AR under Cash, same type) — would succeed with the capability, but must
+    // early-return without it.
+    f.componentInstance.onDrop('ar', 'cash', 'Asset');
+    ctrl.expectNone('http://localhost:5000/clients/C1/accounts/ar');
+  });
+
+  it('hides "New account" without gl.manageAccounts', () => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideCapabilities()] });
+    ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    const f = TestBed.createComponent(ChartOfAccounts); f.detectChanges(); flushData(); f.detectChanges();
+    expect((f.nativeElement as HTMLElement).textContent).not.toContain('New account');
+  });
 });

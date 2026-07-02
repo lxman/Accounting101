@@ -82,10 +82,10 @@ import { CanDirective } from '../../core/capabilities/can.directive';
             </div>
           }
           @case ('Issued') {
-            <div class="flex items-center gap-2">
+            <div *appCan="'ar.write'" class="flex items-center gap-2">
               <input hlmInput type="text" aria-label="Void reason" placeholder="Void reason"
                      [value]="voidReason()" (input)="voidReason.set($any($event.target).value)" />
-              <button *appCan="'ar.write'" hlmBtn type="button" variant="outline" (click)="voidInvoice()" [disabled]="busy()">Void</button>
+              <button hlmBtn type="button" variant="outline" (click)="voidInvoice()" [disabled]="busy()">Void</button>
             </div>
 
             @if (applied().length > 0) {
