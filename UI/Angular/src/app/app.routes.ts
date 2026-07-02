@@ -41,6 +41,7 @@ import { RemittanceList } from './features/payroll/remittance-list';
 import { RemittanceEditor } from './features/payroll/remittance-editor';
 import { RemittanceDetail } from './features/payroll/remittance-detail';
 import { navLeafPaths } from './layout/nav';
+import { canWrite } from './core/capabilities/can.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -72,17 +73,17 @@ export const routes: Routes = [
   { path: 'receivables', component: ReceivablesShell, children: [
     { path: '', pathMatch: 'full', redirectTo: 'invoices' },
     { path: 'invoices', component: InvoiceList },
-    { path: 'invoices/new', component: InvoiceEditor },
-    { path: 'invoices/:id/edit', component: InvoiceEditor },
+    { path: 'invoices/new', component: InvoiceEditor, canActivate: [canWrite('ar.write', '/receivables/invoices')] },
+    { path: 'invoices/:id/edit', component: InvoiceEditor, canActivate: [canWrite('ar.write', '/receivables/invoices')] },
     { path: 'invoices/:id', component: InvoiceDetail },
     { path: 'payments', component: PaymentList },
-    { path: 'payments/new', component: PaymentEditor },
+    { path: 'payments/new', component: PaymentEditor, canActivate: [canWrite('ar.write', '/receivables/payments')] },
     { path: 'customers', component: CustomerList },
     { path: 'customers/:id', component: CustomerAccount },
     { path: 'credits', component: CreditList },
-    { path: 'credits/new', component: AdjustmentEditor },
+    { path: 'credits/new', component: AdjustmentEditor, canActivate: [canWrite('ar.write', '/receivables/credits')] },
     { path: 'refunds', component: RefundList },
-    { path: 'refunds/new', component: RefundEditor },
+    { path: 'refunds/new', component: RefundEditor, canActivate: [canWrite('ar.write', '/receivables/refunds')] },
   ] },
   { path: 'payables', component: PayablesShell, children: [
     { path: '', pathMatch: 'full', redirectTo: 'bills' },

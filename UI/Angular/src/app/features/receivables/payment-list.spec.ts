@@ -5,11 +5,12 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { PaymentList } from './payment-list';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 function setup() {
   localStorage.clear();
   TestBed.configureTestingModule({
-    providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideCapabilities('ar.write')],
   });
   TestBed.inject(ClientContextService).select('C1');
   return TestBed.inject(HttpTestingController);

@@ -5,11 +5,12 @@ import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { ReceivablesService } from '../../core/receivables/receivables.service';
 import { extractProblem } from '../../core/api/problem-details';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
   selector: 'app-customer-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...HlmInputImports, HlmButton],
+  imports: [...HlmInputImports, HlmButton, CanDirective],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-2xl">
       <h1 class="text-2xl font-bold">Customers</h1>
@@ -18,7 +19,7 @@ import { extractProblem } from '../../core/api/problem-details';
           <input hlmInput [value]="newName()" (input)="newName.set($any($event.target).value)" /></div>
         <div class="flex flex-col gap-1 flex-1"><label class="text-xs text-muted-foreground">Email (optional)</label>
           <input hlmInput [value]="newEmail()" (input)="newEmail.set($any($event.target).value)" /></div>
-        <button hlmBtn type="button" (click)="add()" [disabled]="!newName().trim() || busy()">Add</button>
+        <button *appCan="'ar.write'" hlmBtn type="button" (click)="add()" [disabled]="!newName().trim() || busy()">Add</button>
       </div>
       @if (svc.loadError()) { <p class="text-destructive text-sm">{{ svc.loadError() }}</p> }
       @if (error()) { <p class="text-destructive text-sm">{{ error() }}</p> }

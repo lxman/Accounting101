@@ -5,6 +5,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { InvoiceEditor } from './invoice-editor';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 function route(id: string | null, customer: string | null = null) {
   return {
@@ -29,6 +30,7 @@ describe('InvoiceEditor', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         route(id, customer),
+        provideCapabilities('ar.write'),
       ],
     });
     ctrl = TestBed.inject(HttpTestingController);

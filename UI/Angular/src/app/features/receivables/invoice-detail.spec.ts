@@ -5,6 +5,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { InvoiceDetail } from './invoice-detail';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 function routeStub() {
   return {
@@ -40,6 +41,7 @@ describe('InvoiceDetail', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         routeStub(),
+        provideCapabilities('ar.write'),
       ],
     });
     ctrl = TestBed.inject(HttpTestingController);

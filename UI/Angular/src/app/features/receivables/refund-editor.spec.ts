@@ -5,6 +5,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { RefundEditor } from './refund-editor';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 function setup(customer: string | null) {
   localStorage.clear();
@@ -12,6 +13,7 @@ function setup(customer: string | null) {
     providers: [
       provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
       { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: (k: string) => (k === 'customer' ? customer : null) } } } },
+      provideCapabilities('ar.write'),
     ],
   });
   TestBed.inject(ClientContextService).select('C1');

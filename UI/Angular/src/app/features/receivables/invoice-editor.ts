@@ -11,6 +11,7 @@ import { Invoice, InvoiceLine, DraftInvoiceRequest, invoiceTotals } from '../../
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney } from '../../core/format/display';
 import { CurrencyInput } from '../../shared/currency-input';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 interface LineModel {
   lineId: string;
@@ -42,7 +43,7 @@ const emptyLine = (): LineModel => ({
 @Component({
   selector: 'app-invoice-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, FormField, ...HlmInputImports, ...HlmLabelImports, HlmButton, ...HlmSelectImports, CurrencyInput],
+  imports: [RouterLink, FormField, ...HlmInputImports, ...HlmLabelImports, HlmButton, ...HlmSelectImports, CurrencyInput, CanDirective],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-4xl">
       <h1 class="text-2xl font-bold">{{ editId ? 'Edit invoice' : 'New invoice' }}</h1>
@@ -150,7 +151,7 @@ const emptyLine = (): LineModel => ({
       @if (message()) { <p class="text-destructive text-sm">{{ message() }}</p> }
 
       <div class="flex items-center gap-2">
-        <button hlmBtn type="button" (click)="save()" [disabled]="!canSave() || busy()">Save</button>
+        <button *appCan="'ar.write'" hlmBtn type="button" (click)="save()" [disabled]="!canSave() || busy()">Save</button>
         <a hlmBtn variant="outline" routerLink="/receivables">Cancel</a>
       </div>
     </div>

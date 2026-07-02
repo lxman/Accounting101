@@ -9,6 +9,7 @@ import { CreditType } from '../../core/receivables/receivables';
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
 import { CurrencyInput } from '../../shared/currency-input';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 interface AdjustRow {
   invoiceId: string;
@@ -22,7 +23,7 @@ interface AdjustRow {
 @Component({
   selector: 'app-adjustment-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ...HlmInputImports, ...HlmLabelImports, HlmButton, CurrencyInput],
+  imports: [RouterLink, ...HlmInputImports, ...HlmLabelImports, HlmButton, CurrencyInput, CanDirective],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-3xl">
       <h1 class="text-2xl font-bold">Record adjustment</h1>
@@ -103,7 +104,7 @@ interface AdjustRow {
       @if (message()) { <p class="text-destructive text-sm">{{ message() }}</p> }
 
       <div class="flex items-center gap-2">
-        <button hlmBtn type="button" (click)="save()" [disabled]="!valid() || busy()">Record adjustment</button>
+        <button *appCan="'ar.write'" hlmBtn type="button" (click)="save()" [disabled]="!valid() || busy()">Record adjustment</button>
         <a hlmBtn variant="outline" routerLink="/receivables/credits">Cancel</a>
       </div>
     </div>

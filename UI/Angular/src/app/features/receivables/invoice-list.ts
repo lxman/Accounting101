@@ -25,6 +25,7 @@ import { CustomerSelect } from '../../shared/customer-select';
 import { InvoiceStatusBadge } from '../../shared/invoice-status-badge';
 import { SettlementBadge } from '../../shared/settlement-badge';
 import { extractProblem } from '../../core/api/problem-details';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
   selector: 'app-invoice-list',
@@ -35,6 +36,7 @@ import { extractProblem } from '../../core/api/problem-details';
     CustomerSelect,
     InvoiceStatusBadge,
     SettlementBadge,
+    CanDirective,
     ...HlmSelectImports,
     ...HlmTableImports,
     ...HlmPaginationImports,
@@ -57,7 +59,7 @@ import { extractProblem } from '../../core/api/problem-details';
           </hlm-select-content>
         </div>
 
-        <a hlmBtn size="sm" class="ms-auto"
+        <a *appCan="'ar.write'" hlmBtn size="sm" class="ms-auto"
            routerLink="/receivables/invoices/new"
            [queryParams]="{ customer: customerId() }"
            [class.pointer-events-none]="!customerId()"

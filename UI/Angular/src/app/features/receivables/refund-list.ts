@@ -9,17 +9,18 @@ import { Refund } from '../../core/receivables/receivables';
 import { money, displayDate } from '../../core/format/display';
 import { extractProblem } from '../../core/api/problem-details';
 import { CustomerSelect } from '../../shared/customer-select';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
   selector: 'app-refund-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, HlmButton, ...HlmTableImports, CustomerSelect],
+  imports: [RouterLink, HlmButton, ...HlmTableImports, CustomerSelect, CanDirective],
   template: `
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-3 flex-wrap">
         <h1 class="text-2xl font-bold">Refunds</h1>
         <app-customer-select />
-        <a hlmBtn size="sm" class="ms-auto"
+        <a *appCan="'ar.write'" hlmBtn size="sm" class="ms-auto"
            routerLink="/receivables/refunds/new"
            [queryParams]="{ customer: customerId() }"
            [class.pointer-events-none]="!customerId()"
@@ -53,7 +54,7 @@ import { CustomerSelect } from '../../shared/customer-select';
                     <td hlmTd>{{ r.voided ? 'Voided' : 'Active' }}</td>
                     <td hlmTd>
                       @if (!r.voided) {
-                        <button hlmBtn size="sm" variant="outline" (click)="doVoid(r)" [disabled]="busy()">Void</button>
+                        <button *appCan="'ar.write'" hlmBtn size="sm" variant="outline" (click)="doVoid(r)" [disabled]="busy()">Void</button>
                       } @else { <span class="text-muted-foreground">—</span> }
                     </td>
                   </tr>

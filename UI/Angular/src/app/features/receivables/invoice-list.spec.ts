@@ -7,6 +7,7 @@ import { InvoiceList } from './invoice-list';
 import { ClientContextService } from '../../core/client/client-context.service';
 import { ReceivablesService } from '../../core/receivables/receivables.service';
 import { InvoiceView } from '../../core/receivables/receivables';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 function inv(id: string, number: string | null, status: 'Draft' | 'Issued', open = 0): InvoiceView {
   return {
@@ -25,6 +26,7 @@ describe('InvoiceList', () => {
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideCapabilities('ar.write'),
       ],
     });
     TestBed.inject(ClientContextService).select('C1');
@@ -119,5 +121,25 @@ describe('InvoiceList', () => {
     f.detectChanges();
     const recordLink = [...f.nativeElement.querySelectorAll('a')].find(a => a.textContent.trim() === 'Record payment');
     expect(recordLink).toBeFalsy();
+  });
+
+  it('hides "New invoice" without ar.write', () => {
+    TestBed.resetTestingModule();
+    localStorage.clear();
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        provideCapabilities(),
+      ],
+    });
+    TestBed.inject(ClientContextService).select('C1');
+    const f = TestBed.createComponent(InvoiceList); f.detectChanges();
+    TestBed.inject(HttpTestingController).expectOne('http://localhost:5000/clients/C1/customers')
+      .flush([{ id: 'cu1', name: 'Acme Co', email: null }]);
+    f.detectChanges();
+    expect((f.nativeElement as HTMLElement).textContent).not.toContain('New invoice');
   });
 });

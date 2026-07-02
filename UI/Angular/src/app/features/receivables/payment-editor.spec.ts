@@ -5,6 +5,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { PaymentEditor } from './payment-editor';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 function routeStub(params: Record<string, string | null>) {
   return { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: { get: (k: string) => params[k] ?? null } } } };
@@ -19,7 +20,7 @@ function openInvoice(id: string, number: string, open: number) {
 
 function setup(params: Record<string, string | null>) {
   TestBed.configureTestingModule({
-    providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), routeStub(params)],
+    providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), routeStub(params), provideCapabilities('ar.write')],
   });
   TestBed.inject(ClientContextService).select('C1');
   const ctrl = TestBed.inject(HttpTestingController);

@@ -6,6 +6,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Router } from '@angular/router';
 import { CustomerList } from './customer-list';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 import { vi } from 'vitest';
 
 describe('CustomerList', () => {
@@ -16,6 +17,7 @@ describe('CustomerList', () => {
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
+        provideCapabilities('ar.write'),
       ],
     });
     TestBed.inject(ClientContextService).select('C1');

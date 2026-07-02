@@ -10,11 +10,12 @@ import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
 import { InvoiceStatusBadge } from '../../shared/invoice-status-badge';
 import { SettlementBadge } from '../../shared/settlement-badge';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
   selector: 'app-invoice-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, InvoiceStatusBadge, SettlementBadge, ...HlmTableImports, HlmButton, ...HlmInputImports],
+  imports: [RouterLink, InvoiceStatusBadge, SettlementBadge, CanDirective, ...HlmTableImports, HlmButton, ...HlmInputImports],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-3xl">
       <a routerLink="/receivables" class="text-sm text-muted-foreground hover:text-foreground w-fit">← Invoices</a>
@@ -75,16 +76,16 @@ import { SettlementBadge } from '../../shared/settlement-badge';
         @switch (v.invoice.status) {
           @case ('Draft') {
             <div class="flex items-center gap-2">
-              <a hlmBtn variant="outline" [routerLink]="['/receivables/invoices', id, 'edit']">Edit</a>
-              <button hlmBtn type="button" variant="outline" (click)="deleteInvoice()" [disabled]="busy()">Delete</button>
-              <button hlmBtn type="button" (click)="issue()" [disabled]="busy()">Issue</button>
+              <a *appCan="'ar.write'" hlmBtn variant="outline" [routerLink]="['/receivables/invoices', id, 'edit']">Edit</a>
+              <button *appCan="'ar.write'" hlmBtn type="button" variant="outline" (click)="deleteInvoice()" [disabled]="busy()">Delete</button>
+              <button *appCan="'ar.write'" hlmBtn type="button" (click)="issue()" [disabled]="busy()">Issue</button>
             </div>
           }
           @case ('Issued') {
             <div class="flex items-center gap-2">
               <input hlmInput type="text" aria-label="Void reason" placeholder="Void reason"
                      [value]="voidReason()" (input)="voidReason.set($any($event.target).value)" />
-              <button hlmBtn type="button" variant="outline" (click)="voidInvoice()" [disabled]="busy()">Void</button>
+              <button *appCan="'ar.write'" hlmBtn type="button" variant="outline" (click)="voidInvoice()" [disabled]="busy()">Void</button>
             </div>
 
             @if (applied().length > 0) {
@@ -99,7 +100,7 @@ import { SettlementBadge } from '../../shared/settlement-badge';
                         <td class="text-muted-foreground">{{ a.payment.method ?? '—' }}</td>
                         <td class="text-right">
                           @if (!a.payment.voided) {
-                            <button hlmBtn type="button" variant="ghost" size="sm"
+                            <button *appCan="'ar.write'" hlmBtn type="button" variant="ghost" size="sm"
                                     (click)="voidPayment(a.payment)" [disabled]="busy()">Void</button>
                           } @else {
                             <span class="text-xs text-muted-foreground">Voided</span>
