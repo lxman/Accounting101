@@ -41,6 +41,16 @@ WebApplication app = builder.Build();
 app.Use(async (ctx, next) =>
 {
     try { await next(); }
+    catch (Accounting101.Ledger.Api.Documents.ModuleAccessDeniedException ex)
+    {
+        ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await ctx.Response.WriteAsJsonAsync(new Microsoft.AspNetCore.Mvc.ProblemDetails
+        {
+            Status = StatusCodes.Status403Forbidden,
+            Title  = "Forbidden",
+            Detail = ex.Message,
+        }, ctx.RequestAborted);
+    }
     catch (BadHttpRequestException ex) when (ex.InnerException is System.Text.Json.JsonException je)
     {
         ctx.Response.StatusCode = StatusCodes.Status400BadRequest;

@@ -167,10 +167,13 @@ public sealed class ValidateEntryTests(ApiFixture fixture) : IClassFixture<ApiFi
 
         SeededClient c = await fixture.SeedClientAsync("ModuleValidateTest");
 
-        // Add an Approver who does NOT hold Post permission.
-        Guid approverId = Guid.NewGuid();
-        await fixture.Control().AddMembershipAsync(approverId, c.ClientId, LedgerRole.Approver);
-        HttpClient approverHttp = fixture.ClientFor(approverId, "Approver");
+        // Add a Clerk (holds all subledger .write capabilities, incl. ar.write, but not gl.post — the
+        // raw-path permission this test proves the module credential substitutes for). Slice E gates
+        // ResolveForPostAsync's module branch on ar.write, so an Approver (no ar.write) no longer
+        // qualifies here; a Clerk does.
+        Guid clerkId = Guid.NewGuid();
+        await fixture.Control().AddMembershipAsync(clerkId, c.ClientId, LedgerRole.Clerk);
+        HttpClient clerkHttp = fixture.ClientFor(clerkId, "Clerk");
 
         // Register the module.
         await fixture.Control().RegisterModuleAsync(new ModuleRegistration
@@ -186,21 +189,21 @@ public sealed class ValidateEntryTests(ApiFixture fixture) : IClassFixture<ApiFi
         // The seeded client has an empty chart of accounts, so chart validation short-circuits and
         // returns valid:true even for random-GUID account IDs — the engine only validates accounts
         // that are actually in the chart.
-        int before = await EntryCountAsync(approverHttp, c.ClientId);
+        int before = await EntryCountAsync(clerkHttp, c.ClientId);
 
         // Build a validate request with module headers.
         HttpRequestMessage req = new(HttpMethod.Post, $"/clients/{c.ClientId}/entries/validate");
         req.Headers.Add("X-Module-Key", moduleKey);
         req.Headers.Add("X-Module-Secret", moduleSecret);
         req.Content = JsonContent.Create(body);
-        HttpResponseMessage resp = await approverHttp.SendAsync(req);
+        HttpResponseMessage resp = await clerkHttp.SendAsync(req);
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
         EntryValidationResponse? result = await resp.Content.ReadFromJsonAsync<EntryValidationResponse>();
         Assert.NotNull(result);
         Assert.True(result!.Valid);
 
-        int after = await EntryCountAsync(approverHttp, c.ClientId);
+        int after = await EntryCountAsync(clerkHttp, c.ClientId);
         Assert.Equal(before, after); // validate writes nothing
     }
 

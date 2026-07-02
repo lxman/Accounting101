@@ -55,7 +55,7 @@ public sealed class LedgerGateway(IActorFactory actorFactory, ControlStore contr
             // Module-originated path: authorize the module (registered + enabled + user is member).
             // Passing caller.Key as targetNamespace satisfies the ownership check (caller.Key == targetNamespace).
             ModuleAccessDecision decision = await moduleAccess.AuthorizeAsync(
-                module, module.Key, actor.UserId, clientId, cancellationToken);
+                module, module.Key, actor.UserId, clientId, ModuleAccessLevel.Write, cancellationToken);
             if (decision != ModuleAccessDecision.Allowed)
                 return LedgerContext.Forbidden();
 

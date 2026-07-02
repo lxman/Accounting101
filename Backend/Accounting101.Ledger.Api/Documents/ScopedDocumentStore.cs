@@ -35,7 +35,7 @@ public sealed class ScopedDocumentStore(
         if (policy == CollectionPolicy.Evidentiary)
             throw new ModuleDocumentException($"Put is not valid on the evidentiary collection '{collection}'; use Create/Update.");
 
-        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        Ctx ctx = await EnterAsync(clientId, collection, ModuleAccessLevel.Write, cancellationToken);
         if (policy == CollectionPolicy.Reference)
         {
             await PutReferenceAsync(clientId, ctx, id, body, tags, cancellationToken);
@@ -50,7 +50,7 @@ public sealed class ScopedDocumentStore(
     public async Task<DocumentResult<T>?> GetAsync<T>(Guid clientId, string collection, Guid id, CancellationToken cancellationToken = default)
     {
         manifest.PolicyOf(collection);
-        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        Ctx ctx = await EnterAsync(clientId, collection, ModuleAccessLevel.Read, cancellationToken);
         ModuleDocument? doc = await ctx.Store.GetAsync(ctx.Physical, id, null, cancellationToken);
         return doc is null
             ? null
@@ -63,7 +63,7 @@ public sealed class ScopedDocumentStore(
         CancellationToken cancellationToken = default)
     {
         manifest.PolicyOf(collection);
-        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        Ctx ctx = await EnterAsync(clientId, collection, ModuleAccessLevel.Read, cancellationToken);
         IReadOnlyList<ModuleDocument> docs = await ctx.Store.QueryAsync(ctx.Physical, tagFilter, skip, limit, descending, includeVoided, cancellationToken);
         return docs.Select(d => new DocumentResult<T>(d.Id, MapState(d.State), d.Sequence, BsonSerializer.Deserialize<T>(d.Body))).ToList();
     }
@@ -72,7 +72,7 @@ public sealed class ScopedDocumentStore(
         IReadOnlyDictionary<string, string> tagFilter, bool includeVoided = false, CancellationToken cancellationToken = default)
     {
         manifest.PolicyOf(collection);
-        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        Ctx ctx = await EnterAsync(clientId, collection, ModuleAccessLevel.Read, cancellationToken);
         return await ctx.Store.CountAsync(ctx.Physical, tagFilter, includeVoided, cancellationToken);
     }
 
@@ -80,7 +80,7 @@ public sealed class ScopedDocumentStore(
     {
         if (manifest.PolicyOf(collection) != CollectionPolicy.Plain)
             throw new ModuleDocumentException($"Delete is only valid on plain collections; '{collection}' is not plain.");
-        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        Ctx ctx = await EnterAsync(clientId, collection, ModuleAccessLevel.Write, cancellationToken);
         await ctx.Store.DeleteAsync(ctx.Physical, id, null, cancellationToken);
     }
 
@@ -89,7 +89,7 @@ public sealed class ScopedDocumentStore(
     {
         if (manifest.PolicyOf(collection) != CollectionPolicy.Reference)
             throw new ModuleDocumentException($"Deactivate is only valid on reference collections; '{collection}' is not reference.");
-        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        Ctx ctx = await EnterAsync(clientId, collection, ModuleAccessLevel.Write, cancellationToken);
 
         ModuleDocument existing = await ctx.Store.GetAsync(ctx.Physical, id, null, cancellationToken)
             ?? throw new ModuleDocumentException($"No document '{id}' in '{collection}' to deactivate.");
@@ -106,7 +106,7 @@ public sealed class ScopedDocumentStore(
         IReadOnlyDictionary<string, string> tags, CancellationToken cancellationToken = default)
     {
         RequireEvidentiary(collection);
-        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        Ctx ctx = await EnterAsync(clientId, collection, ModuleAccessLevel.Write, cancellationToken);
         Guid id = Guid.NewGuid();
         ModuleDocument doc = BuildDoc(id, body, tags, DocumentState.Draft, 1, null);
         await ctx.Store.PutAsync(ctx.Physical, doc, null, cancellationToken); // draft: no audit
@@ -117,7 +117,7 @@ public sealed class ScopedDocumentStore(
         IReadOnlyDictionary<string, string> tags, CancellationToken cancellationToken = default)
     {
         RequireEvidentiary(collection);
-        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        Ctx ctx = await EnterAsync(clientId, collection, ModuleAccessLevel.Write, cancellationToken);
         ModuleDocument current = await Require(ctx, collection, id, cancellationToken);
         if (current.State != DocumentState.Draft)
             throw new ModuleDocumentException($"Document '{id}' in '{collection}' is {current.State}; only a Draft may be updated.");
@@ -129,7 +129,7 @@ public sealed class ScopedDocumentStore(
     public async Task<long> FinalizeAsync(Guid clientId, string collection, Guid id, CancellationToken cancellationToken = default)
     {
         RequireEvidentiary(collection);
-        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        Ctx ctx = await EnterAsync(clientId, collection, ModuleAccessLevel.Write, cancellationToken);
         ModuleDocument current = await Require(ctx, collection, id, cancellationToken);
         if (current.State != DocumentState.Draft)
             throw new ModuleDocumentException($"Document '{id}' in '{collection}' is {current.State}; only a Draft may be finalized.");
@@ -162,7 +162,7 @@ public sealed class ScopedDocumentStore(
         IReadOnlyDictionary<string, string> newTags, CancellationToken cancellationToken = default)
     {
         RequireEvidentiary(collection);
-        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        Ctx ctx = await EnterAsync(clientId, collection, ModuleAccessLevel.Write, cancellationToken);
         ModuleDocument current = await Require(ctx, collection, id, cancellationToken);
         if (current.State != DocumentState.Finalized)
             throw new ModuleDocumentException($"Document '{id}' in '{collection}' is {current.State}; only a Finalized document may be superseded.");
@@ -201,7 +201,7 @@ public sealed class ScopedDocumentStore(
     public async Task VoidAsync(Guid clientId, string collection, Guid id, CancellationToken cancellationToken = default)
     {
         RequireEvidentiary(collection);
-        Ctx ctx = await EnterAsync(clientId, collection, cancellationToken);
+        Ctx ctx = await EnterAsync(clientId, collection, ModuleAccessLevel.Write, cancellationToken);
         ModuleDocument current = await Require(ctx, collection, id, cancellationToken);
         if (current.State != DocumentState.Finalized)
             throw new ModuleDocumentException($"Document '{id}' in '{collection}' is {current.State}; only a Finalized document may be voided.");
@@ -214,7 +214,7 @@ public sealed class ScopedDocumentStore(
     public async Task<long> NextNumberAsync(Guid clientId, string counterName, CancellationToken cancellationToken = default)
     {
         Actor actor = currentActor.Get();
-        ModuleAccessDecision decision = await access.AuthorizeAsync(identity, identity.Key, actor.UserId, clientId, cancellationToken);
+        ModuleAccessDecision decision = await access.AuthorizeAsync(identity, identity.Key, actor.UserId, clientId, ModuleAccessLevel.Write, cancellationToken);
         if (decision != ModuleAccessDecision.Allowed)
             throw new ModuleAccessDeniedException(identity.Key, counterName, decision);
         IMongoDatabase db = await resolver.ResolveAsync(clientId, cancellationToken)
@@ -293,10 +293,10 @@ public sealed class ScopedDocumentStore(
 
     private readonly record struct Ctx(IMongoDatabase Db, Actor Actor, MongoDocumentStore Store, string Physical);
 
-    private async Task<Ctx> EnterAsync(Guid clientId, string collection, CancellationToken cancellationToken)
+    private async Task<Ctx> EnterAsync(Guid clientId, string collection, ModuleAccessLevel level, CancellationToken cancellationToken)
     {
         Actor actor = currentActor.Get();
-        ModuleAccessDecision decision = await access.AuthorizeAsync(identity, identity.Key, actor.UserId, clientId, cancellationToken);
+        ModuleAccessDecision decision = await access.AuthorizeAsync(identity, identity.Key, actor.UserId, clientId, level, cancellationToken);
         if (decision != ModuleAccessDecision.Allowed)
             throw new ModuleAccessDeniedException(identity.Key, collection, decision);
 

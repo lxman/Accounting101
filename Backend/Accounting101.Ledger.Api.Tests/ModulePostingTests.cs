@@ -55,18 +55,19 @@ public sealed class ModulePostingTests(ApiFixture fixture) : IClassFixture<ApiFi
     // ---- tests ---------------------------------------------------------------------------------
 
     /// <summary>
-    /// An Approver (no Post permission) can post when a registered + enabled module credential is
-    /// supplied. The response must be 201 and the entry must carry ViaModule = "payables".
+    /// A Clerk holds ap.write but not gl.post. When a registered + enabled module credential is
+    /// supplied, the module authorization substitutes for the raw gl.post permission. The response
+    /// must be 201 and the entry must carry ViaModule = "payables".
     /// </summary>
     [Fact]
-    public async Task Module_credential_allows_approver_to_post_and_stamps_ViaModule()
+    public async Task Module_credential_allows_clerk_to_post_and_stamps_ViaModule()
     {
-        // Seed a client with a Clerk owner (to set up the client registration); add an Approver member.
+        // Seed a client with a Clerk owner (to set up the client registration); add a module Clerk member.
         SeededClient c = await fixture.SeedClientAsync("ModulePostTest");
 
-        Guid approverId = Guid.NewGuid();
-        await fixture.Control().AddMembershipAsync(approverId, c.ClientId, LedgerRole.Approver);
-        HttpClient approverHttp = fixture.ClientFor(approverId, "Approver");
+        Guid clerkId = Guid.NewGuid();
+        await fixture.Control().AddMembershipAsync(clerkId, c.ClientId, LedgerRole.Clerk);
+        HttpClient clerkHttp = fixture.ClientFor(clerkId, "Clerk");
 
         // Register the module in the control DB.
         await fixture.Control().RegisterModuleAsync(new ModuleRegistration
@@ -78,12 +79,12 @@ public sealed class ModulePostingTests(ApiFixture fixture) : IClassFixture<ApiFi
         });
 
         PostEntryRequest body = BalancedEntry();
-        HttpResponseMessage resp = await PostWithModuleAsync(approverHttp, c.ClientId, body, ModuleKey, ModuleSecret);
+        HttpResponseMessage resp = await PostWithModuleAsync(clerkHttp, c.ClientId, body, ModuleKey, ModuleSecret);
 
         Assert.Equal(HttpStatusCode.Created, resp.StatusCode);
 
         PostEntryResponse created = (await resp.Content.ReadFromJsonAsync<PostEntryResponse>())!;
-        EntryResponse? entry = await approverHttp.GetFromJsonAsync<EntryResponse>(
+        EntryResponse? entry = await clerkHttp.GetFromJsonAsync<EntryResponse>(
             $"/clients/{c.ClientId}/entries/{created.Id}");
 
         Assert.NotNull(entry);
@@ -91,19 +92,20 @@ public sealed class ModulePostingTests(ApiFixture fixture) : IClassFixture<ApiFi
     }
 
     /// <summary>
-    /// Same Approver, no module headers → 403. This proves the module path was the authorization
-    /// that allowed the post in the previous test, not some other loophole.
+    /// Same Clerk, no module headers → 403. A Clerk holds ap.write but not gl.post, so the raw path
+    /// still refuses it — this proves the module path was the authorization that allowed the post in
+    /// the previous test, not some other loophole.
     /// </summary>
     [Fact]
-    public async Task Approver_without_module_headers_gets_403()
+    public async Task Clerk_without_module_headers_gets_403()
     {
         SeededClient c = await fixture.SeedClientAsync("ModulePostTest403");
 
-        Guid approverId = Guid.NewGuid();
-        await fixture.Control().AddMembershipAsync(approverId, c.ClientId, LedgerRole.Approver);
-        HttpClient approverHttp = fixture.ClientFor(approverId, "Approver");
+        Guid clerkId = Guid.NewGuid();
+        await fixture.Control().AddMembershipAsync(clerkId, c.ClientId, LedgerRole.Clerk);
+        HttpClient clerkHttp = fixture.ClientFor(clerkId, "Clerk");
 
-        HttpResponseMessage resp = await approverHttp.PostAsJsonAsync(
+        HttpResponseMessage resp = await clerkHttp.PostAsJsonAsync(
             $"/clients/{c.ClientId}/entries", BalancedEntry());
 
         Assert.Equal(HttpStatusCode.Forbidden, resp.StatusCode);
@@ -168,9 +170,9 @@ public sealed class ModulePostingTests(ApiFixture fixture) : IClassFixture<ApiFi
     {
         SeededClient c = await fixture.SeedClientAsync("ActorTest");
 
-        Guid approverId = Guid.NewGuid();
-        await fixture.Control().AddMembershipAsync(approverId, c.ClientId, LedgerRole.Approver);
-        HttpClient approverHttp = fixture.ClientFor(approverId, "Approver");
+        Guid clerkId = Guid.NewGuid();
+        await fixture.Control().AddMembershipAsync(clerkId, c.ClientId, LedgerRole.Clerk);
+        HttpClient clerkHttp = fixture.ClientFor(clerkId, "Clerk");
 
         // Use the same "payables" module (may already exist from a prior test — RegisterModuleAsync is upsert).
         await fixture.Control().RegisterModuleAsync(new ModuleRegistration
@@ -182,18 +184,41 @@ public sealed class ModulePostingTests(ApiFixture fixture) : IClassFixture<ApiFi
         });
 
         HttpResponseMessage resp = await PostWithModuleAsync(
-            approverHttp, c.ClientId, BalancedEntry(), ModuleKey, ModuleSecret);
+            clerkHttp, c.ClientId, BalancedEntry(), ModuleKey, ModuleSecret);
 
         Assert.Equal(HttpStatusCode.Created, resp.StatusCode);
 
         PostEntryResponse created = (await resp.Content.ReadFromJsonAsync<PostEntryResponse>())!;
 
         // Pull the audit trail to read CreatedBy.
-        List<AuditRecordResponse>? audit = await approverHttp.GetFromJsonAsync<List<AuditRecordResponse>>(
+        List<AuditRecordResponse>? audit = await clerkHttp.GetFromJsonAsync<List<AuditRecordResponse>>(
             $"/clients/{c.ClientId}/audit/{created.Id}");
 
         Assert.NotNull(audit);
         AuditRecordResponse first = audit!.First();
-        Assert.Equal(approverId, first.Actor.UserId);
+        Assert.Equal(clerkId, first.Actor.UserId);
+    }
+
+    /// <summary>
+    /// An ArClerk holds ar.write but not ap.write. Even with a valid payables module credential, the
+    /// per-module capability check refuses the post — cross-module writes are rejected server-side.
+    /// </summary>
+    [Fact]
+    public async Task Wrong_module_clerk_cannot_post_via_another_modules_credential()
+    {
+        SeededClient c = await fixture.SeedClientAsync("CrossModule");
+
+        Guid arClerkId = Guid.NewGuid();
+        await fixture.Control().AddMembershipAsync(arClerkId, c.ClientId, LedgerRole.ArClerk);
+        HttpClient arClerkHttp = fixture.ClientFor(arClerkId, "ArClerk");
+
+        await fixture.Control().RegisterModuleAsync(new ModuleRegistration
+        {
+            Key = ModuleKey, Name = "Payables", Enabled = true, Secret = ModuleSecret,
+        });
+
+        HttpResponseMessage resp = await PostWithModuleAsync(arClerkHttp, c.ClientId, BalancedEntry(), ModuleKey, ModuleSecret);
+
+        Assert.Equal(HttpStatusCode.Forbidden, resp.StatusCode);
     }
 }

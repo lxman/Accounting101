@@ -25,10 +25,11 @@ public enum ModuleAccessDecision
 
 /// <summary>
 /// Dual authorization for a module's data access: the module must be registered + enabled and own
-/// the target namespace, AND the acting user must be a member of the client. The module half is the
-/// new namespace wall; the user half reuses the existing membership check. The decision is expressed
-/// purely against the <see cref="ModuleIdentity"/> value — independent of how that identity was
-/// established — so an out-of-process transport reuses this verbatim.
+/// the target namespace, AND the acting user must be a member of the client AND (for mapped subledger
+/// modules) hold the per-module capability for the requested access level. The module half is the
+/// new namespace wall; the user half reuses the existing membership check plus the capability gate.
+/// The decision is expressed purely against the <see cref="ModuleIdentity"/> value — independent of
+/// how that identity was established — so an out-of-process transport reuses this verbatim.
 /// </summary>
 public sealed class ModuleAccess(ControlStore control)
 {
@@ -37,6 +38,7 @@ public sealed class ModuleAccess(ControlStore control)
         string targetNamespace,
         Guid userId,
         Guid clientId,
+        ModuleAccessLevel level = ModuleAccessLevel.Write,
         CancellationToken cancellationToken = default)
     {
         ModuleRegistration? module = await control.GetModuleAsync(caller.Key, cancellationToken);
@@ -50,8 +52,15 @@ public sealed class ModuleAccess(ControlStore control)
         if (caller.Key != targetNamespace)
             return ModuleAccessDecision.NotOwner;
 
-        if (!await control.IsMemberAsync(userId, clientId, cancellationToken))
+        Membership? membership = await control.GetMembershipAsync(userId, clientId, cancellationToken);
+        if (membership is null)
             return ModuleAccessDecision.NotMember;
+
+        // A mapped subledger module requires the acting user to hold its .read/.write capability. An
+        // unmapped module key (no subledger area) falls back to membership-only, its historical behavior.
+        string? required = Capabilities.CapabilityForModule(caller.Key, level);
+        if (required is not null && !membership.Capabilities.Contains(required))
+            return ModuleAccessDecision.MissingCapability;
 
         return ModuleAccessDecision.Allowed;
     }

@@ -109,7 +109,12 @@ public sealed class ReceivablesHostFixture : WebApplicationFactory<Program>, IAs
         });
         await control.AddMembershipAsync(controllerUserId, clientId, LedgerRole.Controller);
         await control.AddMembershipAsync(clerkUserId, clientId, LedgerRole.Clerk);
-        await control.AddMembershipAsync(approverUserId, clientId, LedgerRole.Approver);
+        // Slice E: subledger document writes (e.g. voiding an invoice) require the module's .write
+        // capability. This SoD "approver" performs both the module void AND the raw-GL approval of
+        // the resulting reversal, so it needs Clerk's subledger-write bundle alongside Approver's
+        // gl.approve/void/reverse — granting both roles keeps this fixture's workflow legal under the
+        // capability model without weakening the raw-GL SoD boundary (gl.post still Controller-only).
+        await control.AddMembershipRolesAsync(approverUserId, clientId, [LedgerRole.Approver, LedgerRole.Clerk]);
         return (clientId,
             ClientFor(controllerUserId, "Acme Controller"),
             ClientFor(clerkUserId, "Acme Clerk"),
