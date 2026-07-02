@@ -4,7 +4,6 @@ import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router
 import { filter, map } from 'rxjs';
 import { ClientContextService } from '../core/client/client-context.service';
 import { ThemeSwitch } from '../core/theme/theme-switch';
-import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { DevIdentityService } from '../core/api/dev-identity.service';
 import { NAV, NavLink, navLeafPaths } from './nav';
@@ -12,7 +11,7 @@ import { NAV, NavLink, navLeafPaths } from './nav';
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, ThemeSwitch, HlmButton, ...HlmSelectImports],
+  imports: [RouterOutlet, RouterLink, ThemeSwitch, ...HlmSelectImports],
   template: `
     <div class="min-h-screen bg-background text-foreground">
       <header class="flex items-center gap-3 px-4 h-14 bg-card border-b border-border">
