@@ -13,6 +13,7 @@ public sealed class ControlStore
     private readonly IMongoCollection<ClientRegistration> _clients;
     private readonly IMongoCollection<Membership> _memberships;
     private readonly IMongoCollection<ModuleRegistration> _modules;
+    private readonly IMongoCollection<CapabilitySet> _capabilitySets;
 
     static ControlStore() => LedgerMongoBootstrap.RegisterOnce();
 
@@ -22,6 +23,7 @@ public sealed class ControlStore
         _clients = database.GetCollection<ClientRegistration>("clients");
         _memberships = database.GetCollection<Membership>("memberships");
         _modules = database.GetCollection<ModuleRegistration>("modules");
+        _capabilitySets = database.GetCollection<CapabilitySet>("capabilitySets");
     }
 
     /// <summary>The client's registration, or null if no such client exists in this deployment.</summary>
@@ -133,4 +135,38 @@ public sealed class ControlStore
     /// <summary>All modules installed in this deployment.</summary>
     public async Task<IReadOnlyList<ModuleRegistration>> ListModulesAsync(CancellationToken cancellationToken = default) =>
         await _modules.Find(FilterDefinition<ModuleRegistration>.Empty).ToListAsync(cancellationToken);
+
+    /// <summary>All capability sets in this deployment (built-in + custom).</summary>
+    public async Task<IReadOnlyList<CapabilitySet>> ListCapabilitySetsAsync(CancellationToken cancellationToken = default) =>
+        await _capabilitySets.Find(FilterDefinition<CapabilitySet>.Empty).ToListAsync(cancellationToken);
+
+    /// <summary>The capability set with this id, or null.</summary>
+    public async Task<CapabilitySet?> GetCapabilitySetAsync(Guid id, CancellationToken cancellationToken = default) =>
+        await _capabilitySets.Find(s => s.Id == id).FirstOrDefaultAsync(cancellationToken);
+
+    /// <summary>The capability set with this name (case-insensitive), or null. Sets are few, so an
+    /// in-memory scan is cheaper and simpler than a collated index query.</summary>
+    public async Task<CapabilitySet?> GetCapabilitySetByNameAsync(string name, CancellationToken cancellationToken = default)
+    {
+        List<CapabilitySet> all = await _capabilitySets.Find(FilterDefinition<CapabilitySet>.Empty).ToListAsync(cancellationToken);
+        return all.FirstOrDefault(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>Insert a new capability set.</summary>
+    public Task CreateCapabilitySetAsync(CapabilitySet set, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(set);
+        return _capabilitySets.InsertOneAsync(set, cancellationToken: cancellationToken);
+    }
+
+    /// <summary>Replace an existing capability set (matched by id).</summary>
+    public Task UpdateCapabilitySetAsync(CapabilitySet set, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(set);
+        return _capabilitySets.ReplaceOneAsync(s => s.Id == set.Id, set, cancellationToken: cancellationToken);
+    }
+
+    /// <summary>Delete a capability set by id.</summary>
+    public Task DeleteCapabilitySetAsync(Guid id, CancellationToken cancellationToken = default) =>
+        _capabilitySets.DeleteOneAsync(s => s.Id == id, cancellationToken);
 }
