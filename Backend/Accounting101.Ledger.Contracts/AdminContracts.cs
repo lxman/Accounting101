@@ -20,4 +20,5 @@ public sealed record SetFiscalYearEndRequest(int FiscalYearEndMonth);
 /// <summary>Grant a user a role on a client. Role: Auditor | Clerk | Approver | Controller | Admin.</summary>
 public sealed record AddMemberRequest(Guid UserId, string Role);
 
-public sealed record MembershipResponse(Guid UserId, Guid ClientId, string Role);
+public sealed record MembershipResponse(
+    Guid UserId, Guid ClientId, IReadOnlyList<string> Roles, IReadOnlyList<string> Capabilities);

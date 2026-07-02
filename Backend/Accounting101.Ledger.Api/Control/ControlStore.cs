@@ -32,9 +32,12 @@ public sealed class ControlStore
     public async Task<bool> IsMemberAsync(Guid userId, Guid clientId, CancellationToken cancellationToken = default) =>
         await _memberships.Find(m => m.UserId == userId && m.ClientId == clientId).AnyAsync(cancellationToken);
 
-    /// <summary>The user's membership (and role) on the client, or null if they are not a member.</summary>
-    public async Task<Membership?> GetMembershipAsync(Guid userId, Guid clientId, CancellationToken cancellationToken = default) =>
-        await _memberships.Find(m => m.UserId == userId && m.ClientId == clientId).FirstOrDefaultAsync(cancellationToken);
+    /// <summary>The user's membership on the client (capabilities hydrated), or null if not a member.</summary>
+    public async Task<Membership?> GetMembershipAsync(Guid userId, Guid clientId, CancellationToken cancellationToken = default)
+    {
+        Membership? m = await _memberships.Find(m => m.UserId == userId && m.ClientId == clientId).FirstOrDefaultAsync(cancellationToken);
+        return m is null ? null : Hydrate(m);
+    }
 
     /// <summary>Register (or update) a client and the database that holds its ledger.</summary>
     public Task RegisterClientAsync(ClientRegistration registration, CancellationToken cancellationToken = default)
@@ -48,13 +51,24 @@ public sealed class ControlStore
     }
 
     /// <summary>Grant a user a role on a client's books (idempotent — an existing membership is left as is).</summary>
-    public async Task AddMembershipAsync(Guid userId, Guid clientId, LedgerRole role = LedgerRole.Controller, CancellationToken cancellationToken = default)
+    public Task AddMembershipAsync(Guid userId, Guid clientId, LedgerRole role = LedgerRole.Controller, CancellationToken cancellationToken = default) =>
+        AddMembershipRolesAsync(userId, clientId, [role], cancellationToken);
+
+    /// <summary>Grant a user one or more role presets; the stored capability set is their union.</summary>
+    public async Task AddMembershipRolesAsync(Guid userId, Guid clientId, IReadOnlyList<LedgerRole> roles, CancellationToken cancellationToken = default)
     {
         if (await IsMemberAsync(userId, clientId, cancellationToken))
             return;
 
         await _memberships.InsertOneAsync(
-            new Membership { Id = Guid.NewGuid(), UserId = userId, ClientId = clientId, Role = role },
+            new Membership
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                ClientId = clientId,
+                GrantedRoles = roles,
+                Capabilities = [.. RolePresets.CapabilitiesFor(roles)],
+            },
             cancellationToken: cancellationToken);
     }
 
@@ -62,9 +76,23 @@ public sealed class ControlStore
     public async Task<IReadOnlyList<ClientRegistration>> ListClientsAsync(CancellationToken cancellationToken = default) =>
         await _clients.Find(FilterDefinition<ClientRegistration>.Empty).ToListAsync(cancellationToken);
 
-    /// <summary>All memberships granted on a client.</summary>
-    public async Task<IReadOnlyList<Membership>> GetMembersAsync(Guid clientId, CancellationToken cancellationToken = default) =>
-        await _memberships.Find(m => m.ClientId == clientId).ToListAsync(cancellationToken);
+    /// <summary>All memberships granted on a client (capabilities hydrated).</summary>
+    public async Task<IReadOnlyList<Membership>> GetMembersAsync(Guid clientId, CancellationToken cancellationToken = default)
+    {
+        List<Membership> members = await _memberships.Find(m => m.ClientId == clientId).ToListAsync(cancellationToken);
+        return members.Select(Hydrate).ToList();
+    }
+
+    /// <summary>Backfill a pre-migration (Role-only) doc to the capability shape at read time (no write).</summary>
+    private static Membership Hydrate(Membership m)
+    {
+        if (m.Capabilities.Count == 0 && m.LegacyRole is { } role)
+        {
+            m.GrantedRoles = [role];
+            m.Capabilities = [.. RolePresets.For(role)];
+        }
+        return m;
+    }
 
     /// <summary>The module's registration, or null if no such module is installed in this deployment.</summary>
     public async Task<ModuleRegistration?> GetModuleAsync(string key, CancellationToken cancellationToken = default) =>

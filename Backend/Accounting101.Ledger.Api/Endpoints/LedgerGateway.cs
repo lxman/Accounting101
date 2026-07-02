@@ -21,7 +21,7 @@ public sealed class LedgerGateway(IActorFactory actorFactory, ControlStore contr
         Actor actor = actorFactory.Create(user);
 
         Membership? membership = await control.GetMembershipAsync(actor.UserId, clientId, cancellationToken);
-        if (membership is null || !RolePermissions.Allows(membership.Role, required))
+        if (membership is null || !membership.Capabilities.Contains(Capabilities.CapabilityForPermission(required)))
             return LedgerContext.Forbidden();
 
         ClientLedger? ledger = await ledgers.CreateAsync(clientId, cancellationToken);

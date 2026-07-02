@@ -53,7 +53,7 @@ public sealed class AdminTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         Assert.Contains(clients, c => c.Id == client.Id);
 
         MembershipResponse[] members = (await admin.GetFromJsonAsync<MembershipResponse[]>($"/admin/clients/{client.Id}/members"))!;
-        Assert.Contains(members, m => m.UserId == user && m.Role == "Auditor");
+        Assert.Contains(members, m => m.UserId == user && m.Roles.Contains("Auditor"));
     }
 
     [Fact]

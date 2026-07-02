@@ -87,12 +87,14 @@ public static class AdminEndpoints
             return Results.NotFound();
 
         await control.AddMembershipAsync(request.UserId, clientId, role, cancellationToken);
-        return Results.Ok(new MembershipResponse(request.UserId, clientId, role.ToString()));
+        return Results.Ok(new MembershipResponse(
+            request.UserId, clientId, [role.ToString()], [.. RolePresets.CapabilitiesFor([role])]));
     }
 
     private static async Task<IResult> ListMembers(Guid clientId, ControlStore control, CancellationToken cancellationToken)
     {
         IReadOnlyList<Membership> members = await control.GetMembersAsync(clientId, cancellationToken);
-        return Results.Ok(members.Select(m => new MembershipResponse(m.UserId, m.ClientId, m.Role.ToString())).ToList());
+        return Results.Ok(members.Select(m => new MembershipResponse(
+            m.UserId, m.ClientId, m.GrantedRoles.Select(r => r.ToString()).ToList(), m.Capabilities)).ToList());
     }
 }
