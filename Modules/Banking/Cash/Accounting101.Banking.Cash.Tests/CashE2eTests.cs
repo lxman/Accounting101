@@ -84,8 +84,9 @@ public sealed class CashE2eTests(CashHostFixture fixture) : IClassFixture<CashHo
             $"/clients/{clientId}/cash-disbursements/{disbursement.Id}"))!;
         Assert.Equal(disbursement.Id, view.Disbursement.Id);
 
-        // Void withdraws the pending entry — driven by the approver (SoD: Void permission).
-        HttpResponseMessage voided = await approver.PostAsJsonAsync(
+        // Void withdraws the pending entry — a module document write (cash.write) plus gl.void, so under
+        // SoD only the Controller holds both and drives it.
+        HttpResponseMessage voided = await controller.PostAsJsonAsync(
             $"/clients/{clientId}/cash-disbursements/{disbursement.Id}/void",
             new Api.VoidReasonRequest("entered in error"));
         voided.EnsureSuccessStatusCode();
@@ -141,8 +142,9 @@ public sealed class CashE2eTests(CashHostFixture fixture) : IClassFixture<CashHo
             $"/clients/{clientId}/cash-deposits/{deposit.Id}"))!;
         Assert.Equal(deposit.Id, view.Deposit.Id);
 
-        // Void — driven by the approver (SoD: Void permission).
-        HttpResponseMessage voided = await approver.PostAsJsonAsync(
+        // Void — a module document write (cash.write) plus gl.void, so under SoD only the Controller
+        // holds both and drives it.
+        HttpResponseMessage voided = await controller.PostAsJsonAsync(
             $"/clients/{clientId}/cash-deposits/{deposit.Id}/void",
             new Api.VoidReasonRequest("entered in error"));
         voided.EnsureSuccessStatusCode();

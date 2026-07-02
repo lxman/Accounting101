@@ -106,8 +106,8 @@ public sealed class GetCreditsEndpointTests(ReceivablesHostFixture fixture) : IC
             new CreditNoteRequest(customer.Id, new DateOnly(2026, 3, 10), [new Allocation(inv, 100m)], "issued in error")))
             .Content.ReadFromJsonAsync<CreditNote>())!;
 
-        // Void requires Approver — Clerk has only Read permission under SoD.
-        (await approver.PostAsync($"/clients/{clientId}/credit-notes/{cn.Id}/void", null)).EnsureSuccessStatusCode();
+        // Void requires the Controller — module document write (ar.write) plus GL void/reverse.
+        (await controller.PostAsync($"/clients/{clientId}/credit-notes/{cn.Id}/void", null)).EnsureSuccessStatusCode();
 
         CreditDocument[] list = (await clerk.GetFromJsonAsync<CreditDocument[]>(
             $"/clients/{clientId}/credits?customerId={customer.Id}"))!;

@@ -7,9 +7,9 @@ namespace Accounting101.Receivables.Tests;
 /// <summary>
 /// Void paths under SoD-ON:
 /// <list type="bullet">
-///   <item><b>Void-of-posted</b>: Clerk issues → Approver approves (entry becomes Posted) → Approver voids
+///   <item><b>Void-of-posted</b>: Clerk issues → Approver approves (entry becomes Posted) → Controller voids
 ///   the invoice (reversal entry created, PendingApproval) → Approver approves the reversal → net is zero.</item>
-///   <item><b>Void-of-pending</b>: Clerk issues → Approver voids BEFORE approval → the pending entry is
+///   <item><b>Void-of-pending</b>: Clerk issues → Controller voids BEFORE approval — the pending entry is
 ///   withdrawn (Voided) with no reversal created; nothing ever hit the books.</item>
 /// </list>
 /// </summary>
@@ -69,9 +69,10 @@ public sealed class ReceivablesVoidTests(ReceivablesHostFixture fixture) : IClas
             $"/clients/{clientId}/entries?sourceRef={issued.Id}"))!;
         Assert.Equal("Posted", Assert.Single(postedEntries).Posting);
 
-        // Approver voids the invoice — the service reverses the posted entry; reversal lands PendingApproval.
-        // The Approver's token is forwarded: it has Reverse permission, so the loopback call succeeds.
-        Invoice voided = (await (await approver.PostAsJsonAsync(
+        // Controller voids the invoice — the service reverses the posted entry; reversal lands PendingApproval.
+        // The Controller holds both ar.write (the module void) and gl.reverse (the loopback reversal), so
+        // the call succeeds.
+        Invoice voided = (await (await controller.PostAsJsonAsync(
                 $"/clients/{clientId}/invoices/{issued.Id}/void", new VoidInvoiceRequest("duplicate")))
             .Content.ReadFromJsonAsync<Invoice>())!;
         Assert.Equal(InvoiceStatus.Void, voided.Status);
@@ -83,9 +84,9 @@ public sealed class ReceivablesVoidTests(ReceivablesHostFixture fixture) : IClas
         EntryResponse reversal = Assert.Single(entries, e => e.ReversalOf is not null);
         Assert.Equal("PendingApproval", reversal.Posting); // reversal awaits its own approval under SoD
 
-        // The reversal was created by the Approver (via the loopback call). Under SoD the author cannot
-        // approve their own entry. The Controller is a distinct actor and has Approve permission.
-        (await controller.PostAsync($"/clients/{clientId}/entries/{reversal.Id}/approve", null))
+        // The reversal was created by the Controller (via the loopback call). Under SoD the author cannot
+        // approve their own entry. The Approver is a distinct actor and has Approve permission.
+        (await approver.PostAsync($"/clients/{clientId}/entries/{reversal.Id}/approve", null))
             .EnsureSuccessStatusCode();
 
         SubledgerReconciliationResponse recon = (await clerk.GetFromJsonAsync<SubledgerReconciliationResponse>(
@@ -113,10 +114,10 @@ public sealed class ReceivablesVoidTests(ReceivablesHostFixture fixture) : IClas
         EntryResponse arEntry = Assert.Single(beforeVoid);
         Assert.Equal("PendingApproval", arEntry.Posting);
 
-        // Approver voids the invoice BEFORE approval — the service withdraws (Voids) the pending entry;
+        // Controller voids the invoice BEFORE approval — the service withdraws (Voids) the pending entry;
         // no reversal is created because nothing was ever on the books.
-        // Approver has Void permission; the forwarded token is accepted by the ledger's VoidEntry endpoint.
-        Invoice voided = (await (await approver.PostAsJsonAsync(
+        // Controller holds ar.write (the module void) and gl.void (the loopback withdrawal).
+        Invoice voided = (await (await controller.PostAsJsonAsync(
                 $"/clients/{clientId}/invoices/{issued.Id}/void", new VoidInvoiceRequest("cancelled")))
             .Content.ReadFromJsonAsync<Invoice>())!;
         Assert.Equal(InvoiceStatus.Void, voided.Status);

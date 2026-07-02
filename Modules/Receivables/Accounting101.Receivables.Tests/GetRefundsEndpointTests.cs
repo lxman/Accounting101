@@ -58,8 +58,9 @@ public sealed class GetRefundsEndpointTests(ReceivablesHostFixture fixture) : IC
         (await clerk.PostAsJsonAsync($"/clients/{clientId}/refunds",
             new RefundRequest(customer.Id, new DateOnly(2026, 3, 10), 40m, "balance")))
             .EnsureSuccessStatusCode();
-        // Void requires Approver — Clerk has only Read permission; void transitions the pending ledger entry.
-        (await approver.PostAsync($"/clients/{clientId}/refunds/{first.Id}/void", null)).EnsureSuccessStatusCode();
+        // Void requires the Controller — module document write (ar.write) plus GL void; transitions the
+        // pending ledger entry.
+        (await controller.PostAsync($"/clients/{clientId}/refunds/{first.Id}/void", null)).EnsureSuccessStatusCode();
 
         Refund[] list = (await clerk.GetFromJsonAsync<Refund[]>(
             $"/clients/{clientId}/refunds?customerId={customer.Id}"))!;

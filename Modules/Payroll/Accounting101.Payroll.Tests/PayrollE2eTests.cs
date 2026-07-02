@@ -92,10 +92,10 @@ public sealed class PayrollE2eTests(PayrollHostFixture fixture) : IClassFixture<
         Assert.Equal(run.Id, view.Run.Id);
         Assert.Equal(Gross, view.Run.Gross);
 
-        // Void withdraws the pending entry and marks the doc Void. Void carries the Void permission,
-        // which under SoD belongs to the Approver, not the Clerk — the module forwards the caller's
-        // token, so the void must be driven by the approver.
-        HttpResponseMessage voided = await approver.PostAsJsonAsync(
+        // Void withdraws the pending entry and marks the doc Void. Voiding a module document requires the
+        // module's .write capability plus gl.void (for a pending entry) — only the Controller holds both
+        // under SoD, so the void must be driven by the controller.
+        HttpResponseMessage voided = await controller.PostAsJsonAsync(
             $"/clients/{clientId}/payroll-runs/{run.Id}/void", new Api.VoidReasonRequest("entered in error"));
         voided.EnsureSuccessStatusCode();
         PayrollRun voidedRun = (await voided.Content.ReadFromJsonAsync<PayrollRun>())!;

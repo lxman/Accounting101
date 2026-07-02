@@ -213,9 +213,9 @@ public sealed class ReconciliationE2eTests(ReconciliationHostFixture fixture) : 
                 new RecordAdjustmentRequest(fixture.InterestExpenseAccountId, 5m, AdjustmentKind.Charge, null, null)))
             .Content.ReadFromJsonAsync<BankAdjustment>())!;
 
-        // Void the still-pending adjustment. The void calls the engine's entry-void, which requires Void
-        // permission — drive it with the Approver (the SoD role that carries approve/void), not the Clerk.
-        HttpResponseMessage voidResp = await approver.PostAsJsonAsync(
+        // Void the still-pending adjustment. This is a module document write (reconciliation.write) plus
+        // the engine's gl.void — under SoD only the Controller holds both, so drive it with the Controller.
+        HttpResponseMessage voidResp = await controller.PostAsJsonAsync(
             $"/clients/{clientId}/reconciliations/{rec.Id}/adjustments/{adj.Id}/void", new Accounting101.Banking.Reconciliation.Api.VoidReasonRequest("recorded in error"));
         Assert.Equal(HttpStatusCode.OK, voidResp.StatusCode);
         BankAdjustment voided = (await voidResp.Content.ReadFromJsonAsync<BankAdjustment>())!;

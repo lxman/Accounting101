@@ -90,9 +90,9 @@ public sealed class PayrollHostFixture : WebApplicationFactory<Program>, IAsyncL
     }
 
     /// <summary>
-    /// Register a SoD-ON client with three members: a Controller (chart setup only), a Clerk (records
-    /// runs/bills), and an Approver (approves/voids). Returns the client id and authed HttpClients for
-    /// all three roles.
+    /// Register a SoD-ON client with three members: a Controller (chart setup, module document voids),
+    /// a Clerk (records runs/bills), and an Approver (approves GL entries, including reversals).
+    /// Returns the client id and authed HttpClients for all three roles.
     /// </summary>
     public async Task<(Guid ClientId, HttpClient ControllerHttp, HttpClient ClerkHttp, HttpClient ApproverHttp)>
         SeedSodClientAsync()
@@ -109,12 +109,7 @@ public sealed class PayrollHostFixture : WebApplicationFactory<Program>, IAsyncL
         });
         await control.AddMembershipAsync(controllerUserId, clientId, LedgerRole.Controller);
         await control.AddMembershipAsync(clerkUserId, clientId, LedgerRole.Clerk);
-        // Slice E: subledger document writes require the module's .write capability. This SoD
-        // "approver" performs both the module write AND the raw-GL approval of the resulting entry,
-        // so it needs Clerk's subledger-write bundle alongside Approver's gl.approve/void/reverse —
-        // granting both roles keeps this fixture's workflow legal under the capability model without
-        // weakening the raw-GL SoD boundary (gl.post still Controller-only).
-        await control.AddMembershipRolesAsync(approverUserId, clientId, [LedgerRole.Approver, LedgerRole.Clerk]);
+        await control.AddMembershipAsync(approverUserId, clientId, LedgerRole.Approver);
         return (clientId,
             ClientFor(controllerUserId, "Acme Controller"),
             ClientFor(clerkUserId, "Acme Clerk"),

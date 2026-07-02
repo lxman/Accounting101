@@ -88,10 +88,10 @@ public sealed class AllocationBoundaryE2eTests(ReceivablesHostFixture fixture) :
     [Fact]
     public async Task Allocation_to_a_voided_invoice_is_rejected()
     {
-        (Guid clientId, _, HttpClient clerk, HttpClient approver) = await ArrangeAsync();
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await ArrangeAsync();
         Guid customer = await CreateCustomerAsync(clerk, clientId);
         Guid invoice = await IssueInvoiceAsync(clerk, approver, clientId, customer, 100m);
-        (await approver.PostAsJsonAsync($"/clients/{clientId}/invoices/{invoice}/void",
+        (await controller.PostAsJsonAsync($"/clients/{clientId}/invoices/{invoice}/void",
             new VoidInvoiceRequest("test"))).EnsureSuccessStatusCode();
 
         HttpResponseMessage resp = await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",

@@ -44,15 +44,16 @@ public sealed class BillSettlementIntegrityE2eTests(PayablesHostFixture fixture)
         await AssertConsistentAsync(clerk, clientId, bill1, 300m, bill2, 0m);
 
         // Void pay1 (a plain payment with NO credit entanglement). Voiding an approved (posted) payment
-        // reverses a posted GL entry — an Approver action; the reversal lands PendingApproval and, under SoD,
-        // is approved by a distinct actor (the Controller). bill1 loses pay1's 600 but keeps the applied 100
-        // credit → open 900; bill2 stays 0; vendor credit stays 0.
+        // reverses a posted GL entry — the Controller holds both ap.write (the module void) and gl.reverse.
+        // The reversal lands PendingApproval and, under SoD, is approved by a distinct actor (the Approver).
+        // bill1 loses pay1's 600 but keeps the applied 100 credit → open 900; bill2 stays 0; vendor credit
+        // stays 0.
         // (We void pay1, not pay2: pay2's overpayment credit is already applied to bill1, so voiding pay2
         // would drive the vendor-credit balance negative — an incoherent state worth probing separately, but
         // not what this integrity sweep should assert.)
-        (await approver.PostAsJsonAsync($"/clients/{clientId}/bill-payments/{pay1.Id}/void",
+        (await controller.PostAsJsonAsync($"/clients/{clientId}/bill-payments/{pay1.Id}/void",
             new VoidReasonRequest("reversed"))).EnsureSuccessStatusCode();
-        await ApproveBySourceRefAsync(controller, controller, clientId, pay1.Id);
+        await ApproveBySourceRefAsync(clerk, approver, clientId, pay1.Id);
         await AssertConsistentAsync(clerk, clientId, bill1, 900m, bill2, 0m);
 
         // Pin contra-account routing at the terminal state: rent expense reflects both bills (1500) and was

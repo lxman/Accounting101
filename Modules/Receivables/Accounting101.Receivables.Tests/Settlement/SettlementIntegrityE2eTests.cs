@@ -43,11 +43,12 @@ public sealed class SettlementIntegrityE2eTests(ReceivablesHostFixture fixture) 
         await AssertConsistentAsync(clerk, clientId, invoice, expectedOpen: 0m);
 
         // Void the write-off → open back to 300. Voiding an approved (posted) write-off reverses a posted
-        // GL entry — an Approver action. The reversal lands PendingApproval; under SoD the Approver authored
-        // it, so a distinct actor (the Controller) approves it (matches ReceivablesVoidTests).
-        (await approver.PostAsJsonAsync($"/clients/{clientId}/write-offs/{wo.Id}/void",
+        // GL entry — the Controller holds both ar.write (the module void) and gl.reverse. The reversal
+        // lands PendingApproval; under SoD the Controller authored it, so a distinct actor (the Approver)
+        // approves it (matches ReceivablesVoidTests).
+        (await controller.PostAsJsonAsync($"/clients/{clientId}/write-offs/{wo.Id}/void",
             new VoidInvoiceRequest("re-evaluated"))).EnsureSuccessStatusCode();
-        await ApproveBySourceRefAsync(controller, controller, clientId, wo.Id);
+        await ApproveBySourceRefAsync(clerk, approver, clientId, wo.Id);
         await AssertConsistentAsync(clerk, clientId, invoice, expectedOpen: 300m);
 
         // Pin contra-account routing at the terminal state (not just self-consistency):

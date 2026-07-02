@@ -9,17 +9,17 @@ namespace Accounting101.Receivables.Tests;
 /// <summary>Disposition-limit rejections: over-disposition (422) and void guards (409).</summary>
 public sealed class DispositionLimitE2eTests(ReceivablesHostFixture fixture) : IClassFixture<ReceivablesHostFixture>
 {
-    private async Task<(Guid clientId, HttpClient clerk, HttpClient approver)> ArrangeAsync()
+    private async Task<(Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver)> ArrangeAsync()
     {
         (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
         await SetUpChartAsync(controller, clientId, fixture);
-        return (clientId, clerk, approver);
+        return (clientId, controller, clerk, approver);
     }
 
     [Fact]
     public async Task WriteOff_over_open_balance_is_rejected()
     {
-        (Guid clientId, HttpClient clerk, HttpClient approver) = await ArrangeAsync();
+        (Guid clientId, _, HttpClient clerk, HttpClient approver) = await ArrangeAsync();
         Guid customer = await CreateCustomerAsync(clerk, clientId);
         Guid invoice = await IssueInvoiceAsync(clerk, approver, clientId, customer, 100m);
 
@@ -37,7 +37,7 @@ public sealed class DispositionLimitE2eTests(ReceivablesHostFixture fixture) : I
     [Fact]
     public async Task CreditNote_over_open_balance_is_rejected()
     {
-        (Guid clientId, HttpClient clerk, HttpClient approver) = await ArrangeAsync();
+        (Guid clientId, _, HttpClient clerk, HttpClient approver) = await ArrangeAsync();
         Guid customer = await CreateCustomerAsync(clerk, clientId);
         Guid invoice = await IssueInvoiceAsync(clerk, approver, clientId, customer, 100m);
 
@@ -50,7 +50,7 @@ public sealed class DispositionLimitE2eTests(ReceivablesHostFixture fixture) : I
     [Fact]
     public async Task Refund_exceeding_available_credit_is_rejected()
     {
-        (Guid clientId, HttpClient clerk, HttpClient approver) = await ArrangeAsync();
+        (Guid clientId, _, HttpClient clerk, HttpClient approver) = await ArrangeAsync();
         Guid customer = await CreateCustomerAsync(clerk, clientId);
         Guid invoice = await IssueInvoiceAsync(clerk, approver, clientId, customer, 100m);
 
@@ -69,7 +69,7 @@ public sealed class DispositionLimitE2eTests(ReceivablesHostFixture fixture) : I
     [Fact]
     public async Task CreditApplication_exceeding_available_credit_is_rejected()
     {
-        (Guid clientId, HttpClient clerk, HttpClient approver) = await ArrangeAsync();
+        (Guid clientId, _, HttpClient clerk, HttpClient approver) = await ArrangeAsync();
         Guid customer = await CreateCustomerAsync(clerk, clientId);
         Guid invoice1 = await IssueInvoiceAsync(clerk, approver, clientId, customer, 100m);
 
@@ -89,7 +89,7 @@ public sealed class DispositionLimitE2eTests(ReceivablesHostFixture fixture) : I
     [Fact]
     public async Task Voiding_an_already_voided_payment_is_rejected()
     {
-        (Guid clientId, HttpClient clerk, HttpClient approver) = await ArrangeAsync();
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await ArrangeAsync();
         Guid customer = await CreateCustomerAsync(clerk, clientId);
         Guid invoice = await IssueInvoiceAsync(clerk, approver, clientId, customer, 100m);
 
@@ -98,10 +98,10 @@ public sealed class DispositionLimitE2eTests(ReceivablesHostFixture fixture) : I
             .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Payment>())!;
         await ApproveBySourceRefAsync(clerk, approver, clientId, pay.Id);
 
-        (await approver.PostAsJsonAsync($"/clients/{clientId}/payments/{pay.Id}/void",
+        (await controller.PostAsJsonAsync($"/clients/{clientId}/payments/{pay.Id}/void",
             new VoidInvoiceRequest("first void"))).EnsureSuccessStatusCode();
 
-        HttpResponseMessage resp = await approver.PostAsJsonAsync($"/clients/{clientId}/payments/{pay.Id}/void",
+        HttpResponseMessage resp = await controller.PostAsJsonAsync($"/clients/{clientId}/payments/{pay.Id}/void",
             new VoidInvoiceRequest("second void"));
 
         await AssertProblemAsync(resp, HttpStatusCode.Conflict, "already voided");
@@ -110,7 +110,7 @@ public sealed class DispositionLimitE2eTests(ReceivablesHostFixture fixture) : I
     [Fact]
     public async Task Voiding_a_nonexistent_payment_is_rejected()
     {
-        (Guid clientId, HttpClient clerk, _) = await ArrangeAsync();
+        (Guid clientId, _, HttpClient clerk, _) = await ArrangeAsync();
 
         HttpResponseMessage resp = await clerk.PostAsJsonAsync($"/clients/{clientId}/payments/{Guid.NewGuid()}/void",
             new VoidInvoiceRequest("nope"));
