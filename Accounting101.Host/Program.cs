@@ -71,6 +71,7 @@ app.UseAuthorization();
 
 app.MapLedgerEndpoints();
 app.MapAdminEndpoints();
+app.MapCapabilitiesEndpoints();
 app.MapReceivablesEndpoints();
 app.MapPayablesEndpoints();
 app.MapPayrollEndpoints();
