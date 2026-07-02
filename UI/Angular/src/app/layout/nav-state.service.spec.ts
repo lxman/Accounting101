@@ -3,8 +3,13 @@ import { provideRouter } from '@angular/router';
 import { NavStateService, locate } from './nav-state.service';
 
 describe('locate', () => {
-  it('finds a top-level item (no parent)', () => {
+  it('finds a childless top-level item (no submenu to open)', () => {
     expect(locate('/journal')).toEqual({ section: 'General Ledger', parent: null });
+  });
+
+  it('opens a parent-with-children own submenu when on its own page', () => {
+    expect(locate('/cash')).toEqual({ section: 'Subledgers', parent: '/cash' });
+    expect(locate('/audit')).toEqual({ section: 'Assurance', parent: '/audit' });
   });
 
   it('finds a nested child and reports its parent', () => {

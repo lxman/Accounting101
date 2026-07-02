@@ -4,11 +4,15 @@ import { NavigationEnd, Router } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { NAV, navLeafPaths } from './nav';
 
-/** Where a nav path lives in the tree: which section, and its parent item path if it is a child. */
+/**
+ * Where a nav path lives in the tree: which section, and which submenu should be open.
+ * Landing on a parent's OWN page opens that parent's submenu (so its children are visible);
+ * landing on a child opens the child's parent; a childless top item opens no submenu.
+ */
 export function locate(path: string): { section: string; parent: string | null } | null {
   for (const section of NAV) {
     for (const item of section.items) {
-      if (item.path === path) return { section: section.label, parent: null };
+      if (item.path === path) return { section: section.label, parent: item.children ? item.path : null };
       if (item.children?.some((c) => c.path === path)) return { section: section.label, parent: item.path };
     }
   }
