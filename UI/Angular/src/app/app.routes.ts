@@ -40,7 +40,7 @@ import { RunDetail } from './features/payroll/run-detail';
 import { RemittanceList } from './features/payroll/remittance-list';
 import { RemittanceEditor } from './features/payroll/remittance-editor';
 import { RemittanceDetail } from './features/payroll/remittance-detail';
-import { NAV } from './layout/nav';
+import { navLeafPaths } from './layout/nav';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -106,7 +106,13 @@ export const routes: Routes = [
     { path: 'remittances/new', component: RemittanceEditor },
     { path: 'remittances/:id', component: RemittanceDetail },
   ] },
-  // remaining nav targets → placeholder
-  ...NAV.filter(n => ![ '/dashboard', '/trial-balance', '/statements', '/accounts', '/receivables', '/payables', '/payroll' ].includes(n.path) && !n.path.startsWith('/journal')).map(n => ({ path: n.path.slice(1), component: Placeholder })),
+  // Every nav leaf not served by a built route tree above → Placeholder.
+  ...(() => {
+    const built = ['/dashboard', '/journal', '/trial-balance', '/statements', '/accounts', '/receivables', '/payables', '/payroll'];
+    const isBuilt = (p: string) => built.some((b) => p === b || p.startsWith(b + '/'));
+    return navLeafPaths()
+      .filter((p) => !isBuilt(p))
+      .map((p) => ({ path: p.slice(1), component: Placeholder }));
+  })(),
   { path: '**', redirectTo: 'dashboard' },
 ];
