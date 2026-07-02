@@ -40,15 +40,26 @@ import { NAV, NavLink, navLeafPaths } from './nav';
                       (click)="toggle(section.label)"
                       class="w-full flex items-center justify-between px-3 py-1 text-xs uppercase tracking-wide text-muted-foreground">
                 <span>{{ section.label }}</span>
-                <span>{{ isOpen(section.label) ? '▾' : '▸' }}</span>
+                @if (!sectionContainsActive(section.label)) {
+                  <span>{{ isOpen(section.label) ? '▾' : '▸' }}</span>
+                }
               </button>
               @if (isOpen(section.label)) {
                 @for (item of section.items; track item.path) {
-                  <a [routerLink]="item.path"
-                     class="block px-3 py-2 rounded-lg text-sm"
-                     [class.bg-sidebar-accent]="activePath() === item.path"
-                     [class.text-sidebar-accent-foreground]="activePath() === item.path"
-                     [class.font-semibold]="activePath() === item.path">{{ item.label }}</a>
+                  <div class="flex items-center">
+                    <a [routerLink]="item.path"
+                       class="flex-1 block px-3 py-2 rounded-lg text-sm"
+                       [class.bg-sidebar-accent]="activePath() === item.path"
+                       [class.text-sidebar-accent-foreground]="activePath() === item.path"
+                       [class.font-semibold]="activePath() === item.path">{{ item.label }}</a>
+                    @if (item.children && !parentContainsActive(item)) {
+                      <button type="button"
+                              (click)="toggle(item.path)"
+                              class="px-2 py-1 text-xs text-muted-foreground">
+                        {{ parentOpen(item) ? '▾' : '▸' }}
+                      </button>
+                    }
+                  </div>
                   @if (item.children && parentOpen(item)) {
                     @for (child of item.children; track child.path) {
                       <a [routerLink]="child.path"
@@ -115,7 +126,13 @@ export class Shell {
     return a === item.path || (item.children?.some((c) => c.path === a) ?? false);
   }
 
-  private sectionContainsActive(sectionLabel: string): boolean {
+  parentContainsActive(item: NavLink): boolean {
+    const a = this.activePath();
+    if (!a) return false;
+    return a === item.path || (item.children?.some((c) => c.path === a) ?? false);
+  }
+
+  sectionContainsActive(sectionLabel: string): boolean {
     const a = this.activePath();
     if (!a) return false;
     const section = NAV.find((s) => s.label === sectionLabel);

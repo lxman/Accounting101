@@ -48,6 +48,23 @@ describe('Shell', () => {
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Posting accounts');
   });
 
+  it('keeps a collapsed section auto-expanded when it holds the active route', async () => {
+    const fixture = await make();
+    const component = fixture.componentInstance as unknown as {
+      activePath: () => string | null;
+      toggle: (key: string) => void;
+      isOpen: (sectionLabel: string) => boolean;
+    };
+    // Force the active path onto the Bank Reconciliation child under Subledgers,
+    // then collapse the Subledgers section — it should stay open because it
+    // contains the active route.
+    Object.defineProperty(component, 'activePath', { value: () => '/cash/reconciliation' });
+    component.toggle('Subledgers');
+    fixture.detectChanges();
+    expect(component.isOpen('Subledgers')).toBe(true);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Bank Reconciliation');
+  });
+
   it('switches the active dev identity from the top bar', async () => {
     const fixture = await make();
     const ids = TestBed.inject(DevIdentityService);
