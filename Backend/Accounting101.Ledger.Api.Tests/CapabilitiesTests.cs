@@ -40,9 +40,11 @@ public sealed class CapabilitiesTests(ApiFixture fixture) : IClassFixture<ApiFix
             $"/clients/{c.ClientId}/me/capabilities"))!;
 
         Assert.Contains("ar.write", body.Capabilities);
-        Assert.DoesNotContain("ap.write", body.Capabilities);
         Assert.Contains("ar.read", body.Capabilities);
-        Assert.Contains("ap.read", body.Capabilities);
+        Assert.Contains("gl.read", body.Capabilities);
+        Assert.DoesNotContain("ap.write", body.Capabilities);
+        Assert.DoesNotContain("ap.read", body.Capabilities);   // tight scope: no other-module reads
+        Assert.DoesNotContain("audit.read", body.Capabilities);
     }
 
     [Fact]

@@ -40,10 +40,10 @@ public static class RolePresets
             Capabilities.AdminUsers, Capabilities.AdminFirm, Capabilities.AdminClient,
             Capabilities.AdminFiscal, Capabilities.AdminPostingAccounts,
         ],
-        [LedgerRole.ArClerk] = [.. Reads, Capabilities.ArWrite],
-        [LedgerRole.ApClerk] = [.. Reads, Capabilities.ApWrite],
-        [LedgerRole.PayrollClerk] = [.. Reads, Capabilities.PayrollWrite],
-        [LedgerRole.CashClerk] = [.. Reads, Capabilities.CashWrite, Capabilities.BankRecWrite],
+        [LedgerRole.ArClerk] = [Capabilities.GlRead, Capabilities.ArRead, Capabilities.ArWrite],
+        [LedgerRole.ApClerk] = [Capabilities.GlRead, Capabilities.ApRead, Capabilities.ApWrite],
+        [LedgerRole.PayrollClerk] = [Capabilities.GlRead, Capabilities.PayrollRead, Capabilities.PayrollWrite],
+        [LedgerRole.CashClerk] = [Capabilities.GlRead, Capabilities.CashRead, Capabilities.CashWrite, Capabilities.BankRecRead, Capabilities.BankRecWrite],
     };
 
     /// <summary>The default capability set for a role.</summary>
