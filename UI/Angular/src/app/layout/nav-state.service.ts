@@ -51,6 +51,14 @@ export class NavStateService {
   private readonly _openSection = signal<string | null>(null);
   private readonly _openParent = signal<string | null>(null);
 
+  /** Whether the entire sidebar is collapsed (hidden), giving the content full width. */
+  private readonly _sidebarCollapsed = signal(false);
+  readonly sidebarCollapsed = this._sidebarCollapsed.asReadonly();
+
+  toggleSidebar(): void {
+    this._sidebarCollapsed.update((v) => !v);
+  }
+
   constructor() {
     // Navigation is the source of truth for "where I am": open the section (and submenu)
     // that holds the active route, closing whatever else was open.

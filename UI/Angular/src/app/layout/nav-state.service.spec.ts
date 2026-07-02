@@ -54,6 +54,15 @@ describe('NavStateService', () => {
     expect(s.isParentOpen('/cash')).toBe(false);
   });
 
+  it('toggles the whole sidebar collapsed and back', () => {
+    const s = make();
+    expect(s.sidebarCollapsed()).toBe(false);
+    s.toggleSidebar();
+    expect(s.sidebarCollapsed()).toBe(true);
+    s.toggleSidebar();
+    expect(s.sidebarCollapsed()).toBe(false);
+  });
+
   it('submenu is single-open and reliably toggles closed', () => {
     const s = make();
     s.toggleSection('Assurance');

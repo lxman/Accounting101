@@ -99,6 +99,23 @@ describe('Shell', () => {
     expect(el.textContent).not.toContain('Posting accounts'); // unrelated section stays closed
   });
 
+  it('collapses and restores the entire sidebar from the header toggle', async () => {
+    const fixture = await make();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('aside')).not.toBeNull();
+    expect(el.textContent).toContain('General Ledger');
+
+    const toggle = el.querySelector('[data-testid="sidebar-toggle"]') as HTMLElement;
+    toggle.click();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('aside')).toBeNull();
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('General Ledger');
+
+    toggle.click();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('aside')).not.toBeNull();
+  });
+
   it('switches the active dev identity from the top bar', async () => {
     const fixture = await make();
     const ids = TestBed.inject(DevIdentityService);

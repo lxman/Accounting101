@@ -14,6 +14,10 @@ import { NavStateService } from './nav-state.service';
   template: `
     <div class="min-h-screen bg-background text-foreground">
       <header class="flex items-center gap-3 px-4 h-14 bg-card border-b border-border">
+        <button type="button" data-testid="sidebar-toggle"
+                (click)="navState.toggleSidebar()"
+                [attr.aria-label]="navState.sidebarCollapsed() ? 'Show sidebar' : 'Hide sidebar'"
+                class="text-lg px-2 py-1 rounded-lg hover:bg-accent">☰</button>
         <button type="button" class="text-sm font-semibold px-3 py-1.5 rounded-lg border border-border">
           {{ client.clientId() ?? 'Select client' }} ▾
         </button>
@@ -32,6 +36,7 @@ import { NavStateService } from './nav-state.service';
         </div>
       </header>
       <div class="flex">
+        @if (!navState.sidebarCollapsed()) {
         <aside class="w-56 min-h-[calc(100vh-3.5rem)] p-2 bg-sidebar text-sidebar-foreground">
           @for (section of nav; track section.label) {
             <div class="mt-3 first:mt-0">
@@ -72,6 +77,7 @@ import { NavStateService } from './nav-state.service';
             </div>
           }
         </aside>
+        }
         <main class="flex-1 p-6"><router-outlet /></main>
       </div>
     </div>`,
