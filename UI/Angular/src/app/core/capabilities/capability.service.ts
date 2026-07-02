@@ -7,6 +7,9 @@ import { ClientContextService } from '../client/client-context.service';
 import { DevIdentityService } from '../api/dev-identity.service';
 import { CapabilitiesResponse, EMPTY_CAPABILITIES } from './capabilities';
 
+/** Sentinel distinguishing "not yet loaded" from a loaded-but-empty response. */
+const LOADING = Symbol('capabilities-loading');
+
 /**
  * The acting user's resolved capabilities on the active client — the single source of truth the
  * sidebar (and, later, screens) use to decide what is visible/enabled. Re-resolves whenever the
@@ -24,7 +27,7 @@ export class CapabilityService {
     return clientId ? { clientId, sub: this.identity.active().sub } : null;
   });
 
-  private readonly response = toSignal(
+  private readonly response = toSignal<CapabilitiesResponse | typeof LOADING, typeof LOADING>(
     toObservable(this.key).pipe(
       switchMap((k): Observable<CapabilitiesResponse> =>
         k
@@ -32,13 +35,21 @@ export class CapabilityService {
               .get<CapabilitiesResponse>(`${environment.apiBaseUrl}/clients/${k.clientId}/me/capabilities`)
               .pipe(catchError(() => of(EMPTY_CAPABILITIES)))
           : of(EMPTY_CAPABILITIES)),
-    ),
-    { initialValue: EMPTY_CAPABILITIES },
+    ) as Observable<CapabilitiesResponse | typeof LOADING>,
+    { initialValue: LOADING },
   );
 
-  readonly capabilities: Signal<ReadonlySet<string>> = computed(() => new Set(this.response().capabilities));
-  readonly roles: Signal<string[]> = computed(() => this.response().roles);
-  readonly deploymentAdmin: Signal<boolean> = computed(() => this.response().deploymentAdmin);
+  /** False until the first /me/capabilities response for the current key resolves. */
+  readonly loaded: Signal<boolean> = computed(() => this.response() !== LOADING);
+
+  private readonly current = computed<CapabilitiesResponse>(() => {
+    const r = this.response();
+    return r === LOADING ? EMPTY_CAPABILITIES : r;
+  });
+
+  readonly capabilities: Signal<ReadonlySet<string>> = computed(() => new Set(this.current().capabilities));
+  readonly roles: Signal<string[]> = computed(() => this.current().roles);
+  readonly deploymentAdmin: Signal<boolean> = computed(() => this.current().deploymentAdmin);
 
   has(capability: string): boolean { return this.capabilities().has(capability); }
 

@@ -68,4 +68,18 @@ describe('CapabilityService', () => {
     req.flush('nope', { status: 403, statusText: 'Forbidden' });
     expect(svc.capabilities().size).toBe(0);
   });
+
+  it('loaded is false before the first response and true after', () => {
+    expect(svc.loaded()).toBe(false);
+    client.select('c1');
+    TestBed.flushEffects?.();
+    flush(['gl.read']);
+    expect(svc.loaded()).toBe(true);
+  });
+
+  it('loaded becomes true with no client (resolves empty)', () => {
+    TestBed.flushEffects?.();
+    expect(svc.loaded()).toBe(true);
+    expect(svc.capabilities().size).toBe(0);
+  });
 });
