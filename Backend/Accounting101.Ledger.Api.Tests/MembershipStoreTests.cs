@@ -41,4 +41,31 @@ public sealed class MembershipStoreTests(ApiFixture fixture) : IClassFixture<Api
         Assert.Equal([LedgerRole.Approver], m.GrantedRoles);
         Assert.True(RolePresets.For(LedgerRole.Approver).SetEquals(m.Capabilities));
     }
+
+    [Fact]
+    public async Task SetMembership_creates_then_replaces_roles_and_capabilities()
+    {
+        Guid user = Guid.NewGuid(), client = Guid.NewGuid();
+        ControlStore control = fixture.Control();
+
+        await control.SetMembershipAsync(user, client, [LedgerRole.Auditor], ["gl.read", "ar.read"]);
+        Membership created = (await control.GetMembershipAsync(user, client))!;
+        Assert.Equal([LedgerRole.Auditor], created.GrantedRoles);
+        Assert.True(new HashSet<string> { "gl.read", "ar.read" }.SetEquals(created.Capabilities));
+
+        await control.SetMembershipAsync(user, client, [LedgerRole.Controller], ["gl.read", "gl.post"]);
+        Membership replaced = (await control.GetMembershipAsync(user, client))!;
+        Assert.Equal([LedgerRole.Controller], replaced.GrantedRoles);
+        Assert.True(new HashSet<string> { "gl.read", "gl.post" }.SetEquals(replaced.Capabilities));
+    }
+
+    [Fact]
+    public async Task RemoveMembership_deletes_the_member()
+    {
+        Guid user = Guid.NewGuid(), client = Guid.NewGuid();
+        ControlStore control = fixture.Control();
+        await control.SetMembershipAsync(user, client, [LedgerRole.Auditor], ["gl.read"]);
+        await control.RemoveMembershipAsync(user, client);
+        Assert.Null(await control.GetMembershipAsync(user, client));
+    }
 }

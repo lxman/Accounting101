@@ -72,6 +72,27 @@ public sealed class ControlStore
             cancellationToken: cancellationToken);
     }
 
+    /// <summary>Create or replace a member's granted roles + capability set (the authoritative grant).</summary>
+    public Task SetMembershipAsync(Guid userId, Guid clientId, IReadOnlyList<LedgerRole> roles, IReadOnlyList<string> capabilities, CancellationToken cancellationToken = default)
+    {
+        var update = Builders<Membership>.Update
+            .Set(m => m.GrantedRoles, roles)
+            .Set(m => m.Capabilities, capabilities)
+            .SetOnInsert(m => m.Id, Guid.NewGuid())
+            .SetOnInsert(m => m.UserId, userId)
+            .SetOnInsert(m => m.ClientId, clientId);
+
+        return _memberships.UpdateOneAsync(
+            m => m.UserId == userId && m.ClientId == clientId,
+            update,
+            new UpdateOptions { IsUpsert = true },
+            cancellationToken);
+    }
+
+    /// <summary>Remove a member from a client's books.</summary>
+    public Task RemoveMembershipAsync(Guid userId, Guid clientId, CancellationToken cancellationToken = default) =>
+        _memberships.DeleteOneAsync(m => m.UserId == userId && m.ClientId == clientId, cancellationToken);
+
     /// <summary>All clients registered in this deployment.</summary>
     public async Task<IReadOnlyList<ClientRegistration>> ListClientsAsync(CancellationToken cancellationToken = default) =>
         await _clients.Find(FilterDefinition<ClientRegistration>.Empty).ToListAsync(cancellationToken);

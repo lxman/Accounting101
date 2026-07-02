@@ -27,3 +27,13 @@ public sealed record MembershipResponse(
 /// whether they hold the deployment-admin claim (a separate authorization axis).</summary>
 public sealed record CapabilitiesResponse(
     IReadOnlyList<string> Capabilities, IReadOnlyList<string> Roles, bool DeploymentAdmin);
+
+/// <summary>Add a member to a client with an explicit role preset list and capability set.</summary>
+public sealed record AddClientMemberRequest(Guid UserId, IReadOnlyList<string> Roles, IReadOnlyList<string> Capabilities);
+
+/// <summary>Replace an existing member's role presets and capability set.</summary>
+public sealed record SetMemberRequest(IReadOnlyList<string> Roles, IReadOnlyList<string> Capabilities);
+
+/// <summary>The full capability vocabulary and the role presets (backend truth for the admin editor).</summary>
+public sealed record CapabilityCatalogResponse(IReadOnlyList<string> Capabilities, IReadOnlyList<RolePresetDto> Roles);
+public sealed record RolePresetDto(string Role, IReadOnlyList<string> Capabilities);
