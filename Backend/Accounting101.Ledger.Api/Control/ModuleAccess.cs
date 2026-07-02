@@ -2,6 +2,13 @@ using Accounting101.Ledger.Api.Auth;
 
 namespace Accounting101.Ledger.Api.Control;
 
+/// <summary>Whether a module operation reads or mutates data — selects the .read vs .write capability.</summary>
+public enum ModuleAccessLevel
+{
+    Read,
+    Write,
+}
+
 /// <summary>
 /// The reason a module call was allowed or refused. Every refusal maps to HTTP 403 at the boundary;
 /// the distinct reasons exist for logging and tests.
@@ -13,6 +20,7 @@ public enum ModuleAccessDecision
     Disabled,
     NotOwner,
     NotMember,
+    MissingCapability,
 }
 
 /// <summary>

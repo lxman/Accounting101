@@ -82,4 +82,25 @@ public sealed class CapabilitiesTests(ApiFixture fixture) : IClassFixture<ApiFix
         HttpResponseMessage res = await stranger.GetAsync($"/clients/{c.ClientId}/me/capabilities");
         Assert.Equal(HttpStatusCode.Forbidden, res.StatusCode);
     }
+
+    [Theory]
+    [InlineData("receivables", ModuleAccessLevel.Write, "ar.write")]
+    [InlineData("receivables", ModuleAccessLevel.Read, "ar.read")]
+    [InlineData("payables", ModuleAccessLevel.Write, "ap.write")]
+    [InlineData("payables", ModuleAccessLevel.Read, "ap.read")]
+    [InlineData("payroll", ModuleAccessLevel.Write, "payroll.write")]
+    [InlineData("payroll", ModuleAccessLevel.Read, "payroll.read")]
+    [InlineData("cash", ModuleAccessLevel.Write, "cash.write")]
+    [InlineData("cash", ModuleAccessLevel.Read, "cash.read")]
+    [InlineData("reconciliation", ModuleAccessLevel.Write, "bankrec.write")]
+    [InlineData("reconciliation", ModuleAccessLevel.Read, "bankrec.read")]
+    public void CapabilityForModule_maps_each_module_and_level(string key, ModuleAccessLevel level, string expected) =>
+        Assert.Equal(expected, Capabilities.CapabilityForModule(key, level));
+
+    [Fact]
+    public void CapabilityForModule_returns_null_for_an_unmapped_module_key()
+    {
+        Assert.Null(Capabilities.CapabilityForModule("invoicing", ModuleAccessLevel.Write));
+        Assert.Null(Capabilities.CapabilityForModule("ghost", ModuleAccessLevel.Read));
+    }
 }

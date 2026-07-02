@@ -67,6 +67,20 @@ public static class Capabilities
     public static Permission? PermissionForCapability(string capability) =>
         CapabilityToPermission.TryGetValue(capability, out Permission p) ? p : null;
 
+    /// <summary>
+    /// The subledger capability a module requires for a given access level, or null when the module key
+    /// has no subledger area (a non-subledger module — falls back to membership-only authorization).
+    /// </summary>
+    public static string? CapabilityForModule(string moduleKey, ModuleAccessLevel level) => moduleKey switch
+    {
+        "receivables"    => level == ModuleAccessLevel.Write ? ArWrite : ArRead,
+        "payables"       => level == ModuleAccessLevel.Write ? ApWrite : ApRead,
+        "payroll"        => level == ModuleAccessLevel.Write ? PayrollWrite : PayrollRead,
+        "cash"           => level == ModuleAccessLevel.Write ? CashWrite : CashRead,
+        "reconciliation" => level == ModuleAccessLevel.Write ? BankRecWrite : BankRecRead,
+        _ => null,
+    };
+
     /// <summary>Every capability in the vocabulary.</summary>
     public static readonly IReadOnlySet<string> All = new HashSet<string>
     {
