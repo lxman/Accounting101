@@ -44,6 +44,20 @@ public sealed class MemberManagementTests(ApiFixture fixture) : IClassFixture<Ap
         SeededClient c = await fixture.SeedClientAsync(role: LedgerRole.Clerk);   // no admin.users
         HttpResponseMessage list = await c.Http.GetAsync($"/clients/{c.ClientId}/members");
         Assert.Equal(HttpStatusCode.Forbidden, list.StatusCode);
+
+        // POST is also forbidden
+        HttpResponseMessage post = await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/members",
+            new AddClientMemberRequest(Guid.NewGuid(), ["Auditor"], ["gl.read"]));
+        Assert.Equal(HttpStatusCode.Forbidden, post.StatusCode);
+
+        // PUT is also forbidden
+        HttpResponseMessage put = await c.Http.PutAsJsonAsync($"/clients/{c.ClientId}/members/{Guid.NewGuid()}",
+            new SetMemberRequest(["Auditor"], ["gl.read"]));
+        Assert.Equal(HttpStatusCode.Forbidden, put.StatusCode);
+
+        // DELETE is also forbidden
+        HttpResponseMessage del = await c.Http.DeleteAsync($"/clients/{c.ClientId}/members/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.Forbidden, del.StatusCode);
     }
 
     [Fact]

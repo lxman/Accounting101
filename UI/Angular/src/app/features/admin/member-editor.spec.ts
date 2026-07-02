@@ -100,8 +100,8 @@ describe('MemberEditor', () => {
     const cmp = f.componentInstance;
     cmp.save();
     ctrl.expectOne(`http://localhost:5000/clients/C1/members/${userId}`)
-      .flush({ detail: 'This would leave the client with no admin.users member.' }, { status: 409, statusText: 'Conflict' });
+      .flush({ detail: 'Cannot remove the last administrator.' }, { status: 409, statusText: 'Conflict' });
     f.detectChanges();
-    expect(cmp.message()).toContain('no admin.users member');
+    expect(cmp.message()).toContain('Cannot remove the last administrator.');
   });
 });
