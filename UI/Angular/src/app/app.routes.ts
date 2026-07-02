@@ -33,6 +33,13 @@ import { BillPaymentEditor } from './features/payables/bill-payment-editor';
 import { VendorCreditList } from './features/payables/vendor-credit-list';
 import { VendorCreditApplyEditor } from './features/payables/vendor-credit-apply-editor';
 import { VendorAccount } from './features/payables/vendor-account';
+import { PayrollShell } from './features/payroll/payroll-shell';
+import { RunList } from './features/payroll/run-list';
+import { RunEditor } from './features/payroll/run-editor';
+import { RunDetail } from './features/payroll/run-detail';
+import { RemittanceList } from './features/payroll/remittance-list';
+import { RemittanceEditor } from './features/payroll/remittance-editor';
+import { RemittanceDetail } from './features/payroll/remittance-detail';
 import { NAV } from './layout/nav';
 
 export const routes: Routes = [
@@ -90,7 +97,16 @@ export const routes: Routes = [
     { path: 'credits', component: VendorCreditList },
     { path: 'credits/new', component: VendorCreditApplyEditor },
   ] },
+  { path: 'payroll', component: PayrollShell, children: [
+    { path: '', pathMatch: 'full', redirectTo: 'runs' },
+    { path: 'runs', component: RunList },
+    { path: 'runs/new', component: RunEditor },
+    { path: 'runs/:id', component: RunDetail },
+    { path: 'remittances', component: RemittanceList },
+    { path: 'remittances/new', component: RemittanceEditor },
+    { path: 'remittances/:id', component: RemittanceDetail },
+  ] },
   // remaining nav targets → placeholder
-  ...NAV.filter(n => ![ '/dashboard', '/trial-balance', '/statements', '/accounts', '/receivables', '/payables' ].includes(n.path) && !n.path.startsWith('/journal')).map(n => ({ path: n.path.slice(1), component: Placeholder })),
+  ...NAV.filter(n => ![ '/dashboard', '/trial-balance', '/statements', '/accounts', '/receivables', '/payables', '/payroll' ].includes(n.path) && !n.path.startsWith('/journal')).map(n => ({ path: n.path.slice(1), component: Placeholder })),
   { path: '**', redirectTo: 'dashboard' },
 ];
