@@ -9,9 +9,10 @@ namespace Accounting101.Ledger.Api.Endpoints;
 
 /// <summary>
 /// Shared front door for every ledger endpoint: turns the authenticated principal into an
-/// <see cref="Actor"/>, authorizes it against the control DB (membership role must hold the required
-/// <see cref="Permission"/>), and resolves the client's ledger — collapsing authn + authz + tenant
-/// resolution into one call. Segregation of duties (an individual check) is layered on at the endpoint.
+/// <see cref="Actor"/>, authorizes it against the control DB (the membership's capability set must
+/// contain the capability corresponding to the required <see cref="Permission"/>), and resolves the
+/// client's ledger — collapsing authn + authz + tenant resolution into one call. Segregation of
+/// duties (an individual check) is layered on at the endpoint.
 /// </summary>
 public sealed class LedgerGateway(IActorFactory actorFactory, ControlStore control, ClientLedgerFactory ledgers, ModuleAccess moduleAccess)
 {
