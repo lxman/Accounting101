@@ -3,12 +3,25 @@ import { provideRouter, Router } from '@angular/router';
 import { Shell } from './shell';
 import { DevIdentityService } from '../core/api/dev-identity.service';
 import { environment } from '../core/api/environment';
+import { CapabilityService } from '../core/capabilities/capability.service';
+
+class StubCaps {
+  areas = new Set<string>();
+  hasArea(a: string) { return this.areas.has(a); }
+  has() { return false; }
+  capabilities() { return new Set<string>(); }
+  roles() { return []; }
+  deploymentAdmin() { return false; }
+}
 
 describe('Shell', () => {
-  async function make() {
+  async function make(areas: string[] = ['gl','ar','ap','payroll','cash','bankrec','fixedassets','audit','reports','admin']) {
+    TestBed.resetTestingModule();
+    const stub = new StubCaps();
+    areas.forEach(a => stub.areas.add(a));
     await TestBed.configureTestingModule({
       imports: [Shell],
-      providers: [provideRouter([])],
+      providers: [provideRouter([]), { provide: CapabilityService, useValue: stub }],
     }).compileComponents();
     const fixture = TestBed.createComponent(Shell);
     fixture.detectChanges();
@@ -85,9 +98,11 @@ describe('Shell', () => {
   });
 
   it('auto-opens the section and submenu holding the active route', async () => {
+    const stub = new StubCaps();
+    ['gl','ar','ap','payroll','cash','bankrec','fixedassets','audit','reports','admin'].forEach(a => stub.areas.add(a));
     await TestBed.configureTestingModule({
       imports: [Shell],
-      providers: [provideRouter([{ path: 'cash/reconciliation', children: [] }])],
+      providers: [provideRouter([{ path: 'cash/reconciliation', children: [] }]), { provide: CapabilityService, useValue: stub }],
     }).compileComponents();
     const fixture = TestBed.createComponent(Shell);
     await TestBed.inject(Router).navigateByUrl('/cash/reconciliation');
@@ -122,5 +137,21 @@ describe('Shell', () => {
     ids.use(environment.devApprover.sub);
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Dev Approver');
+  });
+
+  it('hides sections the user has no capability for (AR-clerk scope)', async () => {
+    const el = (await make(['gl', 'ar'])).nativeElement as HTMLElement;
+    expect(el.textContent).toContain('General Ledger');
+    expect(el.textContent).toContain('Subledgers');   // Receivables lives here
+    expect(el.textContent).not.toContain('Payables');
+    expect(el.textContent).not.toContain('Assurance');
+    expect(el.textContent).not.toContain('Administration');
+  });
+
+  it('shows Administration only when admin capability is present', async () => {
+    const withAdmin = (await make(['admin'])).nativeElement as HTMLElement;
+    expect(withAdmin.textContent).toContain('Administration');
+    const without = (await make(['gl'])).nativeElement as HTMLElement;
+    expect(without.textContent).not.toContain('Administration');
   });
 });

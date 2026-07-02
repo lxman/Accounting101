@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import { ClientContextService } from '../core/client/client-context.service';
 import { ThemeSwitch } from '../core/theme/theme-switch';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { DevIdentityService } from '../core/api/dev-identity.service';
-import { NAV } from './nav';
+import { CapabilityService } from '../core/capabilities/capability.service';
+import { NAV, visibleSections } from './nav';
 import { NavStateService } from './nav-state.service';
 
 @Component({
@@ -38,7 +39,7 @@ import { NavStateService } from './nav-state.service';
       <div class="flex">
         @if (!navState.sidebarCollapsed()) {
         <aside class="w-56 min-h-[calc(100vh-3.5rem)] p-2 bg-sidebar text-sidebar-foreground">
-          @for (section of nav; track section.label) {
+          @for (section of visibleNav(); track section.label) {
             <div class="mt-3 first:mt-0">
               <button type="button" data-testid="nav-section-header"
                       (click)="navState.toggleSection(section.label)"
@@ -83,10 +84,11 @@ import { NavStateService } from './nav-state.service';
     </div>`,
 })
 export class Shell {
-  protected readonly nav = NAV;
   protected readonly client = inject(ClientContextService);
   protected readonly identity = inject(DevIdentityService);
   protected readonly navState = inject(NavStateService);
+  protected readonly caps = inject(CapabilityService);
+  protected readonly visibleNav = computed(() => visibleSections(NAV, (a) => !a || this.caps.hasArea(a)));
 
   // The trigger renders the active value (a user sub) via itemToString; map it back to a readable
   // "Acting as: <name>" (a bare value would display the raw GUID).
