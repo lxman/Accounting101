@@ -6,10 +6,11 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { vi } from 'vitest';
 import { RemittanceEditor } from './remittance-editor';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 function setup() {
   TestBed.configureTestingModule({
-    providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideCapabilities('payroll.write')],
   });
   TestBed.inject(ClientContextService).select('C1');
   return TestBed.inject(HttpTestingController);

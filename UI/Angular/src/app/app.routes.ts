@@ -101,10 +101,10 @@ export const routes: Routes = [
   { path: 'payroll', component: PayrollShell, children: [
     { path: '', pathMatch: 'full', redirectTo: 'runs' },
     { path: 'runs', component: RunList },
-    { path: 'runs/new', component: RunEditor },
+    { path: 'runs/new', component: RunEditor, canActivate: [canWrite('payroll.write', '/payroll/runs')] },
     { path: 'runs/:id', component: RunDetail },
     { path: 'remittances', component: RemittanceList },
-    { path: 'remittances/new', component: RemittanceEditor },
+    { path: 'remittances/new', component: RemittanceEditor, canActivate: [canWrite('payroll.write', '/payroll/remittances')] },
     { path: 'remittances/:id', component: RemittanceDetail },
   ] },
   // Every nav leaf not served by a built route tree above → Placeholder.

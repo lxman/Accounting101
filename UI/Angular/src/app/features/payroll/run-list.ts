@@ -9,16 +9,17 @@ import { PayrollRun, netPay } from '../../core/payroll/payroll';
 import { PagedResponse } from '../../core/api/paged-response';
 import { ClientContextService } from '../../core/client/client-context.service';
 import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
   selector: 'app-run-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, HlmButton, ...HlmTableImports],
+  imports: [RouterLink, HlmButton, CanDirective, ...HlmTableImports],
   template: `
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-3">
         <h1 class="text-2xl font-bold">Payroll runs</h1>
-        <a hlmBtn size="sm" routerLink="/payroll/runs/new" class="ms-auto">Record payroll run</a>
+        <a *appCan="'payroll.write'" hlmBtn size="sm" routerLink="/payroll/runs/new" class="ms-auto">Record payroll run</a>
         <label class="flex items-center gap-2 text-sm text-muted-foreground">
           <input type="checkbox" [checked]="includeVoided()" (change)="toggleVoided($any($event.target).checked)" />
           Show voided

@@ -7,11 +7,12 @@ import { PayrollService } from '../../core/payroll/payroll.service';
 import { PayrollRun, netPay } from '../../core/payroll/payroll';
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
   selector: 'app-run-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ...HlmInputImports, HlmButton],
+  imports: [RouterLink, ...HlmInputImports, HlmButton, CanDirective],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-2xl">
       <a routerLink="/payroll/runs" class="text-sm text-muted-foreground hover:text-foreground">← Runs</a>
@@ -45,7 +46,7 @@ import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/dis
           <div class="flex items-center gap-2 border-t border-border pt-4">
             <input hlmInput type="text" placeholder="Void reason (optional)"
                    [value]="reason() ?? ''" (input)="reason.set($any($event.target).value || null)" class="w-64" />
-            <button hlmBtn type="button" variant="outline" (click)="this.void()" [disabled]="busy()">Void</button>
+            <button *appCan="'payroll.write'" hlmBtn type="button" variant="outline" (click)="this.void()" [disabled]="busy()">Void</button>
           </div>
         }
       }

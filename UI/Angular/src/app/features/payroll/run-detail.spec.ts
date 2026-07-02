@@ -5,11 +5,13 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { RunDetail } from './run-detail';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 function setup(id = 'r1') {
   TestBed.configureTestingModule({
     providers: [
       provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
+      provideCapabilities('payroll.write'),
       { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => id } } } },
     ],
   });

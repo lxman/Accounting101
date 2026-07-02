@@ -9,11 +9,12 @@ import { netPay } from '../../core/payroll/payroll';
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney } from '../../core/format/display';
 import { CurrencyInput } from '../../shared/currency-input';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
   selector: 'app-run-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, ...HlmInputImports, ...HlmLabelImports, HlmButton, CurrencyInput],
+  imports: [RouterLink, ...HlmInputImports, ...HlmLabelImports, HlmButton, CurrencyInput, CanDirective],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-2xl">
       <h1 class="text-2xl font-bold">Record payroll run</h1>
@@ -57,7 +58,7 @@ import { CurrencyInput } from '../../shared/currency-input';
       @if (message()) { <p class="text-destructive text-sm">{{ message() }}</p> }
 
       <div class="flex items-center gap-2">
-        <button hlmBtn type="button" (click)="save()" [disabled]="!canSave() || busy()">Record payroll run</button>
+        <button *appCan="'payroll.write'" hlmBtn type="button" (click)="save()" [disabled]="!canSave() || busy()">Record payroll run</button>
         <a hlmBtn variant="outline" routerLink="/payroll/runs">Cancel</a>
       </div>
     </div>
