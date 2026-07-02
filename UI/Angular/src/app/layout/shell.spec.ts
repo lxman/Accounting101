@@ -16,26 +16,26 @@ describe('Shell', () => {
     return fixture;
   }
 
+  function sectionHeader(el: HTMLElement, label: string): HTMLElement {
+    return Array.from(el.querySelectorAll('[data-testid="nav-section-header"]'))
+      .find((h) => h.textContent?.includes(label)) as HTMLElement;
+  }
+
   it('renders all five section headers', async () => {
     const el = (await make()).nativeElement as HTMLElement;
-    expect(el.textContent).toContain('Overview');
-    expect(el.textContent).toContain('General Ledger');
-    expect(el.textContent).toContain('Subledgers');
-    expect(el.textContent).toContain('Assurance');
-    expect(el.textContent).toContain('Administration');
+    for (const label of ['Overview', 'General Ledger', 'Subledgers', 'Assurance', 'Administration']) {
+      expect(el.textContent).toContain(label);
+    }
   });
 
   it('starts with sections collapsed — items hidden until expanded', async () => {
     const fixture = await make();
     const el = fixture.nativeElement as HTMLElement;
-    // No section holds the active route in the test harness (router url is '/'),
-    // so every section is collapsed by default: headers show, items do not.
+    // No section holds the active route in the harness (router url is '/'), so all collapsed.
     expect(el.textContent).not.toContain('Posting accounts');
     expect(el.textContent).not.toContain('Trial Balance');
 
-    const header = Array.from(el.querySelectorAll('[data-testid="nav-section-header"]'))
-      .find((h) => h.textContent?.includes('Administration')) as HTMLElement;
-    header.click();
+    sectionHeader(el, 'Administration').click();
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Posting accounts');
   });
@@ -43,35 +43,48 @@ describe('Shell', () => {
   it('shows Administration Firm/Client links after expanding (moved out of the header)', async () => {
     const fixture = await make();
     const el = fixture.nativeElement as HTMLElement;
-    // The header buttons are gone regardless of expansion.
     expect(el.textContent).not.toContain('Edit Firm');
     expect(el.textContent).not.toContain('Edit Client');
-    // The links live in the (collapsed) Administration section; expand to reveal.
-    const header = Array.from(el.querySelectorAll('[data-testid="nav-section-header"]'))
-      .find((h) => h.textContent?.includes('Administration')) as HTMLElement;
-    header.click();
+
+    sectionHeader(el, 'Administration').click();
     fixture.detectChanges();
     const after = fixture.nativeElement as HTMLElement;
     expect(after.querySelector('a[href="/admin/firm"]')).not.toBeNull();
     expect(after.querySelector('a[href="/admin/client"]')).not.toBeNull();
   });
 
-  it('nests Bank Reconciliation under Cash & Banking — hidden until both are expanded', async () => {
+  it('is single-open: expanding one section collapses the previously open one', async () => {
+    const fixture = await make();
+    const el = fixture.nativeElement as HTMLElement;
+    sectionHeader(el, 'Administration').click();
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Posting accounts');
+
+    sectionHeader(fixture.nativeElement, 'General Ledger').click();
+    fixture.detectChanges();
+    const after = fixture.nativeElement as HTMLElement;
+    expect(after.textContent).toContain('Trial Balance');       // General Ledger now open
+    expect(after.textContent).not.toContain('Posting accounts'); // Administration collapsed
+  });
+
+  it('nests Bank Reconciliation under Cash & Banking and reliably toggles it closed again', async () => {
     const fixture = await make();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.textContent).not.toContain('Bank Reconciliation');
-    const component = fixture.componentInstance as unknown as { toggle: (k: string) => void };
-    component.toggle('Subledgers');       // open the section
+
+    sectionHeader(el, 'Subledgers').click();          // open the section
     fixture.detectChanges();
-    component.toggle('/cash');            // open the Cash & Banking parent
+    const parentToggle = fixture.nativeElement.querySelector('[data-testid="nav-parent-toggle"]') as HTMLElement;
+    parentToggle.click();                             // open Cash & Banking submenu
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Bank Reconciliation');
+
+    (fixture.nativeElement.querySelector('[data-testid="nav-parent-toggle"]') as HTMLElement).click(); // close it
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Bank Reconciliation');
   });
 
-  it('auto-opens the section holding the active route, without a manual toggle', async () => {
-    // Drive the REAL url signal by navigating, so OnPush re-renders (a monkey-patched
-    // activePath would not trigger change detection). Active route = Bank Reconciliation
-    // under Subledgers; that section + parent open with no expand click, others stay shut.
+  it('auto-opens the section and submenu holding the active route', async () => {
     await TestBed.configureTestingModule({
       imports: [Shell],
       providers: [provideRouter([{ path: 'cash/reconciliation', children: [] }])],
@@ -81,10 +94,9 @@ describe('Shell', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
-    const component = fixture.componentInstance as unknown as { isOpen: (s: string) => boolean };
-    expect(component.isOpen('Subledgers')).toBe(true);
-    expect(component.isOpen('Assurance')).toBe(false);
-    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Bank Reconciliation');
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.textContent).toContain('Bank Reconciliation'); // Subledgers + Cash & Banking auto-open
+    expect(el.textContent).not.toContain('Posting accounts'); // unrelated section stays closed
   });
 
   it('switches the active dev identity from the top bar', async () => {

@@ -1,12 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
-import { filter, map } from 'rxjs';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { RouterLink, RouterOutlet } from '@angular/router';
 import { ClientContextService } from '../core/client/client-context.service';
 import { ThemeSwitch } from '../core/theme/theme-switch';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { DevIdentityService } from '../core/api/dev-identity.service';
-import { NAV, NavLink, navLeafPaths } from './nav';
+import { NAV } from './nav';
+import { NavStateService } from './nav-state.service';
 
 @Component({
   selector: 'app-shell',
@@ -37,36 +36,35 @@ import { NAV, NavLink, navLeafPaths } from './nav';
           @for (section of nav; track section.label) {
             <div class="mt-3 first:mt-0">
               <button type="button" data-testid="nav-section-header"
-                      (click)="toggle(section.label)"
+                      (click)="navState.toggleSection(section.label)"
                       class="w-full flex items-center justify-between px-3 py-1 text-xs uppercase tracking-wide text-muted-foreground">
                 <span>{{ section.label }}</span>
-                @if (!sectionContainsActive(section.label)) {
-                  <span>{{ isOpen(section.label) ? '▾' : '▸' }}</span>
-                }
+                <span>{{ navState.isSectionOpen(section.label) ? '▾' : '▸' }}</span>
               </button>
-              @if (isOpen(section.label)) {
+              @if (navState.isSectionOpen(section.label)) {
                 @for (item of section.items; track item.path) {
                   <div class="flex items-center">
                     <a [routerLink]="item.path"
                        class="flex-1 block px-3 py-2 rounded-lg text-sm"
-                       [class.bg-sidebar-accent]="activePath() === item.path"
-                       [class.text-sidebar-accent-foreground]="activePath() === item.path"
-                       [class.font-semibold]="activePath() === item.path">{{ item.label }}</a>
-                    @if (item.children && !parentContainsActive(item)) {
+                       [class.bg-sidebar-accent]="navState.activePath() === item.path"
+                       [class.text-sidebar-accent-foreground]="navState.activePath() === item.path"
+                       [class.font-semibold]="navState.activePath() === item.path">{{ item.label }}</a>
+                    @if (item.children) {
                       <button type="button"
-                              (click)="toggle(item.path)"
+                              data-testid="nav-parent-toggle"
+                              (click)="navState.toggleParent(item.path)"
                               class="px-2 py-1 text-xs text-muted-foreground">
-                        {{ parentOpen(item) ? '▾' : '▸' }}
+                        {{ navState.isParentOpen(item.path) ? '▾' : '▸' }}
                       </button>
                     }
                   </div>
-                  @if (item.children && parentOpen(item)) {
+                  @if (item.children && navState.isParentOpen(item.path)) {
                     @for (child of item.children; track child.path) {
                       <a [routerLink]="child.path"
                          class="block pl-6 pr-3 py-1.5 rounded-lg text-sm"
-                         [class.bg-sidebar-accent]="activePath() === child.path"
-                         [class.text-sidebar-accent-foreground]="activePath() === child.path"
-                         [class.font-semibold]="activePath() === child.path">{{ child.label }}</a>
+                         [class.bg-sidebar-accent]="navState.activePath() === child.path"
+                         [class.text-sidebar-accent-foreground]="navState.activePath() === child.path"
+                         [class.font-semibold]="navState.activePath() === child.path">{{ child.label }}</a>
                     }
                   }
                 }
@@ -82,65 +80,10 @@ export class Shell {
   protected readonly nav = NAV;
   protected readonly client = inject(ClientContextService);
   protected readonly identity = inject(DevIdentityService);
-  private readonly router = inject(Router);
+  protected readonly navState = inject(NavStateService);
 
-  private readonly leafPaths = navLeafPaths();
-  // Opt-in expansion: everything starts collapsed. A group opens only when the user
-  // expands it OR when it contains the active route (so the section you navigate into
-  // opens and the one you leave collapses automatically).
-  private readonly expanded = signal<Set<string>>(new Set());
-
-  private readonly url = toSignal(
-    this.router.events.pipe(
-      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
-      map((e) => e.urlAfterRedirects),
-    ),
-    { initialValue: this.router.url },
-  );
-
-  // Highlighted item = longest nav leaf path that prefixes the current URL.
-  protected readonly activePath = computed(() => {
-    const u = this.url();
-    return (
-      this.leafPaths
-        .filter((p) => u === p || u.startsWith(p + '/'))
-        .sort((a, b) => b.length - a.length)[0] ?? null
-    );
-  });
-
-  toggle(key: string): void {
-    this.expanded.update((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
-  }
-
-  // A group is open when the user has expanded it OR it contains the active path
-  // (the active section auto-opens; leaving it collapses it, since it was never
-  // in the expanded set).
-  isOpen(sectionLabel: string): boolean {
-    return this.expanded().has(sectionLabel) || this.sectionContainsActive(sectionLabel);
-  }
-
-  parentOpen(item: NavLink): boolean {
-    return this.expanded().has(item.path) || this.parentContainsActive(item);
-  }
-
-  parentContainsActive(item: NavLink): boolean {
-    const a = this.activePath();
-    if (!a) return false;
-    return a === item.path || (item.children?.some((c) => c.path === a) ?? false);
-  }
-
-  sectionContainsActive(sectionLabel: string): boolean {
-    const a = this.activePath();
-    if (!a) return false;
-    const section = NAV.find((s) => s.label === sectionLabel);
-    if (!section) return false;
-    return section.items.some((i) => i.path === a || (i.children?.some((c) => c.path === a) ?? false));
-  }
-
+  // The trigger renders the active value (a user sub) via itemToString; map it back to a readable
+  // "Acting as: <name>" (a bare value would display the raw GUID).
   protected readonly identityItemToString = (sub: string): string =>
     `Acting as: ${this.identity.identities.find((i) => i.sub === sub)?.name ?? sub}`;
 }
