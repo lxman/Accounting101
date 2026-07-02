@@ -104,6 +104,20 @@ public sealed class CashHostFixture : WebApplicationFactory<Program>, IAsyncLife
         return http;
     }
 
+    /// <summary>Register a client + a single member with the given role, returning an HttpClient authed as that member.</summary>
+    public async Task<(Guid ClientId, HttpClient Http)> SeedClientAsync(LedgerRole role)
+    {
+        Guid clientId = Guid.NewGuid();
+        Guid userId = Guid.NewGuid();
+        ControlStore control = Control();
+        await control.RegisterClientAsync(new ClientRegistration
+        {
+            Id = clientId, Name = "Acme", DatabaseName = "client_" + clientId.ToString("N"),
+        });
+        await control.AddMembershipAsync(userId, clientId, role);
+        return (clientId, ClientFor(userId, $"Acme {role}"));
+    }
+
     /// <summary>
     /// Register a SoD-ON client with three members: a Controller (chart setup, module document voids),
     /// a Clerk (records docs), and an Approver (approves GL entries, including reversals). Returns the
