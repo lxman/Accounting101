@@ -46,9 +46,19 @@ describe('visibleSections', () => {
     expect(subledgers.items.map(i => i.path)).toEqual(['/receivables']);
   });
 
-  it('shows Administration when admin is permitted', () => {
-    const v = visibleSections(NAV, () => true);
-    expect(sectionLabels(v)).toContain('Administration');
+  it('shows Administration only when admin is permitted', () => {
+    const withAdmin = visibleSections(NAV, (area) => !area || area === 'admin');
+    expect(sectionLabels(withAdmin)).toContain('Administration');
+
+    const withoutAdmin = visibleSections(NAV, (area) => !area || area === 'gl');
+    expect(sectionLabels(withoutAdmin)).not.toContain('Administration');
+  });
+
+  it('drops the children array when all sub-items are filtered out (no dead caret)', () => {
+    // Permit 'cash' (Cash & Banking) but not 'bankrec' (its only child, Bank Reconciliation).
+    const v = visibleSections(NAV, (area) => !area || area === 'cash');
+    const cash = v.find((s) => s.label === 'Subledgers')!.items.find((i) => i.path === '/cash')!;
+    expect(cash.children).toBeUndefined();
   });
 
   it('filters a parent\'s children by their own area', () => {

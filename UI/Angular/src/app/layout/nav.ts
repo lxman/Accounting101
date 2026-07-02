@@ -61,7 +61,13 @@ export function visibleSections(nav: NavSection[], canSee: (area?: string) => bo
       label: section.label,
       items: section.items
         .filter((item) => canSee(item.area))
-        .map((item) => (item.children ? { ...item, children: item.children.filter((c) => canSee(c.area)) } : item)),
+        .map((item) => {
+          if (!item.children) return item;
+          const children = item.children.filter((c) => canSee(c.area));
+          // Drop the children array entirely when none survive, so the template renders no
+          // (dead) expand caret on a parent whose sub-items are all filtered out.
+          return children.length ? { ...item, children } : { ...item, children: undefined };
+        }),
     }))
     .filter((section) => section.items.length > 0);
 }
