@@ -40,6 +40,8 @@ import { RunDetail } from './features/payroll/run-detail';
 import { RemittanceList } from './features/payroll/remittance-list';
 import { RemittanceEditor } from './features/payroll/remittance-editor';
 import { RemittanceDetail } from './features/payroll/remittance-detail';
+import { MemberList } from './features/admin/member-list';
+import { MemberEditor } from './features/admin/member-editor';
 import { navLeafPaths } from './layout/nav';
 import { canWrite } from './core/capabilities/can.guard';
 
@@ -107,9 +109,12 @@ export const routes: Routes = [
     { path: 'remittances/new', component: RemittanceEditor, canActivate: [canWrite('payroll.write', '/payroll/remittances')] },
     { path: 'remittances/:id', component: RemittanceDetail },
   ] },
+  { path: 'admin/users', component: MemberList },
+  { path: 'admin/users/new', component: MemberEditor, canActivate: [canWrite('admin.users', '/admin/users')] },
+  { path: 'admin/users/:userId', component: MemberEditor, canActivate: [canWrite('admin.users', '/admin/users')] },
   // Every nav leaf not served by a built route tree above → Placeholder.
   ...(() => {
-    const built = ['/dashboard', '/journal', '/trial-balance', '/statements', '/accounts', '/receivables', '/payables', '/payroll'];
+    const built = ['/dashboard', '/journal', '/trial-balance', '/statements', '/accounts', '/receivables', '/payables', '/payroll', '/admin/users'];
     const isBuilt = (p: string) => built.some((b) => p === b || p.startsWith(b + '/'));
     return navLeafPaths()
       .filter((p) => !isBuilt(p))
