@@ -85,7 +85,10 @@ export class Shell {
   private readonly router = inject(Router);
 
   private readonly leafPaths = navLeafPaths();
-  private readonly collapsed = signal<Set<string>>(new Set());
+  // Opt-in expansion: everything starts collapsed. A group opens only when the user
+  // expands it OR when it contains the active route (so the section you navigate into
+  // opens and the one you leave collapses automatically).
+  private readonly expanded = signal<Set<string>>(new Set());
 
   private readonly url = toSignal(
     this.router.events.pipe(
@@ -106,24 +109,22 @@ export class Shell {
   });
 
   toggle(key: string): void {
-    this.collapsed.update((prev) => {
+    this.expanded.update((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key); else next.add(key);
       return next;
     });
   }
 
-  // A group is open when not explicitly collapsed OR when it contains the active path
-  // (so navigating never hides the current page).
+  // A group is open when the user has expanded it OR it contains the active path
+  // (the active section auto-opens; leaving it collapses it, since it was never
+  // in the expanded set).
   isOpen(sectionLabel: string): boolean {
-    if (!this.collapsed().has(sectionLabel)) return true;
-    return this.sectionContainsActive(sectionLabel);
+    return this.expanded().has(sectionLabel) || this.sectionContainsActive(sectionLabel);
   }
 
   parentOpen(item: NavLink): boolean {
-    if (!this.collapsed().has(item.path)) return true;
-    const a = this.activePath();
-    return a === item.path || (item.children?.some((c) => c.path === a) ?? false);
+    return this.expanded().has(item.path) || this.parentContainsActive(item);
   }
 
   parentContainsActive(item: NavLink): boolean {
