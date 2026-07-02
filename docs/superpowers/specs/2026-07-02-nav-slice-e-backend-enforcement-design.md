@@ -47,9 +47,15 @@ RBAC umbrella.
 - **Capability vocabulary** (`Control/Capabilities.cs`): subledger areas
   `ar/ap/payroll/cash/bankrec` each have `.read`/`.write`; admin areas
   `admin.users/firm/client/fiscal/postingAccounts`. Role presets
-  (`Control/RolePresets.cs`): every role holds every `*.read`; subledger `.write`
-  is held by Clerk/Controller/Admin (all) and by the narrow per-module clerks
-  (ArClerk→`ar.write`, etc.); Auditor and Approver hold **no** subledger `.write`.
+  (`Control/RolePresets.cs`): the five **primary** roles (Auditor, Clerk,
+  Approver, Controller, Admin) each hold every `*.read`; the four **narrow**
+  per-module clerks (ArClerk/ApClerk/PayrollClerk/CashClerk) hold only `gl.read`
+  plus their own module's `.read` (+`.write`) — they are intentionally confined
+  to their module's reads (the umbrella's owner-configurable read-visibility
+  range, defaulting to confined; Slice B already filters their sidebar to match).
+  Subledger `.write` is held by Clerk/Controller/Admin (all) and by the narrow
+  per-module clerks (ArClerk→`ar.write`, etc.); Auditor and Approver hold **no**
+  subledger `.write`.
 
 ## Part 1 — Subledger enforcement (the core)
 
@@ -100,9 +106,13 @@ small explicit map mirroring how the rest of the code hardcodes module keys:
 
 ### Enforcement behavior (intended, not incidental)
 
-- **Reads: zero regression.** Every role preset holds every `*.read`, so read
-  enforcement changes no existing behavior; it is defense-in-depth and makes a
-  future narrow-read visibility config (Slice D territory) actually bite.
+- **Reads: no regression for the five primary roles** (each holds every `*.read`).
+  The four narrow clerks hold only their own module's `.read`, so post-slice a
+  narrow clerk is now **confined to its module's reads server-side** — a genuine
+  (intended) behavior change: it is defense-in-depth and makes the umbrella's
+  owner-configurable read-visibility range real, and it matches Slice B, which
+  already filters a narrow clerk's sidebar to its own module. No shipping flow
+  regresses (a narrow clerk never navigates to another module's read screen).
 - **Writes: the point.** Auditor and Approver hold no subledger `.write` → they can
   no longer post through any module server-side (matching the UI, which already
   hides those controls). Narrow clerks are confined to their own module's writes.

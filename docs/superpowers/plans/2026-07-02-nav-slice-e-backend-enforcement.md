@@ -704,5 +704,5 @@ git commit -m "$(printf 'feat(nav): per-client admin.* capability gates on fisca
 
 - The enforcement lives in ONE method (`ModuleAccess.AuthorizeAsync`). Do not add per-endpoint capability checks in the module `*Endpoints.cs` files — that is deliberately avoided.
 - The unmapped-key fallback (`CapabilityForModule` → null → membership-only) is why the generic `DocumentStore*Tests` (module key `"invoicing"`) keep passing without a subledger capability. Do not "fix" them to require a capability.
-- Role capability reference (from `RolePresets`): Controller/Clerk/Admin hold all subledger `.write`; Auditor and Approver hold none; ArClerk holds `ar.write` only; every role holds every `*.read`; only Admin holds `admin.*`.
+- Role capability reference (from `RolePresets`): Controller/Clerk/Admin hold all subledger `.write`; Auditor and Approver hold none; ArClerk holds `ar.write` only; the five primary roles (Auditor/Clerk/Approver/Controller/Admin) hold every `*.read` while the four narrow clerks hold only `gl.read` + their own module's `.read` (intentionally confined — matches Slice B sidebar filtering); only Admin holds `admin.*`.
 - If a `*Request` record's constructor in a test does not match the contract, fix the test call to the real shape — do not change the contract.
