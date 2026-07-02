@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Contracts;
 using Accounting101.Ledger.Api.Control;
 
@@ -14,13 +16,16 @@ public static class AdminEndpoints
 
     public static void MapAdminEndpoints(this IEndpointRouteBuilder app)
     {
-        RouteGroupBuilder admin = app.MapGroup("/admin").RequireAuthorization(Policy);
+        // Control-plane: deployment admin only — no per-client context exists to gate on.
+        RouteGroupBuilder deployment = app.MapGroup("/admin").RequireAuthorization(Policy);
+        deployment.MapPost("/clients", CreateClient);
+        deployment.MapGet("/clients", ListClients);
 
-        admin.MapPost("/clients", CreateClient);
-        admin.MapGet("/clients", ListClients);
-        admin.MapPut("/clients/{clientId:guid}/fiscal-year-end", SetFiscalYearEnd);
-        admin.MapPost("/clients/{clientId:guid}/members", AddMember);
-        admin.MapGet("/clients/{clientId:guid}/members", ListMembers);
+        // Per-client admin: deployment admin OR the matching admin.* capability (checked in-handler).
+        RouteGroupBuilder perClient = app.MapGroup("/admin").RequireAuthorization();
+        perClient.MapPut("/clients/{clientId:guid}/fiscal-year-end", SetFiscalYearEnd);
+        perClient.MapPost("/clients/{clientId:guid}/members", AddMember);
+        perClient.MapGet("/clients/{clientId:guid}/members", ListMembers);
     }
 
     private static async Task<IResult> CreateClient(
@@ -51,8 +56,12 @@ public static class AdminEndpoints
     }
 
     private static async Task<IResult> SetFiscalYearEnd(
-        Guid clientId, SetFiscalYearEndRequest request, ControlStore control, CancellationToken cancellationToken)
+        Guid clientId, SetFiscalYearEndRequest request, ClaimsPrincipal user,
+        IActorFactory actorFactory, ControlStore control, CancellationToken cancellationToken)
     {
+        if (!await AdminAuthorization.MayAsync(user, clientId, Capabilities.AdminFiscal, actorFactory, control, cancellationToken))
+            return Results.Forbid();
+
         if (request.FiscalYearEndMonth is < 1 or > 12)
             return Results.Problem("FiscalYearEndMonth must be between 1 and 12.", statusCode: StatusCodes.Status400BadRequest);
 
@@ -78,8 +87,12 @@ public static class AdminEndpoints
     }
 
     private static async Task<IResult> AddMember(
-        Guid clientId, AddMemberRequest request, ControlStore control, CancellationToken cancellationToken)
+        Guid clientId, AddMemberRequest request, ClaimsPrincipal user,
+        IActorFactory actorFactory, ControlStore control, CancellationToken cancellationToken)
     {
+        if (!await AdminAuthorization.MayAsync(user, clientId, Capabilities.AdminUsers, actorFactory, control, cancellationToken))
+            return Results.Forbid();
+
         if (!Enum.TryParse(request.Role, ignoreCase: true, out LedgerRole role))
             return Results.Problem($"Unknown role '{request.Role}'.", statusCode: StatusCodes.Status422UnprocessableEntity);
 
@@ -91,8 +104,12 @@ public static class AdminEndpoints
             request.UserId, clientId, [role.ToString()], [.. RolePresets.CapabilitiesFor([role])]));
     }
 
-    private static async Task<IResult> ListMembers(Guid clientId, ControlStore control, CancellationToken cancellationToken)
+    private static async Task<IResult> ListMembers(
+        Guid clientId, ClaimsPrincipal user, IActorFactory actorFactory, ControlStore control, CancellationToken cancellationToken)
     {
+        if (!await AdminAuthorization.MayAsync(user, clientId, Capabilities.AdminUsers, actorFactory, control, cancellationToken))
+            return Results.Forbid();
+
         IReadOnlyList<Membership> members = await control.GetMembersAsync(clientId, cancellationToken);
         return Results.Ok(members.Select(m => new MembershipResponse(
             m.UserId, m.ClientId, m.GrantedRoles.Select(r => r.ToString()).ToList(), m.Capabilities)).ToList());

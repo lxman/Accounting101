@@ -23,13 +23,8 @@ public static class MemberEndpoints
     }
 
     // Allow deployment admins (admin=true claim) or a member holding admin.users.
-    private static async Task<bool> CallerMayManage(ClaimsPrincipal user, Guid clientId, IActorFactory actorFactory, ControlStore control, CancellationToken ct)
-    {
-        if (user.HasClaim("admin", "true")) return true;
-        Actor actor = actorFactory.Create(user);
-        Membership? m = await control.GetMembershipAsync(actor.UserId, clientId, ct);
-        return m is not null && m.Capabilities.Contains(Capabilities.AdminUsers);
-    }
+    private static Task<bool> CallerMayManage(ClaimsPrincipal user, Guid clientId, IActorFactory actorFactory, ControlStore control, CancellationToken ct) =>
+        AdminAuthorization.MayAsync(user, clientId, Capabilities.AdminUsers, actorFactory, control, ct);
 
     private static MembershipResponse ToResponse(Membership m) =>
         new(m.UserId, m.ClientId, m.GrantedRoles.Select(r => r.ToString()).ToList(), m.Capabilities);
