@@ -20,6 +20,18 @@ public enum LedgerRole
 
     /// <summary>Everything a controller can do, plus (future) reopen and user administration.</summary>
     Admin,
+
+    /// <summary>Operational clerk scoped to Accounts Receivable (module write on AR only).</summary>
+    ArClerk,
+
+    /// <summary>Operational clerk scoped to Accounts Payable (module write on AP only).</summary>
+    ApClerk,
+
+    /// <summary>Operational clerk scoped to Payroll (module write on Payroll only).</summary>
+    PayrollClerk,
+
+    /// <summary>Operational clerk scoped to Cash &amp; Banking (module write on Cash + Bank Rec).</summary>
+    CashClerk,
 }
 
 /// <summary>A capability the host gates an endpoint on. Maps to roles via <see cref="RolePermissions"/>.</summary>
