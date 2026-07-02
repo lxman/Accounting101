@@ -7,6 +7,7 @@ import { EntryForm } from './entry-form';
 import { AccountsService } from '../../core/accounts/accounts.service';
 import { ClientContextService } from '../../core/client/client-context.service';
 import { AccountResponse } from '../../core/accounts/account';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 function seedAccounts(): AccountResponse[] {
   return [
@@ -19,7 +20,7 @@ describe('EntryForm', () => {
   let ctrl: HttpTestingController;
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideCapabilities('gl.post')],
     });
     ctrl = TestBed.inject(HttpTestingController);
     TestBed.inject(ClientContextService).select('C1');

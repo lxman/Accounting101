@@ -50,7 +50,7 @@ export const routes: Routes = [
     path: 'journal',
     children: [
       { path: '', pathMatch: 'full', component: EntryList },
-      { path: 'new', component: EntryForm },
+      { path: 'new', component: EntryForm, canActivate: [canWrite('gl.post', '/journal')] },
       { path: 'approvals', component: ApprovalQueue },
       { path: ':id', component: EntryDetail },
     ],
@@ -67,8 +67,8 @@ export const routes: Routes = [
   },
   { path: 'accounts', children: [
     { path: '', pathMatch: 'full', component: ChartOfAccounts },
-    { path: 'new', component: AccountEditor },
-    { path: ':id/edit', component: AccountEditor },
+    { path: 'new', component: AccountEditor, canActivate: [canWrite('gl.manageAccounts', '/accounts')] },
+    { path: ':id/edit', component: AccountEditor, canActivate: [canWrite('gl.manageAccounts', '/accounts')] },
   ] },
   { path: 'receivables', component: ReceivablesShell, children: [
     { path: '', pathMatch: 'full', redirectTo: 'invoices' },

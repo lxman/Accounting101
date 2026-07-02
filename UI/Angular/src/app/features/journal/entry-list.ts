@@ -18,6 +18,7 @@ import { EntryResponse, Posting } from '../../core/entries/entry';
 import { PagedResponse } from '../../core/api/paged-response';
 import { displayDate } from '../../core/format/display';
 import { PostingBadge } from '../../shared/posting-badge';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
   selector: 'app-entry-list',
@@ -26,6 +27,7 @@ import { PostingBadge } from '../../shared/posting-badge';
     RouterLink,
     HlmButton,
     PostingBadge,
+    CanDirective,
     ...HlmTableImports,
     ...HlmSelectImports,
     ...HlmPaginationImports,
@@ -34,7 +36,7 @@ import { PostingBadge } from '../../shared/posting-badge';
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-3">
         <h1 class="text-2xl font-bold">Journal Entries</h1>
-        <a hlmBtn size="sm" routerLink="/journal/new" class="ms-auto">New entry</a>
+        <a *appCan="'gl.post'" hlmBtn size="sm" routerLink="/journal/new" class="ms-auto">New entry</a>
         <div hlmSelect (valueChange)="onPostingChange($event)">
           <hlm-select-trigger class="w-48">
             <hlm-select-value placeholder="All postings" />

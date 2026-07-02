@@ -9,16 +9,18 @@ import { TrialBalanceService } from '../../core/trial-balance/trial-balance.serv
 import { buildTree, canDrop, TypeSection } from '../../core/accounts/account-tree';
 import { extractProblem } from '../../core/api/problem-details';
 import { money } from '../../core/format/display';
+import { CanDirective } from '../../core/capabilities/can.directive';
+import { CapabilityService } from '../../core/capabilities/capability.service';
 
 @Component({
   selector: 'app-chart-of-accounts',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgTemplateOutlet, RouterLink, CdkDropListGroup, CdkDropList, CdkDrag, HlmButton],
+  imports: [NgTemplateOutlet, RouterLink, CdkDropListGroup, CdkDropList, CdkDrag, HlmButton, CanDirective],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-3xl">
       <div class="flex items-center gap-3">
         <h1 class="text-2xl font-bold">Chart of Accounts</h1>
-        <a hlmBtn size="sm" routerLink="/accounts/new" class="ms-auto">New account</a>
+        <a *appCan="'gl.manageAccounts'" hlmBtn size="sm" routerLink="/accounts/new" class="ms-auto">New account</a>
         <label class="text-sm text-muted-foreground flex items-center gap-1">
           <input type="checkbox" [checked]="showInactive()" (change)="showInactive.set($any($event.target).checked)" /> Show inactive
         </label>
@@ -53,14 +55,14 @@ import { money } from '../../core/format/display';
              (cdkDropListDropped)="dropped($event, type, node.account.id)">
           <div class="flex items-center gap-2 py-1 border-b border-border/50 text-sm cursor-grab active:cursor-grabbing"
                [style.padding-left.rem]="depth"
-               cdkDrag [cdkDragData]="node.account.id"
+               cdkDrag [cdkDragData]="node.account.id" [cdkDragDisabled]="!caps.has('gl.manageAccounts')"
                [class.opacity-50]="!node.account.active">
             <span class="font-mono">{{ node.account.number }}</span>
             <span> {{ node.account.name }}</span>
             @if (!node.account.postable) { <span class="text-xs px-1 rounded bg-muted text-muted-foreground">header</span> }
             @if (!node.account.active) { <span class="text-xs px-1 rounded bg-muted text-muted-foreground">inactive</span> }
             <span class="ms-auto tabular-nums">{{ money(node.balance) }}</span>
-            <a class="underline text-xs" [routerLink]="['/accounts', node.account.id, 'edit']">Edit</a>
+            <a *appCan="'gl.manageAccounts'" class="underline text-xs" [routerLink]="['/accounts', node.account.id, 'edit']">Edit</a>
           </div>
         </div>
         @for (child of node.children; track child.account.id) {
@@ -74,6 +76,7 @@ import { money } from '../../core/format/display';
 export class ChartOfAccounts {
   private readonly accountsSvc = inject(AccountsService);
   private readonly trialBalance = inject(TrialBalanceService);
+  readonly caps = inject(CapabilityService);
 
   readonly showInactive = signal(false);
   readonly error = signal<string | null>(null);
@@ -102,6 +105,7 @@ export class ChartOfAccounts {
 
   // Pulled out for direct unit testing (the CDK event is awkward to synthesize).
   onDrop(draggedId: string, newParentId: string | null, sectionType: AccountResponse['type']): void {
+    if (!this.caps.has('gl.manageAccounts')) return;
     if (!canDrop(this.accountsSvc.accounts(), draggedId, newParentId, sectionType)) return;
     const a = this.accountsSvc.byId().get(draggedId);
     if (!a || a.parentId === newParentId) return;

@@ -7,6 +7,7 @@ import { AccountEditor } from './account-editor';
 import { AccountsService } from '../../core/accounts/accounts.service';
 import { ClientContextService } from '../../core/client/client-context.service';
 import { AccountResponse } from '../../core/accounts/account';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 function route(id: string | null) {
   return { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => id } } } };
@@ -20,7 +21,7 @@ function seedAccounts(svc: AccountsService) {
 describe('AccountEditor', () => {
   let ctrl: HttpTestingController;
   function setup(id: string | null, seed = true) {
-    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), route(id)] });
+    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideCapabilities('gl.manageAccounts'), route(id)] });
     ctrl = TestBed.inject(HttpTestingController);
     TestBed.inject(ClientContextService).select('C1');
     if (seed) seedAccounts(TestBed.inject(AccountsService));

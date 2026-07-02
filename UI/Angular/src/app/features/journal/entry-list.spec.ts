@@ -9,6 +9,7 @@ import { PagedResponse } from '../../core/api/paged-response';
 import { EntryResponse } from '../../core/entries/entry';
 import { DEFAULT_FORMAT_PROFILE } from '../../core/format/format-profile';
 import { formatProfileDate } from '../../core/format/date-formatter';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 const clientId = 'aaaaaaaa-0000-0000-0000-000000000003';
 
@@ -58,6 +59,7 @@ describe('EntryList', () => {
       providers: [
         provideZonelessChangeDetection(),
         provideRouter([]),
+        provideCapabilities('gl.post'),
         { provide: EntriesService, useValue: stub },
       ],
     }).compileComponents();
@@ -126,5 +128,28 @@ describe('EntryList', () => {
     expect((stub.listPaged as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(callsBefore);
     const lastCall = (stub.listPaged as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0];
     expect(lastCall).toMatchObject({ posting: 'Posted', skip: 0 });
+  });
+
+  it('hides "New entry" without gl.post', async () => {
+    TestBed.resetTestingModule();
+    await TestBed.configureTestingModule({
+      imports: [EntryList],
+      providers: [
+        provideZonelessChangeDetection(),
+        provideRouter([]),
+        provideCapabilities(),
+        { provide: EntriesService, useValue: stub },
+      ],
+    }).compileComponents();
+    TestBed.inject(ClientContextService).select(clientId);
+
+    const fixture = TestBed.createComponent(EntryList);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const newEntryLink = [...el.querySelectorAll('a')].find(a => a.textContent?.trim() === 'New entry');
+    expect(newEntryLink).toBeFalsy();
   });
 });

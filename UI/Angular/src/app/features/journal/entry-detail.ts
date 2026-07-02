@@ -11,11 +11,12 @@ import { AccountsService } from '../../core/accounts/accounts.service';
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney, displayDate } from '../../core/format/display';
 import { PostingBadge } from '../../shared/posting-badge';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
   selector: 'app-entry-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, PostingBadge, ...HlmTableImports, HlmButton, ...HlmInputImports],
+  imports: [RouterLink, PostingBadge, CanDirective, ...HlmTableImports, HlmButton, ...HlmInputImports],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-3xl">
       <a routerLink="/journal" class="text-sm text-muted-foreground hover:text-foreground w-fit">← Journal</a>
@@ -60,9 +61,9 @@ import { PostingBadge } from '../../shared/posting-badge';
 
         @if (e.posting === 'PendingApproval') {
           <div class="flex items-center gap-2">
-            <button hlmBtn type="button" (click)="approve()" [disabled]="busy()">Approve</button>
+            <button *appCan="'gl.approve'" hlmBtn type="button" (click)="approve()" [disabled]="busy()">Approve</button>
             <input hlmInput type="text" aria-label="Void reason" placeholder="Void reason" [value]="voidReason()" (input)="voidReason.set($any($event.target).value)" />
-            <button hlmBtn type="button" variant="outline" (click)="voidEntry()" [disabled]="busy()">Void</button>
+            <button *appCan="'gl.void'" hlmBtn type="button" variant="outline" (click)="voidEntry()" [disabled]="busy()">Void</button>
           </div>
         }
       } @else if (loadError()) { <p class="text-destructive text-sm">{{ loadError() }}</p> }

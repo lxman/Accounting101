@@ -9,6 +9,7 @@ import { AccountsService } from '../../core/accounts/accounts.service';
 import { AccountResponse, AccountType } from '../../core/accounts/account';
 import { isDescendant } from '../../core/accounts/account-tree';
 import { extractProblem } from '../../core/api/problem-details';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 interface EditorValue {
   number: string; name: string; type: AccountType; parentId: string | null;
@@ -20,7 +21,7 @@ const DEBIT_TYPES = new Set<AccountType>(['Asset', 'Expense']);
 @Component({
   selector: 'app-account-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, FormField, ...HlmInputImports, ...HlmLabelImports, HlmButton, ...HlmSelectImports],
+  imports: [RouterLink, FormField, CanDirective, ...HlmInputImports, ...HlmLabelImports, HlmButton, ...HlmSelectImports],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-xl">
       <h1 class="text-2xl font-bold">{{ editId ? 'Edit account' : 'New account' }}</h1>
@@ -78,7 +79,7 @@ const DEBIT_TYPES = new Set<AccountType>(['Asset', 'Expense']);
 
       @if (message()) { <p class="text-destructive text-sm">{{ message() }}</p> }
       <div class="flex items-center gap-2">
-        <button hlmBtn type="button" (click)="save()" [disabled]="!canSave() || busy()">Save</button>
+        <button *appCan="'gl.manageAccounts'" hlmBtn type="button" (click)="save()" [disabled]="!canSave() || busy()">Save</button>
         <a hlmBtn variant="outline" routerLink="/accounts">Cancel</a>
       </div>
     </div>

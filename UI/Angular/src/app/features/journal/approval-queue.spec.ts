@@ -7,12 +7,13 @@ import { ApprovalQueue } from './approval-queue';
 import { ClientContextService } from '../../core/client/client-context.service';
 import { DevIdentityService } from '../../core/api/dev-identity.service';
 import { environment } from '../../core/api/environment';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 describe('ApprovalQueue', () => {
   let ctrl: HttpTestingController;
   beforeEach(() => {
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideCapabilities('gl.approve')],
     });
     ctrl = TestBed.inject(HttpTestingController);
     TestBed.inject(ClientContextService).select('C1');

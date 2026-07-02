@@ -7,6 +7,7 @@ import { of } from 'rxjs';
 import { EntryDetail } from './entry-detail';
 import { ClientContextService } from '../../core/client/client-context.service';
 import { environment } from '../../core/api/environment';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 function provideRouteId(id: string) {
   return { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => id } }, paramMap: of({ get: () => id }) } };
@@ -14,9 +15,9 @@ function provideRouteId(id: string) {
 
 describe('EntryDetail', () => {
   let ctrl: HttpTestingController;
-  function setup(id = 'E1') {
+  function setup(id = 'E1', caps: string[] = ['gl.approve', 'gl.void']) {
     TestBed.configureTestingModule({
-      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideRouteId(id)],
+      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideRouteId(id), provideCapabilities(...caps)],
     });
     ctrl = TestBed.inject(HttpTestingController);
     TestBed.inject(ClientContextService).select('C1');
@@ -79,5 +80,13 @@ describe('EntryDetail', () => {
     // re-fetch
     ctrl.expectOne('http://localhost:5000/clients/C1/entries/E1').flush({ id: 'E1', sequenceNumber: 1, effectiveDate: '2026-06-29', type: 'Standard', status: 'Voided', posting: 'Posted', lineCount: 0, lines: [], supersedes: null, supersededBy: null, reversalOf: null, reversedBy: null });
     ctrl.expectOne('http://localhost:5000/clients/C1/audit/E1').flush([]);
+  });
+
+  it('grants only gl.approve → Approve is present, Void is absent (independent wrappers)', () => {
+    setup('E1', ['gl.approve']); const f = TestBed.createComponent(EntryDetail); f.detectChanges();
+    flushEntryAndAudit(environment.devApprover.sub); f.detectChanges();
+    const buttons = [...f.nativeElement.querySelectorAll('button')].map((b: HTMLButtonElement) => b.textContent?.trim());
+    expect(buttons).toContain('Approve');
+    expect(buttons).not.toContain('Void');
   });
 });

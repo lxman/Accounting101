@@ -8,6 +8,7 @@ import { CdkDropList, CdkDropListGroup } from '@angular/cdk/drag-drop';
 import { ChartOfAccounts } from './chart-of-accounts';
 import { ClientContextService } from '../../core/client/client-context.service';
 import { AccountResponse } from '../../core/accounts/account';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 function seed(): AccountResponse[] {
   const a = (id: string, number: string, type: AccountResponse['type'], parentId: string | null = null, active = true): AccountResponse =>
@@ -18,7 +19,7 @@ function seed(): AccountResponse[] {
 describe('ChartOfAccounts', () => {
   let ctrl: HttpTestingController;
   function setup() {
-    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting()] });
+    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideCapabilities('gl.manageAccounts')] });
     ctrl = TestBed.inject(HttpTestingController);
     TestBed.inject(ClientContextService).select('C1');
   }

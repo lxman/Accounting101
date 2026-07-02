@@ -5,6 +5,7 @@ import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
+import { CanDirective } from '../../core/capabilities/can.directive';
 import { EntriesService } from '../../core/entries/entries.service';
 import { PostEntryRequest, PostLineRequest } from '../../core/entries/entry';
 import { AccountsService } from '../../core/accounts/accounts.service';
@@ -20,7 +21,7 @@ const emptyLine = (): LineModel => ({ lineId: crypto.randomUUID(), accountId: ''
 @Component({
   selector: 'app-entry-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormField, ...HlmInputImports, ...HlmLabelImports, HlmButton, ...HlmSelectImports],
+  imports: [FormField, CanDirective, ...HlmInputImports, ...HlmLabelImports, HlmButton, ...HlmSelectImports],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-4xl">
       <h1 class="text-2xl font-bold">Post Journal Entry</h1>
@@ -97,7 +98,7 @@ const emptyLine = (): LineModel => ({ lineId: crypto.randomUUID(), accountId: ''
 
       <div class="flex items-center gap-2">
         <button hlmBtn type="button" variant="outline" (click)="validate()" [disabled]="busy()">Validate</button>
-        <button hlmBtn type="button" (click)="post()" [disabled]="!canPost() || busy()">Post</button>
+        <button *appCan="'gl.post'" hlmBtn type="button" (click)="post()" [disabled]="!canPost() || busy()">Post</button>
       </div>
     </div>
   `,
