@@ -123,6 +123,33 @@ public sealed class ControlStore
             Builders<Membership>.Filter.AnyEq(m => m.GrantedSetIds, setId),
             cancellationToken: cancellationToken);
 
+    /// <summary>One-time migration (idempotent): for every membership that still has no set references
+    /// but does carry granted roles, set <see cref="Membership.GrantedSetIds"/> to the built-in sets of
+    /// the same name. Role-based members created before AC-2 become explicit, live-bound set references.
+    /// Members already carrying set ids (or with no roles) are skipped.</summary>
+    public async Task BackfillGrantedSetIdsAsync(CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<CapabilitySet> catalog = await ListCapabilitySetsAsync(cancellationToken);
+        Dictionary<string, Guid> idByName = catalog.ToDictionary(s => s.Name, s => s.Id, StringComparer.OrdinalIgnoreCase);
+
+        List<Membership> all = await _memberships.Find(FilterDefinition<Membership>.Empty).ToListAsync(cancellationToken);
+        foreach (Membership m in all)
+        {
+            if (m.GrantedSetIds.Count > 0 || m.GrantedRoles.Count == 0) continue;
+
+            List<Guid> ids = [];
+            foreach (LedgerRole role in m.GrantedRoles)
+                if (idByName.TryGetValue(role.ToString(), out Guid id))
+                    ids.Add(id);
+            if (ids.Count == 0) continue;
+
+            await _memberships.UpdateOneAsync(
+                x => x.Id == m.Id,
+                Builders<Membership>.Update.Set(x => x.GrantedSetIds, ids),
+                cancellationToken: cancellationToken);
+        }
+    }
+
     /// <summary>Remove a member from a client's books.</summary>
     public Task RemoveMembershipAsync(Guid userId, Guid clientId, CancellationToken cancellationToken = default) =>
         _memberships.DeleteOneAsync(m => m.UserId == userId && m.ClientId == clientId, cancellationToken);

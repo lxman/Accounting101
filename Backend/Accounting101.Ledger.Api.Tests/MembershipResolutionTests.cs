@@ -89,4 +89,40 @@ public sealed class MembershipResolutionTests(ApiFixture fixture) : IClassFixtur
         Membership m = (await control.GetMembershipAsync(user, client))!;
         Assert.True(new HashSet<string> { Capabilities.GlRead, Capabilities.AuditRead }.SetEquals(m.Capabilities));
     }
+
+    [Fact]
+    public async Task Backfill_populates_GrantedSetIds_from_granted_roles()
+    {
+        ControlStore control = fixture.Control();
+        await control.SeedBuiltinCapabilitySetsAsync();
+
+        Guid user = Guid.NewGuid(), client = Guid.NewGuid();
+        await control.AddMembershipRolesAsync(user, client, [LedgerRole.Controller]);
+
+        await control.BackfillGrantedSetIdsAsync();
+
+        CapabilitySet controllerSet = (await control.GetCapabilitySetByNameAsync("Controller"))!;
+        Membership m = (await control.GetMembershipAsync(user, client))!;
+        Assert.Contains(controllerSet.Id, m.GrantedSetIds);
+
+        // And it is now live-bound: editing the built-in set moves the member.
+        controllerSet.Capabilities = [Capabilities.GlRead];
+        await control.UpdateCapabilitySetAsync(controllerSet);
+        Membership after = (await control.GetMembershipAsync(user, client))!;
+        Assert.True(new HashSet<string> { Capabilities.GlRead }.SetEquals(after.Capabilities));
+    }
+
+    [Fact]
+    public async Task Backfill_leaves_an_already_set_assigned_member_untouched()
+    {
+        ControlStore control = fixture.Control();
+        CapabilitySet set = await NewSetAsync(control, Capabilities.GlRead);
+        Guid user = Guid.NewGuid(), client = Guid.NewGuid();
+        await control.SetMembershipSetsAsync(user, client, [set.Id]);
+
+        await control.BackfillGrantedSetIdsAsync();
+
+        Membership m = (await control.GetMembershipAsync(user, client))!;
+        Assert.Equal([set.Id], m.GrantedSetIds);
+    }
 }
