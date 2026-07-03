@@ -76,7 +76,8 @@ public static class CapabilitySetEndpoints
         existing.Description = request.Description;
         existing.Capabilities = capabilities;
         await control.UpdateCapabilitySetAsync(existing, ct);
-        return Results.Ok(ToResponse(existing));
+        long affected = await control.CountMembersReferencingSetAsync(id, ct);
+        return Results.Ok(ToResponse(existing) with { AffectedMemberCount = (int)affected });
     }
 
     private static async Task<IResult> Delete(Guid id, ControlStore control, CancellationToken ct)
@@ -85,7 +86,10 @@ public static class CapabilitySetEndpoints
         if (existing is null) return Results.NotFound();
         if (existing.Builtin)
             return Results.Problem("Built-in capability sets cannot be deleted.", statusCode: StatusCodes.Status409Conflict);
-        // In-use guard (members referencing this set) is added in AC-2, once GrantedSetIds exists.
+        long referencing = await control.CountMembersReferencingSetAsync(id, ct);
+        if (referencing > 0)
+            return Results.Problem($"{referencing} member(s) reference this set; reassign them before deleting.",
+                statusCode: StatusCodes.Status409Conflict);
         await control.DeleteCapabilitySetAsync(id, ct);
         return Results.NoContent();
     }

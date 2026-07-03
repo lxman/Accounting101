@@ -139,4 +139,39 @@ public sealed class CapabilitySetEndpointsTests(ApiFixture fixture) : IClassFixt
         HttpResponseMessage res = await admin.DeleteAsync($"/capability-sets/{controller.Id}");
         Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
     }
+
+    [Fact]
+    public async Task Deleting_a_set_that_a_member_references_is_409()
+    {
+        HttpClient admin = fixture.AdminClient();
+        CapabilitySetResponse created = (await (await admin.PostAsJsonAsync("/capability-sets",
+            new CreateCapabilitySetRequest("Held " + Guid.NewGuid().ToString("N"), null, ["gl.read"])))
+            .Content.ReadFromJsonAsync<CapabilitySetResponse>())!;
+
+        // A member now references the set.
+        await fixture.Control().SetMembershipSetsAsync(Guid.NewGuid(), Guid.NewGuid(), [created.Id]);
+
+        HttpResponseMessage res = await admin.DeleteAsync($"/capability-sets/{created.Id}");
+        Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Editing_a_set_reports_the_affected_member_count()
+    {
+        HttpClient admin = fixture.AdminClient();
+        CapabilitySetResponse created = (await (await admin.PostAsJsonAsync("/capability-sets",
+            new CreateCapabilitySetRequest("Counted " + Guid.NewGuid().ToString("N"), null, ["gl.read"])))
+            .Content.ReadFromJsonAsync<CapabilitySetResponse>())!;
+
+        ControlStore control = fixture.Control();
+        await control.SetMembershipSetsAsync(Guid.NewGuid(), Guid.NewGuid(), [created.Id]);
+        await control.SetMembershipSetsAsync(Guid.NewGuid(), Guid.NewGuid(), [created.Id]);
+
+        HttpResponseMessage res = await admin.PutAsJsonAsync($"/capability-sets/{created.Id}",
+            new UpdateCapabilitySetRequest(created.Name, "edited", [Capabilities.GlRead, Capabilities.GlPost]));
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+
+        CapabilitySetResponse updated = (await res.Content.ReadFromJsonAsync<CapabilitySetResponse>())!;
+        Assert.Equal(2, updated.AffectedMemberCount);
+    }
 }

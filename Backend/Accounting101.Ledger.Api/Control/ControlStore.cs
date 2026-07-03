@@ -115,6 +115,13 @@ public sealed class ControlStore
             cancellationToken);
     }
 
+    /// <summary>How many memberships reference the given capability set (deployment-wide) — the
+    /// blast radius of editing or deleting it.</summary>
+    public Task<long> CountMembersReferencingSetAsync(Guid setId, CancellationToken cancellationToken = default) =>
+        _memberships.CountDocumentsAsync(
+            Builders<Membership>.Filter.AnyEq(m => m.GrantedSetIds, setId),
+            cancellationToken: cancellationToken);
+
     /// <summary>Remove a member from a client's books.</summary>
     public Task RemoveMembershipAsync(Guid userId, Guid clientId, CancellationToken cancellationToken = default) =>
         _memberships.DeleteOneAsync(m => m.UserId == userId && m.ClientId == clientId, cancellationToken);
