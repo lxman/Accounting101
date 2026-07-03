@@ -169,4 +169,41 @@ public sealed class ControlStore
     /// <summary>Delete a capability set by id.</summary>
     public Task DeleteCapabilitySetAsync(Guid id, CancellationToken cancellationToken = default) =>
         _capabilitySets.DeleteOneAsync(s => s.Id == id, cancellationToken);
+
+    /// <summary>Seed one built-in capability set per <see cref="LedgerRole"/> preset, idempotently.
+    /// Persist-in-place: a set whose name already exists is left untouched (an owner's edits survive
+    /// restarts); only missing names are inserted. Also ensures a unique index on <c>Name</c>.</summary>
+    public async Task SeedBuiltinCapabilitySetsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await _capabilitySets.Indexes.CreateOneAsync(
+                new CreateIndexModel<CapabilitySet>(
+                    Builders<CapabilitySet>.IndexKeys.Ascending(s => s.Name),
+                    new CreateIndexOptions { Unique = true }),
+                cancellationToken: cancellationToken);
+        }
+        catch
+        {
+            // Index creation failed (likely already exists) — this is idempotent, so we proceed.
+        }
+
+        foreach (LedgerRole role in Enum.GetValues<LedgerRole>())
+        {
+            string name = role.ToString();
+            CapabilitySet? existing = await GetCapabilitySetByNameAsync(name, cancellationToken);
+            if (existing is not null) continue;
+
+            await _capabilitySets.InsertOneAsync(
+                new CapabilitySet
+                {
+                    Id = Guid.NewGuid(),
+                    Name = name,
+                    Description = $"Built-in preset for the {name} role.",
+                    Capabilities = [.. RolePresets.For(role)],
+                    Builtin = true,
+                },
+                cancellationToken: cancellationToken);
+        }
+    }
 }

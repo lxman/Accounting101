@@ -30,6 +30,9 @@ public static class LedgerEngineExtensions
         services.AddSingleton(sp =>
             new ControlStore(sp.GetRequiredService<IMongoClient>().GetDatabase(controlDatabase)));
 
+        // Seed the built-in capability sets (from role presets) once on startup — idempotent.
+        services.AddHostedService<CapabilitySetSeeder>();
+
         // Tenant resolution + per-client ledger construction (the isolation boundary).
         services.AddSingleton<IClientDatabaseResolver, ClientDatabaseResolver>();
         services.AddSingleton<ClientLedgerFactory>();

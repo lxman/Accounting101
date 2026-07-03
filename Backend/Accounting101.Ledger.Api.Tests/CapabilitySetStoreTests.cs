@@ -60,4 +60,39 @@ public sealed class CapabilitySetStoreTests(ApiFixture fixture) : IClassFixture<
         await control.DeleteCapabilitySetAsync(set.Id);
         Assert.Null(await control.GetCapabilitySetAsync(set.Id));
     }
+
+    [Fact]
+    public async Task Seeding_creates_one_builtin_per_role()
+    {
+        ControlStore control = fixture.Control();
+        await control.SeedBuiltinCapabilitySetsAsync();
+
+        IReadOnlyList<CapabilitySet> all = await control.ListCapabilitySetsAsync();
+        foreach (LedgerRole role in Enum.GetValues<LedgerRole>())
+        {
+            CapabilitySet? set = all.FirstOrDefault(s => s.Name == role.ToString());
+            Assert.NotNull(set);
+            Assert.True(set!.Builtin);
+            Assert.True(RolePresets.For(role).SetEquals(set.Capabilities));
+        }
+    }
+
+    [Fact]
+    public async Task Seeding_is_idempotent_and_never_overwrites_an_edited_builtin()
+    {
+        ControlStore control = fixture.Control();
+        await control.SeedBuiltinCapabilitySetsAsync();
+
+        // Owner edits a built-in in place.
+        CapabilitySet clerk = (await control.GetCapabilitySetByNameAsync("Clerk"))!;
+        clerk.Capabilities = [Capabilities.GlRead];
+        await control.UpdateCapabilitySetAsync(clerk);
+
+        // Re-seed (e.g. next startup) must NOT restore the preset.
+        await control.SeedBuiltinCapabilitySetsAsync();
+
+        CapabilitySet after = (await control.GetCapabilitySetByNameAsync("Clerk"))!;
+        Assert.Equal(clerk.Id, after.Id);
+        Assert.True(new HashSet<string> { Capabilities.GlRead }.SetEquals(after.Capabilities));
+    }
 }
