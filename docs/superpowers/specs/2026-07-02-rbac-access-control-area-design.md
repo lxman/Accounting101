@@ -164,6 +164,27 @@ already-assigned member's resolved capabilities on the very next resolution (liv
 (c) a set in use cannot be deleted/renamed out from under members (referential guard);
 (d) the last-admin guard holds under set references.
 
+## Known accepted limitation — set-edit admin stranding (AC-2, decided 2026-07-03)
+
+The last-admin guard (`WouldLeaveNoAdmin`) protects every **per-member** path (raw-cap edit,
+remove, and the new set-assignment route): a per-client admin cannot strand their own client.
+It does **not** guard the **deployment-wide set-edit** path (`PUT /capability-sets/{id}`): a system
+(deployment) admin who edits a shared set to remove `admin.users` — most notably the built-in
+**Admin** set that AC-2's backfill points existing admins at — instantly drops `admin.users` from
+every member referencing it under live-binding, and could leave a client with no per-client admin.
+
+**Decision: accept, do not hard-guard.** Rationale: (1) only the deployment admin can trigger it
+(set editing is deployment-admin-gated); a per-client admin cannot. (2) It is an availability
+foot-gun, not privilege escalation, and it is **fully recoverable by the same actor** —
+`AdminAuthorization.MayAsync` grants on the `admin=true` claim OR the per-client capability, so a
+deployment admin never depends on client-side `admin.users` and can edit the set back (live-binding
+re-privileges instantly) or reassign any client's members. (3) The spec's chosen safeguard for this
+exact class of edit is the **confirm-on-save dialog showing the affected-member count** (decision #2;
+built in AC-3, fed by the AC-2 `affectedMemberCount` on the PUT response) — surface the blast radius
+to the one actor who can both cause and undo it, rather than a cross-client hard guard. A hard
+set-edit guard (cross-client scan + what-if re-resolution) remains a possible future addition if a
+real need appears; it is deliberately not built now.
+
 ## Decomposition (each its own plan → build slice)
 
 - **AC-1** Backend sets: `CapabilitySet` entity + `ControlStore` CRUD + startup seeding from presets
