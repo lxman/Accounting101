@@ -174,4 +174,19 @@ public sealed class CapabilitySetEndpointsTests(ApiFixture fixture) : IClassFixt
         CapabilitySetResponse updated = (await res.Content.ReadFromJsonAsync<CapabilitySetResponse>())!;
         Assert.Equal(2, updated.AffectedMemberCount);
     }
+
+    [Fact]
+    public async Task List_reports_affected_member_count_per_set()
+    {
+        HttpClient admin = fixture.AdminClient();
+        CapabilitySetResponse created = (await (await admin.PostAsJsonAsync("/capability-sets",
+            new CreateCapabilitySetRequest("Listed " + Guid.NewGuid().ToString("N"), null, ["gl.read"])))
+            .Content.ReadFromJsonAsync<CapabilitySetResponse>())!;
+        await fixture.Control().SetMembershipSetsAsync(Guid.NewGuid(), Guid.NewGuid(), [created.Id]);
+
+        List<CapabilitySetResponse> sets =
+            (await admin.GetFromJsonAsync<List<CapabilitySetResponse>>("/capability-sets"))!;
+        CapabilitySetResponse mine = sets.First(s => s.Id == created.Id);
+        Assert.Equal(1, mine.AffectedMemberCount);
+    }
 }

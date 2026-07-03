@@ -27,8 +27,16 @@ public static class MemberEndpoints
     private static Task<bool> CallerMayManage(ClaimsPrincipal user, Guid clientId, IActorFactory actorFactory, ControlStore control, CancellationToken ct) =>
         AdminAuthorization.MayAsync(user, clientId, Capabilities.AdminUsers, actorFactory, control, ct);
 
-    private static MembershipResponse ToResponse(Membership m) =>
-        new(m.UserId, m.ClientId, m.GrantedRoles.Select(r => r.ToString()).ToList(), m.Capabilities);
+    private static MembershipResponse ToResponse(Membership m, IReadOnlyList<CapabilitySet> catalog)
+    {
+        Dictionary<Guid, string> nameById = catalog.ToDictionary(s => s.Id, s => s.Name);
+        List<string> setNames = m.GrantedSetIds
+            .Where(nameById.ContainsKey).Select(id => nameById[id]).ToList();
+        return new MembershipResponse(
+            m.UserId, m.ClientId,
+            m.GrantedRoles.Select(r => r.ToString()).ToList(), m.Capabilities,
+            m.GrantedSetIds, setNames);
+    }
 
     private static bool TryParse(IReadOnlyList<string> roleNames, IReadOnlyList<string> capabilities, out List<LedgerRole> roles, out IResult? error)
     {
@@ -59,7 +67,8 @@ public static class MemberEndpoints
     {
         if (!await CallerMayManage(user, clientId, actorFactory, control, ct)) return Results.Forbid();
         IReadOnlyList<Membership> members = await control.GetMembersAsync(clientId, ct);
-        return Results.Ok(members.Select(ToResponse).ToList());
+        IReadOnlyList<CapabilitySet> catalog = await control.ListCapabilitySetsAsync(ct);
+        return Results.Ok(members.Select(m => ToResponse(m, catalog)).ToList());
     }
 
     private static async Task<IResult> AddMember(

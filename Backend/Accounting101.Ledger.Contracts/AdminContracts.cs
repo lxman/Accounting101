@@ -21,7 +21,8 @@ public sealed record SetFiscalYearEndRequest(int FiscalYearEndMonth);
 public sealed record AddMemberRequest(Guid UserId, string Role);
 
 public sealed record MembershipResponse(
-    Guid UserId, Guid ClientId, IReadOnlyList<string> Roles, IReadOnlyList<string> Capabilities);
+    Guid UserId, Guid ClientId, IReadOnlyList<string> Roles, IReadOnlyList<string> Capabilities,
+    IReadOnlyList<Guid>? GrantedSetIds = null, IReadOnlyList<string>? SetNames = null);
 
 /// <summary>The acting user's resolved capabilities on a client, the role preset(s) granted, and
 /// whether they hold the deployment-admin claim (a separate authorization axis).</summary>

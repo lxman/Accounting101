@@ -35,7 +35,13 @@ public static class CapabilitySetEndpoints
     private static async Task<IResult> List(ControlStore control, CancellationToken ct)
     {
         IReadOnlyList<CapabilitySet> sets = await control.ListCapabilitySetsAsync(ct);
-        return Results.Ok(sets.Select(ToResponse).ToList());
+        List<CapabilitySetResponse> responses = [];
+        foreach (CapabilitySet s in sets)
+        {
+            long count = await control.CountMembersReferencingSetAsync(s.Id, ct);
+            responses.Add(ToResponse(s) with { AffectedMemberCount = (int)count });
+        }
+        return Results.Ok(responses);
     }
 
     private static async Task<IResult> Create(CreateCapabilitySetRequest request, ControlStore control, CancellationToken ct)

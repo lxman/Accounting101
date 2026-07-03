@@ -100,4 +100,23 @@ public sealed class MemberSetAssignmentTests(ApiFixture fixture) : IClassFixture
         Assert.Empty(m.GrantedSetIds);
         Assert.True(new HashSet<string> { Capabilities.GlRead }.SetEquals(m.Capabilities));
     }
+
+    [Fact]
+    public async Task Member_list_exposes_assigned_set_ids_and_names()
+    {
+        SeededClient c = await fixture.SeedClientAsync(role: LedgerRole.Admin);
+        Guid setId = await CreateSetAsync(Capabilities.GlRead, Capabilities.ArWrite);
+
+        Guid newUser = Guid.NewGuid();
+        await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/members",
+            new AddClientMemberRequest(newUser, ["Auditor"], ["gl.read"]));
+        await c.Http.PutAsJsonAsync($"/clients/{c.ClientId}/members/{newUser}/sets",
+            new AssignSetsRequest([setId]));
+
+        MembershipResponse[] members =
+            (await c.Http.GetFromJsonAsync<MembershipResponse[]>($"/clients/{c.ClientId}/members"))!;
+        MembershipResponse assigned = members.First(m => m.UserId == newUser);
+        Assert.Contains(setId, assigned.GrantedSetIds!);
+        Assert.NotEmpty(assigned.SetNames!);
+    }
 }
