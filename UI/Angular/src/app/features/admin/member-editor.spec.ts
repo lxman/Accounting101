@@ -17,6 +17,7 @@ function seed(id: string | null) {
                 provideHttpClientTesting(), provideCapabilities('admin.users'), route(id)],
   });
   TestBed.inject(ClientContextService).select('c1');
+  vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
 }
 
 describe('MemberEditor (set-picker)', () => {
