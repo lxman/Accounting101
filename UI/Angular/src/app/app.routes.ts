@@ -43,6 +43,7 @@ import { RemittanceDetail } from './features/payroll/remittance-detail';
 import { MemberList } from './features/admin/member-list';
 import { MemberEditor } from './features/admin/member-editor';
 import { CapabilitySetList } from './features/admin/capability-set-list';
+import { CapabilitySetEditor } from './features/admin/capability-set-editor';
 import { navLeafPaths } from './layout/nav';
 import { canWrite } from './core/capabilities/can.guard';
 import { deploymentAdminGuard } from './core/capabilities/deployment-admin.guard';
@@ -115,9 +116,11 @@ export const routes: Routes = [
   { path: 'admin/users/new', component: MemberEditor, canActivate: [canWrite('admin.users', '/admin/users')] },
   { path: 'admin/users/:userId', component: MemberEditor, canActivate: [canWrite('admin.users', '/admin/users')] },
   { path: 'admin/access/sets', component: CapabilitySetList, canActivate: [deploymentAdminGuard('/admin/users')] },
+  { path: 'admin/access/sets/new', component: CapabilitySetEditor, canActivate: [deploymentAdminGuard('/admin/users')] },
+  { path: 'admin/access/sets/:id', component: CapabilitySetEditor, canActivate: [deploymentAdminGuard('/admin/users')] },
   // Every nav leaf not served by a built route tree above → Placeholder.
   ...(() => {
-    const built = ['/dashboard', '/journal', '/trial-balance', '/statements', '/accounts', '/receivables', '/payables', '/payroll', '/admin/users', '/admin/access/sets'];
+    const built = ['/dashboard', '/journal', '/trial-balance', '/statements', '/accounts', '/receivables', '/payables', '/payroll', '/admin/users', '/admin/access/sets', '/admin/access/sets/new'];
     const isBuilt = (p: string) => built.some((b) => p === b || p.startsWith(b + '/'));
     return navLeafPaths()
       .filter((p) => !isBuilt(p))
