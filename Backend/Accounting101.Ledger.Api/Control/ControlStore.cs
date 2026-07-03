@@ -5,8 +5,9 @@ namespace Accounting101.Ledger.Api.Control;
 
 /// <summary>
 /// Persistence for the per-deployment control database: the client registry (client id → ledger
-/// database) and user→client memberships (the firm's authorization grouping). One control DB per
-/// deployment; there is no firm dimension because a deployment serves exactly one firm.
+/// database), user→client memberships (the firm's authorization grouping), and the named
+/// capability sets. One control DB per deployment; there is no firm dimension because a
+/// deployment serves exactly one firm.
 /// </summary>
 public sealed class ControlStore
 {
@@ -175,18 +176,11 @@ public sealed class ControlStore
     /// restarts); only missing names are inserted. Also ensures a unique index on <c>Name</c>.</summary>
     public async Task SeedBuiltinCapabilitySetsAsync(CancellationToken cancellationToken = default)
     {
-        try
-        {
-            await _capabilitySets.Indexes.CreateOneAsync(
-                new CreateIndexModel<CapabilitySet>(
-                    Builders<CapabilitySet>.IndexKeys.Ascending(s => s.Name),
-                    new CreateIndexOptions { Unique = true }),
-                cancellationToken: cancellationToken);
-        }
-        catch
-        {
-            // Index creation failed (likely already exists) — this is idempotent, so we proceed.
-        }
+        await _capabilitySets.Indexes.CreateOneAsync(
+            new CreateIndexModel<CapabilitySet>(
+                Builders<CapabilitySet>.IndexKeys.Ascending(s => s.Name),
+                new CreateIndexOptions { Unique = true }),
+            cancellationToken: cancellationToken);
 
         foreach (LedgerRole role in Enum.GetValues<LedgerRole>())
         {

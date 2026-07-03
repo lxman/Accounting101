@@ -79,6 +79,35 @@ public sealed class CapabilitySetEndpointsTests(ApiFixture fixture) : IClassFixt
     }
 
     [Fact]
+    public async Task Update_edits_a_builtin_in_place_and_keeps_it_builtin()
+    {
+        HttpClient admin = fixture.AdminClient();
+        List<CapabilitySetResponse> sets =
+            (await admin.GetFromJsonAsync<List<CapabilitySetResponse>>("/capability-sets"))!;
+        CapabilitySetResponse payrollClerk = sets.First(s => s.Name == "PayrollClerk");
+
+        HttpResponseMessage res = await admin.PutAsJsonAsync($"/capability-sets/{payrollClerk.Id}",
+            new UpdateCapabilitySetRequest("PayrollClerk", "edited", [Capabilities.GlRead]));
+        Assert.Equal(HttpStatusCode.OK, res.StatusCode);
+
+        CapabilitySetResponse updated = (await res.Content.ReadFromJsonAsync<CapabilitySetResponse>())!;
+        Assert.True(new HashSet<string> { Capabilities.GlRead }.SetEquals(updated.Capabilities));
+        Assert.True(updated.Builtin);
+    }
+
+    [Fact]
+    public async Task Create_with_omitted_capabilities_defaults_to_empty()
+    {
+        HttpClient admin = fixture.AdminClient();
+        HttpResponseMessage res = await admin.PostAsJsonAsync("/capability-sets",
+            new CreateCapabilitySetRequest("NoCaps " + Guid.NewGuid().ToString("N"), null, null!));
+        Assert.Equal(HttpStatusCode.Created, res.StatusCode);
+
+        CapabilitySetResponse created = (await res.Content.ReadFromJsonAsync<CapabilitySetResponse>())!;
+        Assert.Empty(created.Capabilities);
+    }
+
+    [Fact]
     public async Task Update_a_missing_set_is_404()
     {
         HttpClient admin = fixture.AdminClient();

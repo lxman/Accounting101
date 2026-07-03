@@ -42,7 +42,8 @@ public static class CapabilitySetEndpoints
     {
         if (string.IsNullOrWhiteSpace(request.Name))
             return Results.Problem("Name is required.", statusCode: StatusCodes.Status422UnprocessableEntity);
-        if (ValidateCapabilities(request.Capabilities) is { } capError) return capError;
+        IReadOnlyList<string> capabilities = request.Capabilities ?? [];
+        if (ValidateCapabilities(capabilities) is { } capError) return capError;
         if (await control.GetCapabilitySetByNameAsync(request.Name, ct) is not null)
             return Results.Problem($"A capability set named '{request.Name}' already exists.", statusCode: StatusCodes.Status409Conflict);
 
@@ -51,7 +52,7 @@ public static class CapabilitySetEndpoints
             Id = Guid.NewGuid(),
             Name = request.Name.Trim(),
             Description = request.Description,
-            Capabilities = request.Capabilities,
+            Capabilities = capabilities,
             Builtin = false,
         };
         await control.CreateCapabilitySetAsync(set, ct);
@@ -64,7 +65,8 @@ public static class CapabilitySetEndpoints
         if (existing is null) return Results.NotFound();
         if (string.IsNullOrWhiteSpace(request.Name))
             return Results.Problem("Name is required.", statusCode: StatusCodes.Status422UnprocessableEntity);
-        if (ValidateCapabilities(request.Capabilities) is { } capError) return capError;
+        IReadOnlyList<string> capabilities = request.Capabilities ?? [];
+        if (ValidateCapabilities(capabilities) is { } capError) return capError;
 
         CapabilitySet? byName = await control.GetCapabilitySetByNameAsync(request.Name, ct);
         if (byName is not null && byName.Id != id)
@@ -72,7 +74,7 @@ public static class CapabilitySetEndpoints
 
         existing.Name = request.Name.Trim();
         existing.Description = request.Description;
-        existing.Capabilities = request.Capabilities;
+        existing.Capabilities = capabilities;
         await control.UpdateCapabilitySetAsync(existing, ct);
         return Results.Ok(ToResponse(existing));
     }
