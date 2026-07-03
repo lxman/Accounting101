@@ -34,13 +34,14 @@ describe('visibleSections', () => {
   const sectionLabels = (s: NavSection[]) => s.map(x => x.label);
 
   it('shows only Overview when nothing is permitted', () => {
-    const v = visibleSections(NAV, (link) => !link.area);   // only area-less links (Dashboard)
+    // Area-less links only (Dashboard); a deployment-admin link is not permitted here.
+    const v = visibleSections(NAV, (link) => !link.area && !link.deploymentAdmin);
     expect(sectionLabels(v)).toEqual(['Overview']);
   });
 
   it('shows GL + Receivables for an AR-clerk-like scope', () => {
     const allowed = new Set(['gl', 'ar']);
-    const v = visibleSections(NAV, (link) => !link.area || allowed.has(link.area));
+    const v = visibleSections(NAV, (link) => (!link.area || allowed.has(link.area)) && !link.deploymentAdmin);
     expect(sectionLabels(v)).toEqual(['Overview', 'General Ledger', 'Subledgers']);
     const subledgers = v.find(s => s.label === 'Subledgers')!;
     expect(subledgers.items.map(i => i.path)).toEqual(['/receivables']);
@@ -50,7 +51,7 @@ describe('visibleSections', () => {
     const withAdmin = visibleSections(NAV, (link) => !link.area || link.area === 'admin');
     expect(sectionLabels(withAdmin)).toContain('Administration');
 
-    const withoutAdmin = visibleSections(NAV, (link) => !link.area || link.area === 'gl');
+    const withoutAdmin = visibleSections(NAV, (link) => (!link.area || link.area === 'gl') && !link.deploymentAdmin);
     expect(sectionLabels(withoutAdmin)).not.toContain('Administration');
   });
 
@@ -78,5 +79,16 @@ describe('visibleSections', () => {
     const seen = visibleSections(NAV, (l) => (!l.area || l.area === 'admin') && (!l.deploymentAdmin || true));
     const admin = seen.find((s) => s.label === 'Administration');
     expect(admin?.items.some((i) => i.path === '/admin/access/sets')).toBe(true);
+  });
+
+  it('shows Capability Sets to a pure deployment admin (no admin.* capability)', () => {
+    // Models Dev Approver: deployment admin (admin=true) but no admin.* capability, so hasArea('admin') is false.
+    const isDeploymentAdmin = true;
+    const seen = visibleSections(NAV, (l) =>
+      (!l.area || false) && (!l.deploymentAdmin || isDeploymentAdmin));
+    const admin = seen.find((s) => s.label === 'Administration');
+    expect(admin?.items.some((i) => i.path === '/admin/access/sets')).toBe(true);
+    // ...but NOT the admin.*-gated items (Users & Roles etc.).
+    expect(admin?.items.some((i) => i.path === '/admin/users')).toBe(false);
   });
 });

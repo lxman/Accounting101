@@ -34,7 +34,7 @@ export const NAV: NavSection[] = [
   ] },
   { label: 'Administration', items: [
     { label: 'Users & Roles', path: '/admin/users', area: 'admin' },
-    { label: 'Capability Sets', path: '/admin/access/sets', area: 'admin', deploymentAdmin: true },
+    { label: 'Capability Sets', path: '/admin/access/sets', deploymentAdmin: true },
     { label: 'Firm', path: '/admin/firm', area: 'admin' },
     { label: 'Client', path: '/admin/client', area: 'admin' },
     { label: 'Fiscal settings', path: '/admin/fiscal', area: 'admin' },
