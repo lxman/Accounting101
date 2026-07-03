@@ -50,4 +50,12 @@ describe('MemberService', () => {
     expect(req.request.method).toBe('GET');
     req.flush({ capabilities: [], roles: [] });
   });
+
+  it('assigns sets to a member', () => {
+    svc.assignSets('u1', { setIds: ['s1', 's2'] }).subscribe();
+    const req = http.expectOne(`${environment.apiBaseUrl}/clients/c1/members/u1/sets`);
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ setIds: ['s1', 's2'] });
+    req.flush({ userId: 'u1', roles: [], capabilities: [], grantedSetIds: ['s1', 's2'], setNames: [] });
+  });
 });

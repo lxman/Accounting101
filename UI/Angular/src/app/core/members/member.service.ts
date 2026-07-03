@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { EMPTY, Observable } from 'rxjs';
 import { environment } from '../api/environment';
 import { ClientContextService } from '../client/client-context.service';
-import { Member, AddMemberRequest, SetMemberRequest, CapabilityCatalog } from './member';
+import { Member, AddMemberRequest, SetMemberRequest, CapabilityCatalog, AssignSetsRequest } from './member';
 
 @Injectable({ providedIn: 'root' })
 export class MemberService {
@@ -30,5 +30,9 @@ export class MemberService {
   }
   catalog(): Observable<CapabilityCatalog> {
     return this.http.get<CapabilityCatalog>(`${environment.apiBaseUrl}/capabilities/catalog`);
+  }
+  assignSets(userId: string, req: AssignSetsRequest): Observable<Member> {
+    if (!this.client.clientId()) return EMPTY;
+    return this.http.put<Member>(this.base(`/${userId}/sets`), req);
   }
 }
