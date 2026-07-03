@@ -24,6 +24,11 @@ public sealed class Membership
     /// <summary>The authoritative resolved capability set (see <see cref="Capabilities"/>).</summary>
     public IReadOnlyList<string> Capabilities { get; set; } = [];
 
+    /// <summary>The capability set(s) this membership references — the authoritative grant going
+    /// forward. <see cref="Capabilities"/> is resolved from these (their union) at read time
+    /// (live-binding); empty means a legacy role/inline grant (see <c>ControlStore</c> resolution).</summary>
+    public IReadOnlyList<Guid> GrantedSetIds { get; set; } = [];
+
     /// <summary>Pre-migration single-role docs stored their role in "Role"; read-time backfill uses this.</summary>
     [BsonElement("Role")]
     [BsonRepresentation(BsonType.String)]

@@ -35,11 +35,14 @@ public sealed class ControlStore
     public async Task<bool> IsMemberAsync(Guid userId, Guid clientId, CancellationToken cancellationToken = default) =>
         await _memberships.Find(m => m.UserId == userId && m.ClientId == clientId).AnyAsync(cancellationToken);
 
-    /// <summary>The user's membership on the client (capabilities hydrated), or null if not a member.</summary>
+    /// <summary>The user's membership on the client with capabilities resolved from its referenced
+    /// sets (live-binding), or null if not a member.</summary>
     public async Task<Membership?> GetMembershipAsync(Guid userId, Guid clientId, CancellationToken cancellationToken = default)
     {
         Membership? m = await _memberships.Find(m => m.UserId == userId && m.ClientId == clientId).FirstOrDefaultAsync(cancellationToken);
-        return m is null ? null : Hydrate(m);
+        if (m is null) return null;
+        IReadOnlyList<CapabilitySet> catalog = await ListCapabilitySetsAsync(cancellationToken);
+        return Resolve(m, catalog);
     }
 
     /// <summary>Register (or update) a client and the database that holds its ledger.</summary>
@@ -92,6 +95,26 @@ public sealed class ControlStore
             cancellationToken);
     }
 
+    /// <summary>Assign a member to capability sets (the live-bound grant). Upsert: sets
+    /// <see cref="Membership.GrantedSetIds"/> and clears the legacy role list + inline capability copy —
+    /// capabilities are resolved from the referenced sets at read time.</summary>
+    public Task SetMembershipSetsAsync(Guid userId, Guid clientId, IReadOnlyList<Guid> setIds, CancellationToken cancellationToken = default)
+    {
+        UpdateDefinition<Membership> update = Builders<Membership>.Update
+            .Set(m => m.GrantedSetIds, setIds)
+            .Set(m => m.GrantedRoles, Array.Empty<LedgerRole>())
+            .Set(m => m.Capabilities, Array.Empty<string>())
+            .SetOnInsert(m => m.Id, Guid.NewGuid())
+            .SetOnInsert(m => m.UserId, userId)
+            .SetOnInsert(m => m.ClientId, clientId);
+
+        return _memberships.UpdateOneAsync(
+            m => m.UserId == userId && m.ClientId == clientId,
+            update,
+            new UpdateOptions { IsUpsert = true },
+            cancellationToken);
+    }
+
     /// <summary>Remove a member from a client's books.</summary>
     public Task RemoveMembershipAsync(Guid userId, Guid clientId, CancellationToken cancellationToken = default) =>
         _memberships.DeleteOneAsync(m => m.UserId == userId && m.ClientId == clientId, cancellationToken);
@@ -100,15 +123,58 @@ public sealed class ControlStore
     public async Task<IReadOnlyList<ClientRegistration>> ListClientsAsync(CancellationToken cancellationToken = default) =>
         await _clients.Find(FilterDefinition<ClientRegistration>.Empty).ToListAsync(cancellationToken);
 
-    /// <summary>All memberships granted on a client (capabilities hydrated).</summary>
+    /// <summary>All memberships granted on a client (capabilities resolved from referenced sets).</summary>
     public async Task<IReadOnlyList<Membership>> GetMembersAsync(Guid clientId, CancellationToken cancellationToken = default)
     {
         List<Membership> members = await _memberships.Find(m => m.ClientId == clientId).ToListAsync(cancellationToken);
-        return members.Select(Hydrate).ToList();
+        IReadOnlyList<CapabilitySet> catalog = await ListCapabilitySetsAsync(cancellationToken);
+        return members.Select(m => Resolve(m, catalog)).ToList();
+    }
+
+    /// <summary>Resolve a membership's capabilities per the AC-2 precedence: referenced sets (union of
+    /// their CURRENT caps) → built-in sets matching granted roles (role grants are live-bound too) →
+    /// stored inline caps with the pre-migration Role backfill. Read-only derivation; no write.</summary>
+    private static Membership Resolve(Membership m, IReadOnlyList<CapabilitySet> catalog)
+    {
+        // 1) Explicit set references are the go-forward authority.
+        if (m.GrantedSetIds.Count > 0)
+        {
+            Dictionary<Guid, CapabilitySet> byId = catalog.ToDictionary(s => s.Id);
+            HashSet<string> union = [];
+            foreach (Guid id in m.GrantedSetIds)
+                if (byId.TryGetValue(id, out CapabilitySet? s))
+                    union.UnionWith(s.Capabilities);
+            m.Capabilities = [.. union];
+            return m;
+        }
+
+        // 2) Legacy role grant with no set ids yet: live-bind to the built-in sets of the same name so
+        //    an owner's edit to a built-in set flows to role-based members too. If the sets are not
+        //    seeded (e.g. a direct pre-startup read), fall through to the stored caps.
+        if (m.GrantedRoles.Count > 0)
+        {
+            Dictionary<string, CapabilitySet> byName = catalog.ToDictionary(s => s.Name, StringComparer.OrdinalIgnoreCase);
+            HashSet<string> union = [];
+            bool matched = false;
+            foreach (LedgerRole role in m.GrantedRoles)
+                if (byName.TryGetValue(role.ToString(), out CapabilitySet? s))
+                {
+                    union.UnionWith(s.Capabilities);
+                    matched = true;
+                }
+            if (matched)
+            {
+                m.Capabilities = [.. union];
+                return m;
+            }
+        }
+
+        // 3) Pre-migration single-Role doc or a truly custom inline grant: keep the stored caps.
+        return HydrateLegacy(m);
     }
 
     /// <summary>Backfill a pre-migration (Role-only) doc to the capability shape at read time (no write).</summary>
-    private static Membership Hydrate(Membership m)
+    private static Membership HydrateLegacy(Membership m)
     {
         if (m.Capabilities.Count == 0 && m.LegacyRole is { } role)
         {
