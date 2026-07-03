@@ -185,6 +185,44 @@ to the one actor who can both cause and undo it, rather than a cross-client hard
 set-edit guard (cross-client scan + what-if re-resolution) remains a possible future addition if a
 real need appears; it is deliberately not built now.
 
+## Future hardening — admin-sprawl resistance & control-plane audit (post-AC-4 candidates, NOT built)
+
+Design note captured 2026-07-03 (user concern: guard against shops defaulting everyone to full
+admin — "here you go, you're a user with admin, go to town"). None of this is built; it is the
+backlog for making the RBAC model *resist* the everyone's-an-admin drift, not just express it.
+
+**The live escalation leak (today).** A per-client `admin.users` holder can assign *any existing
+set* — including the full built-in **Admin** set — to anyone, **including themselves**. Nothing
+checks that a grantor can only grant what they already hold. So `admin.users` is effectively a
+one-hop path to full admin (mint yourself the Admin set). The last-admin guard prevents *removing*
+admins; it does nothing against *minting/self-escalating* them. This is the gap between "we have
+RBAC" and "our RBAC resists sprawl."
+
+**Candidate guards (strongest first):**
+1. **No-self-escalation rule** — a member-admin may only grant capabilities they themselves hold.
+   Then `admin.users` alone can only ever create *other* `admin.users`, never a controller or full
+   admin; handing out god-mode requires already being god-mode. Standard administrative-scoping
+   control; the single highest-value addition. (Enforce in the member set-assignment path:
+   requested sets' union ⊆ caller's own resolved caps, with deployment-admin exempt.)
+2. **Gate the god-set to the deployment tier** — the full **Admin** set is assignable only by a
+   system admin (`admin=true`), not by per-client `admin.users`. Handing out everything must climb
+   to the deployment tier, where it is visible.
+3. **Least-privilege as the path of least resistance** — keep built-in sets mapped cleanly to real
+   jobs (the tight AR/AP/payroll clerk presets already aim at this) so granting the right thing is
+   easier than granting admin; optionally decompose the single "Admin = all" set so there is no
+   one-click god button to reach for.
+4. **Control-plane audit trail (NEW — currently absent).** Membership/set mutations are plain
+   in-place Mongo writes with **no change-log**: no actor, no timestamp, no before/after, no
+   history. The ledger's tamper-evident hash-chain covers journal postings ONLY, not the control
+   DB. To make guard #3's "make over-granting visible" real, add an append-only admin-audit record
+   for every grant/revoke/set-edit (actor, target, before→after, time), plus a "who holds full
+   admin" surfacing. This is the governance leg — you cannot code away laziness, but you can make
+   it show up in a review.
+
+**Honest limit:** you cannot *prevent* the top-tier key-holder from being generous — someone
+bootstraps. What these buy: least-privilege as the default, every escalation a deliberate climb up
+the tier ladder, and a trail. #1 + #2 + #4 together get most of the way.
+
 ## Decomposition (each its own plan → build slice)
 
 - **AC-1** Backend sets: `CapabilitySet` entity + `ControlStore` CRUD + startup seeding from presets
