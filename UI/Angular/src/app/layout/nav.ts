@@ -62,7 +62,10 @@ export function visibleSections(sections: NavSection[], canSee: (link: NavLink) 
       ...section,
       items: section.items
         .filter(canSee)
-        .map((item) => ({ ...item, children: item.children?.filter(canSee) })),
+        .map((item) => {
+          const children = item.children?.filter(canSee);
+          return { ...item, children: children && children.length > 0 ? children : undefined };
+        }),
     }))
     .filter((section) => section.items.length > 0);
 }

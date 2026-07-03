@@ -29,16 +29,6 @@ describe('MemberList', () => {
     expect(text).toContain('2');
   });
 
-  it('shows the Add member link', () => {
-    const ctrl = setup();
-    const f = TestBed.createComponent(MemberList); f.detectChanges();
-    ctrl.expectOne('http://localhost:5000/clients/C1/members').flush([]);
-    f.detectChanges();
-    const link = [...f.nativeElement.querySelectorAll('a')].find((a: HTMLAnchorElement) => a.textContent.trim() === 'Add member') as HTMLAnchorElement;
-    expect(link).toBeTruthy();
-    expect(link.getAttribute('href')).toBe('/admin/users/new');
-  });
-
   it('shows the empty state', () => {
     const ctrl = setup();
     const f = TestBed.createComponent(MemberList); f.detectChanges();

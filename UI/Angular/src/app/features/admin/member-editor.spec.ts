@@ -45,4 +45,20 @@ describe('MemberEditor (set-picker)', () => {
     req.flush({ userId: 'u1', roles: [], capabilities: [], grantedSetIds: ['s1', 's2'], setNames: [] });
     expect(TestBed.inject(Router).url).toBeDefined();
   });
+
+  it('removes the member and navigates back on success', () => {
+    seed('u1'); http = TestBed.inject(HttpTestingController);
+    const f = TestBed.createComponent(MemberEditor);
+    f.detectChanges();
+    http.expectOne(`${environment.apiBaseUrl}/capability-sets`).flush([]);
+    http.expectOne(`${environment.apiBaseUrl}/clients/c1/members`).flush([
+      { userId: 'u1', roles: [], capabilities: [], grantedSetIds: [], setNames: [] },
+    ]);
+    f.detectChanges();
+    const c = f.componentInstance as MemberEditor;
+    c.remove();
+    const req = http.expectOne(`${environment.apiBaseUrl}/clients/c1/members/u1`);
+    expect(req.request.method).toBe('DELETE');
+    req.flush(null);
+  });
 });

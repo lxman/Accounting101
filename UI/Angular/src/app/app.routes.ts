@@ -113,7 +113,6 @@ export const routes: Routes = [
     { path: 'remittances/:id', component: RemittanceDetail },
   ] },
   { path: 'admin/users', component: MemberList },
-  { path: 'admin/users/new', component: MemberEditor, canActivate: [canWrite('admin.users', '/admin/users')] },
   { path: 'admin/users/:userId', component: MemberEditor, canActivate: [canWrite('admin.users', '/admin/users')] },
   { path: 'admin/access/sets', component: CapabilitySetList, canActivate: [deploymentAdminGuard('/admin/users')] },
   { path: 'admin/access/sets/new', component: CapabilitySetEditor, canActivate: [deploymentAdminGuard('/admin/users')] },

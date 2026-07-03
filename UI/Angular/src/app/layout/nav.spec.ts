@@ -58,14 +58,14 @@ describe('visibleSections', () => {
     // Permit 'cash' (Cash & Banking) but not 'bankrec' (its only child, Bank Reconciliation).
     const v = visibleSections(NAV, (link) => !link.area || link.area === 'cash');
     const cash = v.find((s) => s.label === 'Subledgers')!.items.find((i) => i.path === '/cash')!;
-    expect(cash.children ?? []).toEqual([]);
+    expect(cash.children).toBeUndefined();
   });
 
   it('filters a parent\'s children by their own area', () => {
     const allowed = new Set(['cash']);   // cash but not bankrec
     const v = visibleSections(NAV, (link) => !link.area || allowed.has(link.area));
     const cash = v.find(s => s.label === 'Subledgers')!.items.find(i => i.path === '/cash')!;
-    expect(cash.children ?? []).toEqual([]);
+    expect(cash.children).toBeUndefined();
   });
 
   it('hides deployment-admin links from non-deployment-admins', () => {

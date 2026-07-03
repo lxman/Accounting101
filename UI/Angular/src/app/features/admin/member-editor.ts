@@ -29,6 +29,9 @@ import { MemberService } from '../../core/members/member.service';
     <div class="flex gap-2 mt-4">
       <button *appCan="'admin.users'" hlmBtn (click)="save()">Save</button>
       <button hlmBtn variant="outline" (click)="back()">Cancel</button>
+      @if (userId) {
+        <button *appCan="'admin.users'" hlmBtn variant="destructive" class="ms-auto" (click)="remove()">Remove member</button>
+      }
     </div>
   `,
 })
@@ -66,6 +69,15 @@ export class MemberEditor {
     this.members.assignSets(this.userId, { setIds: [...this.selected()] }).subscribe({
       next: () => this.back(),
       error: (e) => this.error.set(e?.error?.detail ?? 'Save failed.'),
+    });
+  }
+
+  remove(): void {
+    if (!this.userId) return;
+    this.error.set(null);
+    this.members.remove(this.userId).subscribe({
+      next: () => this.back(),
+      error: (e) => this.error.set(e?.error?.detail ?? 'Remove failed.'),
     });
   }
 

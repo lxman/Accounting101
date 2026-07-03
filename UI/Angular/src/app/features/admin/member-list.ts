@@ -1,23 +1,20 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
-import { HlmButton } from '@spartan-ng/helm/button';
+import { Router } from '@angular/router';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { MemberService } from '../../core/members/member.service';
 import { Member } from '../../core/members/member';
 import { memberDisplayName } from '../../core/api/dev-identity-names';
 import { extractProblem } from '../../core/api/problem-details';
-import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
   selector: 'app-member-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, HlmButton, ...HlmTableImports, CanDirective],
+  imports: [...HlmTableImports],
   template: `
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-3">
         <h1 class="text-2xl font-bold">Users &amp; Roles</h1>
-        <a *appCan="'admin.users'" hlmBtn size="sm" class="ms-auto" routerLink="/admin/users/new">Add member</a>
       </div>
 
       @if (error()) { <p class="text-destructive text-sm">{{ error() }}</p> }

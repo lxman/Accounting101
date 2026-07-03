@@ -5,13 +5,15 @@ import { CapabilityService } from './capability.service';
 export class StubCapabilityService {
   private readonly _caps = signal<ReadonlySet<string>>(new Set());
   private readonly _loaded = signal(true);
+  private readonly _deploymentAdmin = signal(false);
   readonly loaded: Signal<boolean> = this._loaded.asReadonly();
   readonly capabilities: Signal<ReadonlySet<string>> = this._caps.asReadonly();
   readonly roles: Signal<string[]> = signal([]);
-  readonly deploymentAdmin: Signal<boolean> = signal(false);
+  readonly deploymentAdmin: Signal<boolean> = this._deploymentAdmin.asReadonly();
 
   set(caps: string[]): void { this._caps.set(new Set(caps)); }
   setLoaded(loaded: boolean): void { this._loaded.set(loaded); }
+  setDeploymentAdmin(deploymentAdmin: boolean): void { this._deploymentAdmin.set(deploymentAdmin); }
   has(capability: string): boolean { return this._caps().has(capability); }
   hasArea(area: string): boolean {
     const prefix = area + '.';
