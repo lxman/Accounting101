@@ -19,6 +19,7 @@ public static class MemberEndpoints
         g.MapGet("", ListMembers);
         g.MapPost("", AddMember);
         g.MapPut("/{userId:guid}", SetMember);
+        g.MapPut("/{userId:guid}/sets", AssignSets);
         g.MapDelete("/{userId:guid}", RemoveMember);
     }
 
@@ -83,6 +84,37 @@ public static class MemberEndpoints
             return Results.Problem("Cannot remove the last administrator.", statusCode: StatusCodes.Status409Conflict);
         await control.SetMembershipAsync(userId, clientId, roles, request.Capabilities, ct);
         return Results.Ok(new MembershipResponse(userId, clientId, request.Roles, request.Capabilities));
+    }
+
+    // Assign a member to capability sets — the go-forward, live-bound grant. Resolved capabilities are
+    // the union of the referenced sets' current capabilities (never client-supplied). Last-admin guarded.
+    private static async Task<IResult> AssignSets(
+        Guid clientId, Guid userId, AssignSetsRequest request, ClaimsPrincipal user,
+        IActorFactory actorFactory, ControlStore control, CancellationToken ct)
+    {
+        if (!await CallerMayManage(user, clientId, actorFactory, control, ct)) return Results.Forbid();
+        if (!await control.IsMemberAsync(userId, clientId, ct)) return Results.NotFound();
+
+        // Validate every set exists and gather the sets we resolve from.
+        List<CapabilitySet> sets = [];
+        foreach (Guid setId in request.SetIds)
+        {
+            CapabilitySet? set = await control.GetCapabilitySetAsync(setId, ct);
+            if (set is null)
+                return Results.Problem($"Unknown capability set '{setId}'.", statusCode: StatusCodes.Status422UnprocessableEntity);
+            sets.Add(set);
+        }
+
+        HashSet<string> resolved = [];
+        foreach (CapabilitySet set in sets) resolved.UnionWith(set.Capabilities);
+
+        bool keepsAdmin = resolved.Contains(Capabilities.AdminUsers);
+        if (await WouldLeaveNoAdmin(control, clientId, userId, keepsAdmin, ct))
+            return Results.Problem("Cannot remove the last administrator.", statusCode: StatusCodes.Status409Conflict);
+
+        await control.SetMembershipSetsAsync(userId, clientId, request.SetIds, ct);
+        return Results.Ok(new MembershipResponse(
+            userId, clientId, sets.Select(s => s.Name).ToList(), resolved.ToList()));
     }
 
     private static async Task<IResult> RemoveMember(

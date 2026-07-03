@@ -34,6 +34,10 @@ public sealed record AddClientMemberRequest(Guid UserId, IReadOnlyList<string> R
 /// <summary>Replace an existing member's role presets and capability set.</summary>
 public sealed record SetMemberRequest(IReadOnlyList<string> Roles, IReadOnlyList<string> Capabilities);
 
+/// <summary>Assign a member to one or more capability sets (the go-forward, live-bound grant).
+/// Resolved capabilities are the union of the referenced sets' current capabilities — never client-supplied.</summary>
+public sealed record AssignSetsRequest(IReadOnlyList<Guid> SetIds);
+
 /// <summary>The full capability vocabulary and the role presets (backend truth for the admin editor).</summary>
 public sealed record CapabilityCatalogResponse(IReadOnlyList<string> Capabilities, IReadOnlyList<RolePresetDto> Roles);
 public sealed record RolePresetDto(string Role, IReadOnlyList<string> Capabilities);

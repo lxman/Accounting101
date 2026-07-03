@@ -84,6 +84,7 @@ public sealed class ControlStore
         var update = Builders<Membership>.Update
             .Set(m => m.GrantedRoles, roles)
             .Set(m => m.Capabilities, capabilities)
+            .Set(m => m.GrantedSetIds, Array.Empty<Guid>())
             .SetOnInsert(m => m.Id, Guid.NewGuid())
             .SetOnInsert(m => m.UserId, userId)
             .SetOnInsert(m => m.ClientId, clientId);
