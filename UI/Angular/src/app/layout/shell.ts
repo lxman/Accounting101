@@ -88,7 +88,10 @@ export class Shell {
   protected readonly identity = inject(DevIdentityService);
   protected readonly navState = inject(NavStateService);
   protected readonly caps = inject(CapabilityService);
-  protected readonly visibleNav = computed(() => visibleSections(NAV, (a) => !a || this.caps.hasArea(a)));
+  protected readonly visibleNav = computed(() =>
+    visibleSections(NAV, (link) =>
+      (!link.area || this.caps.hasArea(link.area)) &&
+      (!link.deploymentAdmin || this.caps.deploymentAdmin())));
 
   // The trigger renders the active value (a user sub) via itemToString; map it back to a readable
   // "Acting as: <name>" (a bare value would display the raw GUID).

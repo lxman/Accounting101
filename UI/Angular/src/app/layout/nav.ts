@@ -1,4 +1,4 @@
-export interface NavLink { label: string; path: string; area?: string; children?: NavLink[]; }
+export interface NavLink { label: string; path: string; area?: string; deploymentAdmin?: boolean; children?: NavLink[]; }
 export interface NavSection { label: string; items: NavLink[]; }
 
 export const NAV: NavSection[] = [
@@ -34,6 +34,7 @@ export const NAV: NavSection[] = [
   ] },
   { label: 'Administration', items: [
     { label: 'Users & Roles', path: '/admin/users', area: 'admin' },
+    { label: 'Capability Sets', path: '/admin/access/sets', area: 'admin', deploymentAdmin: true },
     { label: 'Firm', path: '/admin/firm', area: 'admin' },
     { label: 'Client', path: '/admin/client', area: 'admin' },
     { label: 'Fiscal settings', path: '/admin/fiscal', area: 'admin' },
@@ -53,21 +54,15 @@ export function navLeafPaths(): string[] {
   return out;
 }
 
-/** Sections/links the user can see: a link shows if it has no area or `canSee(area)` is true.
- * Children are filtered by their own area; sections with no visible items are dropped. */
-export function visibleSections(nav: NavSection[], canSee: (area?: string) => boolean): NavSection[] {
-  return nav
+/** Sections/links the user can see, per a link predicate `canSee`.
+ * Children are filtered by the same predicate; sections with no visible items are dropped. */
+export function visibleSections(sections: NavSection[], canSee: (link: NavLink) => boolean): NavSection[] {
+  return sections
     .map((section) => ({
-      label: section.label,
+      ...section,
       items: section.items
-        .filter((item) => canSee(item.area))
-        .map((item) => {
-          if (!item.children) return item;
-          const children = item.children.filter((c) => canSee(c.area));
-          // Drop the children array entirely when none survive, so the template renders no
-          // (dead) expand caret on a parent whose sub-items are all filtered out.
-          return children.length ? { ...item, children } : { ...item, children: undefined };
-        }),
+        .filter(canSee)
+        .map((item) => ({ ...item, children: item.children?.filter(canSee) })),
     }))
     .filter((section) => section.items.length > 0);
 }
