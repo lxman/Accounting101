@@ -64,7 +64,7 @@ public sealed class CapabilitySetStoreTests(ApiFixture fixture) : IClassFixture<
     [Fact]
     public async Task Seeding_creates_one_builtin_per_role()
     {
-        ControlStore control = fixture.Control();
+        ControlStore control = new(fixture.Mongo.GetDatabase("ctl_seed_" + Guid.NewGuid().ToString("N")));
         await control.SeedBuiltinCapabilitySetsAsync();
 
         IReadOnlyList<CapabilitySet> all = await control.ListCapabilitySetsAsync();
@@ -80,7 +80,7 @@ public sealed class CapabilitySetStoreTests(ApiFixture fixture) : IClassFixture<
     [Fact]
     public async Task Seeding_is_idempotent_and_never_overwrites_an_edited_builtin()
     {
-        ControlStore control = fixture.Control();
+        ControlStore control = new(fixture.Mongo.GetDatabase("ctl_seed_" + Guid.NewGuid().ToString("N")));
         await control.SeedBuiltinCapabilitySetsAsync();
 
         // Owner edits a built-in in place.
