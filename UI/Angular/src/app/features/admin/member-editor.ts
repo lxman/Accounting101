@@ -1,170 +1,73 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { HlmInputImports } from '@spartan-ng/helm/input';
-import { HlmLabelImports } from '@spartan-ng/helm/label';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { HlmButton } from '@spartan-ng/helm/button';
-import { MemberService } from '../../core/members/member.service';
-import { CapabilityCatalog } from '../../core/members/member';
-import { memberDisplayName } from '../../core/api/dev-identity-names';
-import { extractProblem } from '../../core/api/problem-details';
 import { CanDirective } from '../../core/capabilities/can.directive';
-
-interface CapabilityGroup { area: string; capabilities: string[]; }
+import { CapabilitySetService } from '../../core/capability-sets/capability-set.service';
+import { CapabilitySet } from '../../core/capability-sets/capability-set';
+import { MemberService } from '../../core/members/member.service';
 
 @Component({
   selector: 'app-member-editor',
+  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, CanDirective, ...HlmInputImports, ...HlmLabelImports, HlmButton],
+  imports: [HlmButton, CanDirective],
   template: `
-    <div class="flex flex-col gap-4 p-4 max-w-2xl">
-      <h1 class="text-2xl font-bold">{{ editId ? 'Edit member' : 'New member' }}</h1>
+    <h1 class="text-xl font-semibold mb-4">Member access</h1>
+    @if (error()) { <p class="text-red-600 mb-2">{{ error() }}</p> }
+    <p class="text-sm text-muted-foreground mb-3">Assign one or more capability sets. The member's
+       access is the union of the selected sets, applied immediately.</p>
 
-      @if (editId) {
-        <div class="flex flex-col gap-1">
-          <label hlmLabel>Member</label>
-          <input hlmInput type="text" [value]="displayName()" readonly disabled />
-        </div>
-      } @else {
-        <div class="flex flex-col gap-1">
-          <label hlmLabel>User id</label>
-          <input hlmInput type="text" [value]="userId()" (input)="userId.set($any($event.target).value)" />
-        </div>
+    <div class="space-y-2">
+      @for (s of sets(); track s.id) {
+        <label class="flex items-center gap-2">
+          <input type="checkbox" [checked]="selected().has(s.id)" (change)="toggleSet(s.id)" />
+          <span>{{ s.name }} @if (s.builtin) { <span class="text-xs text-muted-foreground">(built-in)</span> }</span>
+        </label>
       }
+    </div>
 
-      @if (catalog(); as cat) {
-        <div class="flex flex-col gap-2">
-          <h2 class="text-lg font-semibold">Roles</h2>
-          @for (r of cat.roles; track r.role) {
-            <label class="flex items-center gap-2 text-sm">
-              <input type="checkbox" [checked]="checkedRoles().has(r.role)" (change)="togglePreset(r)" />
-              {{ r.role }}
-            </label>
-          }
-        </div>
-
-        <div class="flex flex-col gap-3">
-          <h2 class="text-lg font-semibold">Capabilities</h2>
-          @for (g of groups(); track g.area) {
-            <div class="flex flex-col gap-1">
-              <h3 class="text-sm font-medium text-muted-foreground">{{ g.area }}</h3>
-              @for (c of g.capabilities; track c) {
-                <label class="flex items-center gap-2 text-sm ps-2">
-                  <input type="checkbox" [checked]="capabilities().has(c)" (change)="toggleCapability(c)" />
-                  {{ c }}
-                </label>
-              }
-            </div>
-          }
-        </div>
-      }
-
-      @if (message()) { <p class="text-destructive text-sm">{{ message() }}</p> }
-      <div class="flex items-center gap-2">
-        <button *appCan="'admin.users'" hlmBtn type="button" (click)="save()" [disabled]="!canSave() || busy()">Save</button>
-        <a hlmBtn variant="outline" routerLink="/admin/users">Cancel</a>
-        @if (editId) {
-          <button *appCan="'admin.users'" hlmBtn variant="destructive" type="button" class="ms-auto" (click)="remove()" [disabled]="busy()">Remove</button>
-        }
-      </div>
+    <div class="flex gap-2 mt-4">
+      <button *appCan="'admin.users'" hlmBtn (click)="save()">Save</button>
+      <button hlmBtn variant="outline" (click)="back()">Cancel</button>
     </div>
   `,
 })
 export class MemberEditor {
-  private readonly svc = inject(MemberService);
+  private readonly setService = inject(CapabilitySetService);
+  private readonly members = inject(MemberService);
   private readonly router = inject(Router);
-  private readonly route = inject(ActivatedRoute);
-  private readonly destroyRef = inject(DestroyRef);
+  readonly userId = inject(ActivatedRoute).snapshot.paramMap.get('userId');
 
-  readonly editId = this.route.snapshot.paramMap.get('userId'); // null on /admin/users/new
-
-  readonly userId = signal('');
-  readonly catalog = signal<CapabilityCatalog | null>(null);
-  readonly capabilities = signal<Set<string>>(new Set());
-  readonly checkedRoles = signal<Set<string>>(new Set());
-  readonly busy = signal(false);
-  readonly message = signal<string | null>(null);
-
-  readonly groups = computed<CapabilityGroup[]>(() => {
-    const cat = this.catalog();
-    if (!cat) return [];
-    const byArea = new Map<string, string[]>();
-    for (const c of cat.capabilities) {
-      const area = c.includes('.') ? c.slice(0, c.indexOf('.')) : c;
-      const list = byArea.get(area) ?? [];
-      list.push(c);
-      byArea.set(area, list);
-    }
-    return [...byArea.entries()].map(([area, capabilities]) => ({ area, capabilities }));
-  });
-
-  readonly canSave = computed(() => this.editId !== null || this.userId().trim().length > 0);
+  readonly sets = signal<CapabilitySet[]>([]);
+  readonly selected = signal<Set<string>>(new Set());
+  readonly error = signal<string | null>(null);
 
   constructor() {
-    this.svc.catalog().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (cat) => this.catalog.set(cat),
-      error: (e) => this.message.set(extractProblem(e).detail),
-    });
-
-    if (this.editId) {
-      this.svc.list().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.setService.list().subscribe({ next: (s) => this.sets.set(s) });
+    if (this.userId) {
+      this.members.list().subscribe({
         next: (members) => {
-          const existing = members.find((m) => m.userId === this.editId);
-          if (existing) {
-            this.capabilities.set(new Set(existing.capabilities));
-            this.checkedRoles.set(new Set(existing.roles));
-          }
+          const me = members.find((m) => m.userId === this.userId);
+          if (me) this.selected.set(new Set(me.grantedSetIds));
         },
-        error: (e) => this.message.set(extractProblem(e).detail),
       });
     }
   }
 
-  displayName(): string { return this.editId ? memberDisplayName(this.editId) : ''; }
-
-  togglePreset(preset: { role: string; capabilities: string[] }): void {
-    const roles = new Set(this.checkedRoles());
-    if (roles.has(preset.role)) {
-      roles.delete(preset.role);
-      this.checkedRoles.set(roles);
-      return;
-    }
-    roles.add(preset.role);
-    this.checkedRoles.set(roles);
-    const caps = new Set(this.capabilities());
-    for (const c of preset.capabilities) caps.add(c);
-    this.capabilities.set(caps);
-  }
-
-  toggleCapability(capability: string): void {
-    const caps = new Set(this.capabilities());
-    if (caps.has(capability)) caps.delete(capability); else caps.add(capability);
-    this.capabilities.set(caps);
+  toggleSet(id: string): void {
+    const next = new Set(this.selected());
+    next.has(id) ? next.delete(id) : next.add(id);
+    this.selected.set(next);
   }
 
   save(): void {
-    if (!this.canSave()) return;
-    this.busy.set(true);
-    this.message.set(null);
-    const roles = [...this.checkedRoles()];
-    const capabilities = [...this.capabilities()];
-    const obs = this.editId
-      ? this.svc.set(this.editId, { roles, capabilities })
-      : this.svc.add({ userId: this.userId().trim(), roles, capabilities });
-    obs.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.busy.set(false); void this.router.navigate(['/admin/users']); },
-      error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
+    if (!this.userId) return;
+    this.error.set(null);
+    this.members.assignSets(this.userId, { setIds: [...this.selected()] }).subscribe({
+      next: () => this.back(),
+      error: (e) => this.error.set(e?.error?.detail ?? 'Save failed.'),
     });
   }
 
-  remove(): void {
-    if (!this.editId) return;
-    if (!confirm(`Remove ${this.displayName()} from this client?`)) return;
-    this.busy.set(true);
-    this.message.set(null);
-    this.svc.remove(this.editId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.busy.set(false); void this.router.navigate(['/admin/users']); },
-      error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
-    });
-  }
+  back(): void { void this.router.navigate(['/admin/users']); }
 }
