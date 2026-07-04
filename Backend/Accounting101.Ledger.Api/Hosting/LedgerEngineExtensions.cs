@@ -32,6 +32,9 @@ public static class LedgerEngineExtensions
         services.AddSingleton(sp =>
             new AdminAuditStore(sp.GetRequiredService<IMongoClient>().GetDatabase(controlDatabase)));
 
+        // Platform registry tier (firms + clusters). Additive: does not change client resolution yet.
+        services.AddPlatformRegistry(configuration);
+
         // Seed the built-in capability sets (from role presets) once on startup — idempotent.
         services.AddHostedService<CapabilitySetSeeder>();
 

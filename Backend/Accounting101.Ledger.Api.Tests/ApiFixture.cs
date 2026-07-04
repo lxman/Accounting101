@@ -20,6 +20,7 @@ public sealed class ApiFixture : IAsyncLifetime
 
     public IMongoClient Mongo { get; private set; } = null!;
     public string ControlDatabase { get; } = "control_" + Guid.NewGuid().ToString("N");
+    public string PlatformDatabase { get; } = "platform_" + Guid.NewGuid().ToString("N");
 
     public async Task InitializeAsync()
     {
@@ -29,7 +30,8 @@ public sealed class ApiFixture : IAsyncLifetime
 
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
             b.UseSetting("Mongo:ConnectionString", connectionString)
-             .UseSetting("Mongo:ControlDatabase", ControlDatabase));
+             .UseSetting("Mongo:ControlDatabase", ControlDatabase)
+             .UseSetting("Mongo:PlatformDatabase", PlatformDatabase));
     }
 
     public Task DisposeAsync()
