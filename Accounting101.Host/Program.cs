@@ -50,7 +50,7 @@ app.Use(async (ctx, next) =>
             Status = StatusCodes.Status403Forbidden,
             Title  = "Forbidden",
             Detail = ex.Message,
-        }, ctx.RequestAborted);
+        }, options: null, contentType: "application/problem+json", cancellationToken: ctx.RequestAborted);
     }
     catch (BadHttpRequestException ex) when (ex.InnerException is System.Text.Json.JsonException je)
     {
@@ -60,7 +60,7 @@ app.Use(async (ctx, next) =>
             Status = StatusCodes.Status400BadRequest,
             Title  = "Invalid request body",
             Detail = je.Message,
-        }, ctx.RequestAborted);
+        }, options: null, contentType: "application/problem+json", cancellationToken: ctx.RequestAborted);
     }
     catch (System.Text.Json.JsonException je)
     {
@@ -70,7 +70,7 @@ app.Use(async (ctx, next) =>
             Status = StatusCodes.Status400BadRequest,
             Title  = "Invalid request body",
             Detail = je.Message,
-        }, ctx.RequestAborted);
+        }, options: null, contentType: "application/problem+json", cancellationToken: ctx.RequestAborted);
     }
 });
 

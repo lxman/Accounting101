@@ -27,7 +27,7 @@ public sealed class FirmResolutionMiddleware(RequestDelegate next)
                 Status = StatusCodes.Status403Forbidden,
                 Title = "Forbidden",
                 Detail = "Unknown or suspended firm.",
-            }, context.RequestAborted);
+            }, options: null, contentType: "application/problem+json", cancellationToken: context.RequestAborted);
             return;
         }
 

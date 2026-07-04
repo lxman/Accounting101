@@ -24,6 +24,8 @@ public sealed class MongoClientFactory : IMongoClientFactory
 
     public async Task<IMongoClient> GetAsync(string clusterKey, CancellationToken cancellationToken = default)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(clusterKey);
+
         if (_clients.TryGetValue(clusterKey, out Lazy<IMongoClient>? cached))
             return cached.Value;
 

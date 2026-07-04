@@ -31,4 +31,16 @@ public sealed class MongoClientFactoryTests
         // An unregistered key fails closed.
         await Assert.ThrowsAsync<InvalidOperationException>(() => factory.GetAsync("nope"));
     }
+
+    [Fact]
+    public async Task Null_or_blank_key_throws_ArgumentException()
+    {
+        IMongoRunner runner = await SharedMongo.InstanceAsync();
+        IMongoClient home = new MongoClient(runner.ConnectionString);
+        PlatformStore platform = new(home.GetDatabase("platform_" + Guid.NewGuid().ToString("N")));
+        MongoClientFactory factory = new(home, "default", platform);
+
+        await Assert.ThrowsAsync<ArgumentNullException>(() => factory.GetAsync(null!));
+        await Assert.ThrowsAsync<ArgumentException>(() => factory.GetAsync("   "));
+    }
 }
