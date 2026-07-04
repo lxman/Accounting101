@@ -13,4 +13,9 @@ public static class TenancyDefaults
 
     public static Guid ResolveDefaultFirmId(IConfiguration configuration) =>
         Guid.TryParse(configuration["Tenancy:DefaultFirmId"], out Guid id) ? id : DefaultFirmId;
+
+    /// <summary>Whether the platform-operator control plane (/platform/*) is exposed. OFF by default — an
+    /// on-site single-firm deployment has no operator tier. A SaaS operator sets Tenancy:Platform:Enabled=true.</summary>
+    public static bool PlatformEnabled(IConfiguration configuration) =>
+        bool.TryParse(configuration["Tenancy:Platform:Enabled"], out bool enabled) && enabled;
 }
