@@ -28,6 +28,7 @@ public sealed class DefaultFirmSeeder(PlatformStore platform, IConfiguration con
                 Name = "Default Firm",
                 ControlDatabase = controlDatabase,
                 ClusterKey = clusterKey,
+                CreatedUtc = DateTime.UtcNow,
             }, cancellationToken);
         }
         catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)

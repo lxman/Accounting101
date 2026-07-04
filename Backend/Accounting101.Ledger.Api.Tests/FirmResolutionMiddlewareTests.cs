@@ -56,6 +56,7 @@ public sealed class FirmResolutionMiddlewareTests
 
         Assert.False(nextRan);
         Assert.Equal(StatusCodes.Status403Forbidden, ctx.Response.StatusCode);
+        Assert.StartsWith("application/problem+json", ctx.Response.ContentType);
         Assert.Null(scope.Firm);
     }
 
