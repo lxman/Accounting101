@@ -39,6 +39,11 @@ interface CapGroup { area: string; capabilities: string[]; }
       }
     </div>
 
+    <label class="flex items-center gap-2 mt-3">
+      <input type="checkbox" [checked]="restricted()" (change)="toggleRestricted()" />
+      <span>Restricted — only a deployment admin may assign this set</span>
+    </label>
+
     @if (confirming()) {
       <div class="mt-4 border border-amber-500 rounded p-3">
         <p>This set is held by <strong>{{ current()?.affectedMemberCount }}</strong> member(s).
@@ -65,6 +70,7 @@ export class CapabilitySetEditor {
   readonly name = signal('');
   readonly description = signal('');
   readonly selected = signal<Set<string>>(new Set());
+  protected readonly restricted = signal(false);
   readonly current = signal<CapabilitySet | null>(null);
   readonly confirming = signal(false);
   readonly error = signal<string | null>(null);
@@ -90,6 +96,7 @@ export class CapabilitySetEditor {
           this.name.set(set.name);
           this.description.set(set.description ?? '');
           this.selected.set(new Set(set.capabilities));
+          this.restricted.set(set.restricted);
         },
       });
     }
@@ -102,6 +109,7 @@ export class CapabilitySetEditor {
     next.has(cap) ? next.delete(cap) : next.add(cap);
     this.selected.set(next);
   }
+  toggleRestricted(): void { this.restricted.update((v) => !v); }
 
   save(): void {
     this.error.set(null);
@@ -117,6 +125,7 @@ export class CapabilitySetEditor {
       name: this.name().trim(),
       description: this.description().trim() || undefined,
       capabilities: [...this.selected()],
+      restricted: this.restricted(),
     };
     const call = this.editId ? this.service.update(this.editId, req) : this.service.create(req);
     call.subscribe({

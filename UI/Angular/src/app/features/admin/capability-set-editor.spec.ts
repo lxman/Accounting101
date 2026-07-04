@@ -35,7 +35,7 @@ describe('CapabilitySetEditor', () => {
     // No confirm needed for a new set → POST fires immediately.
     const req = http.expectOne(`${environment.apiBaseUrl}/capability-sets`);
     expect(req.request.method).toBe('POST');
-    req.flush({ id: 'x', name: 'Warehouse', capabilities: ['gl.read'], builtin: false, affectedMemberCount: 0 });
+    req.flush({ id: 'x', name: 'Warehouse', capabilities: ['gl.read'], builtin: false, affectedMemberCount: 0, restricted: false });
     expect(nav).toHaveBeenCalledWith(['/admin/access/sets']);
   });
 
@@ -45,7 +45,7 @@ describe('CapabilitySetEditor', () => {
     f.detectChanges();
     http.expectOne(`${environment.apiBaseUrl}/capabilities/catalog`).flush(CATALOG);
     http.expectOne(`${environment.apiBaseUrl}/capability-sets`).flush([
-      { id: 's1', name: 'Controller', capabilities: ['gl.read'], builtin: true, affectedMemberCount: 4 },
+      { id: 's1', name: 'Controller', capabilities: ['gl.read'], builtin: true, affectedMemberCount: 4, restricted: false },
     ]);
     f.detectChanges();
     const c = f.componentInstance as CapabilitySetEditor;
@@ -59,7 +59,23 @@ describe('CapabilitySetEditor', () => {
     c.confirmSave();                // now it PUTs
     const req = http.expectOne(`${environment.apiBaseUrl}/capability-sets/s1`);
     expect(req.request.method).toBe('PUT');
-    req.flush({ id: 's1', name: 'Controller', capabilities: ['gl.read', 'gl.post'], builtin: true, affectedMemberCount: 4 });
+    req.flush({ id: 's1', name: 'Controller', capabilities: ['gl.read', 'gl.post'], builtin: true, affectedMemberCount: 4, restricted: false });
+    expect(nav).toHaveBeenCalledWith(['/admin/access/sets']);
+  });
+
+  it('sends the restricted flag when creating a set', () => {
+    seed(null); http = TestBed.inject(HttpTestingController);
+    const f = TestBed.createComponent(CapabilitySetEditor);
+    f.detectChanges();
+    http.expectOne(`${environment.apiBaseUrl}/capabilities/catalog`).flush(CATALOG);
+    f.detectChanges();
+    const c = f.componentInstance as CapabilitySetEditor;
+    c.setName('Locked'); c.toggleCapability('gl.read'); c.toggleRestricted(); f.detectChanges();
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    c.save();
+    const req = http.expectOne(`${environment.apiBaseUrl}/capability-sets`);
+    expect(req.request.body.restricted).toBe(true);
+    req.flush({ id: 'x', name: 'Locked', capabilities: ['gl.read'], builtin: false, affectedMemberCount: 0, restricted: true });
     expect(nav).toHaveBeenCalledWith(['/admin/access/sets']);
   });
 });

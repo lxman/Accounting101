@@ -29,8 +29,8 @@ describe('MemberEditor (set-picker)', () => {
     const f = TestBed.createComponent(MemberEditor);
     f.detectChanges();
     http.expectOne(`${environment.apiBaseUrl}/capability-sets`).flush([
-      { id: 's1', name: 'ArClerk', capabilities: ['ar.write'], builtin: true, affectedMemberCount: 0 },
-      { id: 's2', name: 'Auditor', capabilities: ['audit.read'], builtin: true, affectedMemberCount: 0 },
+      { id: 's1', name: 'ArClerk', capabilities: ['ar.write'], builtin: true, affectedMemberCount: 0, restricted: false },
+      { id: 's2', name: 'Auditor', capabilities: ['audit.read'], builtin: true, affectedMemberCount: 0, restricted: false },
     ]);
     http.expectOne(`${environment.apiBaseUrl}/clients/c1/members`).flush([
       { userId: 'u1', roles: [], capabilities: ['ar.write'], grantedSetIds: ['s1'], setNames: ['ArClerk'] },

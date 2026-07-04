@@ -23,7 +23,7 @@ describe('CapabilitySetList', () => {
     const f = TestBed.createComponent(CapabilitySetList);
     f.detectChanges();
     http.expectOne(`${environment.apiBaseUrl}/capability-sets`).flush([
-      { id: 's1', name: 'Controller', capabilities: ['gl.post'], builtin: true, affectedMemberCount: 3 },
+      { id: 's1', name: 'Controller', capabilities: ['gl.post'], builtin: true, affectedMemberCount: 3, restricted: false },
     ]);
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('Controller');
@@ -34,10 +34,10 @@ describe('CapabilitySetList', () => {
     const f = TestBed.createComponent(CapabilitySetList);
     f.detectChanges();
     http.expectOne(`${environment.apiBaseUrl}/capability-sets`).flush([
-      { id: 's2', name: 'Custom', capabilities: ['gl.read'], builtin: false, affectedMemberCount: 0 },
+      { id: 's2', name: 'Custom', capabilities: ['gl.read'], builtin: false, affectedMemberCount: 0, restricted: false },
     ]);
     f.detectChanges();
-    (f.componentInstance as CapabilitySetList).remove({ id: 's2', name: 'Custom', capabilities: ['gl.read'], builtin: false, affectedMemberCount: 0 });
+    (f.componentInstance as CapabilitySetList).remove({ id: 's2', name: 'Custom', capabilities: ['gl.read'], builtin: false, affectedMemberCount: 0, restricted: false });
     http.expectOne(`${environment.apiBaseUrl}/capability-sets/s2`).flush(null);
     http.expectOne(`${environment.apiBaseUrl}/capability-sets`).flush([]);
   });
