@@ -70,6 +70,7 @@ public static class LedgerEngineExtensions
         services.AddAuthorization(options =>
         {
             options.AddPolicy(AdminEndpoints.Policy, policy => policy.RequireClaim("admin", "true"));
+            options.AddPolicy(PlatformEndpoints.Policy, policy => policy.RequireClaim("platform", "true"));
             options.AddPolicy(StepUpAuthorizationHandler.Policy, policy =>
                 policy.AddRequirements(new StepUpRequirement(TimeSpan.FromMinutes(5))));
         });
