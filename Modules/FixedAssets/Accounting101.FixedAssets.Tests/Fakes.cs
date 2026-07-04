@@ -202,6 +202,58 @@ internal sealed class InMemoryDepreciationRunStore : IDepreciationRunStore
             .FirstOrDefault());
 }
 
+/// <summary>An in-memory disposal store: assigns incrementing DP-##### numbers and resolves the active
+/// (non-voided) disposal for an asset — enough to drive and assert the disposal service's lifecycle.</summary>
+internal sealed class InMemoryDisposalStore : IDisposalStore
+{
+    private readonly List<Disposal> _disposals = [];
+    private int _next;
+
+    public Task<Disposal> RecordAsync(Guid clientId, DisposalBody body, CancellationToken ct = default)
+    {
+        ArgumentNullException.ThrowIfNull(body);
+        Disposal disposal = new()
+        {
+            Id = Guid.NewGuid(),
+            Number = $"DP-{Interlocked.Increment(ref _next):D5}",
+            AssetId = body.AssetId,
+            DisposalDate = body.DisposalDate,
+            Proceeds = body.Proceeds,
+            CatchUpDepreciation = body.CatchUpDepreciation,
+            AccumulatedBeforeDisposal = body.AccumulatedBeforeDisposal,
+            AccumulatedAtDisposal = body.AccumulatedAtDisposal,
+            NetBookValue = body.NetBookValue,
+            GainLoss = body.GainLoss,
+            Memo = body.Memo,
+            Status = DisposalStatus.Posted,
+        };
+        _disposals.Add(disposal);
+        return Task.FromResult(disposal);
+    }
+
+    public Task VoidAsync(Guid clientId, Guid disposalId, CancellationToken ct = default)
+    {
+        int index = _disposals.FindIndex(d => d.Id == disposalId);
+        if (index >= 0) _disposals[index] = _disposals[index] with { Status = DisposalStatus.Voided };
+        return Task.CompletedTask;
+    }
+
+    public Task<Disposal?> GetAsync(Guid clientId, Guid disposalId, CancellationToken ct = default) =>
+        Task.FromResult(_disposals.FirstOrDefault(d => d.Id == disposalId));
+
+    public Task<PagedResponse<Disposal>> GetByClientPagedAsync(
+        Guid clientId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default)
+    {
+        IEnumerable<Disposal> all = _disposals.Where(d => includeVoided || d.Status != DisposalStatus.Voided);
+        List<Disposal> ordered = (descending ? all.OrderByDescending(d => d.Number) : all.OrderBy(d => d.Number)).ToList();
+        List<Disposal> items = ordered.Skip(Math.Max(0, skip)).Take(Math.Clamp(limit, 1, 200)).ToList();
+        return Task.FromResult(new PagedResponse<Disposal>(items, ordered.Count, skip, limit));
+    }
+
+    public Task<Disposal?> GetActiveByAssetAsync(Guid clientId, Guid assetId, CancellationToken ct = default) =>
+        Task.FromResult(_disposals.FirstOrDefault(d => d.AssetId == assetId && d.Status != DisposalStatus.Voided));
+}
+
 /// <summary>Fixed pair of posting accounts, exposed as public properties for test assertions.</summary>
 internal sealed class FixedAccountsProvider : IFixedAssetsAccountsProvider
 {
