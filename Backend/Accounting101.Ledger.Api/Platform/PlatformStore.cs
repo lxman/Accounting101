@@ -83,8 +83,11 @@ public sealed class PlatformStore
         }
         catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
         {
-            // Another instance persisted first — the _id (module key) is unique, so read the winner.
-            ModuleSecret winner = await _moduleSecrets.Find(s => s.Key == key).FirstOrDefaultAsync(cancellationToken);
+            // Another instance persisted first — the _id (module key) is unique, so read the winner. The
+            // duplicate-key error is proof the row exists; there is no delete/rotation path that could
+            // remove it between the failed insert and this read, so the winner is always present.
+            ModuleSecret winner = await _moduleSecrets.Find(s => s.Key == key).FirstOrDefaultAsync(cancellationToken)
+                ?? throw new InvalidOperationException($"Module secret '{key}' vanished after a duplicate-key insert.");
             return winner.Secret;
         }
     }

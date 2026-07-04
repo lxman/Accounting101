@@ -14,6 +14,12 @@ namespace Accounting101.Ledger.Api.Hosting;
 /// registrations it seeds carry the persisted secret. Because the secret is persisted once and loaded
 /// thereafter, it is stable across restarts and identical across instances — so a module authenticates
 /// against any firm's control DB regardless of which process seeded it. The secret is never logged.
+/// <para>
+/// A credential's secret is empty until <see cref="StartAsync"/> populates it. Hosted services complete
+/// before the server (itself a hosted service) begins accepting requests, so this is normally invisible;
+/// should a module call somehow race host startup, the empty secret fails authentication CLOSED (a
+/// spurious 403, never a bypass) — the safe default.
+/// </para>
 /// </summary>
 public sealed class ModuleSecretResolver(
     IEnumerable<ModuleRegistration> registrations,
