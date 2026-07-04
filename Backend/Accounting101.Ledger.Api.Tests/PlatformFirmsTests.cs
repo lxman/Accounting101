@@ -83,4 +83,32 @@ public sealed class PlatformFirmsTests(ApiFixture fixture) : IClassFixture<ApiFi
             $"/platform/firms/{Guid.NewGuid()}/status", new SetFirmStatusRequest("Suspended"));
         Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
     }
+
+    [Fact]
+    public async Task Provisioning_registers_installed_modules_into_the_new_firms_control_db()
+    {
+        // Mint the operator HttpClient FIRST: WebApplicationFactory boots the host lazily, on first
+        // client creation, and host boot is what runs ModuleRegistrar to seed the default firm's
+        // control DB with every installed module. Reading modules before that point would see none.
+        HttpClient op = Operator();
+
+        // The default firm's control DB was seeded at startup by ModuleRegistrar; use it as the source of truth
+        // for the installed module set (keys + process-global secrets).
+        ControlStore defaultControl = fixture.Control();
+        IReadOnlyList<ModuleRegistration> expected = await defaultControl.ListModulesAsync();
+        Assert.NotEmpty(expected); // the host installs modules; sanity guard
+
+        HttpResponseMessage provisioned = await op.PostAsJsonAsync(
+            "/platform/firms", new ProvisionFirmRequest { Name = "Modules Firm" });
+        Assert.Equal(HttpStatusCode.Created, provisioned.StatusCode);
+        FirmResponse firm = (await provisioned.Content.ReadFromJsonAsync<FirmResponse>())!;
+
+        ControlStore newControl = new(fixture.Mongo.GetDatabase(firm.ControlDatabase));
+        IReadOnlyList<ModuleRegistration> actual = await newControl.ListModulesAsync();
+
+        // Same modules, same secrets, all enabled — the new firm is immediately module-usable.
+        Assert.Equal(
+            expected.OrderBy(m => m.Key).Select(m => (m.Key, m.Secret, m.Enabled)),
+            actual.OrderBy(m => m.Key).Select(m => (m.Key, m.Secret, m.Enabled)));
+    }
 }

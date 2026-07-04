@@ -33,7 +33,8 @@ public static class PlatformEndpoints
     }
 
     private static async Task<IResult> ProvisionFirm(
-        ProvisionFirmRequest request, PlatformStore platform, IMongoClientFactory factory, CancellationToken cancellationToken)
+        ProvisionFirmRequest request, PlatformStore platform, IMongoClientFactory factory,
+        IEnumerable<ModuleRegistration> modules, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
             return Results.Problem("Firm name is required.", statusCode: StatusCodes.Status400BadRequest);
@@ -66,6 +67,7 @@ public static class PlatformEndpoints
         // membership is created here (memberships are per-client).
         ControlStore control = new(client.GetDatabase(controlDatabase));
         await control.SeedBuiltinCapabilitySetsAsync(cancellationToken);
+        await control.SeedModulesAsync(modules, cancellationToken);
 
         await platform.RegisterFirmAsync(firm, cancellationToken);
 

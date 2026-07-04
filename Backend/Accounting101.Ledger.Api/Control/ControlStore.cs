@@ -249,6 +249,16 @@ public sealed class ControlStore
     public async Task<IReadOnlyList<ModuleRegistration>> ListModulesAsync(CancellationToken cancellationToken = default) =>
         await _modules.Find(FilterDefinition<ModuleRegistration>.Empty).ToListAsync(cancellationToken);
 
+    /// <summary>Idempotently upsert each installed module's registration into this control DB. Used both by
+    /// the startup registrar (default firm) and by firm provisioning (a newly created firm's control DB), so
+    /// a provisioned firm holds the same module set + process-global secrets as the default firm.</summary>
+    public async Task SeedModulesAsync(IEnumerable<ModuleRegistration> modules, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(modules);
+        foreach (ModuleRegistration module in modules)
+            await RegisterModuleAsync(module, cancellationToken);
+    }
+
     /// <summary>All capability sets in this deployment (built-in + custom).</summary>
     public async Task<IReadOnlyList<CapabilitySet>> ListCapabilitySetsAsync(CancellationToken cancellationToken = default) =>
         await _capabilitySets.Find(FilterDefinition<CapabilitySet>.Empty).ToListAsync(cancellationToken);
