@@ -20,6 +20,7 @@ public static class PlatformEndpoints
         RouteGroupBuilder platform = app.MapGroup("/platform").RequireAuthorization(Policy);
         platform.MapGet("/firms", ListFirms);
         platform.MapPost("/firms", ProvisionFirm);
+        platform.MapPatch("/firms/{firmId:guid}/status", SetFirmStatus);
     }
 
     private static async Task<IResult> ListFirms(PlatformStore platform, CancellationToken cancellationToken)
@@ -65,6 +66,20 @@ public static class PlatformEndpoints
         await control.SeedBuiltinCapabilitySetsAsync(cancellationToken);
 
         return Results.Created($"/platform/firms/{firmId}", ToResponse(firm));
+    }
+
+    private static async Task<IResult> SetFirmStatus(
+        Guid firmId, SetFirmStatusRequest request, PlatformStore platform, CancellationToken cancellationToken)
+    {
+        if (!Enum.TryParse(request.Status, ignoreCase: true, out FirmStatus status))
+            return Results.Problem($"Unknown status '{request.Status}'.", statusCode: StatusCodes.Status422UnprocessableEntity);
+
+        if (await platform.GetFirmAsync(firmId, cancellationToken) is null)
+            return Results.NotFound();
+
+        await platform.SetFirmStatusAsync(firmId, status, cancellationToken);
+        FirmRegistration updated = (await platform.GetFirmAsync(firmId, cancellationToken))!;
+        return Results.Ok(ToResponse(updated));
     }
 
     private static FirmResponse ToResponse(FirmRegistration f) =>

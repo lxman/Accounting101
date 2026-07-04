@@ -57,4 +57,30 @@ public sealed class PlatformFirmsTests(ApiFixture fixture) : IClassFixture<ApiFi
             "/platform/firms", new ProvisionFirmRequest { Name = "X", ClusterKey = "no-such-cluster" });
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
     }
+
+    [Fact]
+    public async Task Suspending_a_firm_blocks_its_requests_at_the_middleware()
+    {
+        FirmResponse firm = (await (await Operator().PostAsJsonAsync(
+            "/platform/firms", new ProvisionFirmRequest { Name = "Doomed" }))
+            .Content.ReadFromJsonAsync<FirmResponse>())!;
+
+        HttpResponseMessage patch = await Operator().PatchAsJsonAsync(
+            $"/platform/firms/{firm.Id}/status", new SetFirmStatusRequest("Suspended"));
+        Assert.Equal(HttpStatusCode.OK, patch.StatusCode);
+        Assert.Equal("Suspended", (await patch.Content.ReadFromJsonAsync<FirmResponse>())!.Status);
+
+        // A request carrying the suspended firm's claim is refused at firm resolution, before any endpoint.
+        HttpClient suspended = fixture.ClientFor(Guid.NewGuid(), "Member", (FirmClaims.FirmId, firm.Id.ToString()));
+        HttpResponseMessage blocked = await suspended.GetAsync($"/clients/{Guid.NewGuid()}/accounts");
+        Assert.Equal(HttpStatusCode.Forbidden, blocked.StatusCode);
+    }
+
+    [Fact]
+    public async Task Set_status_on_an_unknown_firm_is_404()
+    {
+        HttpResponseMessage resp = await Operator().PatchAsJsonAsync(
+            $"/platform/firms/{Guid.NewGuid()}/status", new SetFirmStatusRequest("Suspended"));
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
 }
