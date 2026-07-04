@@ -44,12 +44,15 @@ app.Use(async (ctx, next) =>
     try { await next(); }
     catch (Accounting101.Ledger.Api.Documents.ModuleAccessDeniedException ex)
     {
+        // Log the precise reason (module key + collection + ModuleAccessDecision) for operators, but keep
+        // the response body generic — the internal decision name is diagnostic, not for the caller to see.
+        app.Logger.LogInformation("Module access denied: {Reason}", ex.Message);
         ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
         await ctx.Response.WriteAsJsonAsync(new Microsoft.AspNetCore.Mvc.ProblemDetails
         {
             Status = StatusCodes.Status403Forbidden,
             Title  = "Forbidden",
-            Detail = ex.Message,
+            Detail = "You are not authorized to access this module resource.",
         }, options: null, contentType: "application/problem+json", cancellationToken: ctx.RequestAborted);
     }
     catch (BadHttpRequestException ex) when (ex.InnerException is System.Text.Json.JsonException je)
