@@ -20,6 +20,7 @@ export class StubCapabilityService {
     for (const c of this._caps()) if (c.startsWith(prefix)) return true;
     return false;
   }
+  reload(): void { /* no-op stub; spied on in interceptor/poll tests */ }
 }
 
 /** Provider granting the given capabilities to components under test (no HttpClient needed). */
