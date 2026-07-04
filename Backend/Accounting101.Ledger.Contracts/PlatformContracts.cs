@@ -19,3 +19,10 @@ public sealed record RegisterClusterRequest(string Key, string ConnectionString)
 
 /// <summary>A registered cluster. The connection string is never returned — only whether one is set.</summary>
 public sealed record ClusterResponse(string Key, bool HasConnectionString);
+
+/// <summary>Per-firm usage snapshot the future billing subsystem consumes. No pricing logic here.</summary>
+public sealed record UsageResponse(IReadOnlyList<FirmUsageResponse> Firms);
+
+/// <summary>One firm's meter: active-client count and, per module key, how many active clients have it enabled.</summary>
+public sealed record FirmUsageResponse(
+    Guid FirmId, string Name, int ActiveClients, IReadOnlyDictionary<string, int> ModuleClientCounts);
