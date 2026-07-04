@@ -1,6 +1,7 @@
 using Accounting101.Ledger.Api.Platform;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using MongoDB.Driver;
 
 namespace Accounting101.Ledger.Api.Hosting;
@@ -19,7 +20,7 @@ public static class PlatformRegistryExtensions
 
         // PlatformClusterSeeder resolves IConfiguration from DI; ensure it is registered even when the
         // caller's container (e.g. a bare ServiceCollection in tests) has not already added it.
-        services.AddSingleton(configuration);
+        services.TryAddSingleton(configuration);
 
         services.AddSingleton(sp =>
             new PlatformStore(sp.GetRequiredService<IMongoClient>().GetDatabase(platformDatabase)));
