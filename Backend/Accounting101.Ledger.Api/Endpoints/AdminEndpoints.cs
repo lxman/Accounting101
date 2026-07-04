@@ -96,6 +96,9 @@ public static class AdminEndpoints
         if (!Enum.TryParse(request.Role, ignoreCase: true, out LedgerRole role))
             return Results.Problem($"Unknown role '{request.Role}'.", statusCode: StatusCodes.Status422UnprocessableEntity);
 
+        if (await GrantScope.FirstNotHeldByCallerAsync(user, clientId, RolePresets.For(role), actorFactory, control, cancellationToken) is { } badRole)
+            return Results.Problem($"Cannot grant '{badRole}' — you do not hold it.", statusCode: StatusCodes.Status422UnprocessableEntity);
+
         if (await control.GetClientAsync(clientId, cancellationToken) is null)
             return Results.NotFound();
 

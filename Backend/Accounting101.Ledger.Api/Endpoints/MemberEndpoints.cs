@@ -76,6 +76,8 @@ public static class MemberEndpoints
     {
         if (!await CallerMayManage(user, clientId, actorFactory, control, ct)) return Results.Forbid();
         if (!TryParse(request.Roles, request.Capabilities, out List<LedgerRole> roles, out IResult? error)) return error!;
+        if (await GrantScope.FirstNotHeldByCallerAsync(user, clientId, request.Capabilities, actorFactory, control, ct) is { } badAdd)
+            return Results.Problem($"Cannot grant '{badAdd}' — you do not hold it.", statusCode: StatusCodes.Status422UnprocessableEntity);
         if (await control.IsMemberAsync(request.UserId, clientId, ct))
             return Results.Problem("Already a member.", statusCode: StatusCodes.Status409Conflict);
         await control.SetMembershipAsync(request.UserId, clientId, roles, request.Capabilities, ct);
@@ -87,6 +89,8 @@ public static class MemberEndpoints
     {
         if (!await CallerMayManage(user, clientId, actorFactory, control, ct)) return Results.Forbid();
         if (!TryParse(request.Roles, request.Capabilities, out List<LedgerRole> roles, out IResult? error)) return error!;
+        if (await GrantScope.FirstNotHeldByCallerAsync(user, clientId, request.Capabilities, actorFactory, control, ct) is { } badSet)
+            return Results.Problem($"Cannot grant '{badSet}' — you do not hold it.", statusCode: StatusCodes.Status422UnprocessableEntity);
         if (!await control.IsMemberAsync(userId, clientId, ct)) return Results.NotFound();
         bool keepsAdmin = request.Capabilities.Contains(Capabilities.AdminUsers);
         if (await WouldLeaveNoAdmin(control, clientId, userId, keepsAdmin, ct))
@@ -116,6 +120,9 @@ public static class MemberEndpoints
 
         HashSet<string> resolved = [];
         foreach (CapabilitySet set in sets) resolved.UnionWith(set.Capabilities);
+
+        if (await GrantScope.FirstNotHeldByCallerAsync(user, clientId, resolved, actorFactory, control, ct) is { } badAssign)
+            return Results.Problem($"Cannot grant '{badAssign}' — you do not hold it.", statusCode: StatusCodes.Status422UnprocessableEntity);
 
         bool keepsAdmin = resolved.Contains(Capabilities.AdminUsers);
         if (await WouldLeaveNoAdmin(control, clientId, userId, keepsAdmin, ct))
