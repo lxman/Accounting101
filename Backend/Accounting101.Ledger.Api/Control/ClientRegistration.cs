@@ -28,4 +28,20 @@ public sealed class ClientRegistration
     /// that month. December (12) by default — a per-client policy, like SoD. Legacy registrations stored
     /// before this field existed deserialize to 0; readers normalize via <see cref="FiscalYear.MonthOf"/>.</summary>
     public int FiscalYearEndMonth { get; set; } = 12;
+
+    /// <summary>Lifecycle state. Defaults to <see cref="ClientStatus.Active"/>; a missing field on a legacy
+    /// document also deserializes to Active. Archiving stops the meter but keeps the ledger DB.</summary>
+    public ClientStatus Status { get; set; } = ClientStatus.Active;
+
+    /// <summary>The module keys this client is entitled to (e.g. "receivables", "payables", "payroll").
+    /// Doubles as the billing meter (per-module fee) and the access gate (Phase 3 checks it at the module
+    /// authorization chokepoint). Empty by default; a missing field on a legacy document deserializes to
+    /// empty.</summary>
+    public IReadOnlyList<string> EnabledModules { get; set; } = [];
+
+    /// <summary>When the client was provisioned (UTC). Legacy documents deserialize to default(DateTime).</summary>
+    public DateTime CreatedUtc { get; set; }
+
+    /// <summary>When the client was archived (UTC), or null while active.</summary>
+    public DateTime? ArchivedUtc { get; set; }
 }
