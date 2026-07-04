@@ -1,9 +1,14 @@
 namespace Accounting101.Ledger.Api.Auth;
 
 /// <summary>
-/// The in-process copy of a module's credential: the same key and secret that the module sends as
-/// <c>X-Module-Key</c> / <c>X-Module-Secret</c> headers when posting to the engine over HTTP.
-/// Registered in the module's DI scope by <see cref="Hosting.ModuleHostingExtensions.AddModule"/>
-/// so the module's <c>HttpLedgerClient</c> (Task 4) can inject it and attach the headers.
+/// The in-process copy of a module's credential: the same key and secret the module sends as
+/// <c>X-Module-Key</c> / <c>X-Module-Secret</c> when posting to the engine over HTTP. The
+/// <see cref="Secret"/> is populated at startup by <see cref="Hosting.ModuleSecretResolver"/> from the
+/// persisted <c>platform_control</c> value — so it is stable across restarts and identical across
+/// instances. The module's <c>HttpLedgerClient</c> reads it per request (after startup completes).
 /// </summary>
-public sealed record ModuleCredential(string Key, string Secret);
+public sealed class ModuleCredential(string key, string secret = "")
+{
+    public string Key { get; } = key;
+    public string Secret { get; set; } = secret;
+}
