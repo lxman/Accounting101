@@ -88,7 +88,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> AddMember(
         Guid clientId, AddMemberRequest request, ClaimsPrincipal user,
-        IActorFactory actorFactory, ControlStore control, CancellationToken cancellationToken)
+        IActorFactory actorFactory, ControlStore control, AdminAuditStore audit, CancellationToken cancellationToken)
     {
         if (!await AdminAuthorization.MayAsync(user, clientId, Capabilities.AdminUsers, actorFactory, control, cancellationToken))
             return Results.Forbid();
@@ -103,6 +103,14 @@ public static class AdminEndpoints
             return Results.NotFound();
 
         await control.AddMembershipAsync(request.UserId, clientId, role, cancellationToken);
+        await audit.AppendAsync(new AdminAuditEntry
+        {
+            Id = Guid.NewGuid(), Timestamp = DateTime.UtcNow,
+            ActorUserId = actorFactory.Create(user).UserId,
+            ActorIsDeploymentAdmin = user.HasClaim("admin", "true"),
+            Action = "MemberAdded", ClientId = clientId, TargetUserId = request.UserId,
+            After = new AuditState { Capabilities = [.. RolePresets.For(role)] },
+        }, cancellationToken);
         return Results.Ok(new MembershipResponse(
             request.UserId, clientId, [role.ToString()], [.. RolePresets.CapabilitiesFor([role])]));
     }

@@ -23,6 +23,10 @@ public static class CapabilitySetEndpoints
     private static CapabilitySetResponse ToResponse(CapabilitySet s) =>
         new(s.Id, s.Name, s.Description, s.Capabilities, s.Builtin, Restricted: s.Restricted);
 
+    /// <summary>Snapshot of a capability set's definition, for before/after audit entries.</summary>
+    private static AuditState SetState(CapabilitySet s) =>
+        new() { Name = s.Name, Restricted = s.Restricted, Capabilities = s.Capabilities.ToList() };
+
     // Every capability must be in the known vocabulary; returns a 422 problem for the first offender.
     private static IResult? ValidateCapabilities(IReadOnlyList<string> capabilities)
     {
@@ -44,7 +48,7 @@ public static class CapabilitySetEndpoints
         return Results.Ok(responses);
     }
 
-    private static async Task<IResult> Create(CreateCapabilitySetRequest request, ControlStore control, CancellationToken ct)
+    private static async Task<IResult> Create(CreateCapabilitySetRequest request, ControlStore control, AdminAuditStore audit, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(request.Name))
             return Results.Problem("Name is required.", statusCode: StatusCodes.Status422UnprocessableEntity);
@@ -63,13 +67,19 @@ public static class CapabilitySetEndpoints
             Restricted = request.Restricted,
         };
         await control.CreateCapabilitySetAsync(set, ct);
+        await audit.AppendAsync(new AdminAuditEntry
+        {
+            Id = Guid.NewGuid(), Timestamp = DateTime.UtcNow, ActorIsDeploymentAdmin = true,
+            Action = "SetCreated", TargetSetId = set.Id, After = SetState(set),
+        }, ct);
         return Results.Created($"/capability-sets/{set.Id}", ToResponse(set));
     }
 
-    private static async Task<IResult> Update(Guid id, UpdateCapabilitySetRequest request, ControlStore control, CancellationToken ct)
+    private static async Task<IResult> Update(Guid id, UpdateCapabilitySetRequest request, ControlStore control, AdminAuditStore audit, CancellationToken ct)
     {
         CapabilitySet? existing = await control.GetCapabilitySetAsync(id, ct);
         if (existing is null) return Results.NotFound();
+        AuditState beforeState = SetState(existing);
         if (string.IsNullOrWhiteSpace(request.Name))
             return Results.Problem("Name is required.", statusCode: StatusCodes.Status422UnprocessableEntity);
         IReadOnlyList<string> capabilities = request.Capabilities ?? [];
@@ -84,11 +94,16 @@ public static class CapabilitySetEndpoints
         existing.Capabilities = capabilities;
         existing.Restricted = request.Restricted;
         await control.UpdateCapabilitySetAsync(existing, ct);
+        await audit.AppendAsync(new AdminAuditEntry
+        {
+            Id = Guid.NewGuid(), Timestamp = DateTime.UtcNow, ActorIsDeploymentAdmin = true,
+            Action = "SetUpdated", TargetSetId = id, Before = beforeState, After = SetState(existing),
+        }, ct);
         long affected = await control.CountMembersReferencingSetAsync(id, ct);
         return Results.Ok(ToResponse(existing) with { AffectedMemberCount = (int)affected });
     }
 
-    private static async Task<IResult> Delete(Guid id, ControlStore control, CancellationToken ct)
+    private static async Task<IResult> Delete(Guid id, ControlStore control, AdminAuditStore audit, CancellationToken ct)
     {
         CapabilitySet? existing = await control.GetCapabilitySetAsync(id, ct);
         if (existing is null) return Results.NotFound();
@@ -99,6 +114,11 @@ public static class CapabilitySetEndpoints
             return Results.Problem($"{referencing} member(s) reference this set; reassign them before deleting.",
                 statusCode: StatusCodes.Status409Conflict);
         await control.DeleteCapabilitySetAsync(id, ct);
+        await audit.AppendAsync(new AdminAuditEntry
+        {
+            Id = Guid.NewGuid(), Timestamp = DateTime.UtcNow, ActorIsDeploymentAdmin = true,
+            Action = "SetDeleted", TargetSetId = id, Before = SetState(existing),
+        }, ct);
         return Results.NoContent();
     }
 }

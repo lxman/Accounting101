@@ -62,6 +62,23 @@ public static class MemberEndpoints
         return !anotherAdminRemains && !changedUserKeepsAdmin;
     }
 
+    /// <summary>Builds a control-plane audit entry for a per-client member mutation.</summary>
+    private static AdminAuditEntry AuditEntry(
+        ClaimsPrincipal user, IActorFactory actorFactory, string action, Guid clientId,
+        Guid? targetUserId = null, AuditState? before = null, AuditState? after = null) =>
+        new()
+        {
+            Id = Guid.NewGuid(),
+            Timestamp = DateTime.UtcNow,
+            ActorUserId = actorFactory.Create(user).UserId,
+            ActorIsDeploymentAdmin = user.HasClaim("admin", "true"),
+            Action = action,
+            ClientId = clientId,
+            TargetUserId = targetUserId,
+            Before = before,
+            After = after,
+        };
+
     private static async Task<IResult> ListMembers(
         Guid clientId, ClaimsPrincipal user, IActorFactory actorFactory, ControlStore control, CancellationToken ct)
     {
@@ -72,7 +89,7 @@ public static class MemberEndpoints
     }
 
     private static async Task<IResult> AddMember(
-        Guid clientId, AddClientMemberRequest request, ClaimsPrincipal user, IActorFactory actorFactory, ControlStore control, CancellationToken ct)
+        Guid clientId, AddClientMemberRequest request, ClaimsPrincipal user, IActorFactory actorFactory, ControlStore control, AdminAuditStore audit, CancellationToken ct)
     {
         if (!await CallerMayManage(user, clientId, actorFactory, control, ct)) return Results.Forbid();
         if (!TryParse(request.Roles, request.Capabilities, out List<LedgerRole> roles, out IResult? error)) return error!;
@@ -81,11 +98,13 @@ public static class MemberEndpoints
         if (await control.IsMemberAsync(request.UserId, clientId, ct))
             return Results.Problem("Already a member.", statusCode: StatusCodes.Status409Conflict);
         await control.SetMembershipAsync(request.UserId, clientId, roles, request.Capabilities, ct);
+        await audit.AppendAsync(AuditEntry(user, actorFactory, "MemberAdded", clientId, request.UserId,
+            after: new AuditState { Capabilities = request.Capabilities }), ct);
         return Results.Ok(new MembershipResponse(request.UserId, clientId, request.Roles, request.Capabilities));
     }
 
     private static async Task<IResult> SetMember(
-        Guid clientId, Guid userId, SetMemberRequest request, ClaimsPrincipal user, IActorFactory actorFactory, ControlStore control, CancellationToken ct)
+        Guid clientId, Guid userId, SetMemberRequest request, ClaimsPrincipal user, IActorFactory actorFactory, ControlStore control, AdminAuditStore audit, CancellationToken ct)
     {
         if (!await CallerMayManage(user, clientId, actorFactory, control, ct)) return Results.Forbid();
         if (!TryParse(request.Roles, request.Capabilities, out List<LedgerRole> roles, out IResult? error)) return error!;
@@ -95,7 +114,11 @@ public static class MemberEndpoints
         bool keepsAdmin = request.Capabilities.Contains(Capabilities.AdminUsers);
         if (await WouldLeaveNoAdmin(control, clientId, userId, keepsAdmin, ct))
             return Results.Problem("Cannot remove the last administrator.", statusCode: StatusCodes.Status409Conflict);
+        Membership? beforeSet = await control.GetMembershipAsync(userId, clientId, ct);
         await control.SetMembershipAsync(userId, clientId, roles, request.Capabilities, ct);
+        await audit.AppendAsync(AuditEntry(user, actorFactory, "MemberCapabilitiesSet", clientId, userId,
+            before: new AuditState { Capabilities = beforeSet?.Capabilities.ToList() },
+            after: new AuditState { Capabilities = request.Capabilities }), ct);
         return Results.Ok(new MembershipResponse(userId, clientId, request.Roles, request.Capabilities));
     }
 
@@ -103,10 +126,11 @@ public static class MemberEndpoints
     // the union of the referenced sets' current capabilities (never client-supplied). Last-admin guarded.
     private static async Task<IResult> AssignSets(
         Guid clientId, Guid userId, AssignSetsRequest request, ClaimsPrincipal user,
-        IActorFactory actorFactory, ControlStore control, CancellationToken ct)
+        IActorFactory actorFactory, ControlStore control, AdminAuditStore audit, CancellationToken ct)
     {
         if (!await CallerMayManage(user, clientId, actorFactory, control, ct)) return Results.Forbid();
         if (!await control.IsMemberAsync(userId, clientId, ct)) return Results.NotFound();
+        Membership? beforeAssign = await control.GetMembershipAsync(userId, clientId, ct);
 
         // Validate every set exists and gather the sets we resolve from.
         List<CapabilitySet> sets = [];
@@ -133,18 +157,24 @@ public static class MemberEndpoints
             return Results.Problem("Cannot remove the last administrator.", statusCode: StatusCodes.Status409Conflict);
 
         await control.SetMembershipSetsAsync(userId, clientId, request.SetIds, ct);
+        await audit.AppendAsync(AuditEntry(user, actorFactory, "MemberSetsAssigned", clientId, userId,
+            before: new AuditState { SetIds = beforeAssign?.GrantedSetIds.ToList(), Capabilities = beforeAssign?.Capabilities.ToList() },
+            after: new AuditState { SetIds = request.SetIds, Capabilities = resolved.ToList() }), ct);
         return Results.Ok(new MembershipResponse(
             userId, clientId, sets.Select(s => s.Name).ToList(), resolved.ToList()));
     }
 
     private static async Task<IResult> RemoveMember(
-        Guid clientId, Guid userId, ClaimsPrincipal user, IActorFactory actorFactory, ControlStore control, CancellationToken ct)
+        Guid clientId, Guid userId, ClaimsPrincipal user, IActorFactory actorFactory, ControlStore control, AdminAuditStore audit, CancellationToken ct)
     {
         if (!await CallerMayManage(user, clientId, actorFactory, control, ct)) return Results.Forbid();
         if (!await control.IsMemberAsync(userId, clientId, ct)) return Results.NotFound();
         if (await WouldLeaveNoAdmin(control, clientId, userId, changedUserKeepsAdmin: false, ct))
             return Results.Problem("Cannot remove the last administrator.", statusCode: StatusCodes.Status409Conflict);
+        Membership? beforeRemove = await control.GetMembershipAsync(userId, clientId, ct);
         await control.RemoveMembershipAsync(userId, clientId, ct);
+        await audit.AppendAsync(AuditEntry(user, actorFactory, "MemberRemoved", clientId, userId,
+            before: new AuditState { SetIds = beforeRemove?.GrantedSetIds.ToList(), Capabilities = beforeRemove?.Capabilities.ToList() }), ct);
         return Results.NoContent();
     }
 }
