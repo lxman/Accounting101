@@ -73,6 +73,12 @@ public sealed class ApiFixture : IAsyncLifetime
         string database = "client_" + clientId.ToString("N");
         Guid userId = Guid.NewGuid();
 
+        // Mint the HttpClient FIRST: WebApplicationFactory boots the host lazily, on first client
+        // creation, and host boot is what runs ModuleRegistrar (an IHostedService) to auto-register
+        // every installed module. Querying ListModulesAsync for the default entitlement snapshot
+        // before that point would see none of them — the client would be seeded entitled to nothing.
+        HttpClient http = ClientFor(userId, $"{name} {role}", ("role", role.ToString()));
+
         ControlStore control = Control();
         IReadOnlyList<string> modules = enabledModules ?? (await control.ListModulesAsync()).Select(m => m.Key).ToList();
         await control.RegisterClientAsync(new ClientRegistration
@@ -85,7 +91,6 @@ public sealed class ApiFixture : IAsyncLifetime
         });
         await control.AddMembershipAsync(userId, clientId, role);
 
-        HttpClient http = ClientFor(userId, $"{name} {role}", ("role", role.ToString()));
         return new SeededClient(clientId, database, userId, http);
     }
 

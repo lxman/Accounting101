@@ -23,6 +23,8 @@ namespace Accounting101.Payroll.Tests;
 /// </summary>
 public sealed class PayrollHostFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    private static readonly IReadOnlyList<string> DefaultModules = ["receivables", "payables", "payroll"];
+
     private string _connectionString = "";
 
     public IMongoClient Mongo { get; private set; } = null!;
@@ -100,6 +102,7 @@ public sealed class PayrollHostFixture : WebApplicationFactory<Program>, IAsyncL
         await control.RegisterClientAsync(new ClientRegistration
         {
             Id = clientId, Name = "Acme", DatabaseName = "client_" + clientId.ToString("N"),
+            EnabledModules = DefaultModules,
         });
         await control.AddMembershipAsync(userId, clientId, role);
         return (clientId, ClientFor(userId, $"Acme {role}"));
@@ -122,6 +125,7 @@ public sealed class PayrollHostFixture : WebApplicationFactory<Program>, IAsyncL
         {
             Id = clientId, Name = "Acme SoD", DatabaseName = "client_" + clientId.ToString("N"),
             RequireSegregationOfDuties = true,
+            EnabledModules = DefaultModules,
         });
         await control.AddMembershipAsync(controllerUserId, clientId, LedgerRole.Controller);
         await control.AddMembershipAsync(clerkUserId, clientId, LedgerRole.Clerk);

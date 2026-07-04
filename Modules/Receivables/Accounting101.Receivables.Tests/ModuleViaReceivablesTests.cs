@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using Accounting101.Ledger.Contracts;
 using Accounting101.Receivables.Api;
@@ -116,5 +117,30 @@ public sealed class ModuleViaReceivablesTests(ReceivablesHostFixture fixture) : 
 
         // KEY ASSERTION: payment entries must also carry ViaModule = "receivables".
         Assert.Equal("receivables", entries[0].ViaModule);
+    }
+
+    /// <summary>
+    /// Default-closed module entitlement (Phase 3b): a client with no EnabledModules is refused every
+    /// receivables call with 403, even though it is a real, registered member. Enabling "receivables"
+    /// through the admin entitlement setter (PUT /admin/clients/{id}/modules) flips the same call to
+    /// success, proving the ModuleAccess entitlement gate is live end-to-end.
+    /// </summary>
+    [Fact]
+    public async Task An_unentitled_client_is_403_until_receivables_is_enabled()
+    {
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync(enabledModules: []);
+
+        HttpResponseMessage before = await http.PostAsJsonAsync(
+            $"/clients/{clientId}/customers", new CreateCustomerRequest("ViaModuleCo", null));
+        Assert.Equal(HttpStatusCode.Forbidden, before.StatusCode);
+
+        HttpClient admin = fixture.AdminClient();
+        HttpResponseMessage set = await admin.PutAsJsonAsync(
+            $"/admin/clients/{clientId}/modules", new SetClientModulesRequest(["receivables"]));
+        Assert.Equal(HttpStatusCode.OK, set.StatusCode);
+
+        HttpResponseMessage after = await http.PostAsJsonAsync(
+            $"/clients/{clientId}/customers", new CreateCustomerRequest("ViaModuleCo", null));
+        Assert.True(after.IsSuccessStatusCode, $"expected success, got {(int)after.StatusCode}");
     }
 }

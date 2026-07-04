@@ -33,6 +33,7 @@ public sealed class PayablesDocumentStoreFixture : IAsyncLifetime
         await control.RegisterClientAsync(new ClientRegistration
         {
             Id = ClientId, Name = "Acme", DatabaseName = "client_" + ClientId.ToString("N"),
+            EnabledModules = ["payables"],
         });
         await control.AddMembershipAsync(UserId, ClientId, LedgerRole.Controller);
         await control.RegisterModuleAsync(new ModuleRegistration { Key = "payables", Name = "Payables", Enabled = true });

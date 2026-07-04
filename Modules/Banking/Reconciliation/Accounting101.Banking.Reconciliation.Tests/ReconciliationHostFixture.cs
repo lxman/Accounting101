@@ -23,6 +23,9 @@ namespace Accounting101.Banking.Reconciliation.Tests;
 /// </summary>
 public sealed class ReconciliationHostFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    private static readonly IReadOnlyList<string> DefaultModules =
+        ["receivables", "payables", "payroll", "cash", "reconciliation"];
+
     private string _connectionString = "";
 
     public IMongoClient Mongo { get; private set; } = null!;
@@ -118,6 +121,7 @@ public sealed class ReconciliationHostFixture : WebApplicationFactory<Program>, 
         await control.RegisterClientAsync(new ClientRegistration
         {
             Id = clientId, Name = "Acme", DatabaseName = "client_" + clientId.ToString("N"),
+            EnabledModules = DefaultModules,
         });
         await control.AddMembershipAsync(userId, clientId, role);
         return (clientId, ClientFor(userId, $"Acme {role}"));
@@ -140,6 +144,7 @@ public sealed class ReconciliationHostFixture : WebApplicationFactory<Program>, 
         {
             Id = clientId, Name = "Acme SoD", DatabaseName = "client_" + clientId.ToString("N"),
             RequireSegregationOfDuties = true,
+            EnabledModules = DefaultModules,
         });
         await control.AddMembershipAsync(controllerUserId, clientId, LedgerRole.Controller);
         await control.AddMembershipAsync(clerkUserId, clientId, LedgerRole.Clerk);
