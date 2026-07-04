@@ -53,7 +53,8 @@ public sealed class ModuleSecretPersistenceTests
             new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
                 b.UseSetting("Mongo:ConnectionString", conn)
                  .UseSetting("Mongo:ControlDatabase", controlDb)
-                 .UseSetting("Mongo:PlatformDatabase", platformDb));
+                 .UseSetting("Mongo:PlatformDatabase", platformDb)
+                 .UseSetting("Tenancy:Platform:Enabled", "true"));
 
         // Host 1: boot (resolver persists secrets, ModuleRegistrar seeds the default firm), then provision Firm B.
         string firmBControlDb;

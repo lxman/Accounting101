@@ -1,6 +1,8 @@
 using Accounting101.Ledger.Api.Control;
 using Accounting101.Ledger.Api.Platform;
 using Accounting101.Ledger.Contracts;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
 
 namespace Accounting101.Ledger.Api.Endpoints;
@@ -17,6 +19,9 @@ public static class PlatformEndpoints
 
     public static void MapPlatformEndpoints(this IEndpointRouteBuilder app)
     {
+        if (!TenancyDefaults.PlatformEnabled(app.ServiceProvider.GetRequiredService<IConfiguration>()))
+            return; // on-site: no operator control plane
+
         RouteGroupBuilder platform = app.MapGroup("/platform").RequireAuthorization(Policy);
         platform.MapGet("/firms", ListFirms);
         platform.MapPost("/firms", ProvisionFirm);

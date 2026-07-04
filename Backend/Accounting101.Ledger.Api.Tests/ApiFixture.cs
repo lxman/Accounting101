@@ -32,7 +32,8 @@ public sealed class ApiFixture : IAsyncLifetime
         _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
             b.UseSetting("Mongo:ConnectionString", connectionString)
              .UseSetting("Mongo:ControlDatabase", ControlDatabase)
-             .UseSetting("Mongo:PlatformDatabase", PlatformDatabase));
+             .UseSetting("Mongo:PlatformDatabase", PlatformDatabase)
+             .UseSetting("Tenancy:Platform:Enabled", "true"));
     }
 
     public Task DisposeAsync()
