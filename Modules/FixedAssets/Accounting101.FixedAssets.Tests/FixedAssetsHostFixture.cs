@@ -5,12 +5,15 @@ using Accounting101.TestSupport;
 using EphemeralMongo;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using MongoDB.Driver;
 
 namespace Accounting101.FixedAssets.Tests;
 
 /// <summary>Boots the real composition-root host (engine + all modules incl. fixed assets) against a
-/// disposable EphemeralMongo. FA-1 does not post, so no loopback ledger client is repointed.</summary>
+/// disposable EphemeralMongo. FA-2 posts, so the module's named loopback ledger client is repointed at
+/// the in-memory test server (no real socket).</summary>
 public sealed class FixedAssetsHostFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
     private string _connectionString = "";
@@ -18,6 +21,10 @@ public sealed class FixedAssetsHostFixture : WebApplicationFactory<Program>, IAs
     public IMongoClient Mongo { get; private set; } = null!;
     public string ControlDatabase { get; } = "control_" + Guid.NewGuid().ToString("N");
     public string PlatformDatabase { get; } = "platform_" + Guid.NewGuid().ToString("N");
+
+    // The two depreciation posting accounts.
+    public Guid DepreciationExpenseAccountId { get; } = Guid.NewGuid();
+    public Guid AccumulatedDepreciationAccountId { get; } = Guid.NewGuid();
 
     public async Task InitializeAsync()
     {
@@ -33,6 +40,15 @@ public sealed class FixedAssetsHostFixture : WebApplicationFactory<Program>, IAs
         builder.UseSetting("Mongo:ConnectionString", _connectionString);
         builder.UseSetting("Mongo:ControlDatabase", ControlDatabase);
         builder.UseSetting("Mongo:PlatformDatabase", PlatformDatabase);
+
+        builder.UseSetting("FixedAssets:Accounts:DepreciationExpense", DepreciationExpenseAccountId.ToString());
+        builder.UseSetting("FixedAssets:Accounts:AccumulatedDepreciation", AccumulatedDepreciationAccountId.ToString());
+
+        builder.ConfigureTestServices(services =>
+        {
+            services.AddHttpClient("FixedAssetsLedgerClient", c => c.BaseAddress = new Uri("http://localhost"))
+                    .ConfigurePrimaryHttpMessageHandler(() => Server.CreateHandler());
+        });
     }
 
     public ControlStore Control() => new(Mongo.GetDatabase(ControlDatabase));

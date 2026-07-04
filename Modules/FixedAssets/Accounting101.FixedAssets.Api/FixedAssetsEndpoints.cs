@@ -17,6 +17,11 @@ public static class FixedAssetsEndpoints
         clients.MapPost("/assets/{assetId:guid}/reactivate", ReactivateAsset);
         clients.MapGet("/assets/{assetId:guid}", GetAsset);
         clients.MapGet("/assets", ListAssets);
+
+        clients.MapPost("/depreciation-runs", RunDepreciation);
+        clients.MapPost("/depreciation-runs/{runId:guid}/void", VoidRun);
+        clients.MapGet("/depreciation-runs/{runId:guid}", GetRun);
+        clients.MapGet("/depreciation-runs", ListRuns);
     }
 
     private static async Task<IResult> CreateAsset(
@@ -98,6 +103,59 @@ public static class FixedAssetsEndpoints
 
         return Results.Ok(new PagedResponse<AssetView>(
             page.Items.Select(a => new AssetView(a)).ToList(), page.Total, page.Skip, page.Limit));
+    }
+
+    // ── Depreciation Runs ───────────────────────────────────────────────────
+
+    private static async Task<IResult> RunDepreciation(
+        Guid clientId, RunDepreciationRequest request, FixedAssetsRunService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            DepreciationRun run = await service.RunDepreciationAsync(clientId, request.ToRequest(), cancellationToken);
+            return Results.Created($"/clients/{clientId}/depreciation-runs/{run.Id}", new DepreciationRunView(run));
+        }
+        catch (InvalidOperationException ex) // period already run
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+        catch (ArgumentException ex) // nothing to depreciate
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+    }
+
+    private static async Task<IResult> VoidRun(
+        Guid clientId, Guid runId, VoidReasonRequest? request, FixedAssetsRunService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            DepreciationRun voided = await service.VoidRunAsync(clientId, runId, request?.Reason, cancellationToken);
+            return Results.Ok(new DepreciationRunView(voided));
+        }
+        catch (InvalidOperationException ex) // not found, not posted, not latest, or no entry
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+    }
+
+    private static async Task<IResult> GetRun(
+        Guid clientId, Guid runId, FixedAssetsRunService service, CancellationToken cancellationToken)
+    {
+        DepreciationRun? run = await service.GetRunAsync(clientId, runId, cancellationToken);
+        return run is null ? Results.NotFound() : Results.Ok(new DepreciationRunView(run));
+    }
+
+    private static async Task<IResult> ListRuns(
+        Guid clientId, int? skip, int? limit, string? order, bool? includeVoided,
+        IDepreciationRunStore store, CancellationToken cancellationToken)
+    {
+        if (!TryOrder(order, out bool descending))
+            return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
+        PagedResponse<DepreciationRun> page = await store.GetByClientPagedAsync(
+            clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeVoided ?? false, cancellationToken);
+        return Results.Ok(new PagedResponse<DepreciationRunView>(
+            page.Items.Select(r => new DepreciationRunView(r)).ToList(), page.Total, page.Skip, page.Limit));
     }
 
     private static bool TryOrder(string? order, out bool descending)
