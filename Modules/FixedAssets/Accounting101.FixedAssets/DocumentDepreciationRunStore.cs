@@ -38,8 +38,10 @@ public sealed class DocumentDepreciationRunStore(IDocumentStore documents) : IDe
 
     public async Task<DepreciationRun?> GetByPeriodAsync(Guid clientId, DepreciationPeriod period, CancellationToken ct = default)
     {
+        // Unbounded query (no limit): MongoDocumentStore clamps any supplied limit to 200, which would
+        // silently truncate the period guard. includeVoided defaults false → non-voided runs only.
         IReadOnlyList<DocumentResult<DepreciationRunBody>> all =
-            await documents.QueryAsync<DepreciationRunBody>(clientId, Collection, Tags(), 0, int.MaxValue, true, includeVoided: false, ct);
+            await documents.QueryAsync<DepreciationRunBody>(clientId, Collection, Tags(), cancellationToken: ct);
         DocumentResult<DepreciationRunBody>? hit = all.FirstOrDefault(r => r.Body.Period == period);
         return hit is null ? null : Map(hit);
     }
