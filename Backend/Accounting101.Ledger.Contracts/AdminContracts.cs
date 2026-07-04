@@ -42,3 +42,9 @@ public sealed record AssignSetsRequest(IReadOnlyList<Guid> SetIds);
 /// <summary>The full capability vocabulary and the role presets (backend truth for the admin editor).</summary>
 public sealed record CapabilityCatalogResponse(IReadOnlyList<string> Capabilities, IReadOnlyList<RolePresetDto> Roles);
 public sealed record RolePresetDto(string Role, IReadOnlyList<string> Capabilities);
+
+/// <summary>One control-plane audit entry as returned by GET /admin/audit.</summary>
+public sealed record AdminAuditEntryResponse(
+    Guid Id, DateTime Timestamp, Guid ActorUserId, bool ActorIsDeploymentAdmin, string Action,
+    Guid? ClientId, Guid? TargetUserId, Guid? TargetSetId,
+    IReadOnlyList<string>? BeforeCapabilities, IReadOnlyList<string>? AfterCapabilities);

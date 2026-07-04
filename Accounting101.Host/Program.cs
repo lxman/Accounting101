@@ -85,6 +85,7 @@ app.MapCapabilitiesEndpoints();
 app.MapMemberEndpoints();
 app.MapCapabilityCatalogEndpoints();
 app.MapCapabilitySetEndpoints();
+app.MapAdminAuditEndpoints();
 app.MapReceivablesEndpoints();
 app.MapPayablesEndpoints();
 app.MapPayrollEndpoints();
