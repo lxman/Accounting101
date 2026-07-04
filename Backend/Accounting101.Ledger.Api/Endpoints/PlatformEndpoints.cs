@@ -21,6 +21,8 @@ public static class PlatformEndpoints
         platform.MapGet("/firms", ListFirms);
         platform.MapPost("/firms", ProvisionFirm);
         platform.MapPatch("/firms/{firmId:guid}/status", SetFirmStatus);
+        platform.MapGet("/clusters", ListClusters);
+        platform.MapPost("/clusters", RegisterCluster);
     }
 
     private static async Task<IResult> ListFirms(PlatformStore platform, CancellationToken cancellationToken)
@@ -80,6 +82,25 @@ public static class PlatformEndpoints
         await platform.SetFirmStatusAsync(firmId, status, cancellationToken);
         FirmRegistration updated = (await platform.GetFirmAsync(firmId, cancellationToken))!;
         return Results.Ok(ToResponse(updated));
+    }
+
+    private static async Task<IResult> ListClusters(PlatformStore platform, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<ClusterRegistration> clusters = await platform.ListClustersAsync(cancellationToken);
+        return Results.Ok(clusters
+            .Select(c => new ClusterResponse(c.Key, !string.IsNullOrEmpty(c.ConnectionString)))
+            .ToList());
+    }
+
+    private static async Task<IResult> RegisterCluster(
+        RegisterClusterRequest request, PlatformStore platform, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Key) || string.IsNullOrWhiteSpace(request.ConnectionString))
+            return Results.Problem("Cluster key and connection string are required.", statusCode: StatusCodes.Status400BadRequest);
+
+        await platform.RegisterClusterAsync(
+            new ClusterRegistration { Key = request.Key, ConnectionString = request.ConnectionString }, cancellationToken);
+        return Results.Created($"/platform/clusters/{request.Key}", new ClusterResponse(request.Key, true));
     }
 
     private static FirmResponse ToResponse(FirmRegistration f) =>
