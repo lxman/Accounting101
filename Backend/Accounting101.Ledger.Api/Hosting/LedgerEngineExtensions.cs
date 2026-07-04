@@ -39,6 +39,11 @@ public static class LedgerEngineExtensions
         // Platform registry tier (firms + clusters). Additive: does not change client resolution yet.
         services.AddPlatformRegistry(configuration);
 
+        // Resolve each installed module's shared secret from platform_control at startup (persist-once,
+        // load-thereafter) and populate the in-process credentials + registrations BEFORE ModuleRegistrar
+        // seeds the default firm — so secrets are stable across restarts and identical across instances.
+        services.AddHostedService<ModuleSecretResolver>();
+
         // Seed the built-in capability sets (from role presets) once on startup — idempotent.
         // Order matters — the default firm must exist before capability sets seed into it.
         services.AddHostedService<DefaultFirmSeeder>();

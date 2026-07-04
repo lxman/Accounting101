@@ -12,6 +12,7 @@ public sealed class PlatformStore
 {
     private readonly IMongoCollection<FirmRegistration> _firms;
     private readonly IMongoCollection<ClusterRegistration> _clusters;
+    private readonly IMongoCollection<ModuleSecret> _moduleSecrets;
 
     static PlatformStore() => LedgerMongoBootstrap.RegisterOnce();
 
@@ -20,6 +21,7 @@ public sealed class PlatformStore
         ArgumentNullException.ThrowIfNull(database);
         _firms = database.GetCollection<FirmRegistration>("firms");
         _clusters = database.GetCollection<ClusterRegistration>("clusters");
+        _moduleSecrets = database.GetCollection<ModuleSecret>("moduleSecrets");
     }
 
     /// <summary>The firm's registration, or null if no such firm exists.</summary>
@@ -60,4 +62,33 @@ public sealed class PlatformStore
     /// <summary>All registered clusters.</summary>
     public async Task<IReadOnlyList<ClusterRegistration>> ListClustersAsync(CancellationToken cancellationToken = default) =>
         await _clusters.Find(FilterDefinition<ClusterRegistration>.Empty).ToListAsync(cancellationToken);
+
+    /// <summary>Return the module's persisted secret, generating + persisting one on first use. Idempotent
+    /// and race-tolerant: an existing value is returned unchanged, and a concurrent duplicate-key insert
+    /// from another instance is resolved by re-reading the winner — so all instances converge on one
+    /// stable secret. Never overwrites an existing secret.</summary>
+    public async Task<string> GetOrCreateModuleSecretAsync(string key, Func<string> generate, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(generate);
+
+        ModuleSecret? existing = await _moduleSecrets.Find(s => s.Key == key).FirstOrDefaultAsync(cancellationToken);
+        if (existing is not null)
+            return existing.Secret;
+
+        ModuleSecret created = new() { Key = key, Secret = generate() };
+        try
+        {
+            await _moduleSecrets.InsertOneAsync(created, cancellationToken: cancellationToken);
+            return created.Secret;
+        }
+        catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
+        {
+            // Another instance persisted first — the _id (module key) is unique, so read the winner. The
+            // duplicate-key error is proof the row exists; there is no delete/rotation path that could
+            // remove it between the failed insert and this read, so the winner is always present.
+            ModuleSecret winner = await _moduleSecrets.Find(s => s.Key == key).FirstOrDefaultAsync(cancellationToken)
+                ?? throw new InvalidOperationException($"Module secret '{key}' vanished after a duplicate-key insert.");
+            return winner.Secret;
+        }
+    }
 }
