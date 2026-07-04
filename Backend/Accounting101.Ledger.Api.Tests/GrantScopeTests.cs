@@ -48,6 +48,22 @@ public sealed class GrantScopeTests(ApiFixture fixture) : IClassFixture<ApiFixtu
     }
 
     [Fact]
+    public async Task Role_grant_beyond_caller_scope_is_422()
+    {
+        SeededClient clerk = await SeedUserAdminClerkAsync();
+        // The clerk lacks gl.post. Granting the Controller ROLE (empty inline caps) must still be
+        // blocked — the role's preset caps (which include gl.post) are the effective grant.
+        HttpResponseMessage roleRes = await clerk.Http.PostAsJsonAsync($"/clients/{clerk.ClientId}/members",
+            new AddClientMemberRequest(Guid.NewGuid(), ["Controller"], []));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, roleRes.StatusCode);
+
+        // Same for the Admin role — must not be grantable via an empty capability list either.
+        HttpResponseMessage adminRes = await clerk.Http.PostAsJsonAsync($"/clients/{clerk.ClientId}/members",
+            new AddClientMemberRequest(Guid.NewGuid(), ["Admin"], []));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, adminRes.StatusCode);
+    }
+
+    [Fact]
     public async Task Grant_within_caller_scope_succeeds()
     {
         SeededClient clerk = await SeedUserAdminClerkAsync();

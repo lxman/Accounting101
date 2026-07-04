@@ -110,4 +110,22 @@ public sealed class CapabilitySetStoreTests(ApiFixture fixture) : IClassFixture<
         Assert.NotNull(await control.GetCapabilitySetByNameAsync("Fiscal Admin"));
         Assert.NotNull(await control.GetCapabilitySetByNameAsync("Posting-Accounts Admin"));
     }
+
+    [Fact]
+    public async Task Reseeding_restores_the_Admin_restricted_invariant()
+    {
+        ControlStore control = new(fixture.Mongo.GetDatabase("ctl_seed_" + Guid.NewGuid().ToString("N")));
+        await control.SeedBuiltinCapabilitySetsAsync();
+
+        // Simulate a deployment seeded before the Restricted flag existed.
+        CapabilitySet admin = (await control.GetCapabilitySetByNameAsync("Admin"))!;
+        admin.Restricted = false;
+        await control.UpdateCapabilitySetAsync(admin);
+
+        // Re-seed (e.g. next startup) must reconcile the invariant back to true.
+        await control.SeedBuiltinCapabilitySetsAsync();
+
+        CapabilitySet after = (await control.GetCapabilitySetByNameAsync("Admin"))!;
+        Assert.True(after.Restricted);
+    }
 }

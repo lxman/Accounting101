@@ -93,7 +93,10 @@ public static class MemberEndpoints
     {
         if (!await CallerMayManage(user, clientId, actorFactory, control, ct)) return Results.Forbid();
         if (!TryParse(request.Roles, request.Capabilities, out List<LedgerRole> roles, out IResult? error)) return error!;
-        if (await GrantScope.FirstNotHeldByCallerAsync(user, clientId, request.Capabilities, actorFactory, control, ct) is { } badAdd)
+        // Effective grant = role-derived preset caps (live-bound by AC-2 Resolve) unioned with the inline
+        // caps — checking Capabilities alone lets a caller escalate via the Roles field.
+        IEnumerable<string> effectiveAdd = RolePresets.CapabilitiesFor(roles).Concat(request.Capabilities);
+        if (await GrantScope.FirstNotHeldByCallerAsync(user, clientId, effectiveAdd, actorFactory, control, ct) is { } badAdd)
             return Results.Problem($"Cannot grant '{badAdd}' — you do not hold it.", statusCode: StatusCodes.Status422UnprocessableEntity);
         if (await control.IsMemberAsync(request.UserId, clientId, ct))
             return Results.Problem("Already a member.", statusCode: StatusCodes.Status409Conflict);
@@ -108,7 +111,10 @@ public static class MemberEndpoints
     {
         if (!await CallerMayManage(user, clientId, actorFactory, control, ct)) return Results.Forbid();
         if (!TryParse(request.Roles, request.Capabilities, out List<LedgerRole> roles, out IResult? error)) return error!;
-        if (await GrantScope.FirstNotHeldByCallerAsync(user, clientId, request.Capabilities, actorFactory, control, ct) is { } badSet)
+        // Effective grant = role-derived preset caps (live-bound by AC-2 Resolve) unioned with the inline
+        // caps — checking Capabilities alone lets a caller escalate via the Roles field.
+        IEnumerable<string> effectiveSet = RolePresets.CapabilitiesFor(roles).Concat(request.Capabilities);
+        if (await GrantScope.FirstNotHeldByCallerAsync(user, clientId, effectiveSet, actorFactory, control, ct) is { } badSet)
             return Results.Problem($"Cannot grant '{badSet}' — you do not hold it.", statusCode: StatusCodes.Status422UnprocessableEntity);
         if (!await control.IsMemberAsync(userId, clientId, ct)) return Results.NotFound();
         bool keepsAdmin = request.Capabilities.Contains(Capabilities.AdminUsers);

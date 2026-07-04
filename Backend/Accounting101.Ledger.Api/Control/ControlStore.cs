@@ -325,5 +325,15 @@ public sealed class ControlStore
                 },
                 cancellationToken: cancellationToken);
         }
+
+        // Security invariant: the built-in Admin god-set is always deployment-restricted. Reconcile a
+        // deployment seeded before the Restricted flag existed (persist-in-place skips it on re-seed) by
+        // flipping false→true in place. This is a non-negotiable default, not an owner-editable preference.
+        CapabilitySet? adminSet = await GetCapabilitySetByNameAsync(LedgerRole.Admin.ToString(), cancellationToken);
+        if (adminSet is { Builtin: true, Restricted: false })
+        {
+            adminSet.Restricted = true;
+            await UpdateCapabilitySetAsync(adminSet, cancellationToken);
+        }
     }
 }
