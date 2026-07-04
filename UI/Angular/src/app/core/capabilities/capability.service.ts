@@ -1,4 +1,4 @@
-import { Injectable, Signal, computed, inject } from '@angular/core';
+import { Injectable, Signal, computed, inject, signal } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of, switchMap, catchError } from 'rxjs';
@@ -22,17 +22,22 @@ export class CapabilityService {
   private readonly client = inject(ClientContextService);
   private readonly identity = inject(DevIdentityService);
 
+  private readonly reloadTick = signal(0);
+
   private readonly key = computed(() => {
     const clientId = this.client.clientId();
     return clientId ? { clientId, sub: this.identity.active().sub } : null;
   });
 
+  // Re-fetch when the identity/client key changes OR when reload() bumps the tick.
+  private readonly fetchTrigger = computed(() => ({ key: this.key(), tick: this.reloadTick() }));
+
   private readonly response = toSignal<CapabilitiesResponse | typeof LOADING, typeof LOADING>(
-    toObservable(this.key).pipe(
-      switchMap((k): Observable<CapabilitiesResponse> =>
-        k
+    toObservable(this.fetchTrigger).pipe(
+      switchMap(({ key }): Observable<CapabilitiesResponse> =>
+        key
           ? this.http
-              .get<CapabilitiesResponse>(`${environment.apiBaseUrl}/clients/${k.clientId}/me/capabilities`)
+              .get<CapabilitiesResponse>(`${environment.apiBaseUrl}/clients/${key.clientId}/me/capabilities`)
               .pipe(catchError(() => of(EMPTY_CAPABILITIES)))
           : of(EMPTY_CAPABILITIES)),
     ) as Observable<CapabilitiesResponse | typeof LOADING>,
@@ -59,4 +64,7 @@ export class CapabilityService {
     for (const c of this.capabilities()) if (c.startsWith(prefix)) return true;
     return false;
   }
+
+  /** Force a re-fetch of the current client's capabilities (e.g. after a 403, or on a poll tick). */
+  reload(): void { this.reloadTick.update((n) => n + 1); }
 }

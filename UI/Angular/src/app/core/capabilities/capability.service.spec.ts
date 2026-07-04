@@ -82,4 +82,21 @@ describe('CapabilityService', () => {
     expect(svc.loaded()).toBe(true);
     expect(svc.capabilities().size).toBe(0);
   });
+
+  it('reload() refetches /me/capabilities without a key change', () => {
+    client.select('c1');
+    tick();
+    const first = http.expectOne((r) => r.url.endsWith('/me/capabilities'));
+    first.flush({ capabilities: ['ar.read'], roles: [], deploymentAdmin: false });
+    tick();
+    expect(svc.has('ar.read')).toBe(true);
+
+    // Now reload() must trigger a brand-new GET to the same URL.
+    svc.reload();
+    tick();
+    const second = http.expectOne((r) => r.url.endsWith('/me/capabilities'));
+    second.flush({ capabilities: ['ar.read', 'ar.write'], roles: [], deploymentAdmin: false });
+    tick();
+    expect(svc.has('ar.write')).toBe(true);
+  });
 });
