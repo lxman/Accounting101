@@ -77,7 +77,7 @@ public static class ModuleHostingExtensions
         // Keyed by module key so multiple modules can co-exist in one host: each module's stores resolve
         // the document store keyed to THEIR identity + manifest, instead of a single shared registration
         // where the last-installed module would win and scope every collection to its own manifest.
-        services.AddKeyedSingleton<IDocumentStore>(identity.Key, (sp, _) => new ScopedDocumentStore(
+        services.AddKeyedScoped<IDocumentStore>(identity.Key, (sp, _) => new ScopedDocumentStore(
             identity,
             manifest,
             sp.GetRequiredService<IClientDatabaseResolver>(),

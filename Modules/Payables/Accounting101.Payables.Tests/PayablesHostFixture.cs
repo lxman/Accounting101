@@ -22,6 +22,7 @@ public sealed class PayablesHostFixture : WebApplicationFactory<Program>, IAsync
 
     public IMongoClient Mongo { get; private set; } = null!;
     public string ControlDatabase { get; } = "control_" + Guid.NewGuid().ToString("N");
+    public string PlatformDatabase { get; } = "platform_" + Guid.NewGuid().ToString("N");
     public Guid PayableAccountId { get; } = Guid.NewGuid();
     public Guid CashAccountId { get; } = Guid.NewGuid();
     public Guid VendorCreditsAccountId { get; } = Guid.NewGuid();
@@ -44,6 +45,7 @@ public sealed class PayablesHostFixture : WebApplicationFactory<Program>, IAsync
     {
         builder.UseSetting("Mongo:ConnectionString", _connectionString);
         builder.UseSetting("Mongo:ControlDatabase", ControlDatabase);
+        builder.UseSetting("Mongo:PlatformDatabase", PlatformDatabase);
         builder.UseSetting("Payables:Accounts:Payable", PayableAccountId.ToString());
         builder.UseSetting("Payables:Accounts:Cash", CashAccountId.ToString());
         builder.UseSetting("Payables:Accounts:VendorCredits", VendorCreditsAccountId.ToString());

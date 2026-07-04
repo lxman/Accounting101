@@ -1,6 +1,7 @@
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Control;
 using Accounting101.Ledger.Api.Endpoints;
+using Accounting101.Ledger.Api.Platform;
 using Accounting101.Ledger.Api.Tenancy;
 using Accounting101.Ledger.Mongo.Serialization;
 using Microsoft.AspNetCore.Authentication;
@@ -27,26 +28,32 @@ public static class LedgerEngineExtensions
 
         // One Mongo client for the process; the control DB holds the client registry + memberships.
         services.AddSingleton<IMongoClient>(_ => new MongoClient(connectionString));
-        services.AddSingleton(sp =>
-            new ControlStore(sp.GetRequiredService<IMongoClient>().GetDatabase(controlDatabase)));
-        services.AddSingleton(sp =>
-            new AdminAuditStore(sp.GetRequiredService<IMongoClient>().GetDatabase(controlDatabase)));
+
+        // Firm-scoped control plane: the firm for this request is resolved by FirmResolutionMiddleware into
+        // FirmScope; the control stores read that firm's control DB. Scoped, one per request.
+        services.AddScoped<FirmScope>();
+        services.AddScoped<IFirmContext, HttpContextFirmContext>();
+        services.AddScoped(sp => new ControlStore(sp.GetRequiredService<FirmScope>().RequireControlDatabase()));
+        services.AddScoped(sp => new AdminAuditStore(sp.GetRequiredService<FirmScope>().RequireControlDatabase()));
 
         // Platform registry tier (firms + clusters). Additive: does not change client resolution yet.
         services.AddPlatformRegistry(configuration);
 
         // Seed the built-in capability sets (from role presets) once on startup — idempotent.
+        // Order matters — the default firm must exist before capability sets seed into it.
+        services.AddHostedService<DefaultFirmSeeder>();
         services.AddHostedService<CapabilitySetSeeder>();
 
         // Tenant resolution + per-client ledger construction (the isolation boundary).
-        services.AddSingleton<IClientDatabaseResolver, ClientDatabaseResolver>();
-        services.AddSingleton<ClientLedgerFactory>();
-        services.AddSingleton<LedgerGateway>();
+        services.AddScoped<IClientDatabaseResolver, FirmScopedClientDatabaseResolver>();
+        services.AddScoped<ClientLedgerFactory>();
+        services.AddSingleton<IIndexGuard, IndexGuard>();
+        services.AddScoped<LedgerGateway>();
 
         // Document store: the engine derives the acting user from the request, and authorizes module calls.
         services.AddHttpContextAccessor();
         services.AddSingleton<ICurrentActor, HttpContextCurrentActor>();
-        services.AddSingleton<ModuleAccess>();
+        services.AddScoped<ModuleAccess>();
 
         // Default credential authenticator: reads X-Module-Key + X-Module-Secret from the request and
         // verifies them against the control DB. Returns null when the headers are absent or the secret
