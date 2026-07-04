@@ -16,6 +16,10 @@ internal sealed class FakeLedgerClient : ILedgerClient
     /// <summary>Flips true the moment either <see cref="ReverseAsync"/> or <see cref="VoidAsync"/> is called.</summary>
     public bool ReversedOrWithdrawn { get; private set; }
 
+    /// <summary>When true, <see cref="GetEntriesBySourceRefAsync"/> returns an empty list — simulates a run
+    /// stranded by a post that never landed.</summary>
+    public bool ReturnNoEntries { get; set; }
+
     public Task<PostEntryResponse> PostAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
     {
         _posted.Add(entry);
@@ -43,7 +47,9 @@ internal sealed class FakeLedgerClient : ILedgerClient
     }
 
     public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<EntryResponse>>(_entries.Values.Where(e => e.SourceRef == sourceRef).ToList());
+        Task.FromResult<IReadOnlyList<EntryResponse>>(ReturnNoEntries
+            ? []
+            : _entries.Values.Where(e => e.SourceRef == sourceRef).ToList());
 
     private static EntryResponse Entry(Guid id, Guid? sourceRef, string? sourceType, string posting, Guid? reversalOf) =>
         new(id, 0, default, "Standard", "Active", posting, 0, null, null, reversalOf, null, [], sourceRef, sourceType);
