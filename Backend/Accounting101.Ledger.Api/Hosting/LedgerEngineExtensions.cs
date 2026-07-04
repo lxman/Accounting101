@@ -29,6 +29,8 @@ public static class LedgerEngineExtensions
         services.AddSingleton<IMongoClient>(_ => new MongoClient(connectionString));
         services.AddSingleton(sp =>
             new ControlStore(sp.GetRequiredService<IMongoClient>().GetDatabase(controlDatabase)));
+        services.AddSingleton(sp =>
+            new AdminAuditStore(sp.GetRequiredService<IMongoClient>().GetDatabase(controlDatabase)));
 
         // Seed the built-in capability sets (from role presets) once on startup — idempotent.
         services.AddHostedService<CapabilitySetSeeder>();
