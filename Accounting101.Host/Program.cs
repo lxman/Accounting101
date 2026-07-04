@@ -6,6 +6,7 @@ using Accounting101.Payroll.Api;
 using Accounting101.Banking.Cash.Api;
 using Accounting101.Banking.Reconciliation.Api;
 using Accounting101.Ledger.Api.Platform;
+using Accounting101.FixedAssets.Api;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +18,7 @@ builder.Services.AddPayables(builder.Configuration);
 builder.Services.AddPayroll(builder.Configuration);
 builder.Services.AddCash(builder.Configuration);
 builder.Services.AddReconciliation(builder.Configuration);
+builder.Services.AddFixedAssets(builder.Configuration);
 
 // Dev-only: let the Angular dev server (localhost:4200) call the API cross-origin.
 // Not registered outside Development, so production is unaffected.
@@ -100,6 +102,7 @@ app.MapPayablesEndpoints();
 app.MapPayrollEndpoints();
 app.MapCashEndpoints();
 app.MapReconciliationEndpoints();
+app.MapFixedAssetsEndpoints();
 
 app.Run();
 

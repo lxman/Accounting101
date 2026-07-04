@@ -15,6 +15,7 @@
     <ProjectReference Include="..\Modules\Payroll\Accounting101.Payroll.Api\Accounting101.Payroll.Api.csproj" />
     <ProjectReference Include="..\Modules\Banking\Cash\Accounting101.Banking.Cash.Api\Accounting101.Banking.Cash.Api.csproj" />
     <ProjectReference Include="..\Modules\Banking\Reconciliation\Accounting101.Banking.Reconciliation.Api\Accounting101.Banking.Reconciliation.Api.csproj" />
+    <ProjectReference Include="..\Modules\FixedAssets\Accounting101.FixedAssets.Api\Accounting101.FixedAssets.Api.csproj" />
   </ItemGroup>
 
 </Project>
