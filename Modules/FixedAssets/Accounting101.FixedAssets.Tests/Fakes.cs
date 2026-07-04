@@ -182,11 +182,19 @@ internal sealed class FixedAccountsProvider : IFixedAssetsAccountsProvider
 {
     public Guid DepreciationExpenseAccountId { get; } = Guid.NewGuid();
     public Guid AccumulatedDepreciationAccountId { get; } = Guid.NewGuid();
+    public Guid AssetCostAccountId { get; } = Guid.NewGuid();
+    public Guid DisposalProceedsAccountId { get; } = Guid.NewGuid();
+    public Guid GainOnDisposalAccountId { get; } = Guid.NewGuid();
+    public Guid LossOnDisposalAccountId { get; } = Guid.NewGuid();
 
     public Task<FixedAssetsPostingAccounts> GetAccountsAsync(Guid clientId, CancellationToken ct = default) =>
         Task.FromResult(new FixedAssetsPostingAccounts
         {
             DepreciationExpenseAccountId = DepreciationExpenseAccountId,
             AccumulatedDepreciationAccountId = AccumulatedDepreciationAccountId,
+            AssetCostAccountId = AssetCostAccountId,
+            DisposalProceedsAccountId = DisposalProceedsAccountId,
+            GainOnDisposalAccountId = GainOnDisposalAccountId,
+            LossOnDisposalAccountId = LossOnDisposalAccountId,
         });
 }
