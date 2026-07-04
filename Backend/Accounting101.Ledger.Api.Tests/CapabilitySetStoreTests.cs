@@ -95,4 +95,19 @@ public sealed class CapabilitySetStoreTests(ApiFixture fixture) : IClassFixture<
         Assert.Equal(clerk.Id, after.Id);
         Assert.True(new HashSet<string> { Capabilities.GlRead }.SetEquals(after.Capabilities));
     }
+
+    [Fact]
+    public async Task Seeding_creates_the_narrow_admin_builtins()
+    {
+        ControlStore control = fixture.Control();
+        await control.SeedBuiltinCapabilitySetsAsync();
+
+        CapabilitySet userAdmin = (await control.GetCapabilitySetByNameAsync("User Admin"))!;
+        Assert.True(userAdmin.Builtin);
+        Assert.False(userAdmin.Restricted);
+        Assert.True(new HashSet<string> { Capabilities.AdminUsers, Capabilities.GlRead }.SetEquals(userAdmin.Capabilities));
+
+        Assert.NotNull(await control.GetCapabilitySetByNameAsync("Fiscal Admin"));
+        Assert.NotNull(await control.GetCapabilitySetByNameAsync("Posting-Accounts Admin"));
+    }
 }

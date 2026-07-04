@@ -301,5 +301,29 @@ public sealed class ControlStore
                 },
                 cancellationToken: cancellationToken);
         }
+
+        // Narrow admin built-ins — one delegable single-power admin set each, so granting (say) just
+        // user management is one click instead of a hand-assembled set that tempts a full-Admin grant.
+        (string Name, string[] Capabilities)[] narrowAdmins =
+        [
+            ("User Admin", [Capabilities.AdminUsers, Capabilities.GlRead]),
+            ("Fiscal Admin", [Capabilities.AdminFiscal, Capabilities.GlRead]),
+            ("Posting-Accounts Admin", [Capabilities.AdminPostingAccounts, Capabilities.GlRead]),
+        ];
+        foreach ((string name, string[] capabilities) in narrowAdmins)
+        {
+            if (await GetCapabilitySetByNameAsync(name, cancellationToken) is not null) continue;
+            await _capabilitySets.InsertOneAsync(
+                new CapabilitySet
+                {
+                    Id = Guid.NewGuid(),
+                    Name = name,
+                    Description = $"Built-in narrow admin set: {name}.",
+                    Capabilities = capabilities,
+                    Builtin = true,
+                    Restricted = false,
+                },
+                cancellationToken: cancellationToken);
+        }
     }
 }
