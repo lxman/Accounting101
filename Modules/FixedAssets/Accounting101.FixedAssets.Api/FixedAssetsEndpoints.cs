@@ -14,6 +14,7 @@ public static class FixedAssetsEndpoints
         clients.MapPost("/assets", CreateAsset);
         clients.MapPut("/assets/{assetId:guid}", UpdateAsset);
         clients.MapPost("/assets/{assetId:guid}/deactivate", DeactivateAsset);
+        clients.MapPost("/assets/{assetId:guid}/reactivate", ReactivateAsset);
         clients.MapGet("/assets/{assetId:guid}", GetAsset);
         clients.MapGet("/assets", ListAssets);
     }
@@ -37,13 +38,31 @@ public static class FixedAssetsEndpoints
     {
         try
         {
-            Asset? asset = await service.UpdateAsync(clientId, assetId, request.ToBody(), cancellationToken);
-            return asset is null ? Results.NotFound() : Results.Ok(new AssetView(asset));
+            UpdateResult result = await service.UpdateAsync(clientId, assetId, request.ToBody(), cancellationToken);
+            return result.Outcome switch
+            {
+                UpdateOutcome.Updated => Results.Ok(new AssetView(result.Asset!)),
+                UpdateOutcome.NotFound => Results.NotFound(),
+                UpdateOutcome.Inactive => Results.Problem(
+                    "Asset is inactive; reactivate it before editing.", statusCode: StatusCodes.Status409Conflict),
+                _ => Results.Problem("Unexpected update result.", statusCode: StatusCodes.Status500InternalServerError),
+            };
         }
         catch (ArgumentException ex)
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
         }
+    }
+
+    private static async Task<IResult> ReactivateAsset(
+        Guid clientId, Guid assetId, FixedAssetsService service, CancellationToken cancellationToken)
+    {
+        ReactivateResult result = await service.ReactivateAsync(clientId, assetId, cancellationToken);
+        if (result == ReactivateResult.NotFound) return Results.NotFound();
+        if (result == ReactivateResult.AlreadyActive)
+            return Results.Problem("Asset is already active.", statusCode: StatusCodes.Status409Conflict);
+        Asset? asset = await service.GetAsync(clientId, assetId, cancellationToken);
+        return asset is null ? Results.NotFound() : Results.Ok(new AssetView(asset));
     }
 
     private static async Task<IResult> DeactivateAsset(

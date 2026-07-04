@@ -32,7 +32,9 @@ public sealed class AssetDocumentStoreTests(AssetDocumentStoreFixture fixture) :
     public async Task Update_changes_editable_params_and_preserves_server_owned_fields()
     {
         Asset created = await Store().CreateAsync(fixture.ClientId, Body("Old"));
-        Asset? updated = await Store().UpdateAsync(fixture.ClientId, created.Id, Body("New") with { UsefulLifeMonths = 36 });
+        UpdateResult result = await Store().UpdateAsync(fixture.ClientId, created.Id, Body("New") with { UsefulLifeMonths = 36 });
+        Assert.Equal(UpdateOutcome.Updated, result.Outcome);
+        Asset? updated = result.Asset;
         Assert.NotNull(updated);
         Assert.Equal("New", updated!.Description);
         Assert.Equal(36, updated.UsefulLifeMonths);
@@ -42,7 +44,7 @@ public sealed class AssetDocumentStoreTests(AssetDocumentStoreFixture fixture) :
 
     [Fact]
     public async Task Update_of_a_missing_asset_returns_null() =>
-        Assert.Null(await Store().UpdateAsync(fixture.ClientId, Guid.NewGuid(), Body()));
+        Assert.Equal(UpdateOutcome.NotFound, (await Store().UpdateAsync(fixture.ClientId, Guid.NewGuid(), Body())).Outcome);
 
     [Fact]
     public async Task Deactivate_removes_the_asset_from_the_default_list_but_include_inactive_shows_it()

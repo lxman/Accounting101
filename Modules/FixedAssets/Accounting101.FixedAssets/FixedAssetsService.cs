@@ -10,7 +10,7 @@ public sealed class FixedAssetsService(IAssetStore store)
         return store.CreateAsync(clientId, body, ct);
     }
 
-    public Task<Asset?> UpdateAsync(Guid clientId, Guid assetId, AssetBody body, CancellationToken ct = default)
+    public Task<UpdateResult> UpdateAsync(Guid clientId, Guid assetId, AssetBody body, CancellationToken ct = default)
     {
         if (AssetValidation.Validate(body) is { } error) throw new ArgumentException(error);
         return store.UpdateAsync(clientId, assetId, body, ct);
@@ -18,6 +18,9 @@ public sealed class FixedAssetsService(IAssetStore store)
 
     public Task<DeactivateResult> DeactivateAsync(Guid clientId, Guid assetId, CancellationToken ct = default) =>
         store.DeactivateAsync(clientId, assetId, ct);
+
+    public Task<ReactivateResult> ReactivateAsync(Guid clientId, Guid assetId, CancellationToken ct = default) =>
+        store.ReactivateAsync(clientId, assetId, ct);
 
     public Task<Asset?> GetAsync(Guid clientId, Guid assetId, CancellationToken ct = default) =>
         store.GetAsync(clientId, assetId, ct);
