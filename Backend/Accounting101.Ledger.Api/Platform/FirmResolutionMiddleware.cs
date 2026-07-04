@@ -17,6 +17,15 @@ public sealed class FirmResolutionMiddleware(RequestDelegate next)
         HttpContext context, IFirmContext firmContext, PlatformStore platform,
         IMongoClientFactory factory, FirmScope scope)
     {
+        // The platform-operator control plane (/platform/*) operates on the platform registry, not on any
+        // firm's data, and never reads FirmScope — so it must not depend on firm resolution. Otherwise
+        // suspending the default firm would lock operators out of the very endpoint that reactivates it.
+        if (context.Request.Path.StartsWithSegments("/platform"))
+        {
+            await next(context);
+            return;
+        }
+
         Guid firmId = firmContext.FirmId;
         FirmRegistration? firm = await platform.GetFirmAsync(firmId, context.RequestAborted);
         if (firm is null || firm.Status != FirmStatus.Active)

@@ -60,12 +60,13 @@ public static class PlatformEndpoints
             Status = FirmStatus.Active,
             CreatedUtc = DateTime.UtcNow,
         };
-        await platform.RegisterFirmAsync(firm, cancellationToken);
-
-        // Seed the new firm's control DB with the built-in capability sets so an admin=true firm admin can
-        // create clients and members immediately. No membership is created here — memberships are per-client.
+        // Seed the new firm's control DB FIRST, then commit the registration — so a seed failure leaves no
+        // registered (but unusable) firm and the operator can retry cleanly. Seeding is idempotent, and no
+        // membership is created here (memberships are per-client).
         ControlStore control = new(client.GetDatabase(controlDatabase));
         await control.SeedBuiltinCapabilitySetsAsync(cancellationToken);
+
+        await platform.RegisterFirmAsync(firm, cancellationToken);
 
         return Results.Created($"/platform/firms/{firmId}", ToResponse(firm));
     }

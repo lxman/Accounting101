@@ -82,4 +82,22 @@ public sealed class FirmResolutionMiddlewareTests
         Assert.False(nextRan);
         Assert.Equal(StatusCodes.Status403Forbidden, ctx.Response.StatusCode);
     }
+
+    [Fact]
+    public async Task Bypasses_firm_resolution_for_platform_routes()
+    {
+        (PlatformStore platform, IMongoClientFactory factory, _) = await BackendAsync();
+        FirmScope scope = new();
+        bool nextRan = false;
+        FirmResolutionMiddleware middleware = new(_ => { nextRan = true; return Task.CompletedTask; });
+        DefaultHttpContext ctx = new();
+        ctx.Request.Path = "/platform/firms";
+
+        // An unknown firm would normally 403 — but /platform bypasses resolution entirely.
+        await middleware.InvokeAsync(ctx, new FixedFirm(Guid.NewGuid()), platform, factory, scope);
+
+        Assert.True(nextRan);
+        Assert.NotEqual(StatusCodes.Status403Forbidden, ctx.Response.StatusCode);
+        Assert.Null(scope.Firm);
+    }
 }
