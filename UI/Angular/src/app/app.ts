@@ -3,6 +3,7 @@ import { Shell } from './layout/shell';
 import { ClientContextService } from './core/client/client-context.service';
 import { environment } from './core/api/environment';
 import { RouteSentinelService } from './core/capabilities/route-sentinel.service';
+import { CapabilityPollService } from './core/capabilities/capability-poll.service';
 
 @Component({
   selector: 'app-root',
@@ -15,5 +16,6 @@ export class App {
     const c = inject(ClientContextService);
     if (environment.devClientId) c.select(environment.devClientId);
     inject(RouteSentinelService);   // start the live route sentinel
+    inject(CapabilityPollService);  // start the idle capability poll
   }
 }
