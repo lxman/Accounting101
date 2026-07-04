@@ -5,12 +5,12 @@ namespace Accounting101.Ledger.Contracts;
 /// blast radius before saving; 0 on list/create.</summary>
 public sealed record CapabilitySetResponse(
     Guid Id, string Name, string? Description, IReadOnlyList<string> Capabilities, bool Builtin,
-    int AffectedMemberCount = 0);
+    int AffectedMemberCount = 0, bool Restricted = false);
 
 /// <summary>Create a new custom capability set. Every capability must be in the known vocabulary.</summary>
 public sealed record CreateCapabilitySetRequest(
-    string Name, string? Description, IReadOnlyList<string> Capabilities);
+    string Name, string? Description, IReadOnlyList<string> Capabilities, bool Restricted = false);
 
 /// <summary>Replace an existing capability set's name/description/capabilities.</summary>
 public sealed record UpdateCapabilitySetRequest(
-    string Name, string? Description, IReadOnlyList<string> Capabilities);
+    string Name, string? Description, IReadOnlyList<string> Capabilities, bool Restricted = false);

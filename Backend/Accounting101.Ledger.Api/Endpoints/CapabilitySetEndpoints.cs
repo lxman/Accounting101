@@ -21,7 +21,7 @@ public static class CapabilitySetEndpoints
     }
 
     private static CapabilitySetResponse ToResponse(CapabilitySet s) =>
-        new(s.Id, s.Name, s.Description, s.Capabilities, s.Builtin);
+        new(s.Id, s.Name, s.Description, s.Capabilities, s.Builtin, Restricted: s.Restricted);
 
     // Every capability must be in the known vocabulary; returns a 422 problem for the first offender.
     private static IResult? ValidateCapabilities(IReadOnlyList<string> capabilities)
@@ -60,6 +60,7 @@ public static class CapabilitySetEndpoints
             Description = request.Description,
             Capabilities = capabilities,
             Builtin = false,
+            Restricted = request.Restricted,
         };
         await control.CreateCapabilitySetAsync(set, ct);
         return Results.Created($"/capability-sets/{set.Id}", ToResponse(set));
@@ -81,6 +82,7 @@ public static class CapabilitySetEndpoints
         existing.Name = request.Name.Trim();
         existing.Description = request.Description;
         existing.Capabilities = capabilities;
+        existing.Restricted = request.Restricted;
         await control.UpdateCapabilitySetAsync(existing, ct);
         long affected = await control.CountMembersReferencingSetAsync(id, ct);
         return Results.Ok(ToResponse(existing) with { AffectedMemberCount = (int)affected });

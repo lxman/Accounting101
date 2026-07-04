@@ -297,6 +297,7 @@ public sealed class ControlStore
                     Description = $"Built-in preset for the {name} role.",
                     Capabilities = [.. RolePresets.For(role)],
                     Builtin = true,
+                    Restricted = role == LedgerRole.Admin,
                 },
                 cancellationToken: cancellationToken);
         }

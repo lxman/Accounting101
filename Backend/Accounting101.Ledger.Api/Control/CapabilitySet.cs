@@ -23,4 +23,8 @@ public sealed class CapabilitySet
 
     /// <summary>True for sets seeded from <see cref="RolePresets"/>: editable in place, but not deletable.</summary>
     public bool Builtin { get; set; }
+
+    /// <summary>When true, this set may be ASSIGNED to a member only by a deployment admin — even a
+    /// full per-client admin cannot delegate it. The built-in Admin set defaults restricted.</summary>
+    public bool Restricted { get; set; }
 }

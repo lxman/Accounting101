@@ -124,6 +124,10 @@ public static class MemberEndpoints
         if (await GrantScope.FirstNotHeldByCallerAsync(user, clientId, resolved, actorFactory, control, ct) is { } badAssign)
             return Results.Problem($"Cannot grant '{badAssign}' — you do not hold it.", statusCode: StatusCodes.Status422UnprocessableEntity);
 
+        if (sets.Any(s => s.Restricted) && !user.HasClaim("admin", "true"))
+            return Results.Problem("Only a deployment admin may assign a restricted capability set.",
+                statusCode: StatusCodes.Status403Forbidden);
+
         bool keepsAdmin = resolved.Contains(Capabilities.AdminUsers);
         if (await WouldLeaveNoAdmin(control, clientId, userId, keepsAdmin, ct))
             return Results.Problem("Cannot remove the last administrator.", statusCode: StatusCodes.Status409Conflict);
