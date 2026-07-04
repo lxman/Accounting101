@@ -1,56 +1,40 @@
 import { TestBed } from '@angular/core/testing';
-import { Router, UrlTree, provideRouter } from '@angular/router';
-import { runInInjectionContext, EnvironmentInjector } from '@angular/core';
-import { firstValueFrom } from 'rxjs';
+import { RouterTestingHarness } from '@angular/router/testing';
+import { provideRouter, Router } from '@angular/router';
+import { Component } from '@angular/core';
+import { provideZonelessChangeDetection } from '@angular/core';
 import { canWrite } from './can.guard';
-import { CapabilityService } from './capability.service';
-import { StubCapabilityService } from './capability.testing';
+import { provideCapabilities } from './capability.testing';
 
-describe('canWrite', () => {
-  async function run(caps: string[]) {
-    const stub = new StubCapabilityService();
-    stub.set(caps);
-    TestBed.configureTestingModule({
-      providers: [provideRouter([]), { provide: CapabilityService, useValue: stub }],
-    });
-    const injector = TestBed.inject(EnvironmentInjector);
-    const guard = canWrite('ar.write', '/receivables/invoices');
-    return runInInjectionContext(injector, () =>
-      firstValueFrom(guard({} as any, {} as any) as any));
-  }
+@Component({ standalone: true, template: 'editor' }) class Editor {}
+@Component({ standalone: true, template: 'list' }) class List {}
 
-  it('allows when the capability is held', async () => {
-    expect(await run(['ar.write'])).toBe(true);
+function setup(caps: string[]) {
+  TestBed.configureTestingModule({
+    providers: [
+      provideZonelessChangeDetection(),
+      provideCapabilities(...caps),
+      provideRouter([
+        { path: 'list', component: List },
+        { path: 'edit', component: Editor, canActivate: [canWrite],
+          data: { requiredCapability: 'ar.write', fallback: '/list' } },
+      ]),
+    ],
+  });
+}
+
+describe('canWrite (data-driven)', () => {
+  it('allows navigation when the caller holds the required capability', async () => {
+    setup(['ar.write']);
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/edit');
+    expect(TestBed.inject(Router).url).toBe('/edit');
   });
 
-  it('redirects to the fallback when the capability is absent', async () => {
-    const result = await run(['ar.read']);
-    expect(result).toBeInstanceOf(UrlTree);
-    expect((result as UrlTree).toString()).toBe('/receivables/invoices');
-  });
-
-  it('waits until capabilities are loaded before emitting', async () => {
-    const stub = new StubCapabilityService();
-    stub.set(['ar.write']);
-    stub.setLoaded(false);
-    TestBed.configureTestingModule({
-      providers: [provideRouter([]), { provide: CapabilityService, useValue: stub }],
-    });
-    const injector = TestBed.inject(EnvironmentInjector);
-    const guard = canWrite('ar.write', '/receivables/invoices');
-
-    let resolved = false;
-    const result$ = runInInjectionContext(injector, () => guard({} as any, {} as any) as any);
-    const promise = firstValueFrom(result$).then((v) => { resolved = true; return v; });
-
-    // Let any pending microtasks flush; the guard must not have emitted yet since loaded=false.
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(resolved).toBe(false);
-
-    stub.setLoaded(true);
-    const result = await promise;
-    expect(resolved).toBe(true);
-    expect(result).toBe(true);
+  it('redirects to the route data fallback when the capability is missing', async () => {
+    setup(['ar.read']);
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/edit');
+    expect(TestBed.inject(Router).url).toBe('/list');
   });
 });
