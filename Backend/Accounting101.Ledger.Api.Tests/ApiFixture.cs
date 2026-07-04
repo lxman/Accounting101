@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Control;
+using Accounting101.Ledger.Api.Platform;
 using Accounting101.TestSupport;
 using EphemeralMongo;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -90,6 +91,20 @@ public sealed class ApiFixture : IAsyncLifetime
         Guid userId = Guid.NewGuid();
         await Control().AddMembershipAsync(userId, clientId, role);
         return ClientFor(userId, name, ("role", role.ToString()));
+    }
+
+    /// <summary>Register a second firm (its own control DB) in this fixture's platform registry, so a test
+    /// can prove cross-firm isolation. Returns the firm id and its control database name.</summary>
+    public async Task<(Guid FirmId, string ControlDatabase)> SeedFirmAsync(string name)
+    {
+        Guid firmId = Guid.NewGuid();
+        string controlDatabase = "firm_" + firmId.ToString("N") + "_control";
+        PlatformStore platform = new(Mongo.GetDatabase(PlatformDatabase));
+        await platform.RegisterFirmAsync(new FirmRegistration
+        {
+            Id = firmId, Name = name, ControlDatabase = controlDatabase, ClusterKey = "default",
+        });
+        return (firmId, controlDatabase);
     }
 }
 
