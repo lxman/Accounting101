@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using MongoDB.Driver;
 
 namespace Accounting101.Ledger.Api.Platform;
 
@@ -10,12 +11,20 @@ namespace Accounting101.Ledger.Api.Platform;
 /// </summary>
 public sealed class PlatformClusterSeeder(PlatformStore platform, IConfiguration configuration) : IHostedService
 {
-    public Task StartAsync(CancellationToken cancellationToken)
+    public async Task StartAsync(CancellationToken cancellationToken)
     {
         string key = configuration["Mongo:ClusterKey"] ?? "default";
         string connectionString = configuration["Mongo:ConnectionString"] ?? "mongodb://localhost:27017";
-        return platform.RegisterClusterAsync(
-            new ClusterRegistration { Key = key, ConnectionString = connectionString }, cancellationToken);
+        try
+        {
+            await platform.RegisterClusterAsync(
+                new ClusterRegistration { Key = key, ConnectionString = connectionString }, cancellationToken);
+        }
+        catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
+        {
+            // Another instance seeded the home cluster concurrently on a fresh platform_control; the row now
+            // exists with the same value, so the duplicate-key race is a successful outcome.
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

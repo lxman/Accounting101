@@ -12,27 +12,28 @@ namespace Accounting101.Ledger.Api.Platform;
 public sealed class MongoClientFactory : IMongoClientFactory
 {
     private readonly PlatformStore _platform;
-    private readonly ConcurrentDictionary<string, IMongoClient> _clients = new();
+    private readonly ConcurrentDictionary<string, Lazy<IMongoClient>> _clients = new();
 
     public MongoClientFactory(IMongoClient homeClient, string homeClusterKey, PlatformStore platform)
     {
         ArgumentNullException.ThrowIfNull(homeClient);
         ArgumentException.ThrowIfNullOrWhiteSpace(homeClusterKey);
         _platform = platform ?? throw new ArgumentNullException(nameof(platform));
-        _clients[homeClusterKey] = homeClient;
+        _clients[homeClusterKey] = new Lazy<IMongoClient>(() => homeClient);
     }
 
     public async Task<IMongoClient> GetAsync(string clusterKey, CancellationToken cancellationToken = default)
     {
-        if (_clients.TryGetValue(clusterKey, out IMongoClient? cached))
-            return cached;
+        if (_clients.TryGetValue(clusterKey, out Lazy<IMongoClient>? cached))
+            return cached.Value;
 
         ClusterRegistration? cluster = await _platform.GetClusterAsync(clusterKey, cancellationToken);
         if (cluster is null)
             throw new InvalidOperationException($"No cluster registered for key '{clusterKey}'.");
 
-        // GetOrAdd collapses a concurrent double-build to a single cached client; any loser is discarded
-        // unused (a MongoClient with no operations holds no connections).
-        return _clients.GetOrAdd(clusterKey, new MongoClient(cluster.ConnectionString));
+        // GetOrAdd collapses a concurrent double-build to a single cached client; any loser's Lazy is
+        // discarded without ever building (a MongoClient starts server-monitoring at construction, so an
+        // unbuilt Lazy leaks nothing).
+        return _clients.GetOrAdd(clusterKey, new Lazy<IMongoClient>(() => new MongoClient(cluster.ConnectionString))).Value;
     }
 }

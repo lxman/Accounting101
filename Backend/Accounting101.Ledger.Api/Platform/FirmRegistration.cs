@@ -1,3 +1,4 @@
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace Accounting101.Ledger.Api.Platform;
@@ -29,6 +30,7 @@ public sealed class FirmRegistration
     /// document also deserializes to "default".</summary>
     public string ClusterKey { get; set; } = "default";
 
+    [BsonRepresentation(BsonType.String)]
     public FirmStatus Status { get; set; } = FirmStatus.Active;
 
     /// <summary>When the firm was provisioned (UTC).</summary>

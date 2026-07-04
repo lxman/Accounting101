@@ -39,6 +39,29 @@ public sealed class ClientRegistrationTenancyFieldsTests
     }
 
     [Fact]
+    public async Task Status_is_persisted_as_a_bson_string()
+    {
+        IMongoDatabase db = await FreshDbAsync();
+        ControlStore control = new(db);
+        Guid id = Guid.NewGuid();
+        await control.RegisterClientAsync(new ClientRegistration
+        {
+            Id = id,
+            Name = "Acme",
+            DatabaseName = "client_x",
+            Status = ClientStatus.Archived,
+        });
+
+        BsonDocument doc = await db.GetCollection<BsonDocument>("clients")
+            .Find(Builders<BsonDocument>.Filter.Eq("_id", new BsonBinaryData(id, GuidRepresentation.Standard)))
+            .FirstOrDefaultAsync();
+
+        Assert.NotNull(doc);
+        Assert.Equal(BsonType.String, doc["Status"].BsonType);
+        Assert.Equal("Archived", doc["Status"].AsString);
+    }
+
+    [Fact]
     public async Task Legacy_document_without_the_fields_defaults_to_Active_and_empty()
     {
         IMongoDatabase db = await FreshDbAsync();

@@ -1,3 +1,4 @@
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace Accounting101.Ledger.Api.Control;
@@ -31,6 +32,7 @@ public sealed class ClientRegistration
 
     /// <summary>Lifecycle state. Defaults to <see cref="ClientStatus.Active"/>; a missing field on a legacy
     /// document also deserializes to Active. Archiving stops the meter but keeps the ledger DB.</summary>
+    [BsonRepresentation(BsonType.String)]
     public ClientStatus Status { get; set; } = ClientStatus.Active;
 
     /// <summary>The module keys this client is entitled to (e.g. "receivables", "payables", "payroll").
