@@ -39,17 +39,21 @@ The Fixed Assets backend is complete (register, depreciation runs, disposals) bu
 - **Formatting**: `money`, `displayDate` from `core/format/display`.
 - **Money is number** in the UI (decimals serialized as JSON numbers); dates are ISO `yyyy-MM-dd` strings.
 
+## Backend serialization prerequisite (thin touch)
+
+Every other module's status enum carries `[JsonConverter(typeof(JsonStringEnumConverter))]`, so it serializes as a **string** (e.g. Payroll `status: "Posted"`); the UI types those fields as string unions. The four FixedAssets enums (`AssetStatus`, `DepreciationMethod`, `DepreciationRunStatus`, `DisposalStatus`) were shipped WITHOUT the attribute, so they currently serialize as numbers — inconsistent with the whole app. FA-4's first task adds `[JsonConverter(typeof(JsonStringEnumConverter))]` to those four enums so they string-serialize like every sibling module (the FixedAssets backend suite deserializes into typed views, which round-trips either way, so it stays green). The UI then consumes string values, matching the Payroll pattern exactly.
+
 ## Components (new)
 
 ### `core/fixed-assets/fixed-assets.ts` (models)
-- `DepreciationMethod` — the wire value is a number (`0` = StraightLine, `1` = DecliningBalance); a `methodLabel(m)` helper maps to `'Straight line'` / `'Declining balance'`, and the editor's select offers the two.
-- `AssetStatus` — wire number (`0` = Active, `1` = Disposed); `statusLabel(s)` → `'Active'` / `'Disposed'`.
+- `DepreciationMethod` — string union `'StraightLine' | 'DecliningBalance'` (the enum names); `methodLabel(m)` → `'Straight line'` / `'Declining balance'`; the editor's select offers the two.
+- `AssetStatus` — string union `'Active' | 'Disposed'`; `statusLabel(s)` passes through.
 - `Asset` — `id`, `description`, `acquisitionCost`, `inServiceDate`, `usefulLifeMonths`, `salvageValue`, `method`, `decliningBalanceFactor` (nullable), `status`, `accumulatedDepreciation`.
 - `AssetView` — `{ asset: Asset; netBookValue: number }` (the API response shape).
 - `DepreciationRunLine` — `{ assetId: string; amount: number }`.
-- `DepreciationRun` — `id`, `number` (nullable), `period: { year: number; month: number }`, `effectiveDate`, `memo` (nullable), `lines: DepreciationRunLine[]`, `total`, `status` (`0` Posted / `1` Voided; `runStatusLabel`).
+- `DepreciationRun` — `id`, `number` (nullable), `period: { year: number; month: number }`, `effectiveDate`, `memo` (nullable), `lines: DepreciationRunLine[]`, `total`, `status` (`'Posted' | 'Voided'`).
 - `DepreciationRunView` — `{ run: DepreciationRun }`.
-- `Disposal` — `id`, `number` (nullable), `assetId`, `disposalDate`, `proceeds`, `catchUpDepreciation`, `accumulatedBeforeDisposal`, `accumulatedAtDisposal`, `netBookValue`, `gainLoss`, `memo` (nullable), `status` (`0` Posted / `1` Voided; `disposalStatusLabel`).
+- `Disposal` — `id`, `number` (nullable), `assetId`, `disposalDate`, `proceeds`, `catchUpDepreciation`, `accumulatedBeforeDisposal`, `accumulatedAtDisposal`, `netBookValue`, `gainLoss`, `memo` (nullable), `status` (`'Posted' | 'Voided'`).
 - `DisposalView` — `{ disposal: Disposal }`.
 - Request types: `SaveAssetRequest` (the editable fields), `RunDepreciationRequest` (`{ year, month, effectiveDate?, memo? }`), `DisposeAssetRequest` (`{ disposalDate, proceeds, memo? }`), `VoidReasonRequest` (`{ reason?: string | null }`).
 - `FixedAssetsListQuery` — `{ skip, limit, order?, includeInactive? , includeVoided? }` (assets use `includeInactive`, runs/disposals use `includeVoided`; the service sets whichever the endpoint takes).
