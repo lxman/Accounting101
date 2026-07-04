@@ -111,4 +111,32 @@ public sealed class ModuleAccessTests(ApiFixture fixture) : IClassFixture<ApiFix
             new ModuleIdentity("payables"), "payables", client.UserId, client.ClientId, ModuleAccessLevel.Write);
         Assert.Equal(ModuleAccessDecision.MissingCapability, decision);
     }
+
+    [Fact]
+    public async Task A_client_not_entitled_to_the_module_is_denied()
+    {
+        ControlStore control = fixture.Control();
+        await control.RegisterModuleAsync(new ModuleRegistration { Key = "invoicing", Name = "Invoicing", Enabled = true });
+        SeededClient client = await fixture.SeedClientAsync(enabledModules: []);
+        ModuleAccess access = new(control);
+
+        ModuleAccessDecision decision = await access.AuthorizeAsync(
+            new ModuleIdentity("invoicing"), "invoicing", client.UserId, client.ClientId);
+
+        Assert.Equal(ModuleAccessDecision.NotEntitled, decision);
+    }
+
+    [Fact]
+    public async Task An_entitled_client_passes_the_entitlement_gate()
+    {
+        ControlStore control = fixture.Control();
+        await control.RegisterModuleAsync(new ModuleRegistration { Key = "invoicing", Name = "Invoicing", Enabled = true });
+        SeededClient client = await fixture.SeedClientAsync(enabledModules: ["invoicing"]);
+        ModuleAccess access = new(control);
+
+        ModuleAccessDecision decision = await access.AuthorizeAsync(
+            new ModuleIdentity("invoicing"), "invoicing", client.UserId, client.ClientId);
+
+        Assert.Equal(ModuleAccessDecision.Allowed, decision);
+    }
 }

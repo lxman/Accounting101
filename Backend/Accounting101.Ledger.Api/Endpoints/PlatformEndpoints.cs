@@ -23,6 +23,7 @@ public static class PlatformEndpoints
         platform.MapPatch("/firms/{firmId:guid}/status", SetFirmStatus);
         platform.MapGet("/clusters", ListClusters);
         platform.MapPost("/clusters", RegisterCluster);
+        platform.MapGet("/usage", GetUsage);
     }
 
     private static async Task<IResult> ListFirms(PlatformStore platform, CancellationToken cancellationToken)
@@ -102,6 +103,38 @@ public static class PlatformEndpoints
         await platform.RegisterClusterAsync(
             new ClusterRegistration { Key = request.Key, ConnectionString = request.ConnectionString }, cancellationToken);
         return Results.Created($"/platform/clusters/{request.Key}", new ClusterResponse(request.Key, true));
+    }
+
+    private static async Task<IResult> GetUsage(
+        PlatformStore platform, IMongoClientFactory factory, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<FirmRegistration> firms = await platform.ListFirmsAsync(cancellationToken);
+        List<FirmUsageResponse> result = [];
+        foreach (FirmRegistration firm in firms)
+        {
+            IMongoClient mongo;
+            try
+            {
+                mongo = await factory.GetAsync(firm.ClusterKey, cancellationToken);
+            }
+            catch (InvalidOperationException)
+            {
+                // Cluster no longer registered — skip this firm rather than fail the whole meter.
+                continue;
+            }
+
+            ControlStore control = new(mongo.GetDatabase(firm.ControlDatabase));
+            IReadOnlyList<ClientRegistration> clients = await control.ListClientsAsync(cancellationToken);
+            List<ClientRegistration> active = clients.Where(c => c.Status == ClientStatus.Active).ToList();
+
+            Dictionary<string, int> counts = new();
+            foreach (ClientRegistration c in active)
+                foreach (string key in c.EnabledModules)
+                    counts[key] = counts.GetValueOrDefault(key) + 1;
+
+            result.Add(new FirmUsageResponse(firm.Id, firm.Name, active.Count, counts));
+        }
+        return Results.Ok(new UsageResponse(result));
     }
 
     private static FirmResponse ToResponse(FirmRegistration f) =>

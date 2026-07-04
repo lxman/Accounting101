@@ -19,6 +19,8 @@ namespace Accounting101.Receivables.Tests;
 /// </summary>
 public sealed class ReceivablesHostFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    private static readonly IReadOnlyList<string> DefaultModules = ["receivables"];
+
     private string _connectionString = "";
 
     public IMongoClient Mongo { get; private set; } = null!;
@@ -76,8 +78,18 @@ public sealed class ReceivablesHostFixture : WebApplicationFactory<Program>, IAs
         return http;
     }
 
+    /// <summary>An HttpClient authenticated as a deployment admin (carries the "admin" claim).</summary>
+    public HttpClient AdminClient()
+    {
+        HttpClient http = CreateClient();
+        string token = DevToken.Encode(new DevTokenPayload(
+            Guid.NewGuid(), "Deployment Admin", [new DevClaim("admin", "true")]));
+        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(DevTokenDefaults.Scheme, token);
+        return http;
+    }
+
     /// <summary>Register a client + a Controller member, returning an HttpClient authed as that member.</summary>
-    public async Task<(Guid ClientId, HttpClient Http)> SeedClientAsync()
+    public async Task<(Guid ClientId, HttpClient Http)> SeedClientAsync(IReadOnlyList<string>? enabledModules = null)
     {
         Guid clientId = Guid.NewGuid();
         Guid userId = Guid.NewGuid();
@@ -85,6 +97,7 @@ public sealed class ReceivablesHostFixture : WebApplicationFactory<Program>, IAs
         await control.RegisterClientAsync(new ClientRegistration
         {
             Id = clientId, Name = "Acme", DatabaseName = "client_" + clientId.ToString("N"),
+            EnabledModules = enabledModules ?? DefaultModules,
         });
         await control.AddMembershipAsync(userId, clientId, LedgerRole.Controller);
         return (clientId, ClientFor(userId, "Acme Controller"));
@@ -108,6 +121,7 @@ public sealed class ReceivablesHostFixture : WebApplicationFactory<Program>, IAs
         {
             Id = clientId, Name = "Acme SoD", DatabaseName = "client_" + clientId.ToString("N"),
             RequireSegregationOfDuties = true,
+            EnabledModules = DefaultModules,
         });
         await control.AddMembershipAsync(controllerUserId, clientId, LedgerRole.Controller);
         await control.AddMembershipAsync(clerkUserId, clientId, LedgerRole.Clerk);

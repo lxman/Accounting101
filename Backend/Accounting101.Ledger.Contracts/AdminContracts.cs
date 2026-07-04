@@ -48,3 +48,9 @@ public sealed record AdminAuditEntryResponse(
     Guid Id, DateTime Timestamp, Guid ActorUserId, bool ActorIsDeploymentAdmin, string Action,
     Guid? ClientId, Guid? TargetUserId, Guid? TargetSetId,
     IReadOnlyList<string>? BeforeCapabilities, IReadOnlyList<string>? AfterCapabilities);
+
+/// <summary>Replace a client's entitled module keys (default-closed access + billing meter). Idempotent.</summary>
+public sealed record SetClientModulesRequest(IReadOnlyList<string> ModuleKeys);
+
+/// <summary>A client's entitled module keys as returned by the entitlement setter.</summary>
+public sealed record ClientModulesResponse(Guid ClientId, IReadOnlyList<string> ModuleKeys);

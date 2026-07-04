@@ -19,6 +19,7 @@ public enum ModuleAccessDecision
     Unregistered,
     Disabled,
     NotOwner,
+    NotEntitled,
     NotMember,
     MissingCapability,
 }
@@ -51,6 +52,12 @@ public sealed class ModuleAccess(ControlStore control)
         // check makes any future named-target path safe too.
         if (caller.Key != targetNamespace)
             return ModuleAccessDecision.NotOwner;
+
+        // Entitlement (default-closed): the module must be in the client's EnabledModules. An unknown client
+        // (not in this firm's control DB) is entitled to nothing — this is also the cross-firm isolation floor.
+        ClientRegistration? client = await control.GetClientAsync(clientId, cancellationToken);
+        if (client is null || !client.EnabledModules.Contains(caller.Key))
+            return ModuleAccessDecision.NotEntitled;
 
         Membership? membership = await control.GetMembershipAsync(userId, clientId, cancellationToken);
         if (membership is null)

@@ -18,6 +18,8 @@ namespace Accounting101.Payables.Tests;
 /// </summary>
 public sealed class PayablesHostFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    private static readonly IReadOnlyList<string> DefaultModules = ["payables"];
+
     private string _connectionString = "";
 
     public IMongoClient Mongo { get; private set; } = null!;
@@ -78,6 +80,7 @@ public sealed class PayablesHostFixture : WebApplicationFactory<Program>, IAsync
         await control.RegisterClientAsync(new ClientRegistration
         {
             Id = clientId, Name = "Acme", DatabaseName = "client_" + clientId.ToString("N"),
+            EnabledModules = DefaultModules,
         });
         await control.AddMembershipAsync(userId, clientId, LedgerRole.Controller);
         return (clientId, ClientFor(userId, "Acme Controller"));
@@ -92,6 +95,7 @@ public sealed class PayablesHostFixture : WebApplicationFactory<Program>, IAsync
         await control.RegisterClientAsync(new ClientRegistration
         {
             Id = clientId, Name = "Acme", DatabaseName = "client_" + clientId.ToString("N"),
+            EnabledModules = DefaultModules,
         });
         await control.AddMembershipAsync(userId, clientId, role);
         return (clientId, ClientFor(userId, $"Acme {role}"));
@@ -114,6 +118,7 @@ public sealed class PayablesHostFixture : WebApplicationFactory<Program>, IAsync
         {
             Id = clientId, Name = "Acme SoD", DatabaseName = "client_" + clientId.ToString("N"),
             RequireSegregationOfDuties = true,
+            EnabledModules = DefaultModules,
         });
         await control.AddMembershipAsync(controllerUserId, clientId, LedgerRole.Controller);
         await control.AddMembershipAsync(clerkUserId, clientId, LedgerRole.Clerk);

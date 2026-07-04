@@ -24,6 +24,8 @@ namespace Accounting101.Banking.Cash.Tests;
 /// </summary>
 public sealed class CashHostFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    private static readonly IReadOnlyList<string> DefaultModules = ["receivables", "payables", "payroll", "cash"];
+
     private string _connectionString = "";
 
     public IMongoClient Mongo { get; private set; } = null!;
@@ -115,6 +117,7 @@ public sealed class CashHostFixture : WebApplicationFactory<Program>, IAsyncLife
         await control.RegisterClientAsync(new ClientRegistration
         {
             Id = clientId, Name = "Acme", DatabaseName = "client_" + clientId.ToString("N"),
+            EnabledModules = DefaultModules,
         });
         await control.AddMembershipAsync(userId, clientId, role);
         return (clientId, ClientFor(userId, $"Acme {role}"));
@@ -137,6 +140,7 @@ public sealed class CashHostFixture : WebApplicationFactory<Program>, IAsyncLife
         {
             Id = clientId, Name = "Acme SoD", DatabaseName = "client_" + clientId.ToString("N"),
             RequireSegregationOfDuties = true,
+            EnabledModules = DefaultModules,
         });
         await control.AddMembershipAsync(controllerUserId, clientId, LedgerRole.Controller);
         await control.AddMembershipAsync(clerkUserId, clientId, LedgerRole.Clerk);
