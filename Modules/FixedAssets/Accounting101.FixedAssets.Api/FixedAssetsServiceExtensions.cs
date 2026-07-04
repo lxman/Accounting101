@@ -17,6 +17,7 @@ public static class FixedAssetsServiceExtensions
         {
             manifest.Reference("assets");
             manifest.Evidentiary("depreciation-runs");
+            manifest.Evidentiary("disposals");
         });
 
         services.AddScoped<IAssetStore>(sp =>
@@ -25,6 +26,10 @@ public static class FixedAssetsServiceExtensions
             new DocumentDepreciationRunStore(sp.GetRequiredKeyedService<IDocumentStore>("fixedassets")));
         services.AddScoped<FixedAssetsService>();
         services.AddScoped<FixedAssetsRunService>();
+
+        services.AddScoped<IDisposalStore>(sp =>
+            new DocumentDisposalStore(sp.GetRequiredKeyedService<IDocumentStore>("fixedassets")));
+        services.AddScoped<FixedAssetsDisposalService>();
 
         services.AddSingleton<IDepreciationMethod, StraightLineDepreciation>();
         services.AddSingleton<IDepreciationMethod, DecliningBalanceDepreciation>();

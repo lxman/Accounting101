@@ -14,6 +14,10 @@ public sealed class FixedAssetsPostingTests
         {
             DepreciationExpenseAccountId = expense,
             AccumulatedDepreciationAccountId = accumulated,
+            AssetCostAccountId = Guid.NewGuid(),
+            DisposalProceedsAccountId = Guid.NewGuid(),
+            GainOnDisposalAccountId = Guid.NewGuid(),
+            LossOnDisposalAccountId = Guid.NewGuid(),
         };
     }
 

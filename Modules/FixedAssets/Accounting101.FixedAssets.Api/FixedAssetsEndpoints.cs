@@ -22,6 +22,11 @@ public static class FixedAssetsEndpoints
         clients.MapPost("/depreciation-runs/{runId:guid}/void", VoidRun);
         clients.MapGet("/depreciation-runs/{runId:guid}", GetRun);
         clients.MapGet("/depreciation-runs", ListRuns);
+
+        clients.MapPost("/assets/{assetId:guid}/dispose", DisposeAsset);
+        clients.MapPost("/disposals/{disposalId:guid}/void", VoidDisposal);
+        clients.MapGet("/disposals/{disposalId:guid}", GetDisposal);
+        clients.MapGet("/disposals", ListDisposals);
     }
 
     private static async Task<IResult> CreateAsset(
@@ -50,6 +55,8 @@ public static class FixedAssetsEndpoints
                 UpdateOutcome.NotFound => Results.NotFound(),
                 UpdateOutcome.Inactive => Results.Problem(
                     "Asset is inactive; reactivate it before editing.", statusCode: StatusCodes.Status409Conflict),
+                UpdateOutcome.Disposed => Results.Problem(
+                    "Asset is disposed; void the disposal before editing.", statusCode: StatusCodes.Status409Conflict),
                 _ => Results.Problem("Unexpected update result.", statusCode: StatusCodes.Status500InternalServerError),
             };
         }
@@ -66,6 +73,8 @@ public static class FixedAssetsEndpoints
         if (result == ReactivateResult.NotFound) return Results.NotFound();
         if (result == ReactivateResult.AlreadyActive)
             return Results.Problem("Asset is already active.", statusCode: StatusCodes.Status409Conflict);
+        if (result == ReactivateResult.Disposed)
+            return Results.Problem("Asset is disposed; void the disposal first.", statusCode: StatusCodes.Status409Conflict);
         Asset? asset = await service.GetAsync(clientId, assetId, cancellationToken);
         return asset is null ? Results.NotFound() : Results.Ok(new AssetView(asset));
     }
@@ -80,6 +89,8 @@ public static class FixedAssetsEndpoints
             DeactivateResult.NotFound => Results.NotFound(),
             DeactivateResult.AlreadyInactive => Results.Problem(
                 "Asset is already inactive.", statusCode: StatusCodes.Status409Conflict),
+            DeactivateResult.Disposed => Results.Problem(
+                "Asset is disposed; void the disposal first.", statusCode: StatusCodes.Status409Conflict),
             _ => Results.Problem("Unexpected deactivate result.", statusCode: StatusCodes.Status500InternalServerError),
         };
     }
@@ -156,6 +167,59 @@ public static class FixedAssetsEndpoints
             clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeVoided ?? false, cancellationToken);
         return Results.Ok(new PagedResponse<DepreciationRunView>(
             page.Items.Select(r => new DepreciationRunView(r)).ToList(), page.Total, page.Skip, page.Limit));
+    }
+
+    // ── Disposals ────────────────────────────────────────────────────────────
+
+    private static async Task<IResult> DisposeAsset(
+        Guid clientId, Guid assetId, DisposeAssetRequest request, FixedAssetsDisposalService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            Disposal disposal = await service.DisposeAsync(clientId, assetId, request.ToRequest(), cancellationToken);
+            return Results.Created($"/clients/{clientId}/disposals/{disposal.Id}", new DisposalView(disposal));
+        }
+        catch (InvalidOperationException ex) // not found / not active / already disposed
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+        catch (ArgumentException ex) // negative proceeds / date before in-service
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+    }
+
+    private static async Task<IResult> VoidDisposal(
+        Guid clientId, Guid disposalId, VoidReasonRequest? request, FixedAssetsDisposalService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            Disposal voided = await service.VoidDisposalAsync(clientId, disposalId, request?.Reason, cancellationToken);
+            return Results.Ok(new DisposalView(voided));
+        }
+        catch (InvalidOperationException ex) // not found / not posted
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+    }
+
+    private static async Task<IResult> GetDisposal(
+        Guid clientId, Guid disposalId, FixedAssetsDisposalService service, CancellationToken cancellationToken)
+    {
+        Disposal? disposal = await service.GetDisposalAsync(clientId, disposalId, cancellationToken);
+        return disposal is null ? Results.NotFound() : Results.Ok(new DisposalView(disposal));
+    }
+
+    private static async Task<IResult> ListDisposals(
+        Guid clientId, int? skip, int? limit, string? order, bool? includeVoided,
+        IDisposalStore store, CancellationToken cancellationToken)
+    {
+        if (!TryOrder(order, out bool descending))
+            return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
+        PagedResponse<Disposal> page = await store.GetByClientPagedAsync(
+            clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeVoided ?? false, cancellationToken);
+        return Results.Ok(new PagedResponse<DisposalView>(
+            page.Items.Select(d => new DisposalView(d)).ToList(), page.Total, page.Skip, page.Limit));
     }
 
     private static bool TryOrder(string? order, out bool descending)

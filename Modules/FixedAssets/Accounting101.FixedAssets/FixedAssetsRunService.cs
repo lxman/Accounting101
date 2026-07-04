@@ -28,6 +28,7 @@ public sealed class FixedAssetsRunService(
         List<DepreciationRunLine> lines = [];
         foreach (Asset asset in await ActiveAssetsAsync(clientId, ct))
         {
+            if (asset.Status != AssetStatus.Active) continue; // disposed assets don't depreciate
             if (!period.OnOrAfterServiceMonth(asset.InServiceDate)) continue;
             decimal amount = methods.For(asset.Method).DepreciationForPeriod(asset);
             if (amount > 0m) lines.Add(new DepreciationRunLine(asset.Id, amount));
@@ -37,18 +38,20 @@ public sealed class FixedAssetsRunService(
         if (lines.Count == 0)
             throw new ArgumentException($"No assets to depreciate for {period.Year}-{period.Month:D2}.");
 
+        // 4. Resolve posting accounts BEFORE any persistence — a config error must fail before side effects.
+        FixedAssetsPostingAccounts postingAccounts = await accounts.GetAccountsAsync(clientId, ct);
+
         decimal total = lines.Sum(l => l.Amount);
         DateOnly effectiveDate = request.EffectiveDate ?? period.LastDay();
 
-        // 4. Persist the evidentiary run.
+        // 5. Persist the evidentiary run.
         DepreciationRun run = await runs.RecordAsync(clientId,
             new DepreciationRunBody(period, effectiveDate, request.Memo, lines, total), ct);
 
-        // 5. Advance each asset's accumulated depreciation.
+        // 6. Advance each asset's accumulated depreciation.
         await assets.ApplyDepreciationAsync(clientId, lines, ct);
 
-        // 6. Compose + post one PendingApproval aggregate entry.
-        FixedAssetsPostingAccounts postingAccounts = await accounts.GetAccountsAsync(clientId, ct);
+        // 7. Compose + post one PendingApproval aggregate entry.
         PostEntryRequest entry = FixedAssetsPosting.ComposeDepreciationRun(run.Id, total, effectiveDate, request.Memo, postingAccounts);
         await ledger.PostAsync(clientId, entry, ct);
 
@@ -67,14 +70,17 @@ public sealed class FixedAssetsRunService(
         if (latest is null || latest.Id != run.Id)
             throw new InvalidOperationException("Only the most recent depreciation run can be voided.");
 
-        // Reverse the posted entry (or withdraw it if still pending) — Payroll precedent.
+        // Reverse the posted entry (or withdraw it if still pending). Tolerate a missing entry — a run
+        // stranded by a failed post has no entry, but must still be recoverable: roll back + void the doc.
         IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, runId, ct);
-        EntryResponse entry = spawned.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null })
-            ?? throw new InvalidOperationException($"No entry found for depreciation run {run.Number} to void.");
-        if (entry.Posting == "Posted")
-            await ledger.ReverseAsync(clientId, entry.Id, new ReverseRequest(run.EffectiveDate, reason ?? $"Voided depreciation run {runId}"), ct);
-        else
-            await ledger.VoidAsync(clientId, entry.Id, new VoidRequest(reason ?? $"Voided depreciation run {runId}"), ct);
+        EntryResponse? entry = spawned.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null });
+        if (entry is not null)
+        {
+            if (entry.Posting == "Posted")
+                await ledger.ReverseAsync(clientId, entry.Id, new ReverseRequest(run.EffectiveDate, reason ?? $"Voided depreciation run {runId}"), ct);
+            else
+                await ledger.VoidAsync(clientId, entry.Id, new VoidRequest(reason ?? $"Voided depreciation run {runId}"), ct);
+        }
 
         // Roll each asset's accumulated depreciation back, then void the doc.
         await assets.ReverseDepreciationAsync(clientId, run.Lines, ct);

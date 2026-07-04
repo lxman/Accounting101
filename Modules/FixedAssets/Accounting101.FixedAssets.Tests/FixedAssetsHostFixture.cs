@@ -26,6 +26,12 @@ public sealed class FixedAssetsHostFixture : WebApplicationFactory<Program>, IAs
     public Guid DepreciationExpenseAccountId { get; } = Guid.NewGuid();
     public Guid AccumulatedDepreciationAccountId { get; } = Guid.NewGuid();
 
+    // The four additional disposal posting accounts.
+    public Guid AssetCostAccountId { get; } = Guid.NewGuid();
+    public Guid DisposalProceedsAccountId { get; } = Guid.NewGuid();
+    public Guid GainOnDisposalAccountId { get; } = Guid.NewGuid();
+    public Guid LossOnDisposalAccountId { get; } = Guid.NewGuid();
+
     public async Task InitializeAsync()
     {
         IMongoRunner runner = await SharedMongo.InstanceAsync();
@@ -43,6 +49,10 @@ public sealed class FixedAssetsHostFixture : WebApplicationFactory<Program>, IAs
 
         builder.UseSetting("FixedAssets:Accounts:DepreciationExpense", DepreciationExpenseAccountId.ToString());
         builder.UseSetting("FixedAssets:Accounts:AccumulatedDepreciation", AccumulatedDepreciationAccountId.ToString());
+        builder.UseSetting("FixedAssets:Accounts:AssetCost", AssetCostAccountId.ToString());
+        builder.UseSetting("FixedAssets:Accounts:DisposalProceeds", DisposalProceedsAccountId.ToString());
+        builder.UseSetting("FixedAssets:Accounts:GainOnDisposal", GainOnDisposalAccountId.ToString());
+        builder.UseSetting("FixedAssets:Accounts:LossOnDisposal", LossOnDisposalAccountId.ToString());
 
         builder.ConfigureTestServices(services =>
         {
