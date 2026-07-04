@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+using Accounting101.Ledger.Api.Platform;
 using Accounting101.Ledger.Mongo;
 using Accounting101.Ledger.Mongo.Reporting;
 using MongoDB.Driver;
@@ -11,10 +11,8 @@ namespace Accounting101.Ledger.Api.Tenancy;
 /// once per client per process. Returns null if the client is not registered (the resolver
 /// refused it) — the caller maps that to the appropriate HTTP result.
 /// </summary>
-public sealed class ClientLedgerFactory(IClientDatabaseResolver resolver)
+public sealed class ClientLedgerFactory(IClientDatabaseResolver resolver, IIndexGuard indexGuard)
 {
-    private readonly ConcurrentDictionary<Guid, bool> _indexed = new();
-
     public async Task<ClientLedger?> CreateAsync(Guid clientId, CancellationToken cancellationToken = default)
     {
         IMongoDatabase? database = await resolver.ResolveAsync(clientId, cancellationToken);
@@ -31,10 +29,9 @@ public sealed class ClientLedgerFactory(IClientDatabaseResolver resolver)
         ChartService chart = new(database.Client, accounts, audit);
         FinancialStatementService statements = new(journal, accounts);
 
-        // Ensure indexes once per client per process — but only mark the client done once it actually
-        // succeeds, or a transient failure on the first attempt would latch it into the skip path and the
-        // client would run unindexed for the life of the process.
-        if (_indexed.TryAdd(clientId, true))
+        // Ensure indexes once per client per process — claim via the singleton guard so the guarantee
+        // survives this factory being request-scoped. Release on failure so a later request retries.
+        if (indexGuard.TryClaim(clientId))
         {
             try
             {
@@ -43,7 +40,7 @@ public sealed class ClientLedgerFactory(IClientDatabaseResolver resolver)
             }
             catch
             {
-                _indexed.TryRemove(clientId, out _); // re-arm so a later request retries
+                indexGuard.Release(clientId);
                 throw;
             }
         }

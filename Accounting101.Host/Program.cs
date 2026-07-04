@@ -5,6 +5,7 @@ using Accounting101.Payables.Api;
 using Accounting101.Payroll.Api;
 using Accounting101.Banking.Cash.Api;
 using Accounting101.Banking.Reconciliation.Api;
+using Accounting101.Ledger.Api.Platform;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -78,6 +79,10 @@ if (app.Environment.IsDevelopment())
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Resolve the request's firm (from the firm claim or the configured default) into FirmScope before any
+// endpoint runs; unknown/suspended firms are refused here with 403.
+app.UseFirmResolution();
 
 app.MapLedgerEndpoints();
 app.MapAdminEndpoints();

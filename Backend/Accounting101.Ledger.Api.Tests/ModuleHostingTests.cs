@@ -1,6 +1,8 @@
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Control;
 using Accounting101.Ledger.Api.Hosting;
+using Accounting101.Ledger.Api.Platform;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Accounting101.Ledger.Api.Tests;
@@ -29,13 +31,25 @@ public sealed class ModuleHostingTests(ApiFixture fixture) : IClassFixture<ApiFi
     [Fact]
     public async Task The_registrar_upserts_contributed_registrations_on_startup()
     {
-        ControlStore control = fixture.Control();
+        // Seed the default firm pointing at the fixture's control DB, then run the registrar against it.
+        PlatformStore platform = new(fixture.Mongo.GetDatabase(fixture.PlatformDatabase));
+        await platform.RegisterFirmAsync(new FirmRegistration
+        {
+            Id = TenancyDefaults.DefaultFirmId, Name = "Default Firm",
+            ControlDatabase = fixture.ControlDatabase, ClusterKey = "default",
+        });
+        // A factory whose home key "default" is pre-seeded to the fixture's client, so GetAsync("default")
+        // needs no cluster-registry row.
+        MongoClientFactory factory = new(fixture.Mongo, "default", platform);
+        IConfiguration config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>()).Build();
+
         ModuleRegistrar registrar = new(
             [new ModuleRegistration { Key = "invoicing", Name = "Invoicing", Enabled = true }],
-            control);
-
+            platform, factory, config);
         await registrar.StartAsync(CancellationToken.None);
 
+        ControlStore control = fixture.Control();
         ModuleRegistration? registered = await control.GetModuleAsync("invoicing");
         Assert.NotNull(registered);
         Assert.True(registered!.Enabled);

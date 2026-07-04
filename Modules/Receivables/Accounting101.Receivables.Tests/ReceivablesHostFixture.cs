@@ -23,6 +23,7 @@ public sealed class ReceivablesHostFixture : WebApplicationFactory<Program>, IAs
 
     public IMongoClient Mongo { get; private set; } = null!;
     public string ControlDatabase { get; } = "control_" + Guid.NewGuid().ToString("N");
+    public string PlatformDatabase { get; } = "platform_" + Guid.NewGuid().ToString("N");
     public Guid ReceivableAccountId { get; } = Guid.NewGuid();
     public Guid RevenueAccountId { get; } = Guid.NewGuid();
     public Guid LicenseRevenueAccountId { get; } = Guid.NewGuid();
@@ -48,6 +49,7 @@ public sealed class ReceivablesHostFixture : WebApplicationFactory<Program>, IAs
     {
         builder.UseSetting("Mongo:ConnectionString", _connectionString);
         builder.UseSetting("Mongo:ControlDatabase", ControlDatabase);
+        builder.UseSetting("Mongo:PlatformDatabase", PlatformDatabase);
         builder.UseSetting("Receivables:Accounts:Receivable", ReceivableAccountId.ToString());
         builder.UseSetting("Receivables:Accounts:Revenue", RevenueAccountId.ToString());
         builder.UseSetting("Receivables:Accounts:RevenueByCategory:License", LicenseRevenueAccountId.ToString());

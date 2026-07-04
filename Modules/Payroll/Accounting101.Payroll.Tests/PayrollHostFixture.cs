@@ -27,6 +27,7 @@ public sealed class PayrollHostFixture : WebApplicationFactory<Program>, IAsyncL
 
     public IMongoClient Mongo { get; private set; } = null!;
     public string ControlDatabase { get; } = "control_" + Guid.NewGuid().ToString("N");
+    public string PlatformDatabase { get; } = "platform_" + Guid.NewGuid().ToString("N");
 
     // The five payroll posting accounts.
     public Guid SalariesExpenseAccountId { get; } = Guid.NewGuid();
@@ -55,6 +56,7 @@ public sealed class PayrollHostFixture : WebApplicationFactory<Program>, IAsyncL
     {
         builder.UseSetting("Mongo:ConnectionString", _connectionString);
         builder.UseSetting("Mongo:ControlDatabase", ControlDatabase);
+        builder.UseSetting("Mongo:PlatformDatabase", PlatformDatabase);
 
         builder.UseSetting("Payroll:Accounts:SalariesExpense", SalariesExpenseAccountId.ToString());
         builder.UseSetting("Payroll:Accounts:PayrollTaxExpense", PayrollTaxExpenseAccountId.ToString());

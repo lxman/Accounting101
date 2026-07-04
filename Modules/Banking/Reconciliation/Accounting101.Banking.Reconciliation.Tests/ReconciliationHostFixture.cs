@@ -27,6 +27,7 @@ public sealed class ReconciliationHostFixture : WebApplicationFactory<Program>, 
 
     public IMongoClient Mongo { get; private set; } = null!;
     public string ControlDatabase { get; } = "control_" + Guid.NewGuid().ToString("N");
+    public string PlatformDatabase { get; } = "platform_" + Guid.NewGuid().ToString("N");
 
     // Cash posting account.
     public Guid CashAccountId { get; } = Guid.NewGuid();
@@ -64,6 +65,7 @@ public sealed class ReconciliationHostFixture : WebApplicationFactory<Program>, 
     {
         builder.UseSetting("Mongo:ConnectionString", _connectionString);
         builder.UseSetting("Mongo:ControlDatabase", ControlDatabase);
+        builder.UseSetting("Mongo:PlatformDatabase", PlatformDatabase);
 
         // Cash config.
         builder.UseSetting("Cash:Accounts:Cash", CashAccountId.ToString());
