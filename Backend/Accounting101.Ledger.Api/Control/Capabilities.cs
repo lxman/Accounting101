@@ -78,6 +78,7 @@ public static class Capabilities
         "payroll"        => level == ModuleAccessLevel.Write ? PayrollWrite : PayrollRead,
         "cash"           => level == ModuleAccessLevel.Write ? CashWrite : CashRead,
         "reconciliation" => level == ModuleAccessLevel.Write ? BankRecWrite : BankRecRead,
+        "fixedassets"    => level == ModuleAccessLevel.Write ? FixedAssetsWrite : FixedAssetsRead,
         _ => null,
     };
 

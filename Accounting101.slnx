@@ -34,6 +34,11 @@
     <Project Path="Modules/Payroll/Accounting101.Payroll.Api/Accounting101.Payroll.Api.csproj" />
     <Project Path="Modules/Payroll/Accounting101.Payroll.Tests/Accounting101.Payroll.Tests.csproj" />
   </Folder>
+  <Folder Name="/Modules/FixedAssets/">
+    <Project Path="Modules/FixedAssets/Accounting101.FixedAssets/Accounting101.FixedAssets.csproj" />
+    <Project Path="Modules/FixedAssets/Accounting101.FixedAssets.Api/Accounting101.FixedAssets.Api.csproj" />
+    <Project Path="Modules/FixedAssets/Accounting101.FixedAssets.Tests/Accounting101.FixedAssets.Tests.csproj" />
+  </Folder>
   <Folder Name="/Modules/" />
   <Folder Name="/Modules/Banking/">
     <Project Path="Modules/Banking/Cash/Accounting101.Banking.Cash/Accounting101.Banking.Cash.csproj" />
