@@ -19,15 +19,16 @@ public sealed class DocumentAssetStore(IDocumentStore documents) : IAssetStore
         return Map(id, doc);
     }
 
-    public async Task<Asset?> UpdateAsync(Guid clientId, Guid assetId, AssetBody body, CancellationToken ct = default)
+    public async Task<UpdateResult> UpdateAsync(Guid clientId, Guid assetId, AssetBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         DocumentResult<AssetDocument>? existing = await documents.GetAsync<AssetDocument>(clientId, Collection, assetId, ct);
-        if (existing is null) return null;
+        if (existing is null) return UpdateResult.NotFound;
+        if (existing.State == DocumentLifecycle.Inactive) return UpdateResult.Inactive; // sticky: reactivate first
         // Only the editable params change; Status + AccumulatedDepreciation are preserved (FA-2/FA-3 own them).
         AssetDocument doc = ToDocument(body, existing.Body.Status, existing.Body.AccumulatedDepreciation);
         await documents.PutAsync(clientId, Collection, assetId, doc, NoTags, ct);
-        return Map(assetId, doc);
+        return UpdateResult.Updated(Map(assetId, doc));
     }
 
     public async Task<DeactivateResult> DeactivateAsync(Guid clientId, Guid assetId, CancellationToken ct = default)
@@ -37,6 +38,37 @@ public sealed class DocumentAssetStore(IDocumentStore documents) : IAssetStore
         if (existing.State == DocumentLifecycle.Inactive) return DeactivateResult.AlreadyInactive;
         await documents.DeactivateAsync(clientId, Collection, assetId, ct);
         return DeactivateResult.Deactivated;
+    }
+
+    public async Task<ReactivateResult> ReactivateAsync(Guid clientId, Guid assetId, CancellationToken ct = default)
+    {
+        DocumentResult<AssetDocument>? existing = await documents.GetAsync<AssetDocument>(clientId, Collection, assetId, ct);
+        if (existing is null) return ReactivateResult.NotFound;
+        if (existing.State != DocumentLifecycle.Inactive) return ReactivateResult.AlreadyActive;
+        // The engine has no explicit reactivate primitive; a Put on a reference doc rebuilds it Active
+        // (ScopedDocumentStore.PutReferenceAsync always sets DocumentState.Active). Re-put the SAME body
+        // (preserving server-owned Status + AccumulatedDepreciation) so only the lifecycle flips.
+        await documents.PutAsync(clientId, Collection, assetId, existing.Body, NoTags, ct);
+        return ReactivateResult.Reactivated;
+    }
+
+    public async Task ApplyDepreciationAsync(Guid clientId, IReadOnlyList<DepreciationRunLine> lines, CancellationToken ct = default) =>
+        await AdjustAccumulatedAsync(clientId, lines, sign: +1m, ct);
+
+    public async Task ReverseDepreciationAsync(Guid clientId, IReadOnlyList<DepreciationRunLine> lines, CancellationToken ct = default) =>
+        await AdjustAccumulatedAsync(clientId, lines, sign: -1m, ct);
+
+    private async Task AdjustAccumulatedAsync(Guid clientId, IReadOnlyList<DepreciationRunLine> lines, decimal sign, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(lines);
+        foreach (DepreciationRunLine line in lines)
+        {
+            DocumentResult<AssetDocument>? existing = await documents.GetAsync<AssetDocument>(clientId, Collection, line.AssetId, ct);
+            if (existing is null) continue; // asset gone; skip (run void tolerates missing assets)
+            decimal updated = existing.Body.AccumulatedDepreciation + sign * line.Amount;
+            AssetDocument doc = existing.Body with { AccumulatedDepreciation = updated };
+            await documents.PutAsync(clientId, Collection, line.AssetId, doc, NoTags, ct);
+        }
     }
 
     public async Task<Asset?> GetAsync(Guid clientId, Guid assetId, CancellationToken ct = default)

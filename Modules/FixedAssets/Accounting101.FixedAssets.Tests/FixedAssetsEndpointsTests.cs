@@ -84,4 +84,39 @@ public sealed class FixedAssetsEndpointsTests(FixedAssetsHostFixture fixture) : 
         HttpResponseMessage response = await http.PostAsJsonAsync($"/clients/{clientId}/assets", Van());
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
+
+    [Fact]
+    public async Task Editing_a_deactivated_asset_returns_409_until_reactivated()
+    {
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync(); // Controller by default
+
+        // Create + deactivate.
+        AssetView created = (await (await http.PostAsJsonAsync($"/clients/{clientId}/assets",
+            new SaveAssetRequest("Van", 12000m, new DateOnly(2026, 1, 1), 24, 0m, DepreciationMethod.StraightLine, null)))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<AssetView>())!;
+        Guid assetId = created.Asset.Id;
+        (await http.PostAsync($"/clients/{clientId}/assets/{assetId}/deactivate", null)).EnsureSuccessStatusCode();
+
+        // Update now 409.
+        HttpResponseMessage edit = await http.PutAsJsonAsync($"/clients/{clientId}/assets/{assetId}",
+            new SaveAssetRequest("Van 2", 12000m, new DateOnly(2026, 1, 1), 24, 0m, DepreciationMethod.StraightLine, null));
+        Assert.Equal(HttpStatusCode.Conflict, edit.StatusCode);
+
+        // Reactivate, then update succeeds.
+        (await http.PostAsync($"/clients/{clientId}/assets/{assetId}/reactivate", null)).EnsureSuccessStatusCode();
+        HttpResponseMessage edit2 = await http.PutAsJsonAsync($"/clients/{clientId}/assets/{assetId}",
+            new SaveAssetRequest("Van 2", 12000m, new DateOnly(2026, 1, 1), 24, 0m, DepreciationMethod.StraightLine, null));
+        Assert.Equal(HttpStatusCode.OK, edit2.StatusCode);
+    }
+
+    [Fact]
+    public async Task Reactivating_an_active_asset_returns_409()
+    {
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
+        AssetView created = (await (await http.PostAsJsonAsync($"/clients/{clientId}/assets",
+            new SaveAssetRequest("Van", 12000m, new DateOnly(2026, 1, 1), 24, 0m, DepreciationMethod.StraightLine, null)))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<AssetView>())!;
+        HttpResponseMessage reactivate = await http.PostAsync($"/clients/{clientId}/assets/{created.Asset.Id}/reactivate", null);
+        Assert.Equal(HttpStatusCode.Conflict, reactivate.StatusCode);
+    }
 }
