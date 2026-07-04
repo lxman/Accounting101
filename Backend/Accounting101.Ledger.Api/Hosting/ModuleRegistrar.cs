@@ -24,8 +24,7 @@ public sealed class ModuleRegistrar(
 
         IMongoClient client = await factory.GetAsync(firm.ClusterKey, cancellationToken);
         ControlStore control = new(client.GetDatabase(firm.ControlDatabase));
-        foreach (ModuleRegistration module in modules)
-            await control.RegisterModuleAsync(module, cancellationToken);
+        await control.SeedModulesAsync(modules, cancellationToken);
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
