@@ -139,10 +139,13 @@ public static class AdminEndpoints
 
         IReadOnlyList<string> keys = request.ModuleKeys ?? [];
         // Validate against installed modules — an unknown key is a mistake (no module would ever be entitled),
-        // not inert. A helpful 400 beats a silently useless entitlement.
-        foreach (string key in keys)
-            if (await control.GetModuleAsync(key, cancellationToken) is null)
-                return Results.Problem($"Unknown module '{key}'.", statusCode: StatusCodes.Status400BadRequest);
+        // not inert. A helpful 400 beats a silently useless entitlement. One lookup covers every key.
+        if (keys.Count > 0)
+        {
+            HashSet<string> installed = [.. (await control.ListModulesAsync(cancellationToken)).Select(m => m.Key)];
+            if (keys.FirstOrDefault(k => !installed.Contains(k)) is { } unknown)
+                return Results.Problem($"Unknown module '{unknown}'.", statusCode: StatusCodes.Status400BadRequest);
+        }
 
         await control.SetClientModulesAsync(clientId, keys, cancellationToken);
         return Results.Ok(new ClientModulesResponse(clientId, keys));

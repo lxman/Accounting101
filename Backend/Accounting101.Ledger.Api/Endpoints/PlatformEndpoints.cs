@@ -127,10 +127,10 @@ public static class PlatformEndpoints
             IReadOnlyList<ClientRegistration> clients = await control.ListClientsAsync(cancellationToken);
             List<ClientRegistration> active = clients.Where(c => c.Status == ClientStatus.Active).ToList();
 
-            Dictionary<string, int> counts = new();
-            foreach (ClientRegistration c in active)
-                foreach (string key in c.EnabledModules)
-                    counts[key] = counts.GetValueOrDefault(key) + 1;
+            Dictionary<string, int> counts = active
+                .SelectMany(c => c.EnabledModules)
+                .GroupBy(key => key)
+                .ToDictionary(g => g.Key, g => g.Count());
 
             result.Add(new FirmUsageResponse(firm.Id, firm.Name, active.Count, counts));
         }
