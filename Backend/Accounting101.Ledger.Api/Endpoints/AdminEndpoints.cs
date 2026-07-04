@@ -26,6 +26,7 @@ public static class AdminEndpoints
         perClient.MapPut("/clients/{clientId:guid}/fiscal-year-end", SetFiscalYearEnd);
         perClient.MapPost("/clients/{clientId:guid}/members", AddMember);
         perClient.MapGet("/clients/{clientId:guid}/members", ListMembers);
+        perClient.MapPut("/clients/{clientId:guid}/modules", SetClientModules);
     }
 
     private static async Task<IResult> CreateClient(
@@ -124,5 +125,26 @@ public static class AdminEndpoints
         IReadOnlyList<Membership> members = await control.GetMembersAsync(clientId, cancellationToken);
         return Results.Ok(members.Select(m => new MembershipResponse(
             m.UserId, m.ClientId, m.GrantedRoles.Select(r => r.ToString()).ToList(), m.Capabilities)).ToList());
+    }
+
+    private static async Task<IResult> SetClientModules(
+        Guid clientId, SetClientModulesRequest request, ClaimsPrincipal user,
+        IActorFactory actorFactory, ControlStore control, CancellationToken cancellationToken)
+    {
+        if (!await AdminAuthorization.MayAsync(user, clientId, Capabilities.AdminClient, actorFactory, control, cancellationToken))
+            return Results.Forbid();
+
+        if (await control.GetClientAsync(clientId, cancellationToken) is null)
+            return Results.NotFound();
+
+        IReadOnlyList<string> keys = request.ModuleKeys ?? [];
+        // Validate against installed modules — an unknown key is a mistake (no module would ever be entitled),
+        // not inert. A helpful 400 beats a silently useless entitlement.
+        foreach (string key in keys)
+            if (await control.GetModuleAsync(key, cancellationToken) is null)
+                return Results.Problem($"Unknown module '{key}'.", statusCode: StatusCodes.Status400BadRequest);
+
+        await control.SetClientModulesAsync(clientId, keys, cancellationToken);
+        return Results.Ok(new ClientModulesResponse(clientId, keys));
     }
 }

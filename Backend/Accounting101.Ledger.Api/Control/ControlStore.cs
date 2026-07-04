@@ -56,6 +56,17 @@ public sealed class ControlStore
             cancellationToken);
     }
 
+    /// <summary>Replace a client's entitled module keys (default-closed access gate + billing meter).
+    /// Returns false when no such client exists in this firm's control DB. Idempotent.</summary>
+    public async Task<bool> SetClientModulesAsync(Guid clientId, IReadOnlyList<string> moduleKeys, CancellationToken cancellationToken = default)
+    {
+        UpdateResult result = await _clients.UpdateOneAsync(
+            c => c.Id == clientId,
+            Builders<ClientRegistration>.Update.Set(c => c.EnabledModules, moduleKeys),
+            cancellationToken: cancellationToken);
+        return result.MatchedCount > 0;
+    }
+
     /// <summary>Grant a user a role on a client's books (idempotent — an existing membership is left as is).</summary>
     public Task AddMembershipAsync(Guid userId, Guid clientId, LedgerRole role = LedgerRole.Controller, CancellationToken cancellationToken = default) =>
         AddMembershipRolesAsync(userId, clientId, [role], cancellationToken);

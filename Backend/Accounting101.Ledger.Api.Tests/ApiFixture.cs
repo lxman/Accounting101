@@ -65,19 +65,23 @@ public sealed class ApiFixture : IAsyncLifetime
     public HttpClient AdminClient() => ClientFor(Guid.NewGuid(), "Deployment Admin", ("admin", "true"));
 
     /// <summary>Register a fresh client plus a member user, returning an HttpClient authed as that user.</summary>
-    public async Task<SeededClient> SeedClientAsync(string name = "Acme", bool requireSod = false, LedgerRole role = LedgerRole.Controller)
+    public async Task<SeededClient> SeedClientAsync(
+        string name = "Acme", bool requireSod = false, LedgerRole role = LedgerRole.Controller,
+        IReadOnlyList<string>? enabledModules = null)
     {
         Guid clientId = Guid.NewGuid();
         string database = "client_" + clientId.ToString("N");
         Guid userId = Guid.NewGuid();
 
         ControlStore control = Control();
+        IReadOnlyList<string> modules = enabledModules ?? (await control.ListModulesAsync()).Select(m => m.Key).ToList();
         await control.RegisterClientAsync(new ClientRegistration
         {
             Id = clientId,
             Name = name,
             DatabaseName = database,
             RequireSegregationOfDuties = requireSod,
+            EnabledModules = modules,
         });
         await control.AddMembershipAsync(userId, clientId, role);
 
