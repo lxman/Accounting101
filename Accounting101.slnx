@@ -20,10 +20,6 @@
     <Project Path="Modules/Receivables/Accounting101.Receivables.Api/Accounting101.Receivables.Api.csproj" />
     <Project Path="Modules/Receivables/Accounting101.Receivables.Tests/Accounting101.Receivables.Tests.csproj" />
   </Folder>
-  <Folder Name="/Modules/Banking/Reconciliation/">
-    <Project Path="Modules/Banking/Reconciliation/Accounting101.Banking.Reconciliation.Api/Accounting101.Banking.Reconciliation.Api.csproj" />
-    <Project Path="Modules/Banking/Reconciliation/Accounting101.Banking.Reconciliation.Tests/Accounting101.Banking.Reconciliation.Tests.csproj" />
-  </Folder>
   <Folder Name="/Modules/Payables/">
     <Project Path="Modules/Payables/Accounting101.Payables/Accounting101.Payables.csproj" />
     <Project Path="Modules/Payables/Accounting101.Payables.Api/Accounting101.Payables.Api.csproj" />
@@ -34,11 +30,17 @@
     <Project Path="Modules/Payroll/Accounting101.Payroll.Api/Accounting101.Payroll.Api.csproj" />
     <Project Path="Modules/Payroll/Accounting101.Payroll.Tests/Accounting101.Payroll.Tests.csproj" />
   </Folder>
+  <Folder Name="/Modules/FixedAssets/">
+    <Project Path="Modules/FixedAssets/Accounting101.FixedAssets/Accounting101.FixedAssets.csproj" />
+    <Project Path="Modules/FixedAssets/Accounting101.FixedAssets.Tests/Accounting101.FixedAssets.Tests.csproj" />
+  </Folder>
   <Folder Name="/Modules/" />
   <Folder Name="/Modules/Banking/">
     <Project Path="Modules/Banking/Cash/Accounting101.Banking.Cash/Accounting101.Banking.Cash.csproj" />
     <Project Path="Modules/Banking/Cash/Accounting101.Banking.Cash.Api/Accounting101.Banking.Cash.Api.csproj" />
     <Project Path="Modules/Banking/Cash/Accounting101.Banking.Cash.Tests/Accounting101.Banking.Cash.Tests.csproj" />
+    <Project Path="Modules/Banking/Reconciliation/Accounting101.Banking.Reconciliation.Api/Accounting101.Banking.Reconciliation.Api.csproj" />
+    <Project Path="Modules/Banking/Reconciliation/Accounting101.Banking.Reconciliation.Tests/Accounting101.Banking.Reconciliation.Tests.csproj" />
     <Project Path="Modules/Banking/Reconciliation/Accounting101.Banking.Reconciliation/Accounting101.Banking.Reconciliation.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
