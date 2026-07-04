@@ -50,6 +50,8 @@ public static class FixedAssetsEndpoints
                 UpdateOutcome.NotFound => Results.NotFound(),
                 UpdateOutcome.Inactive => Results.Problem(
                     "Asset is inactive; reactivate it before editing.", statusCode: StatusCodes.Status409Conflict),
+                UpdateOutcome.Disposed => Results.Problem(
+                    "Asset is disposed; void the disposal before editing.", statusCode: StatusCodes.Status409Conflict),
                 _ => Results.Problem("Unexpected update result.", statusCode: StatusCodes.Status500InternalServerError),
             };
         }
@@ -66,6 +68,8 @@ public static class FixedAssetsEndpoints
         if (result == ReactivateResult.NotFound) return Results.NotFound();
         if (result == ReactivateResult.AlreadyActive)
             return Results.Problem("Asset is already active.", statusCode: StatusCodes.Status409Conflict);
+        if (result == ReactivateResult.Disposed)
+            return Results.Problem("Asset is disposed; void the disposal first.", statusCode: StatusCodes.Status409Conflict);
         Asset? asset = await service.GetAsync(clientId, assetId, cancellationToken);
         return asset is null ? Results.NotFound() : Results.Ok(new AssetView(asset));
     }
@@ -80,6 +84,8 @@ public static class FixedAssetsEndpoints
             DeactivateResult.NotFound => Results.NotFound(),
             DeactivateResult.AlreadyInactive => Results.Problem(
                 "Asset is already inactive.", statusCode: StatusCodes.Status409Conflict),
+            DeactivateResult.Disposed => Results.Problem(
+                "Asset is disposed; void the disposal first.", statusCode: StatusCodes.Status409Conflict),
             _ => Results.Problem("Unexpected deactivate result.", statusCode: StatusCodes.Status500InternalServerError),
         };
     }

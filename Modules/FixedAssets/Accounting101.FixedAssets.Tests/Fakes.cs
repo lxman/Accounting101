@@ -122,6 +122,25 @@ internal sealed class InMemoryAssetStore : IAssetStore
             };
         return Task.CompletedTask;
     }
+
+    public Task<DisposeStamp> MarkDisposedAsync(Guid clientId, Guid assetId, decimal finalAccumulated, CancellationToken ct = default)
+    {
+        if (!_assets.TryGetValue(assetId, out Asset? a))
+            return Task.FromResult(new DisposeStamp(DisposeOutcome.NotFound, null, 0m));
+        if (a.Status != AssetStatus.Active)
+            return Task.FromResult(new DisposeStamp(DisposeOutcome.NotActive, null, a.AccumulatedDepreciation));
+        decimal prior = a.AccumulatedDepreciation;
+        Asset disposed = a with { Status = AssetStatus.Disposed, AccumulatedDepreciation = finalAccumulated };
+        _assets[assetId] = disposed;
+        return Task.FromResult(new DisposeStamp(DisposeOutcome.Disposed, disposed, prior));
+    }
+
+    public Task ReinstateAsync(Guid clientId, Guid assetId, decimal restoreAccumulated, CancellationToken ct = default)
+    {
+        if (_assets.TryGetValue(assetId, out Asset? a))
+            _assets[assetId] = a with { Status = AssetStatus.Active, AccumulatedDepreciation = restoreAccumulated };
+        return Task.CompletedTask;
+    }
 }
 
 /// <summary>An in-memory depreciation-run store: assigns incrementing DR-##### numbers and filters
