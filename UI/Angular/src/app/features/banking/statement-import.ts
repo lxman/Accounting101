@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmButton } from '@spartan-ng/helm/button';
@@ -129,7 +129,6 @@ type Stage = 'upload' | 'preview';
 export class StatementImport {
   private readonly svc = inject(BankingService);
   private readonly accounts = inject(AccountsService);
-  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly fields: { key: MappableField; label: string; required: boolean }[] = [
