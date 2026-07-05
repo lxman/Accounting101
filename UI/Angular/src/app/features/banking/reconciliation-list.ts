@@ -75,7 +75,11 @@ export class ReconciliationList {
   readonly message = signal<string | null>(null);
   readonly cashAccounts = computed(() => this.accounts.accounts().filter(a => a.type === 'Asset' && a.postable));
 
-  constructor() { if (this.accounts.accounts().length === 0) this.accounts.load(); }
+  constructor() {
+    if (this.accounts.accounts().length === 0) this.accounts.load();
+    const preselected = this.route.snapshot.queryParamMap.get('statement');
+    if (preselected) this.start(preselected);
+  }
 
   private readonly query = computed(() => ({ id: this.client.clientId(), account: this.cashAccountId() }));
   private readonly page = toSignal(

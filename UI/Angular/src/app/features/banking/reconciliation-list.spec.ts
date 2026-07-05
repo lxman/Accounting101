@@ -34,4 +34,22 @@ describe('ReconciliationList', () => {
       statementDate: '2026-03-31', status: 'InProgress', clearedEntryIds: [] });
     ctrl.verify();
   });
+
+  it('auto-starts a reconciliation when a ?statement query param is present', () => {
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
+        provideCapabilities('bankrec.write'),
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: new Map([['statement', 'b1']]) } } }],
+    });
+    TestBed.inject(ClientContextService).select('C1');
+    const fixture = TestBed.createComponent(ReconciliationList);
+    fixture.detectChanges();
+    const ctrl = TestBed.inject(HttpTestingController);
+    ctrl.expectOne(r => r.url.endsWith('/accounts')).flush([]);
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/reconciliations');
+    expect(req.request.body).toEqual({ bankStatementId: 'b1' });
+    req.flush({ id: 'r1', number: 'REC-00001', cashAccountId: 'CA1', bankStatementId: 'b1',
+      statementDate: '2026-03-31', status: 'InProgress', clearedEntryIds: [] });
+    ctrl.verify();
+  });
 });
