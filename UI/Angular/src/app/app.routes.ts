@@ -58,6 +58,9 @@ import { BankingShell } from './features/banking/banking-shell';
 import { CashList } from './features/banking/cash-list';
 import { CashVoucherEditor } from './features/banking/cash-voucher-editor';
 import { CashVoucherDetail } from './features/banking/cash-voucher-detail';
+import { StatementList } from './features/banking/statement-list';
+import { StatementEditor } from './features/banking/statement-editor';
+import { StatementDetail } from './features/banking/statement-detail';
 import { navLeafPaths } from './layout/nav';
 import { canWrite } from './core/capabilities/can.guard';
 import { deploymentAdminGuard } from './core/capabilities/deployment-admin.guard';
@@ -147,6 +150,10 @@ export const routes: Routes = [
     { path: 'cash/deposits/new', component: CashVoucherEditor, canActivate: [canWrite],
       data: { requiredCapability: 'cash.write', fallback: '/cash/cash', kind: 'deposit' } },
     { path: 'cash/:id', component: CashVoucherDetail },
+    { path: 'statements', component: StatementList },
+    { path: 'statements/new', component: StatementEditor, canActivate: [canWrite],
+      data: { requiredCapability: 'bankrec.write', fallback: '/cash/statements' } },
+    { path: 'statements/:id', component: StatementDetail },
   ] },
   { path: 'admin/users', component: MemberList },
   { path: 'admin/users/:userId', component: MemberEditor, canActivate: [canWrite], data: { requiredCapability: 'admin.users', fallback: '/admin/users' } },
