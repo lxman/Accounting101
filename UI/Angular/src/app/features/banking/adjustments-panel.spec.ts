@@ -28,12 +28,13 @@ describe('AdjustmentsPanel', () => {
     const { fixture, ctrl } = boot();
     const cmp = fixture.componentInstance;
     let emitted = false; cmp.changed.subscribe(() => (emitted = true));
-    cmp.offsetAccountId.set('o1'); cmp.amount.set(12.5); cmp.kind.set('Charge');
+    cmp.offsetAccountId.set('o1'); cmp.amount.set(12.5); cmp.kind.set('Charge'); cmp.memo.set('Q3 fee');
     cmp.record();
     const req = ctrl.expectOne('http://localhost:5000/clients/C1/reconciliations/r1/adjustments');
     expect(req.request.body.amount).toBe(12.5);
+    expect(req.request.body.memo).toBe('Q3 fee');
     req.flush({ id: 'j1', number: 'ADJ-00001', reconciliationId: 'r1', cashAccountId: 'CA1', offsetAccountId: 'o1',
-      kind: 'Charge', amount: 12.5, date: '2026-03-31', memo: null, status: 'Posted' });
+      kind: 'Charge', amount: 12.5, date: '2026-03-31', memo: 'Q3 fee', status: 'Posted' });
     // list reloads
     ctrl.expectOne(r => r.url.endsWith('/reconciliations/r1/adjustments')).flush({ items: [
       { id: 'j1', number: 'ADJ-00001', reconciliationId: 'r1', cashAccountId: 'CA1', offsetAccountId: 'o1',
