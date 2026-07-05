@@ -60,21 +60,32 @@ export class BankingService {
     return this.http.post<CashDeposit>(this.base(`/cash-deposits/${id}/void`), { reason: reason ?? null });
   }
 
-  /** Combined cash list: fetch both kinds, normalize to signed rows (disbursement −, deposit +), sort by date desc. */
+  /**
+   * Combined cash list: fetch both kinds, normalize to signed rows (disbursement −, deposit +), sort by
+   * date desc, then apply the CALLER's skip/limit to the merged set.
+   *
+   * NOTE: each stream is fetched at a fixed window (skip 0, limit 200 — the backend's max clamp) rather
+   * than at the caller's own skip/limit, because the two streams must be merged BEFORE pagination is
+   * applied (paginating each stream independently would let a single page render up to 2×limit rows and
+   * would make total = disb.total + dep.total overcount when the two totals differ). If either stream's
+   * own total exceeds 200, the combined list is truncated to what was fetched — acceptable for now, but
+   * called out here rather than hidden.
+   */
   listCash(q: BankingListQuery): Observable<PagedResponse<CashVoucherRow>> {
     if (!this.client.clientId()) return EMPTY;
-    const params = this.listParams(q);
+    const fetchParams = this.listParams({ skip: 0, limit: 200, order: q.order });
     return forkJoin({
-      disb: this.http.get<PagedResponse<CashDisbursementView>>(this.base('/cash-disbursements'), { params }),
-      dep: this.http.get<PagedResponse<CashDepositView>>(this.base('/cash-deposits'), { params }),
+      disb: this.http.get<PagedResponse<CashDisbursementView>>(this.base('/cash-disbursements'), { params: fetchParams }),
+      dep: this.http.get<PagedResponse<CashDepositView>>(this.base('/cash-deposits'), { params: fetchParams }),
     }).pipe(map(({ disb, dep }) => {
-      const rows: CashVoucherRow[] = [
+      const merged: CashVoucherRow[] = [
         ...disb.items.map(v => ({ id: v.disbursement.id, kind: 'disbursement' as const, number: v.disbursement.number,
           date: v.disbursement.date, amount: this.sum(v.disbursement.lines), memo: v.disbursement.memo, status: v.disbursement.status })),
         ...dep.items.map(v => ({ id: v.deposit.id, kind: 'deposit' as const, number: v.deposit.number,
           date: v.deposit.date, amount: this.sum(v.deposit.lines), memo: v.deposit.memo, status: v.deposit.status })),
       ].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : (a.number ?? '') < (b.number ?? '') ? 1 : -1));
-      return { items: rows, total: disb.total + dep.total, skip: q.skip, limit: q.limit };
+      const page = merged.slice(q.skip, q.skip + q.limit);
+      return { items: page, total: merged.length, skip: q.skip, limit: q.limit };
     }));
   }
 
