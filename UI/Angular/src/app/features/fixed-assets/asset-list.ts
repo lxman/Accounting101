@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, of, switchMap, tap } from 'rxjs';
 import { HlmButton } from '@spartan-ng/helm/button';
+import { HlmPaginationImports } from '@spartan-ng/helm/pagination';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { FixedAssetsService } from '../../core/fixed-assets/fixed-assets.service';
 import { AssetView, methodLabel } from '../../core/fixed-assets/fixed-assets';
@@ -14,7 +15,7 @@ import { CanDirective } from '../../core/capabilities/can.directive';
 @Component({
   selector: 'app-asset-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, HlmButton, CanDirective, ...HlmTableImports],
+  imports: [RouterLink, HlmButton, CanDirective, ...HlmTableImports, ...HlmPaginationImports],
   template: `
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-3">
@@ -52,10 +53,22 @@ import { CanDirective } from '../../core/capabilities/can.directive';
 
         <div class="flex items-center justify-between text-sm text-muted-foreground">
           <span>Page {{ currentPage() }} of {{ pageCount() }}</span>
-          <div class="flex gap-2">
-            <button hlmBtn variant="outline" size="sm" [disabled]="skip() === 0" (click)="prev()">Previous</button>
-            <button hlmBtn variant="outline" size="sm" [disabled]="currentPage() >= pageCount()" (click)="next()">Next</button>
-          </div>
+          <nav hlmPagination aria-label="Assets pagination">
+            <ul hlmPaginationContent>
+              <li hlmPaginationItem>
+                <hlm-pagination-previous
+                  [class]="skip() === 0 ? 'pointer-events-none opacity-50' : ''"
+                  (click)="prev()"
+                />
+              </li>
+              <li hlmPaginationItem>
+                <hlm-pagination-next
+                  [class]="currentPage() >= pageCount() ? 'pointer-events-none opacity-50' : ''"
+                  (click)="next()"
+                />
+              </li>
+            </ul>
+          </nav>
         </div>
       }
     </div>
