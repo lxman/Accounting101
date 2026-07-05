@@ -40,6 +40,16 @@ import { RunDetail } from './features/payroll/run-detail';
 import { RemittanceList } from './features/payroll/remittance-list';
 import { RemittanceEditor } from './features/payroll/remittance-editor';
 import { RemittanceDetail } from './features/payroll/remittance-detail';
+import { FixedAssetsShell } from './features/fixed-assets/fixed-assets-shell';
+import { AssetList } from './features/fixed-assets/asset-list';
+import { AssetEditor } from './features/fixed-assets/asset-editor';
+import { AssetDetail } from './features/fixed-assets/asset-detail';
+import { DisposeEditor } from './features/fixed-assets/dispose-editor';
+import { RunList as FaRunList } from './features/fixed-assets/run-list';
+import { RunEditor as FaRunEditor } from './features/fixed-assets/run-editor';
+import { RunDetail as FaRunDetail } from './features/fixed-assets/run-detail';
+import { DisposalList } from './features/fixed-assets/disposal-list';
+import { DisposalDetail } from './features/fixed-assets/disposal-detail';
 import { MemberList } from './features/admin/member-list';
 import { MemberEditor } from './features/admin/member-editor';
 import { CapabilitySetList } from './features/admin/capability-set-list';
@@ -112,6 +122,19 @@ export const routes: Routes = [
     { path: 'remittances/new', component: RemittanceEditor, canActivate: [canWrite], data: { requiredCapability: 'payroll.write', fallback: '/payroll/remittances' } },
     { path: 'remittances/:id', component: RemittanceDetail },
   ] },
+  { path: 'fixed-assets', component: FixedAssetsShell, children: [
+    { path: '', pathMatch: 'full', redirectTo: 'assets' },
+    { path: 'assets', component: AssetList },
+    { path: 'assets/new', component: AssetEditor, canActivate: [canWrite], data: { requiredCapability: 'fixedassets.write', fallback: '/fixed-assets/assets' } },
+    { path: 'assets/:id/edit', component: AssetEditor, canActivate: [canWrite], data: { requiredCapability: 'fixedassets.write', fallback: '/fixed-assets/assets' } },
+    { path: 'assets/:id/dispose', component: DisposeEditor, canActivate: [canWrite], data: { requiredCapability: 'fixedassets.write', fallback: '/fixed-assets/assets' } },
+    { path: 'assets/:id', component: AssetDetail },
+    { path: 'depreciation-runs', component: FaRunList },
+    { path: 'depreciation-runs/new', component: FaRunEditor, canActivate: [canWrite], data: { requiredCapability: 'fixedassets.write', fallback: '/fixed-assets/depreciation-runs' } },
+    { path: 'depreciation-runs/:id', component: FaRunDetail },
+    { path: 'disposals', component: DisposalList },
+    { path: 'disposals/:id', component: DisposalDetail },
+  ] },
   { path: 'admin/users', component: MemberList },
   { path: 'admin/users/:userId', component: MemberEditor, canActivate: [canWrite], data: { requiredCapability: 'admin.users', fallback: '/admin/users' } },
   { path: 'admin/access/sets', component: CapabilitySetList, canActivate: [deploymentAdminGuard('/admin/users')] },
@@ -119,7 +142,7 @@ export const routes: Routes = [
   { path: 'admin/access/sets/:id', component: CapabilitySetEditor, canActivate: [deploymentAdminGuard('/admin/users')] },
   // Every nav leaf not served by a built route tree above → Placeholder.
   ...(() => {
-    const built = ['/dashboard', '/journal', '/trial-balance', '/statements', '/accounts', '/receivables', '/payables', '/payroll', '/admin/users', '/admin/access/sets', '/admin/access/sets/new'];
+    const built = ['/dashboard', '/journal', '/trial-balance', '/statements', '/accounts', '/receivables', '/payables', '/payroll', '/fixed-assets', '/admin/users', '/admin/access/sets', '/admin/access/sets/new'];
     const isBuilt = (p: string) => built.some((b) => p === b || p.startsWith(b + '/'));
     return navLeafPaths()
       .filter((p) => !isBuilt(p))
