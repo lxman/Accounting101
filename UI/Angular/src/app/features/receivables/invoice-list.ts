@@ -12,7 +12,6 @@ import { catchError, of, switchMap } from 'rxjs';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { HlmTableImports } from '@spartan-ng/helm/table';
-import { HlmPaginationImports } from '@spartan-ng/helm/pagination';
 import { ReceivablesService } from '../../core/receivables/receivables.service';
 import {
   InvoiceView,
@@ -26,6 +25,7 @@ import { InvoiceStatusBadge } from '../../shared/invoice-status-badge';
 import { SettlementBadge } from '../../shared/settlement-badge';
 import { extractProblem } from '../../core/api/problem-details';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { Paginator } from '../../shared/paginator';
 
 @Component({
   selector: 'app-invoice-list',
@@ -39,7 +39,7 @@ import { CanDirective } from '../../core/capabilities/can.directive';
     CanDirective,
     ...HlmSelectImports,
     ...HlmTableImports,
-    ...HlmPaginationImports,
+    Paginator,
   ],
   template: `
     <div class="flex flex-col gap-4 p-4">
@@ -110,25 +110,7 @@ import { CanDirective } from '../../core/capabilities/can.directive';
             </table>
           </div>
 
-          <div class="flex items-center justify-between text-sm text-muted-foreground">
-            <span class="whitespace-nowrap">Page {{ currentPage() }} of {{ pageCount() }}</span>
-            <nav hlmPagination aria-label="Invoices pagination">
-              <ul hlmPaginationContent>
-                <li hlmPaginationItem>
-                  <hlm-pagination-previous
-                    [class]="skip() === 0 ? 'pointer-events-none opacity-50' : ''"
-                    (click)="prevPage()"
-                  />
-                </li>
-                <li hlmPaginationItem>
-                  <hlm-pagination-next
-                    [class]="currentPage() >= pageCount() ? 'pointer-events-none opacity-50' : ''"
-                    (click)="nextPage()"
-                  />
-                </li>
-              </ul>
-            </nav>
-          </div>
+          <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Invoices pagination" (previous)="prevPage()" (next)="nextPage()" />
         }
       }
     </div>

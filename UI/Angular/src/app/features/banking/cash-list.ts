@@ -3,7 +3,6 @@ import { Router, RouterLink } from '@angular/router';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, of, switchMap, tap } from 'rxjs';
 import { HlmButton } from '@spartan-ng/helm/button';
-import { HlmPaginationImports } from '@spartan-ng/helm/pagination';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { BankingService } from '../../core/banking/banking.service';
 import { CashVoucherRow } from '../../core/banking/banking';
@@ -11,11 +10,12 @@ import { PagedResponse } from '../../core/api/paged-response';
 import { ClientContextService } from '../../core/client/client-context.service';
 import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { Paginator } from '../../shared/paginator';
 
 @Component({
   selector: 'app-cash-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, HlmButton, CanDirective, ...HlmTableImports, ...HlmPaginationImports],
+  imports: [RouterLink, HlmButton, CanDirective, ...HlmTableImports, Paginator],
   template: `
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-3">
@@ -54,25 +54,7 @@ import { CanDirective } from '../../core/capabilities/can.directive';
           </table>
         </div>
 
-        <div class="flex items-center justify-between text-sm text-muted-foreground">
-          <span class="whitespace-nowrap">Page {{ currentPage() }} of {{ pageCount() }}</span>
-          <nav hlmPagination aria-label="Cash vouchers pagination">
-            <ul hlmPaginationContent>
-              <li hlmPaginationItem>
-                <hlm-pagination-previous
-                  [class]="skip() === 0 ? 'pointer-events-none opacity-50' : ''"
-                  (click)="prev()"
-                />
-              </li>
-              <li hlmPaginationItem>
-                <hlm-pagination-next
-                  [class]="currentPage() >= pageCount() ? 'pointer-events-none opacity-50' : ''"
-                  (click)="next()"
-                />
-              </li>
-            </ul>
-          </nav>
-        </div>
+        <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Cash vouchers pagination" (previous)="prev()" (next)="next()" />
       }
     </div>
   `,

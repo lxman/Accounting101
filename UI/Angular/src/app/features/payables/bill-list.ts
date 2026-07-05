@@ -5,7 +5,6 @@ import { catchError, of, switchMap } from 'rxjs';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { HlmTableImports } from '@spartan-ng/helm/table';
-import { HlmPaginationImports } from '@spartan-ng/helm/pagination';
 import { PayablesService } from '../../core/payables/payables.service';
 import { BillView, SettlementFilter, billTotal } from '../../core/payables/payables';
 import { PagedResponse } from '../../core/api/paged-response';
@@ -14,11 +13,12 @@ import { VendorSelect } from '../../shared/vendor-select';
 import { SettlementBadge } from '../../shared/settlement-badge';
 import { extractProblem } from '../../core/api/problem-details';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { Paginator } from '../../shared/paginator';
 
 @Component({
   selector: 'app-bill-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, HlmButton, VendorSelect, SettlementBadge, CanDirective, ...HlmSelectImports, ...HlmTableImports, ...HlmPaginationImports],
+  imports: [RouterLink, HlmButton, VendorSelect, SettlementBadge, CanDirective, ...HlmSelectImports, ...HlmTableImports, Paginator],
   template: `
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-3 flex-wrap">
@@ -69,15 +69,7 @@ import { CanDirective } from '../../core/capabilities/can.directive';
             </tbody>
           </table></div>
 
-          <div class="flex items-center justify-between text-sm text-muted-foreground">
-            <span class="whitespace-nowrap">Page {{ currentPage() }} of {{ pageCount() }}</span>
-            <nav hlmPagination aria-label="Bills pagination"><ul hlmPaginationContent>
-              <li hlmPaginationItem><hlm-pagination-previous
-                [class]="skip() === 0 ? 'pointer-events-none opacity-50' : ''" (click)="prevPage()" /></li>
-              <li hlmPaginationItem><hlm-pagination-next
-                [class]="currentPage() >= pageCount() ? 'pointer-events-none opacity-50' : ''" (click)="nextPage()" /></li>
-            </ul></nav>
-          </div>
+          <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Bills pagination" (previous)="prevPage()" (next)="nextPage()" />
         }
       }
     </div>
