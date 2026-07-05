@@ -8,6 +8,7 @@ import { EntryResponse } from '../entries/entry';
 import {
   CashDisbursement, CashDeposit, CashDisbursementView, CashDepositView, CashVoucherRow,
   RecordCashVoucherRequest, BankingListQuery,
+  BankStatement, RecordBankStatementRequest,
 } from './banking';
 
 @Injectable({ providedIn: 'root' })
@@ -78,5 +79,24 @@ export class BankingService {
   entriesForSource(sourceRef: string): Observable<EntryResponse[]> {
     if (!this.client.clientId()) return EMPTY;
     return this.http.get<EntryResponse[]>(this.base('/entries'), { params: new HttpParams().set('sourceRef', sourceRef) });
+  }
+
+  // ── Bank statements ──────────────────────────────────────────────────────────
+  // NOTE: verified against Modules/Banking/Reconciliation/Accounting101.Banking.Reconciliation.Api/
+  // ReconciliationEndpoints.cs — RecordStatement returns Results.Created(statement) (bare BankStatement),
+  // ListStatements returns PagedResponse<BankStatement> (bare items), and ListStatements REQUIRES the
+  // cashAccountId query parameter (400 if missing).
+  listStatements(cashAccountId: string, q: BankingListQuery): Observable<PagedResponse<BankStatement>> {
+    if (!this.client.clientId()) return EMPTY;
+    const params = this.listParams(q).set('cashAccountId', cashAccountId);
+    return this.http.get<PagedResponse<BankStatement>>(this.base('/bank-statements'), { params });
+  }
+  getStatement(id: string): Observable<BankStatement> {
+    if (!this.client.clientId()) return EMPTY;
+    return this.http.get<BankStatement>(this.base(`/bank-statements/${id}`));
+  }
+  recordStatement(req: RecordBankStatementRequest): Observable<BankStatement> {
+    if (!this.client.clientId()) return EMPTY;
+    return this.http.post<BankStatement>(this.base('/bank-statements'), req);
   }
 }

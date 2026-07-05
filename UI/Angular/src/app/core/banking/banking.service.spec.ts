@@ -88,3 +88,43 @@ describe('BankingService — cash', () => {
     ctrl.verify();
   });
 });
+
+describe('BankingService — statements', () => {
+  it('listStatements requires cashAccountId and passes it as a query param', () => {
+    const { svc, ctrl } = setup();
+    let items: unknown[] = [];
+    svc.listStatements('CA1', { skip: 0, limit: 50 }).subscribe(p => (items = p.items));
+    const req = ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/bank-statements');
+    expect(req.request.params.get('cashAccountId')).toBe('CA1');
+    req.flush({ items: [{ id: 'b1', number: 'BST-00001', cashAccountId: 'CA1', statementDate: '2026-03-31',
+      openingBalance: 0, closingBalance: 100, lines: [], status: 'Posted' }], total: 1, skip: 0, limit: 50 });
+    expect((items[0] as { number: string }).number).toBe('BST-00001');
+    ctrl.verify();
+  });
+
+  it('getStatement returns the bare statement', () => {
+    const { svc, ctrl } = setup();
+    let got: { id?: string } = {};
+    svc.getStatement('b1').subscribe(s => (got = s));
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/bank-statements/b1');
+    expect(req.request.method).toBe('GET');
+    req.flush({ id: 'b1', number: 'BST-00001', cashAccountId: 'CA1', statementDate: '2026-03-31',
+      openingBalance: 0, closingBalance: 100, lines: [], status: 'Posted' });
+    expect(got.id).toBe('b1');
+    ctrl.verify();
+  });
+
+  it('recordStatement posts the full request and returns the bare statement', () => {
+    const { svc, ctrl } = setup();
+    let got: { id?: string } = {};
+    svc.recordStatement({ cashAccountId: 'CA1', statementDate: '2026-03-31', openingBalance: 0, closingBalance: 100,
+      lines: [{ date: '2026-03-05', amount: 100, description: 'dep', externalRef: null }] }).subscribe(s => (got = s));
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/bank-statements');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body.closingBalance).toBe(100);
+    req.flush({ id: 'b1', number: 'BST-00001', cashAccountId: 'CA1', statementDate: '2026-03-31',
+      openingBalance: 0, closingBalance: 100, lines: [], status: 'Posted' });
+    expect(got.id).toBe('b1');
+    ctrl.verify();
+  });
+});
