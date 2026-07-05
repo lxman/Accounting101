@@ -128,3 +128,22 @@ describe('BankingService — statements', () => {
     ctrl.verify();
   });
 });
+
+describe('BankingService — import', () => {
+  it('posts multipart with file, format and mapping JSON', () => {
+    const { svc, ctrl } = setup();
+    const file = new File(['date,amount,desc\n2026-03-05,100,dep'], 'bank.csv', { type: 'text/csv' });
+    const mapping = { date: { index: 0 }, amount: { index: 1 }, description: { index: 2 }, hasHeader: true } as unknown as import('./banking').CsvMapping;
+    let res: { statements?: unknown[] } = {};
+    svc.importStatements(file, 'Csv', mapping).subscribe(r => (res = r));
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/bank-statements/import');
+    expect(req.request.method).toBe('POST');
+    const body = req.request.body as FormData;
+    expect(body.get('format')).toBe('Csv');
+    expect(body.get('file')).toBeInstanceOf(File);
+    expect(JSON.parse(body.get('mapping') as string).hasHeader).toBe(true);
+    req.flush({ statements: [{ lines: [], detectedOpeningBalance: null, detectedClosingBalance: null, statementDate: null, accountHint: null }], warnings: [] });
+    expect(res.statements!.length).toBe(1);
+    ctrl.verify();
+  });
+});

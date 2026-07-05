@@ -9,6 +9,7 @@ import {
   CashDisbursement, CashDeposit, CashDisbursementView, CashDepositView, CashVoucherRow,
   RecordCashVoucherRequest, BankingListQuery,
   BankStatement, RecordBankStatementRequest,
+  InterchangeFormat, CsvMapping, ImportPreviewResponse,
 } from './banking';
 
 @Injectable({ providedIn: 'root' })
@@ -98,5 +99,15 @@ export class BankingService {
   recordStatement(req: RecordBankStatementRequest): Observable<BankStatement> {
     if (!this.client.clientId()) return EMPTY;
     return this.http.post<BankStatement>(this.base('/bank-statements'), req);
+  }
+
+  // ── Import (parse-to-preview) ────────────────────────────────────────────────
+  importStatements(file: File, format: InterchangeFormat, mapping: CsvMapping | null): Observable<ImportPreviewResponse> {
+    if (!this.client.clientId()) return EMPTY;
+    const body = new FormData();
+    body.append('file', file, file.name);
+    body.append('format', format);
+    if (mapping) body.append('mapping', JSON.stringify(mapping));
+    return this.http.post<ImportPreviewResponse>(this.base('/bank-statements/import'), body);
   }
 }
