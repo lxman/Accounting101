@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Accounting101.Banking.Reconciliation;
 
 /// <summary>A reconciliation of one bank statement: the working record of which ledger cash entries have
@@ -13,4 +15,5 @@ public sealed record Reconciliation
     public required IReadOnlyList<Guid> ClearedEntryIds { get; init; }
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ReconciliationStatus { InProgress, Completed }

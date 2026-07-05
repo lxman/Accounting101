@@ -1,9 +1,13 @@
+using System.Text.Json.Serialization;
+
 namespace Accounting101.Banking.Reconciliation;
 
 /// <summary>A bank-only adjustment booked during reconciliation. Charge = a bank fee (reduces cash);
 /// Credit = bank interest (increases cash).</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum AdjustmentKind { Charge, Credit }
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum BankAdjustmentStatus { Posted, Void }
 
 /// <summary>An evidentiary record of a bank adjustment — posted in one step (PendingApproval entry),
