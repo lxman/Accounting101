@@ -59,6 +59,7 @@ import { CashList } from './features/banking/cash-list';
 import { CashVoucherEditor } from './features/banking/cash-voucher-editor';
 import { CashVoucherDetail } from './features/banking/cash-voucher-detail';
 import { StatementList } from './features/banking/statement-list';
+import { StatementImport } from './features/banking/statement-import';
 import { StatementEditor } from './features/banking/statement-editor';
 import { StatementDetail } from './features/banking/statement-detail';
 import { navLeafPaths } from './layout/nav';
@@ -152,6 +153,8 @@ export const routes: Routes = [
     { path: 'cash/:id', component: CashVoucherDetail },
     { path: 'statements', component: StatementList },
     { path: 'statements/new', component: StatementEditor, canActivate: [canWrite],
+      data: { requiredCapability: 'bankrec.write', fallback: '/cash/statements' } },
+    { path: 'statements/import', component: StatementImport, canActivate: [canWrite],
       data: { requiredCapability: 'bankrec.write', fallback: '/cash/statements' } },
     { path: 'statements/:id', component: StatementDetail },
   ] },
