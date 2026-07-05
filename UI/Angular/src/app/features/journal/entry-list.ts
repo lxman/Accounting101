@@ -90,7 +90,7 @@ import { CanDirective } from '../../core/capabilities/can.directive';
           </div>
 
           <div class="flex items-center justify-between text-sm text-muted-foreground">
-            <span>Page {{ currentPage() }} of {{ pageCount() }}</span>
+            <span class="whitespace-nowrap">Page {{ currentPage() }} of {{ pageCount() }}</span>
             <nav hlmPagination aria-label="Entries pagination">
               <ul hlmPaginationContent>
                 <li hlmPaginationItem>

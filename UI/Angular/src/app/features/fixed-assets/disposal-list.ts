@@ -44,7 +44,7 @@ import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/dis
           </table>
         </div>
         <div class="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Page {{ currentPage() }} of {{ pageCount() }}</span>
+          <span class="whitespace-nowrap">Page {{ currentPage() }} of {{ pageCount() }}</span>
           <nav hlmPagination aria-label="Disposals pagination">
             <ul hlmPaginationContent>
               <li hlmPaginationItem>

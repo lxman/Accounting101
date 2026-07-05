@@ -45,7 +45,7 @@ import { CanDirective } from '../../core/capabilities/can.directive';
           </table>
         </div>
         <div class="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Page {{ currentPage() }} of {{ pageCount() }}</span>
+          <span class="whitespace-nowrap">Page {{ currentPage() }} of {{ pageCount() }}</span>
           <nav hlmPagination aria-label="Depreciation runs pagination">
             <ul hlmPaginationContent>
               <li hlmPaginationItem>
