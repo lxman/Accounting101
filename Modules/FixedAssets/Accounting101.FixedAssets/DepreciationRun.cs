@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Accounting101.FixedAssets;
 
 /// <summary>One asset's depreciation within a run.</summary>
@@ -12,6 +14,7 @@ public sealed record DepreciationRunBody(
     decimal Total);
 
 /// <summary>Lifecycle of a run: posted, or voided (LIFO).</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum DepreciationRunStatus
 {
     Posted = 0,

@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Accounting101.FixedAssets;
 
 /// <summary>The stored body of a disposal (the evidentiary document body). The breakdown is retained for
@@ -14,6 +16,7 @@ public sealed record DisposalBody(
     string? Memo);
 
 /// <summary>Lifecycle of a disposal: posted, or voided.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum DisposalStatus
 {
     Posted = 0,
