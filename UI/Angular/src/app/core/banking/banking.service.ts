@@ -10,6 +10,7 @@ import {
   RecordCashVoucherRequest, BankingListQuery,
   BankStatement, RecordBankStatementRequest,
   InterchangeFormat, CsvMapping, ImportPreviewResponse,
+  ReconciliationRef, ReconciliationWorksheet, AutoMatchProposal,
 } from './banking';
 
 @Injectable({ providedIn: 'root' })
@@ -109,5 +110,40 @@ export class BankingService {
     body.append('format', format);
     if (mapping) body.append('mapping', JSON.stringify(mapping));
     return this.http.post<ImportPreviewResponse>(this.base('/bank-statements/import'), body);
+  }
+
+  // ── Reconciliation ───────────────────────────────────────────────────────────
+  // NOTE: verified against Modules/Banking/Reconciliation/Accounting101.Banking.Reconciliation.Api/
+  // ReconciliationEndpoints.cs — StartReconciliation returns Results.Created(reconciliation) (bare
+  // ReconciliationRef); GetWorksheet/Clear/Unclear/Complete all return bare ReconciliationWorksheet;
+  // AutoMatch returns AutoMatchProposal when apply is falsy/omitted and the worksheet when apply=true
+  // (query param, not body).
+  startReconciliation(bankStatementId: string): Observable<ReconciliationRef> {
+    if (!this.client.clientId()) return EMPTY;
+    return this.http.post<ReconciliationRef>(this.base('/reconciliations'), { bankStatementId });
+  }
+  getWorksheet(id: string): Observable<ReconciliationWorksheet> {
+    if (!this.client.clientId()) return EMPTY;
+    return this.http.get<ReconciliationWorksheet>(this.base(`/reconciliations/${id}`));
+  }
+  clear(id: string, entryIds: string[]): Observable<ReconciliationWorksheet> {
+    if (!this.client.clientId()) return EMPTY;
+    return this.http.post<ReconciliationWorksheet>(this.base(`/reconciliations/${id}/clear`), { entryIds });
+  }
+  unclear(id: string, entryIds: string[]): Observable<ReconciliationWorksheet> {
+    if (!this.client.clientId()) return EMPTY;
+    return this.http.post<ReconciliationWorksheet>(this.base(`/reconciliations/${id}/unclear`), { entryIds });
+  }
+  autoMatchProposal(id: string): Observable<AutoMatchProposal> {
+    if (!this.client.clientId()) return EMPTY;
+    return this.http.post<AutoMatchProposal>(this.base(`/reconciliations/${id}/auto-match`), {}, { params: new HttpParams().set('apply', false) });
+  }
+  autoMatchApply(id: string): Observable<ReconciliationWorksheet> {
+    if (!this.client.clientId()) return EMPTY;
+    return this.http.post<ReconciliationWorksheet>(this.base(`/reconciliations/${id}/auto-match`), {}, { params: new HttpParams().set('apply', true) });
+  }
+  completeReconciliation(id: string): Observable<ReconciliationWorksheet> {
+    if (!this.client.clientId()) return EMPTY;
+    return this.http.post<ReconciliationWorksheet>(this.base(`/reconciliations/${id}/complete`), {});
   }
 }

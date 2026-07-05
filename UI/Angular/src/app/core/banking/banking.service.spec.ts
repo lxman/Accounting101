@@ -147,3 +147,52 @@ describe('BankingService — import', () => {
     ctrl.verify();
   });
 });
+
+describe('BankingService — reconciliation', () => {
+  const worksheet = { reconciliation: { id: 'r1', number: 'REC-00001', cashAccountId: 'CA1', bankStatementId: 'b1',
+      statementDate: '2026-03-31', status: 'InProgress', clearedEntryIds: [] },
+    statement: { id: 'b1', number: 'BST-00001', cashAccountId: 'CA1', statementDate: '2026-03-31',
+      openingBalance: 0, closingBalance: 100, lines: [], status: 'Posted' },
+    entries: [{ entryId: 'e1', date: '2026-03-05', reference: null, sourceType: 'Cash', cashEffect: 100, cleared: false }],
+    bookBalance: 100, clearedTotal: 0, reconciledDifference: 100, balanced: false };
+
+  it('startReconciliation posts the statement id', () => {
+    const { svc, ctrl } = setup();
+    let got: { id?: string } = {};
+    svc.startReconciliation('b1').subscribe(r => (got = r));
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/reconciliations');
+    expect(req.request.body).toEqual({ bankStatementId: 'b1' });
+    req.flush(worksheet.reconciliation);
+    expect(got.id).toBe('r1');
+    ctrl.verify();
+  });
+
+  it('clear posts entry ids and returns the worksheet', () => {
+    const { svc, ctrl } = setup();
+    let w: { balanced?: boolean } = {};
+    svc.clear('r1', ['e1']).subscribe(x => (w = x));
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/reconciliations/r1/clear');
+    expect(req.request.body).toEqual({ entryIds: ['e1'] });
+    req.flush({ ...worksheet, clearedTotal: 100, reconciledDifference: 0, balanced: true });
+    expect(w.balanced).toBe(true);
+    ctrl.verify();
+  });
+
+  it('autoMatchApply hits the apply=true query', () => {
+    const { svc, ctrl } = setup();
+    svc.autoMatchApply('r1').subscribe();
+    const req = ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/reconciliations/r1/auto-match');
+    expect(req.request.params.get('apply')).toBe('true');
+    req.flush(worksheet);
+    ctrl.verify();
+  });
+
+  it('completeReconciliation posts to /complete', () => {
+    const { svc, ctrl } = setup();
+    svc.completeReconciliation('r1').subscribe();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/reconciliations/r1/complete');
+    expect(req.request.method).toBe('POST');
+    req.flush({ ...worksheet, reconciliation: { ...worksheet.reconciliation, status: 'Completed' } });
+    ctrl.verify();
+  });
+});
