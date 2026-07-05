@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Accounting101.Banking.Reconciliation;
 
 /// <summary>A bank statement: immutable evidence of what the bank reported for a cash account over a period.</summary>
@@ -17,4 +19,5 @@ public sealed record BankStatement
 /// account (a deposit clearing), − money out (a payment clearing).</summary>
 public sealed record BankStatementLine(DateOnly Date, decimal Amount, string Description, string? ExternalRef);
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum BankStatementStatus { Posted, Void }
