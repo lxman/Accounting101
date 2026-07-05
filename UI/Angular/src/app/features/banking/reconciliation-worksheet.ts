@@ -8,11 +8,12 @@ import { ReconciliationWorksheet as Worksheet, WorksheetEntry, AutoMatchProposal
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { AdjustmentsPanel } from './adjustments-panel';
 
 @Component({
   selector: 'app-reconciliation-worksheet',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, HlmButton, CanDirective, ...HlmTableImports],
+  imports: [RouterLink, HlmButton, CanDirective, AdjustmentsPanel, ...HlmTableImports],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-4xl">
       <a routerLink="/cash/reconciliation" class="text-sm text-muted-foreground hover:text-foreground">← Reconcile</a>
@@ -73,7 +74,7 @@ import { CanDirective } from '../../core/capabilities/can.directive';
           </table>
         </div>
 
-        <!-- adjustments panel added in BK-5 -->
+        <app-adjustments-panel [reconciliationId]="w.reconciliation.id" [locked]="w.reconciliation.status !== 'InProgress'" (changed)="reload()" />
       }
     </div>
   `,
