@@ -11,6 +11,7 @@ import {
   BankStatement, RecordBankStatementRequest,
   InterchangeFormat, CsvMapping, ImportPreviewResponse,
   ReconciliationRef, ReconciliationWorksheet, AutoMatchProposal,
+  BankAdjustment, RecordAdjustmentRequest,
 } from './banking';
 
 @Injectable({ providedIn: 'root' })
@@ -145,5 +146,23 @@ export class BankingService {
   completeReconciliation(id: string): Observable<ReconciliationWorksheet> {
     if (!this.client.clientId()) return EMPTY;
     return this.http.post<ReconciliationWorksheet>(this.base(`/reconciliations/${id}/complete`), {});
+  }
+
+  // ── Adjustments ──────────────────────────────────────────────────────────────
+  // NOTE: verified against Modules/Banking/Reconciliation/Accounting101.Banking.Reconciliation.Api/
+  // ReconciliationEndpoints.cs — all three routes nest under /reconciliations/{id}/adjustments;
+  // RecordAdjustment returns Results.Created(adjustment) (bare BankAdjustment), ListAdjustments returns
+  // PagedResponse<BankAdjustment> (bare items), VoidAdjustment returns Results.Ok(voided) (bare BankAdjustment).
+  listAdjustments(reconciliationId: string, q: BankingListQuery): Observable<PagedResponse<BankAdjustment>> {
+    if (!this.client.clientId()) return EMPTY;
+    return this.http.get<PagedResponse<BankAdjustment>>(this.base(`/reconciliations/${reconciliationId}/adjustments`), { params: this.listParams(q) });
+  }
+  recordAdjustment(reconciliationId: string, req: RecordAdjustmentRequest): Observable<BankAdjustment> {
+    if (!this.client.clientId()) return EMPTY;
+    return this.http.post<BankAdjustment>(this.base(`/reconciliations/${reconciliationId}/adjustments`), req);
+  }
+  voidAdjustment(reconciliationId: string, adjId: string, reason?: string | null): Observable<BankAdjustment> {
+    if (!this.client.clientId()) return EMPTY;
+    return this.http.post<BankAdjustment>(this.base(`/reconciliations/${reconciliationId}/adjustments/${adjId}/void`), { reason: reason ?? null });
   }
 }

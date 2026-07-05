@@ -196,3 +196,28 @@ describe('BankingService — reconciliation', () => {
     ctrl.verify();
   });
 });
+
+describe('BankingService — adjustments', () => {
+  it('recordAdjustment posts to the reconciliation and returns the adjustment', () => {
+    const { svc, ctrl } = setup();
+    let got: { id?: string } = {};
+    svc.recordAdjustment('r1', { offsetAccountId: 'o1', amount: 12.5, kind: 'Charge', date: null, memo: 'fee' }).subscribe(a => (got = a));
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/reconciliations/r1/adjustments');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body.kind).toBe('Charge');
+    req.flush({ id: 'j1', number: 'ADJ-00001', reconciliationId: 'r1', cashAccountId: 'CA1', offsetAccountId: 'o1',
+      kind: 'Charge', amount: 12.5, date: '2026-03-31', memo: 'fee', status: 'Posted' });
+    expect(got.id).toBe('j1');
+    ctrl.verify();
+  });
+
+  it('voidAdjustment posts a reason to the adjustment void route', () => {
+    const { svc, ctrl } = setup();
+    svc.voidAdjustment('r1', 'j1', 'oops').subscribe();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/reconciliations/r1/adjustments/j1/void');
+    expect(req.request.body).toEqual({ reason: 'oops' });
+    req.flush({ id: 'j1', number: 'ADJ-00001', reconciliationId: 'r1', cashAccountId: 'CA1', offsetAccountId: 'o1',
+      kind: 'Charge', amount: 12.5, date: '2026-03-31', memo: 'fee', status: 'Void' });
+    ctrl.verify();
+  });
+});
