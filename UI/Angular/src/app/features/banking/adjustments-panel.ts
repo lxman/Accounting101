@@ -8,7 +8,7 @@ import { BankingService } from '../../core/banking/banking.service';
 import { BankAdjustment, AdjustmentKind, RecordAdjustmentRequest, adjustmentKindLabel } from '../../core/banking/banking';
 import { AccountsService } from '../../core/accounts/accounts.service';
 import { extractProblem } from '../../core/api/problem-details';
-import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
+import { money as fmtMoney } from '../../core/format/display';
 import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
@@ -133,5 +133,4 @@ export class AdjustmentsPanel {
   kindLabel(k: AdjustmentKind): string { return adjustmentKindLabel(k); }
   label(id: string): string { return this.accounts.label(id); }
   money(n: number): string { return fmtMoney(n); }
-  date(d: string): string { return fmtDate(d); }
 }
