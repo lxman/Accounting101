@@ -62,6 +62,8 @@ import { StatementList } from './features/banking/statement-list';
 import { StatementImport } from './features/banking/statement-import';
 import { StatementEditor } from './features/banking/statement-editor';
 import { StatementDetail } from './features/banking/statement-detail';
+import { ReconciliationList } from './features/banking/reconciliation-list';
+import { ReconciliationWorksheet } from './features/banking/reconciliation-worksheet';
 import { navLeafPaths } from './layout/nav';
 import { canWrite } from './core/capabilities/can.guard';
 import { deploymentAdminGuard } from './core/capabilities/deployment-admin.guard';
@@ -157,6 +159,8 @@ export const routes: Routes = [
     { path: 'statements/import', component: StatementImport, canActivate: [canWrite],
       data: { requiredCapability: 'bankrec.write', fallback: '/cash/statements' } },
     { path: 'statements/:id', component: StatementDetail },
+    { path: 'reconciliation', component: ReconciliationList },
+    { path: 'reconciliation/:id', component: ReconciliationWorksheet },
   ] },
   { path: 'admin/users', component: MemberList },
   { path: 'admin/users/:userId', component: MemberEditor, canActivate: [canWrite], data: { requiredCapability: 'admin.users', fallback: '/admin/users' } },
