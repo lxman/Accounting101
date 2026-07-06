@@ -36,3 +36,19 @@ public readonly record struct UpdateResult(UpdateOutcome Outcome, Item? Item)
 public enum DeactivateResult { NotFound, AlreadyInactive, Deactivated, HasStock }
 
 public enum ReactivateResult { NotFound, AlreadyActive, Reactivated }
+
+/// <summary>The module's stock-movement store — numbered, append-only evidentiary documents backed by
+/// the engine's document store (created, immediately finalized, voidable). The module owns no database
+/// connection.</summary>
+public interface IStockMovementStore
+{
+    Task<StockMovement> RecordAsync(Guid clientId, StockMovementBody body, CancellationToken ct = default);
+    Task VoidAsync(Guid clientId, Guid movementId, CancellationToken ct = default);
+    Task<StockMovement?> GetAsync(Guid clientId, Guid movementId, CancellationToken ct = default);
+    Task<PagedResponse<StockMovement>> GetByItemPagedAsync(
+        Guid clientId, Guid itemId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default);
+
+    /// <summary>The most-recent non-voided movement for the given item (not any other item) — the LIFO
+    /// void's target.</summary>
+    Task<StockMovement?> GetLatestForItemAsync(Guid clientId, Guid itemId, CancellationToken ct = default);
+}
