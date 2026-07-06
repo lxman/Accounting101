@@ -8,10 +8,12 @@ public sealed class StockMovementStoreTests(StockMovementStoreFixture fixture) :
 
     private DocumentStockMovementStore Store() => new(fixture.Store);
 
+    private static readonly DateOnly When = new(2026, 1, 15);
+
     private static StockMovementBody Body(
-        Guid itemId, MovementType type, decimal quantity, decimal unitCost, decimal value,
+        Guid itemId, MovementType type, decimal quantity, decimal appliedUnitCost, decimal extendedCost,
         decimal resultingOnHand, decimal resultingTotalValue) =>
-        new(itemId, type, quantity, unitCost, value, resultingOnHand, resultingTotalValue);
+        new(itemId, type, When, null, quantity, appliedUnitCost, extendedCost, resultingOnHand, resultingTotalValue);
 
     [Fact]
     public async Task Records_number_and_latest_is_per_item()
@@ -45,10 +47,11 @@ public sealed class StockMovementStoreTests(StockMovementStoreFixture fixture) :
         Assert.Equal(MovementStatus.Posted, recorded.Status);
         Assert.Equal(itemId, recorded.ItemId);
         Assert.Equal(MovementType.Receipt, recorded.Type);
+        Assert.Equal(When, recorded.EffectiveDate);
         Assert.Equal(10m, recorded.Quantity);
-        Assert.Equal(2m, recorded.UnitCost);
-        Assert.Equal(20m, recorded.Value);
-        Assert.Equal(10m, recorded.ResultingOnHandQuantity);
+        Assert.Equal(2m, recorded.AppliedUnitCost);
+        Assert.Equal(20m, recorded.ExtendedCost);
+        Assert.Equal(10m, recorded.ResultingOnHand);
         Assert.Equal(20m, recorded.ResultingTotalValue);
         Assert.Equal(20m, recorded.SignedValueEffect);
         Assert.Equal(10m, recorded.SignedQuantityEffect);
@@ -69,6 +72,25 @@ public sealed class StockMovementStoreTests(StockMovementStoreFixture fixture) :
 
         Assert.Equal(-4m, issue.SignedQuantityEffect);
         Assert.Equal(-8m, issue.SignedValueEffect);
+    }
+
+    [Fact]
+    public async Task Adjustment_signed_effects_follow_the_sign_of_quantity()
+    {
+        DocumentStockMovementStore store = Store();
+        Guid itemId = Guid.NewGuid();
+
+        // Overage: +3 units, ExtendedCost is a positive magnitude → adds to value.
+        StockMovement overage = await store.RecordAsync(
+            Fx.ClientId, Body(itemId, MovementType.Adjustment, 3m, 2m, 6m, 3m, 6m));
+        Assert.Equal(3m, overage.SignedQuantityEffect);
+        Assert.Equal(6m, overage.SignedValueEffect);
+
+        // Shrinkage: -2 units, ExtendedCost still a positive magnitude → subtracts from value.
+        StockMovement shrinkage = await store.RecordAsync(
+            Fx.ClientId, Body(itemId, MovementType.Adjustment, -2m, 2m, 4m, 1m, 2m));
+        Assert.Equal(-2m, shrinkage.SignedQuantityEffect);
+        Assert.Equal(-4m, shrinkage.SignedValueEffect);
     }
 
     [Fact]

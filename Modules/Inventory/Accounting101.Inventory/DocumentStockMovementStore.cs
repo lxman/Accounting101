@@ -70,13 +70,13 @@ public sealed class DocumentStockMovementStore(IDocumentStore documents) : IStoc
         Number = r.Sequence is { } seq ? $"MV-{seq:D5}" : null,
         ItemId = r.Body.ItemId,
         Type = r.Body.Type,
-        Quantity = r.Body.Quantity,
-        UnitCost = r.Body.UnitCost,
-        Value = r.Body.Value,
-        ResultingOnHandQuantity = r.Body.ResultingOnHandQuantity,
-        ResultingTotalValue = r.Body.ResultingTotalValue,
         EffectiveDate = r.Body.EffectiveDate,
         Memo = r.Body.Memo,
+        Quantity = r.Body.Quantity,
+        AppliedUnitCost = r.Body.AppliedUnitCost,
+        ExtendedCost = r.Body.ExtendedCost,
+        ResultingOnHand = r.Body.ResultingOnHand,
+        ResultingTotalValue = r.Body.ResultingTotalValue,
         Status = r.State switch
         {
             DocumentLifecycle.Voided or DocumentLifecycle.Superseded => MovementStatus.Void,
