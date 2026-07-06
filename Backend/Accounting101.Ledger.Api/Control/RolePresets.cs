@@ -11,14 +11,14 @@ public static class RolePresets
     private static readonly string[] Reads =
     [
         Capabilities.GlRead, Capabilities.ArRead, Capabilities.ApRead, Capabilities.PayrollRead,
-        Capabilities.CashRead, Capabilities.BankRecRead, Capabilities.FixedAssetsRead,
+        Capabilities.CashRead, Capabilities.BankRecRead, Capabilities.FixedAssetsRead, Capabilities.InventoryRead,
         Capabilities.AuditRead, Capabilities.ReportsRead,
     ];
 
     private static readonly string[] ModuleWrites =
     [
         Capabilities.ArWrite, Capabilities.ApWrite, Capabilities.PayrollWrite,
-        Capabilities.CashWrite, Capabilities.BankRecWrite, Capabilities.FixedAssetsWrite,
+        Capabilities.CashWrite, Capabilities.BankRecWrite, Capabilities.FixedAssetsWrite, Capabilities.InventoryWrite,
     ];
 
     private static readonly Dictionary<LedgerRole, HashSet<string>> Map = new()
