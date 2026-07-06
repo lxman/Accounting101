@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The inventory module (domain): an upstream consumer of the ledger engine. Depends only on the
+       contract shape (IDocumentStore, PagedResponse), never on engine internals. Scaffold task — no
+       item/movement logic yet. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Backend\Accounting101.Ledger.Contracts\Accounting101.Ledger.Contracts.csproj" />
+  </ItemGroup>
+
+</Project>
