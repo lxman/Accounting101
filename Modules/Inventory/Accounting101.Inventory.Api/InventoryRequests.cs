@@ -8,3 +8,11 @@ public sealed record SaveItemRequest(string Sku, string Name, string? Descriptio
 {
     public ItemBody ToBody() => new(Sku, Name, Description, UnitOfMeasure);
 }
+
+/// <summary>Record a stock movement (receipt, issue, or adjustment). <see cref="EffectiveDate"/> is
+/// required — the clerk always dates a movement.</summary>
+public sealed record RecordMovementRequest(
+    Guid ItemId, MovementType Type, decimal Quantity, decimal? UnitCost, DateOnly EffectiveDate, string? Memo)
+{
+    public RecordMovement ToRequest() => new(ItemId, Type, Quantity, UnitCost, EffectiveDate, Memo);
+}

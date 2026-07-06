@@ -17,6 +17,56 @@ public static class InventoryEndpoints
         clients.MapPost("/items/{itemId:guid}/reactivate", ReactivateItem);
         clients.MapGet("/items/{itemId:guid}", GetItem);
         clients.MapGet("/items", ListItems);
+
+        clients.MapPost("/movements", RecordMovement);
+        clients.MapGet("/movements/{id:guid}", GetMovement);
+        clients.MapGet("/movements", ListMovements);
+    }
+
+    private static async Task<IResult> RecordMovement(
+        Guid clientId, RecordMovementRequest request, InventoryMovementService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            StockMovement movement = await service.RecordAsync(clientId, request.ToRequest(), cancellationToken);
+            return Results.Created($"/clients/{clientId}/movements/{movement.Id}", new StockMovementView(movement));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status404NotFound);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+    }
+
+    private static async Task<IResult> GetMovement(
+        Guid clientId, Guid id, IStockMovementStore store, CancellationToken cancellationToken)
+    {
+        StockMovement? movement = await store.GetAsync(clientId, id, cancellationToken);
+        return movement is null ? Results.NotFound() : Results.Ok(new StockMovementView(movement));
+    }
+
+    private static async Task<IResult> ListMovements(
+        Guid clientId, Guid? itemId, int? skip, int? limit, string? order, bool? includeVoided,
+        IStockMovementStore store, CancellationToken cancellationToken)
+    {
+        if (itemId is not { } id)
+            return Results.Problem("itemId is required.", statusCode: StatusCodes.Status400BadRequest);
+
+        if (!TryOrder(order, out bool descending))
+            return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
+
+        PagedResponse<StockMovement> page = await store.GetByItemPagedAsync(
+            clientId, id, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeVoided ?? false, cancellationToken);
+
+        return Results.Ok(new PagedResponse<StockMovementView>(
+            page.Items.Select(m => new StockMovementView(m)).ToList(), page.Total, page.Skip, page.Limit));
     }
 
     private static async Task<IResult> CreateItem(

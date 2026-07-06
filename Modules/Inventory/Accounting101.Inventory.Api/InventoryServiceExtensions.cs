@@ -6,8 +6,9 @@ using Accounting101.Ledger.Contracts;
 namespace Accounting101.Inventory.Api;
 
 /// <summary>Installs the inventory module: identity + manifest (reference "items" + evidentiary
-/// "stock-movements"), and the document-store-backed item register (store + service). Movement
-/// logic/posting arrives in later slices.</summary>
+/// "stock-movements"), the document-store-backed item register and stock-movement stores, the
+/// config-backed posting-accounts provider, the movement service, and the loopback ledger HttpClient
+/// (movements are the first slice that posts).</summary>
 public static class InventoryServiceExtensions
 {
     public static IServiceCollection AddInventory(this IServiceCollection services, IConfiguration configuration)
@@ -21,6 +22,16 @@ public static class InventoryServiceExtensions
         services.AddScoped<IItemStore>(sp =>
             new DocumentItemStore(sp.GetRequiredKeyedService<IDocumentStore>("inventory")));
         services.AddScoped<InventoryService>();
+
+        services.AddScoped<IStockMovementStore>(sp =>
+            new DocumentStockMovementStore(sp.GetRequiredKeyedService<IDocumentStore>("inventory")));
+        services.AddScoped<InventoryMovementService>();
+        services.AddSingleton<IInventoryAccountsProvider, ConfiguredInventoryAccountsProvider>();
+
+        // Explicit client name to avoid the ILedgerClient short-name collision across modules.
+        services.AddHttpClient("InventoryLedgerClient", client =>
+                client.BaseAddress = new Uri(configuration["Engine:BaseAddress"] ?? "http://localhost"))
+            .AddTypedClient<ILedgerClient, HttpLedgerClient>();
 
         return services;
     }
