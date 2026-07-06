@@ -8,7 +8,7 @@ import { BankingService } from '../../core/banking/banking.service';
 import { BankAdjustment, AdjustmentKind, RecordAdjustmentRequest, adjustmentKindLabel } from '../../core/banking/banking';
 import { AccountsService } from '../../core/accounts/accounts.service';
 import { extractProblem } from '../../core/api/problem-details';
-import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
+import { money as fmtMoney } from '../../core/format/display';
 import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
@@ -45,7 +45,7 @@ import { CanDirective } from '../../core/capabilities/can.directive';
       }
 
       @if (!locked()) {
-        <div *appCan="'bankrec.write'" class="grid grid-cols-4 gap-3 items-end border border-border rounded p-3">
+        <div *appCan="'bankrec.write'" class="grid grid-cols-3 gap-3 items-end border border-border rounded p-3">
           <div class="flex flex-col gap-1">
             <label hlmLabel>Type</label>
             <div hlmSelect [value]="kind()" (valueChange)="kind.set($any($event))" class="w-full">
@@ -69,6 +69,14 @@ import { CanDirective } from '../../core/capabilities/can.directive';
             <label hlmLabel>Amount</label>
             <input hlmInput type="number" class="text-right tabular-nums" [value]="amount() ?? ''" (input)="amount.set($any($event.target).value === '' ? null : +$any($event.target).value)" />
           </div>
+          <div class="flex flex-col gap-1">
+            <label hlmLabel>Date</label>
+            <input hlmInput type="date" [value]="date() ?? ''" (input)="date.set($any($event.target).value === '' ? null : $any($event.target).value)" />
+          </div>
+          <div class="flex flex-col gap-1 col-span-2">
+            <label hlmLabel>Memo</label>
+            <input hlmInput type="text" [value]="memo() ?? ''" (input)="memo.set($any($event.target).value === '' ? null : $any($event.target).value)" />
+          </div>
           <button hlmBtn type="button" (click)="record()" [disabled]="!canRecord() || busy()">Record</button>
         </div>
       }
@@ -91,6 +99,7 @@ export class AdjustmentsPanel {
   readonly offsetAccountId = signal<string | null>(null);
   readonly amount = signal<number | null>(null);
   readonly memo = signal<string | null>(null);
+  readonly date = signal<string | null>(null);
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
 
@@ -115,9 +124,9 @@ export class AdjustmentsPanel {
   record(): void {
     if (!this.canRecord()) return;
     this.busy.set(true); this.message.set(null);
-    const req: RecordAdjustmentRequest = { offsetAccountId: this.offsetAccountId()!, amount: this.amount()!, kind: this.kind(), date: null, memo: this.memo() };
+    const req: RecordAdjustmentRequest = { offsetAccountId: this.offsetAccountId()!, amount: this.amount()!, kind: this.kind(), date: this.date(), memo: this.memo() };
     this.svc.recordAdjustment(this.reconciliationId(), req).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.amount.set(null); this.offsetAccountId.set(null); this.busy.set(false); this.reload(this.reconciliationId()); this.changed.emit(); },
+      next: () => { this.amount.set(null); this.offsetAccountId.set(null); this.memo.set(null); this.date.set(null); this.busy.set(false); this.reload(this.reconciliationId()); this.changed.emit(); },
       error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
     });
   }
@@ -133,5 +142,4 @@ export class AdjustmentsPanel {
   kindLabel(k: AdjustmentKind): string { return adjustmentKindLabel(k); }
   label(id: string): string { return this.accounts.label(id); }
   money(n: number): string { return fmtMoney(n); }
-  date(d: string): string { return fmtDate(d); }
 }

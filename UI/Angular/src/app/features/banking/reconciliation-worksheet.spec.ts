@@ -45,6 +45,7 @@ describe('ReconciliationWorksheet', () => {
       entries: [{ entryId: 'e1', date: '2026-03-05', reference: null, sourceType: 'Cash', cashEffect: 100, cleared: true }] }));
     fixture.detectChanges();
     expect(cmp.worksheet()!.balanced).toBe(true);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Balanced');
     ctrl.verify();
   });
 });

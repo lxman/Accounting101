@@ -44,6 +44,41 @@ describe('BankingService — cash', () => {
     ctrl.verify();
   });
 
+  it('listCash paginates over the merged set, not each stream independently', () => {
+    const { svc, ctrl } = setup();
+    let page1: { items: { number: string | null }[]; total: number } = { items: [], total: 0 };
+    svc.listCash({ skip: 0, limit: 2 }).subscribe(p => (page1 = p));
+    const d1 = ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/cash-disbursements');
+    d1.flush({ items: [
+      { disbursement: { id: 'v1', number: 'CD-00002', lines: [{ accountId: 'a', amount: 10 }], date: '2026-03-02', reference: null, memo: null, status: 'Posted' } },
+      { disbursement: { id: 'v2', number: 'CD-00001', lines: [{ accountId: 'a', amount: 20 }], date: '2026-03-01', reference: null, memo: null, status: 'Posted' } },
+    ], total: 2, skip: 0, limit: 200 });
+    const p1 = ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/cash-deposits');
+    p1.flush({ items: [
+      { deposit: { id: 'w1', number: 'CR-00001', lines: [{ accountId: 'b', amount: 30 }], date: '2026-03-03', reference: null, memo: null, status: 'Posted' } },
+    ], total: 1, skip: 0, limit: 200 });
+    // merged (date desc): w1 (03-03), v1 (03-02), v2 (03-01) — 3 total, page of 2
+    expect(page1.items.length).toBe(2);
+    expect(page1.total).toBe(3);
+    expect(page1.items[0].number).toBe('CR-00001');
+    expect(page1.items[1].number).toBe('CD-00002');
+    ctrl.verify();
+
+    let page2: { items: { number: string | null }[]; total: number } = { items: [], total: 0 };
+    svc.listCash({ skip: 2, limit: 2 }).subscribe(p => (page2 = p));
+    ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/cash-disbursements').flush({ items: [
+      { disbursement: { id: 'v1', number: 'CD-00002', lines: [{ accountId: 'a', amount: 10 }], date: '2026-03-02', reference: null, memo: null, status: 'Posted' } },
+      { disbursement: { id: 'v2', number: 'CD-00001', lines: [{ accountId: 'a', amount: 20 }], date: '2026-03-01', reference: null, memo: null, status: 'Posted' } },
+    ], total: 2, skip: 0, limit: 200 });
+    ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/cash-deposits').flush({ items: [
+      { deposit: { id: 'w1', number: 'CR-00001', lines: [{ accountId: 'b', amount: 30 }], date: '2026-03-03', reference: null, memo: null, status: 'Posted' } },
+    ], total: 1, skip: 0, limit: 200 });
+    expect(page2.items.length).toBe(1);
+    expect(page2.total).toBe(3);
+    expect(page2.items[0].number).toBe('CD-00001');
+    ctrl.verify();
+  });
+
   it('voidDeposit posts a reason and returns the raw deposit', () => {
     const { svc, ctrl } = setup();
     svc.voidDeposit('w1', 'error').subscribe();

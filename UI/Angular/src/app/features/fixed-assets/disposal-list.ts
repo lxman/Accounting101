@@ -2,18 +2,18 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { Router } from '@angular/router';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, of, switchMap, tap } from 'rxjs';
-import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { FixedAssetsService } from '../../core/fixed-assets/fixed-assets.service';
 import { Disposal } from '../../core/fixed-assets/fixed-assets';
 import { PagedResponse } from '../../core/api/paged-response';
 import { ClientContextService } from '../../core/client/client-context.service';
 import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
+import { Paginator } from '../../shared/paginator';
 
 @Component({
   selector: 'app-disposal-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [HlmButton, ...HlmTableImports],
+  imports: [...HlmTableImports, Paginator],
   template: `
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-3">
@@ -43,13 +43,7 @@ import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/dis
             </tbody>
           </table>
         </div>
-        <div class="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Page {{ currentPage() }} of {{ pageCount() }}</span>
-          <div class="flex gap-2">
-            <button hlmBtn variant="outline" size="sm" [disabled]="skip() === 0" (click)="prev()">Previous</button>
-            <button hlmBtn variant="outline" size="sm" [disabled]="currentPage() >= pageCount()" (click)="next()">Next</button>
-          </div>
-        </div>
+        <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Disposals pagination" (previous)="prev()" (next)="next()" />
       }
     </div>
   `,

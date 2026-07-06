@@ -10,11 +10,12 @@ import { PagedResponse } from '../../core/api/paged-response';
 import { ClientContextService } from '../../core/client/client-context.service';
 import { money as fmtMoney } from '../../core/format/display';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { Paginator } from '../../shared/paginator';
 
 @Component({
   selector: 'app-asset-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, HlmButton, CanDirective, ...HlmTableImports],
+  imports: [RouterLink, HlmButton, CanDirective, ...HlmTableImports, Paginator],
   template: `
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-3">
@@ -50,13 +51,7 @@ import { CanDirective } from '../../core/capabilities/can.directive';
           </table>
         </div>
 
-        <div class="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Page {{ currentPage() }} of {{ pageCount() }}</span>
-          <div class="flex gap-2">
-            <button hlmBtn variant="outline" size="sm" [disabled]="skip() === 0" (click)="prev()">Previous</button>
-            <button hlmBtn variant="outline" size="sm" [disabled]="currentPage() >= pageCount()" (click)="next()">Next</button>
-          </div>
-        </div>
+        <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Assets pagination" (previous)="prev()" (next)="next()" />
       }
     </div>
   `,

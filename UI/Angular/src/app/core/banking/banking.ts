@@ -2,6 +2,7 @@ export type CashStatus = 'Posted' | 'Void';
 export type AdjustmentKind = 'Charge' | 'Credit';
 export type ReconciliationStatus = 'InProgress' | 'Completed';
 export type BankStatementStatus = 'Posted' | 'Void';
+export type BankAdjustmentStatus = 'Posted' | 'Void';
 
 export const adjustmentKindLabel = (k: AdjustmentKind): string =>
   k === 'Charge' ? 'Bank charge' : 'Bank interest';
@@ -96,7 +97,7 @@ export interface AutoMatchProposal {
 export interface BankAdjustment {
   id: string; number: string | null; reconciliationId: string; cashAccountId: string;
   offsetAccountId: string; kind: AdjustmentKind; amount: number; date: string;
-  memo: string | null; status: CashStatus;
+  memo: string | null; status: BankAdjustmentStatus;
 }
 export interface RecordAdjustmentRequest {
   offsetAccountId: string; amount: number; kind: AdjustmentKind; date?: string | null; memo?: string | null;

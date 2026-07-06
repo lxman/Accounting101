@@ -33,6 +33,11 @@ import { AdjustmentsPanel } from './adjustments-panel';
           <div class="border border-border rounded p-2" [class.border-emerald-500]="w.balanced" [class.border-destructive]="!w.balanced">
             <div class="text-muted-foreground">Difference</div>
             <div class="tabular-nums text-lg" [class.text-emerald-600]="w.balanced" [class.text-destructive]="!w.balanced">{{ money(w.reconciledDifference) }}</div>
+            @if (w.balanced) {
+              <div class="text-xs font-medium text-emerald-600">Balanced</div>
+            } @else {
+              <div class="text-xs font-medium text-destructive">Not balanced</div>
+            }
           </div>
         </div>
 
