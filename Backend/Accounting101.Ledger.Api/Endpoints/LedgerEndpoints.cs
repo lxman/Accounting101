@@ -196,13 +196,18 @@ public static class LedgerEndpoints
     }
 
     private static async Task<IResult> VoidEntry(
-        Guid clientId, Guid entryId, VoidRequest? request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+        Guid clientId, Guid entryId, VoidRequest? request, LedgerGateway gateway, IModuleAuthenticator moduleAuth,
+        ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Void, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveMemberAsync(user, clientId, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
-        if (await ctx.Ledger.Journal.GetAsync(entryId, cancellationToken) is null)
-            return Results.NotFound();
+        JournalEntry? entry = await ctx.Ledger.Journal.GetAsync(entryId, cancellationToken);
+        if (entry is null) return Results.NotFound();
+
+        if (await gateway.AuthorizeEntryMutationAsync(
+                user, clientId, entry.Audit.ViaModule, Permission.Void, moduleAuth, cancellationToken) is { } denied)
+            return denied;
 
         try
         {
