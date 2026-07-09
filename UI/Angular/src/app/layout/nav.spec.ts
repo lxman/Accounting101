@@ -14,12 +14,12 @@ describe('nav', () => {
       '/dashboard',
       '/journal', '/journal/approvals', '/accounts', '/trial-balance', '/statements', '/periods',
       '/receivables', '/payables', '/payroll',
-      '/cash', '/cash/reconciliation', '/fixed-assets',
+      '/cash', '/cash/reconciliation', '/fixed-assets', '/inventory',
       '/audit', '/audit/trail', '/audit/verify', '/audit/reconciliations',
       '/reports', '/reports/budgets',
       '/admin/users', '/admin/access/sets', '/admin/firm', '/admin/client', '/admin/fiscal', '/admin/posting-accounts',
     ]));
-    expect(paths.length).toBe(25);
+    expect(paths.length).toBe(26);
   });
 
   it('nests Bank Reconciliation under Cash & Banking', () => {
