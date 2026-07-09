@@ -54,11 +54,18 @@ public static class PaymentPosting
         decimal applied = body.Allocations.Sum(a => a.Amount);
         Dictionary<string, Guid> dim = new() { [CustomerDimension] = body.CustomerId };
 
-        List<PostLineRequest> lines =
-        [
-            new(accounts.CustomerCreditsAccountId, "Debit", applied, Dimensions: dim),
-            new(accounts.ReceivableAccountId, "Credit", applied, Dimensions: dim),
-        ];
+        List<PostLineRequest> lines = [new(accounts.CustomerCreditsAccountId, "Debit", applied, Dimensions: dim)];
+        foreach (Allocation a in body.Allocations)
+        {
+            if (a.Amount == 0m)
+                continue;
+            lines.Add(new(accounts.ReceivableAccountId, "Credit", a.Amount,
+                Dimensions: new Dictionary<string, Guid>
+                {
+                    [CustomerDimension] = body.CustomerId,
+                    [InvoiceDimension] = a.TargetId,
+                }));
+        }
 
         return new PostEntryRequest(
             Id: EntryIdentity.ForSource(CreditApplicationSourceType, id), EffectiveDate: body.Date, Reference: null, Memo: null,
@@ -70,12 +77,18 @@ public static class PaymentPosting
         ArgumentNullException.ThrowIfNull(body);
         ArgumentNullException.ThrowIfNull(accounts);
         decimal allocated = body.Allocations.Sum(a => a.Amount);
-        Dictionary<string, Guid> dim = new() { [CustomerDimension] = body.CustomerId };
-        List<PostLineRequest> lines =
-        [
-            new(accounts.BadDebtExpenseAccountId, "Debit", allocated),
-            new(accounts.ReceivableAccountId, "Credit", allocated, Dimensions: dim),
-        ];
+        List<PostLineRequest> lines = [new(accounts.BadDebtExpenseAccountId, "Debit", allocated)];
+        foreach (Allocation a in body.Allocations)
+        {
+            if (a.Amount == 0m)
+                continue;
+            lines.Add(new(accounts.ReceivableAccountId, "Credit", a.Amount,
+                Dimensions: new Dictionary<string, Guid>
+                {
+                    [CustomerDimension] = body.CustomerId,
+                    [InvoiceDimension] = a.TargetId,
+                }));
+        }
         return new PostEntryRequest(
             Id: EntryIdentity.ForSource(WriteOffSourceType, writeOffId), EffectiveDate: body.Date,
             Reference: null, Memo: body.Memo, Lines: lines, SourceRef: writeOffId, SourceType: WriteOffSourceType);
@@ -86,12 +99,18 @@ public static class PaymentPosting
         ArgumentNullException.ThrowIfNull(body);
         ArgumentNullException.ThrowIfNull(accounts);
         decimal allocated = body.Allocations.Sum(a => a.Amount);
-        Dictionary<string, Guid> dim = new() { [CustomerDimension] = body.CustomerId };
-        List<PostLineRequest> lines =
-        [
-            new(accounts.SalesReturnsAccountId, "Debit", allocated),
-            new(accounts.ReceivableAccountId, "Credit", allocated, Dimensions: dim),
-        ];
+        List<PostLineRequest> lines = [new(accounts.SalesReturnsAccountId, "Debit", allocated)];
+        foreach (Allocation a in body.Allocations)
+        {
+            if (a.Amount == 0m)
+                continue;
+            lines.Add(new(accounts.ReceivableAccountId, "Credit", a.Amount,
+                Dimensions: new Dictionary<string, Guid>
+                {
+                    [CustomerDimension] = body.CustomerId,
+                    [InvoiceDimension] = a.TargetId,
+                }));
+        }
         return new PostEntryRequest(
             Id: EntryIdentity.ForSource(CreditNoteSourceType, creditNoteId), EffectiveDate: body.Date,
             Reference: null, Memo: body.Memo, Lines: lines, SourceRef: creditNoteId, SourceType: CreditNoteSourceType);

@@ -84,20 +84,32 @@ public sealed class PaymentPostingTests
     {
         PaymentPostingAccounts acc = Accounts();
         Guid customer = Guid.NewGuid();
+        Guid invoiceA = Guid.NewGuid();
+        Guid invoiceB = Guid.NewGuid();
         CreditApplicationBody body = new(customer, new DateOnly(2026, 4, 1),
-            [new Allocation(Guid.NewGuid(), 120m), new Allocation(Guid.NewGuid(), 80m)]);
+            [new Allocation(invoiceA, 120m), new Allocation(invoiceB, 80m)]);
 
         PostEntryRequest entry = PaymentPosting.ComposeCreditApplication(Guid.NewGuid(), body, acc);
 
         Assert.Equal(0m, entry.Lines.Sum(Signed));
         PostLineRequest debit = entry.Lines.Single(l => l.AccountId == acc.CustomerCreditsAccountId);
-        PostLineRequest credit = entry.Lines.Single(l => l.AccountId == acc.ReceivableAccountId);
         Assert.Equal("Debit", debit.Direction);
         Assert.Equal(200m, debit.Amount);
-        Assert.Equal("Credit", credit.Direction);
-        Assert.Equal(200m, credit.Amount);
         Assert.Equal(customer, debit.Dimensions!["Customer"]);
-        Assert.Equal(customer, credit.Dimensions!["Customer"]);
+
+        // One dimensioned A/R credit line per allocation — not a single aggregate line — and the
+        // per-line amounts still sum to the fully applied total.
+        List<PostLineRequest> arLines = entry.Lines.Where(l => l.AccountId == acc.ReceivableAccountId).ToList();
+        Assert.Equal(2, arLines.Count);
+        Assert.All(arLines, l => Assert.Equal("Credit", l.Direction));
+        Assert.Equal(200m, arLines.Sum(l => l.Amount));
+        PostLineRequest arA = arLines.Single(l => l.Dimensions!["Invoice"] == invoiceA);
+        Assert.Equal(120m, arA.Amount);
+        Assert.Equal(customer, arA.Dimensions!["Customer"]);
+        PostLineRequest arB = arLines.Single(l => l.Dimensions!["Invoice"] == invoiceB);
+        Assert.Equal(80m, arB.Amount);
+        Assert.Equal(customer, arB.Dimensions!["Customer"]);
+
         Assert.Equal("CreditApplication", entry.SourceType);
     }
 
