@@ -79,4 +79,57 @@ public sealed class InventoryMovementServiceTests
         await Assert.ThrowsAsync<ArgumentException>(() => svc.RecordAsync(Client,
             new RecordMovement(item.Id, MovementType.Receipt, 10m, null, new DateOnly(2026, 1, 15), null)));
     }
+
+    /// <summary>Issue costs at the item's current average — no unit cost is supplied. Drives a (20,60)
+    /// item down through a partial issue of 5 (COGS 15, item becomes (15,45)) and then a full issue of
+    /// the remaining 15 (COGS 45, item clears to exactly (0,0) — no rounding residue). Each issue posts
+    /// its own balanced Dr COGS / Cr Inventory entry for its own extended cost.</summary>
+    [Fact]
+    public async Task Issue_costs_at_average_and_posts_cogs_debit_and_inventory_credit()
+    {
+        (InventoryMovementService svc, InMemoryItemStore items, InMemoryStockMovementStore _, FakeLedgerClient ledger, FixedInventoryAccountsProvider accts) = Build();
+        Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
+        await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Receipt, 20m, 3m, new DateOnly(2026, 1, 1), null));
+
+        StockMovement issue1 = await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Issue, 5m, null, new DateOnly(2026, 1, 15), null));
+
+        Assert.Equal(3m, issue1.AppliedUnitCost);
+        Assert.Equal(15m, issue1.ExtendedCost);
+        Item afterFirst = (await items.GetAsync(Client, item.Id))!;
+        Assert.Equal(15m, afterFirst.OnHandQuantity);
+        Assert.Equal(45m, afterFirst.TotalValue);
+
+        Assert.Equal(2, ledger.Posted.Count);
+        PostEntryRequest firstIssueEntry = ledger.Posted[1];
+        Assert.Contains(firstIssueEntry.Lines, l => l.AccountId == accts.CogsAccountId && l.Direction == "Debit" && l.Amount == 15m);
+        Assert.Contains(firstIssueEntry.Lines, l => l.AccountId == accts.InventoryAssetAccountId && l.Direction == "Credit" && l.Amount == 15m);
+
+        StockMovement issue2 = await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Issue, 15m, null, new DateOnly(2026, 1, 20), null));
+
+        Assert.Equal(3m, issue2.AppliedUnitCost);
+        Assert.Equal(45m, issue2.ExtendedCost);
+        Item afterSecond = (await items.GetAsync(Client, item.Id))!;
+        Assert.Equal(0m, afterSecond.OnHandQuantity);
+        Assert.Equal(0m, afterSecond.TotalValue);
+
+        Assert.Equal(3, ledger.Posted.Count);
+        PostEntryRequest secondIssueEntry = ledger.Posted[2];
+        Assert.Contains(secondIssueEntry.Lines, l => l.AccountId == accts.CogsAccountId && l.Direction == "Debit" && l.Amount == 45m);
+        Assert.Contains(secondIssueEntry.Lines, l => l.AccountId == accts.InventoryAssetAccountId && l.Direction == "Credit" && l.Amount == 45m);
+    }
+
+    [Fact]
+    public async Task Issue_exceeding_on_hand_throws_InvalidOperationException()
+    {
+        (InventoryMovementService svc, InMemoryItemStore items, _, _, _) = Build();
+        Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
+        await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Receipt, 20m, 3m, new DateOnly(2026, 1, 1), null));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Issue, 999m, null, new DateOnly(2026, 1, 15), null)));
+    }
 }
