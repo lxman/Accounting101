@@ -77,16 +77,21 @@ public sealed class GetCreditsEndpointTests(ReceivablesHostFixture fixture) : IC
             .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Payment>())!;
         await ApproveBySourceRefAsync(clerk, approver, clientId, payment.Id);
 
-        (await clerk.PostAsJsonAsync($"/clients/{clientId}/write-offs",
+        WriteOff writeOff = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/write-offs",
             new WriteOffRequest(customer.Id, new DateOnly(2026, 3, 5), [new Allocation(inv1, 100m)], "uncollectible")))
-            .EnsureSuccessStatusCode();
-        (await clerk.PostAsJsonAsync($"/clients/{clientId}/credit-applications",
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<WriteOff>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, writeOff.Id);
+        CreditApplication creditApp = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/credit-applications",
             new CreditApplicationRequest(customer.Id, new DateOnly(2026, 3, 8), [new Allocation(inv4, 50m)])))
-            .EnsureSuccessStatusCode();
-        (await clerk.PostAsJsonAsync($"/clients/{clientId}/credit-notes",
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<CreditApplication>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, creditApp.Id);
+        CreditNote creditNote = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/credit-notes",
             new CreditNoteRequest(customer.Id, new DateOnly(2026, 3, 10), [new Allocation(inv2, 100m)], "returned goods")))
-            .EnsureSuccessStatusCode();
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<CreditNote>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, creditNote.Id);
 
+        // The Credits list is a read surface — amounts reflect only Posted relief, so every disposition
+        // above is approved before we read it back.
         CreditDocument[] list = (await clerk.GetFromJsonAsync<CreditDocument[]>(
             $"/clients/{clientId}/credits?customerId={customer.Id}"))!;
 

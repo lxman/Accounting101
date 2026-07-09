@@ -5,8 +5,9 @@ namespace Accounting101.Receivables;
 
 /// <summary>The cash-application lifecycle: record a payment (allocate across invoices, hold over-payment as
 /// customer credit), apply existing credit, and void. Each document posts one balanced entry that lands
-/// PendingApproval — approval is the client's normal maker-checker flow. Open balances and credit are
-/// derived from stored allocations, never stored.</summary>
+/// PendingApproval — approval is the client's normal maker-checker flow. The module stores no allocation
+/// amounts at all; open balances and credit are folded from the ledger's Invoice/Customer-axis subledgers
+/// on every read.</summary>
 public sealed class PaymentService(
     IPaymentStore payments, IInvoiceStore invoices, IPaymentAccountsProvider accounts, ILedgerClient ledger)
 {
@@ -102,7 +103,8 @@ public sealed class PaymentService(
     /// <summary>The customer's allocation-based dispositions — credit notes, write-offs, and credit
     /// applications — as one date-descending list. Read-only; powers the Credits list. Memo comes from the
     /// stored note/write-off; credit applications carry none. Amount is each document's AR relief, folded
-    /// from its ledger entry (the module stores no allocation array to sum directly).</summary>
+    /// Posted-only from its ledger entry (the module stores no allocation array to sum directly) — a
+    /// document's relief must not show before its own posting does.</summary>
     public async Task<IReadOnlyList<CreditDocument>> GetCreditsByCustomerAsync(
         Guid clientId, Guid customerId, CancellationToken ct = default)
     {
@@ -114,13 +116,13 @@ public sealed class PaymentService(
         List<CreditDocument> all = [];
         foreach (CreditNote n in notes)
             all.Add(new CreditDocument("credit-note", n.Id, n.CustomerId, n.Date,
-                await SettlementRelief.ForSourceAsync(ledger, clientId, n.Id, posting.ReceivableAccountId, ct), n.Memo, n.Voided));
+                await SettlementRelief.ForSourceAsync(ledger, clientId, n.Id, posting.ReceivableAccountId, ct, postedOnly: true), n.Memo, n.Voided));
         foreach (WriteOff w in writeOffs)
             all.Add(new CreditDocument("write-off", w.Id, w.CustomerId, w.Date,
-                await SettlementRelief.ForSourceAsync(ledger, clientId, w.Id, posting.ReceivableAccountId, ct), w.Memo, w.Voided));
+                await SettlementRelief.ForSourceAsync(ledger, clientId, w.Id, posting.ReceivableAccountId, ct, postedOnly: true), w.Memo, w.Voided));
         foreach (CreditApplication a in apps)
             all.Add(new CreditDocument("credit-application", a.Id, a.CustomerId, a.Date,
-                await SettlementRelief.ForSourceAsync(ledger, clientId, a.Id, posting.ReceivableAccountId, ct), null, a.Voided));
+                await SettlementRelief.ForSourceAsync(ledger, clientId, a.Id, posting.ReceivableAccountId, ct, postedOnly: true), null, a.Voided));
 
         return all.OrderByDescending(c => c.Date).ToList();
     }
@@ -169,7 +171,8 @@ public sealed class PaymentService(
         // reversed first. Unapplied is folded from the payment's own entry (the module stores no allocation
         // array to compute it from directly).
         PaymentPostingAccounts postingForVoid = await accounts.GetAsync(clientId, ct);
-        decimal allocated = await SettlementRelief.ForSourceAsync(ledger, clientId, paymentId, postingForVoid.ReceivableAccountId, ct);
+        decimal allocated = await SettlementRelief.ForSourceAsync(
+            ledger, clientId, paymentId, postingForVoid.ReceivableAccountId, ct, postedOnly: false);
         decimal unapplied = payment.Amount - allocated;
         if (unapplied > 0m)
         {

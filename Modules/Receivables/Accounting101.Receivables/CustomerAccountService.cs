@@ -41,16 +41,18 @@ public sealed class CustomerAccountService(
             .Where(l => l.DimensionValue == customerId).Sum(l => -l.Balance);
 
         // Per-document AR relief — what each settlement document actually applied to invoices — folded from
-        // its own ledger entry now that the module stores no allocation array. Feeds Statement/CreditActivity.
+        // its own ledger entry now that the module stores no allocation array. Feeds Statement/CreditActivity,
+        // both READ surfaces: postedOnly so a document's relief never shows before its own posting does,
+        // matching the Posted-only ArBalance computed above.
         Dictionary<Guid, decimal> reliefByDocument = new();
         foreach (Payment p in ps.Where(p => !p.Voided))
-            reliefByDocument[p.Id] = await SettlementRelief.ForSourceAsync(ledger, clientId, p.Id, accounts.ReceivableAccountId, ct);
+            reliefByDocument[p.Id] = await SettlementRelief.ForSourceAsync(ledger, clientId, p.Id, accounts.ReceivableAccountId, ct, postedOnly: true);
         foreach (CreditNote n in ns.Where(n => !n.Voided))
-            reliefByDocument[n.Id] = await SettlementRelief.ForSourceAsync(ledger, clientId, n.Id, accounts.ReceivableAccountId, ct);
+            reliefByDocument[n.Id] = await SettlementRelief.ForSourceAsync(ledger, clientId, n.Id, accounts.ReceivableAccountId, ct, postedOnly: true);
         foreach (WriteOff w in ws.Where(w => !w.Voided))
-            reliefByDocument[w.Id] = await SettlementRelief.ForSourceAsync(ledger, clientId, w.Id, accounts.ReceivableAccountId, ct);
+            reliefByDocument[w.Id] = await SettlementRelief.ForSourceAsync(ledger, clientId, w.Id, accounts.ReceivableAccountId, ct, postedOnly: true);
         foreach (CreditApplication c in cs.Where(c => !c.Voided))
-            reliefByDocument[c.Id] = await SettlementRelief.ForSourceAsync(ledger, clientId, c.Id, accounts.ReceivableAccountId, ct);
+            reliefByDocument[c.Id] = await SettlementRelief.ForSourceAsync(ledger, clientId, c.Id, accounts.ReceivableAccountId, ct, postedOnly: true);
 
         return new CustomerAccountView(
             customer,

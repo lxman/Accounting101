@@ -8,18 +8,31 @@ namespace Accounting101.Receivables;
 /// <paramref name="sourceRef"/> is the only place that total lives.
 /// <para>
 /// Finds the document's ORIGINAL entry (the one that is not itself a reversal) regardless of its current
-/// approval or void state, and sums its lines on the Receivable account. This deliberately does not gate on
-/// Posted/approval — before this fold replaced the stored array, these figures were always available the
-/// instant the document was recorded, and callers (e.g. the negative-credit guard on payment void) still
-/// need that immediacy.
+/// void state, and sums its lines on the Receivable account. Two modes, selected by
+/// <paramref name="postedOnly"/>:
+/// </para>
+/// <para>
+/// <c>postedOnly: true</c> — the entry only contributes once it is Posted (approved); a PendingApproval
+/// entry contributes 0. Required by every READ surface (customer statement, credit activity, credits list)
+/// so a document's relief never appears before its own posting does — matching the Posted-only
+/// <c>ArBalance</c> it must reconcile against.
+/// </para>
+/// <para>
+/// <c>postedOnly: false</c> (default) — the immediate legacy behavior: the figure is available the instant
+/// the document is recorded, regardless of approval state. Reserved for the payment-void negative-credit
+/// guard, which needs that immediacy to reject a void that would double up an already-consumed
+/// overpayment credit.
 /// </para></summary>
 internal static class SettlementRelief
 {
     public static async Task<decimal> ForSourceAsync(
-        ILedgerClient ledger, Guid clientId, Guid sourceRef, Guid receivableAccountId, CancellationToken ct)
+        ILedgerClient ledger, Guid clientId, Guid sourceRef, Guid receivableAccountId, CancellationToken ct,
+        bool postedOnly = false)
     {
         IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, sourceRef, ct);
         EntryResponse? entry = entries.FirstOrDefault(e => e.ReversalOf is null);
-        return entry?.Lines.Where(l => l.AccountId == receivableAccountId).Sum(l => l.Amount) ?? 0m;
+        if (entry is null) return 0m;
+        if (postedOnly && entry.Posting != "Posted") return 0m;
+        return entry.Lines.Where(l => l.AccountId == receivableAccountId).Sum(l => l.Amount);
     }
 }

@@ -526,7 +526,7 @@ public static class LedgerEndpoints
                     $"Account {namedAccountId} is not a control account requiring a dimension; subledger reconciliation does not apply. Use the account balance or journal instead.");
             if (!namedAccount.RequiredDimensions.Contains(dimension))
                 return Unprocessable(
-                    $"Account {namedAccountId} requires the '{namedAccount.RequiredDimension}' dimension, not '{dimension}'.");
+                    $"Account {namedAccountId} requires the '{string.Join(", ", namedAccount.RequiredDimensions)}' dimension(s), not '{dimension}'.");
         }
 
         IReadOnlyList<SubledgerBalance> balances = await ctx.Ledger.Journal.AggregateSubledgerAsync(
@@ -561,7 +561,7 @@ public static class LedgerEndpoints
                 $"Account {accountId} is not a control account requiring a dimension; subledger reconciliation does not apply. Use the account balance or journal instead.");
         if (!controlAccount.RequiredDimensions.Contains(dimension))
             return Unprocessable(
-                $"Account {accountId} requires the '{controlAccount.RequiredDimension}' dimension, not '{dimension}'.");
+                $"Account {accountId} requires the '{string.Join(", ", controlAccount.RequiredDimensions)}' dimension(s), not '{dimension}'.");
 
         // Both sides folded the same way: the control balance includes every line on the account; the
         // subledger only the lines carrying the dimension. Their difference is the untagged remainder.

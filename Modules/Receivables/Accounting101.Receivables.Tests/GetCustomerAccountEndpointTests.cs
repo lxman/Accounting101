@@ -104,6 +104,34 @@ public sealed class GetCustomerAccountEndpointTests(ReceivablesHostFixture fixtu
         Assert.All(view.OpenInvoices, l => Assert.True(l.OpenBalance > 0m));
     }
 
+    /// <summary>An unapproved payment's relief must not leak into the statement — the statement's running
+    /// balance must stay consistent with the Posted-only ArBalance until the payment is approved. Guards
+    /// against SettlementRelief.ForSourceAsync (which deliberately does not gate on Posted, for the
+    /// payment-void negative-credit guard) leaking pending relief into this read surface.</summary>
+    [Fact]
+    public async Task GET_account_statement_excludes_unapproved_payment_relief()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId);
+        Customer customer = (await (await clerk.PostAsJsonAsync(
+            $"/clients/{clientId}/customers", new CreateCustomerRequest("Stark", "stark@x.com")))
+            .Content.ReadFromJsonAsync<Customer>())!;
+
+        Guid inv1 = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m, new DateOnly(2026, 3, 31));
+
+        // Record a 30 payment against the invoice but deliberately leave it PendingApproval.
+        (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
+                new RecordPaymentRequest(customer.Id, new DateOnly(2026, 3, 15), 30m, "check", [new Allocation(inv1, 30m)])))
+            .EnsureSuccessStatusCode();
+
+        CustomerAccountView view = (await clerk.GetFromJsonAsync<CustomerAccountView>(
+            $"/clients/{clientId}/customers/{customer.Id}/account?asOf=2026-05-15"))!;
+
+        // The unapproved payment must not relieve AR: open balance stays 100, not 70.
+        Assert.Equal(100m, view.ArBalance);
+        Assert.Equal(view.ArBalance, view.StatementLines[^1].Balance);
+    }
+
     [Fact]
     public async Task GET_account_for_unknown_customer_is_404()
     {
