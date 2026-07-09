@@ -156,4 +156,34 @@ public sealed class ModuleEntryGuardTests(ApiFixture fixture) : IClassFixture<Ap
             $"/clients/{c.ClientId}/entries/{created.Id}/reverse", new ReverseRequest(new DateOnly(2026, 7, 1), "manual reverse"));
         Assert.Equal(HttpStatusCode.Created, reversed.StatusCode);
     }
+
+    [Fact]
+    public async Task Raw_revise_of_a_module_owned_entry_is_refused()
+    {
+        var seed = await SeedWithModuleClerkAsync("GuardModuleReviseRefused");
+        Guid entryId = await PostModuleEntryAsync(seed);
+
+        HttpResponseMessage raw = await seed.Client.Http.PostAsJsonAsync(
+            $"/clients/{seed.Client.ClientId}/entries/{entryId}/revise",
+            new ReviseRequest(null, new DateOnly(2026, 6, 26), "GUARD-REV", "revised", "correction",
+                [new PostLineRequest(Guid.NewGuid(), "Debit", 100m), new PostLineRequest(Guid.NewGuid(), "Credit", 100m)]));
+        Assert.Equal(HttpStatusCode.Conflict, raw.StatusCode);
+        Assert.Contains("through that module", await raw.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Raw_revise_of_a_manual_entry_still_succeeds()
+    {
+        SeededClient c = await fixture.SeedClientAsync("GuardManualRevise");
+        HttpResponseMessage posted = await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", Balanced());
+        posted.EnsureSuccessStatusCode();
+        PostEntryResponse created = (await posted.Content.ReadFromJsonAsync<PostEntryResponse>())!;
+        (await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{created.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        HttpResponseMessage revised = await c.Http.PostAsJsonAsync(
+            $"/clients/{c.ClientId}/entries/{created.Id}/revise",
+            new ReviseRequest(null, new DateOnly(2026, 6, 26), "GUARD-REV", "revised", "correction",
+                [new PostLineRequest(Guid.NewGuid(), "Debit", 100m), new PostLineRequest(Guid.NewGuid(), "Credit", 100m)]));
+        Assert.Equal(HttpStatusCode.Created, revised.StatusCode);
+    }
 }

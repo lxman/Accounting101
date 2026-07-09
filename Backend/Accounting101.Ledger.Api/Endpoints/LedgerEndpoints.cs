@@ -221,13 +221,18 @@ public static class LedgerEndpoints
     }
 
     private static async Task<IResult> ReviseEntry(
-        Guid clientId, Guid originalId, ReviseRequest request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+        Guid clientId, Guid originalId, ReviseRequest request, LedgerGateway gateway, IModuleAuthenticator moduleAuth,
+        ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Revise, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveMemberAsync(user, clientId, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
-        if (await ctx.Ledger.Journal.GetAsync(originalId, cancellationToken) is null)
-            return Results.NotFound();
+        JournalEntry? entry = await ctx.Ledger.Journal.GetAsync(originalId, cancellationToken);
+        if (entry is null) return Results.NotFound();
+
+        if (await gateway.AuthorizeEntryMutationAsync(
+                user, clientId, entry.Audit.ViaModule, Permission.Revise, moduleAuth, cancellationToken) is { } denied)
+            return denied;
 
         JournalEntry replacement;
         try
