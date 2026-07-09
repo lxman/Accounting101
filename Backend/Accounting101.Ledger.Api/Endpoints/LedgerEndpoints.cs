@@ -258,13 +258,18 @@ public static class LedgerEndpoints
     }
 
     private static async Task<IResult> ReverseEntry(
-        Guid clientId, Guid originalId, ReverseRequest request, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+        Guid clientId, Guid originalId, ReverseRequest request, LedgerGateway gateway, IModuleAuthenticator moduleAuth,
+        ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Reverse, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveMemberAsync(user, clientId, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
-        if (await ctx.Ledger.Journal.GetAsync(originalId, cancellationToken) is null)
-            return Results.NotFound();
+        JournalEntry? original = await ctx.Ledger.Journal.GetAsync(originalId, cancellationToken);
+        if (original is null) return Results.NotFound();
+
+        if (await gateway.AuthorizeEntryMutationAsync(
+                user, clientId, original.Audit.ViaModule, Permission.Reverse, moduleAuth, cancellationToken) is { } denied)
+            return denied;
 
         try
         {
