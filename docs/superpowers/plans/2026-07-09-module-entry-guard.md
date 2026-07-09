@@ -97,62 +97,142 @@ Add the two gateway helpers (`ResolveMemberAsync`, `AuthorizeEntryMutationAsync`
 **Files:**
 - Modify: `Backend/Accounting101.Ledger.Api/Endpoints/LedgerGateway.cs`
 - Modify: `Backend/Accounting101.Ledger.Api/Endpoints/LedgerEndpoints.cs` (the `VoidEntry` handler, currently at lines 198-216)
-- Test: `Backend/Accounting101.Ledger.Api.Tests/ModuleEntryGuardTests.cs` (new) for the manual-entry paths; `Modules/Inventory/Accounting101.Inventory.Tests/MovementVoidE2eTests.cs` (extend) for the module-owned paths.
+- Test: `Backend/Accounting101.Ledger.Api.Tests/ModuleEntryGuardTests.cs` (new). Fully self-contained — it mints a module-owned entry by posting with a module credential (`RegisterModuleAsync` + `X-Module-Key`/`X-Module-Secret`), the exact pattern in `ModulePostingTests.cs`. No cross-module dependency.
 
 **Interfaces:**
 - Consumes: `LedgerGateway(IActorFactory actorFactory, ControlStore control, ClientLedgerFactory ledgers, ModuleAccess moduleAccess)`; `IModuleAuthenticator.AuthenticateAsync()` → `ModuleIdentity?` (has `.Key`); `ModuleAccess.AuthorizeAsync(ModuleIdentity, string targetNamespace, Guid userId, Guid clientId, ModuleAccessLevel, CancellationToken)` → `ModuleAccessDecision` (`.Allowed`); `Membership.Capabilities`; `Capabilities.CapabilityForPermission(Permission)`; `JournalEntry.Audit.ViaModule` (string?); `ctx.Ledger.Journal.GetAsync(entryId, ct)`.
-- Produces: `LedgerGateway.ResolveMemberAsync(ClaimsPrincipal, Guid, CancellationToken) → Task<LedgerContext>` and `LedgerGateway.AuthorizeEntryMutationAsync(ClaimsPrincipal, Guid clientId, string? entryViaModule, Permission rawPermission, IModuleAuthenticator, CancellationToken) → Task<IResult?>` (null = allowed). Consumed verbatim by Tasks 3 and 4.
+- Produces: `LedgerGateway.ResolveMemberAsync(ClaimsPrincipal, Guid, CancellationToken) → Task<LedgerContext>` and `LedgerGateway.AuthorizeEntryMutationAsync(ClaimsPrincipal, Guid clientId, string? entryViaModule, Permission rawPermission, IModuleAuthenticator, CancellationToken) → Task<IResult?>` (null = allowed). Consumed verbatim by Tasks 3 and 4, along with the test helpers below.
 
 - [ ] **Step 1: Write the failing tests.**
 
-Create `Backend/Accounting101.Ledger.Api.Tests/ModuleEntryGuardTests.cs`. Mirror the existing ledger host-fixture test style (see any test in `Backend/Accounting101.Ledger.Api.Tests/` for the fixture + auth-header helpers; use the same fixture type and a member who holds `gl.void`). Write three tests:
+Create `Backend/Accounting101.Ledger.Api.Tests/ModuleEntryGuardTests.cs` with the full content below. The helpers (`Balanced`, `PostWithModuleAsync`, `VoidWithModuleAsync`, `SeedWithModuleClerkAsync`) are reused by Tasks 3-4, so write them exactly as shown. (`LedgerRole.Clerk` holds `ap.write` but not `gl.post`; `LedgerRole.Auditor` holds read but not `gl.void` — both facts are established by `ModulePostingTests.cs`.)
 
 ```csharp
-// 1. A raw user can still void a MANUAL entry (ViaModule == null) — unchanged.
-[Fact] public async Task Raw_void_of_a_manual_entry_still_succeeds() { /* post a normal entry (no module
-    credential), approve if needed, void via POST /clients/{id}/entries/{entryId}/void as a gl.void user →
-    expect 200 OK. */ }
+using System.Net;
+using System.Net.Http.Json;
+using Accounting101.Ledger.Api.Control;
+using Accounting101.Ledger.Contracts;
 
-// 2. A member WITHOUT gl.void voiding a manual entry is still refused.
-[Fact] public async Task Raw_void_without_permission_is_forbidden() { /* void a manual entry as a member
-    lacking gl.void → expect 403. */ }
-```
+namespace Accounting101.Ledger.Api.Tests;
 
-For the module-owned path, extend `Modules/Inventory/Accounting101.Inventory.Tests/MovementVoidE2eTests.cs` (it already has the host fixture, chart setup, and posts real `ViaModule="inventory"` entries):
-
-```csharp
-// 3. A raw user CANNOT void a module-owned entry directly — must go through the module.
-[Fact]
-public async Task A_raw_journal_void_of_a_module_owned_entry_is_refused()
+/// <summary>The module-owned entry guard: a void/reverse/revise of an entry stamped with a ViaModule must be
+/// driven by the owning module (its credential), not a raw journal call. Manual entries are unchanged.</summary>
+public sealed class ModuleEntryGuardTests(ApiFixture fixture) : IClassFixture<ApiFixture>
 {
-    (Guid clientId, HttpClient http) = await fixture.SeedClientAsync(); // Controller (holds inventory.write + gl.void)
-    await SetUpChartAsync(http, clientId);
-    ItemView item = await CreateItemAsync(http, clientId, new SaveItemRequest("SKU1", "Widget", null, "each"));
+    private const string ModuleKey = "payables";
+    private const string ModuleSecret = "guard-test-secret";
 
-    HttpResponseMessage created = await http.PostAsJsonAsync($"/clients/{clientId}/movements",
-        new RecordMovementRequest(item.Item.Id, MovementType.Receipt, 10m, 2m, new DateOnly(2026, 1, 15), null));
-    StockMovementView mv = (await created.Content.ReadFromJsonAsync<StockMovementView>())!;
-    EntryResponse[] entries = (await http.GetFromJsonAsync<EntryResponse[]>(
-        $"/clients/{clientId}/entries?sourceRef={mv.Movement.Id}"))!;
-    Guid moduleEntryId = entries.Single().Id;
+    private static PostEntryRequest Balanced() =>
+        new(null, new DateOnly(2026, 6, 26), "GUARD", "guard test",
+            [new PostLineRequest(Guid.NewGuid(), "Debit", 100m), new PostLineRequest(Guid.NewGuid(), "Credit", 100m)]);
 
-    // Raw void through the journal endpoint (no module credential) is refused.
-    HttpResponseMessage raw = await http.PostAsJsonAsync(
-        $"/clients/{clientId}/entries/{moduleEntryId}/void", new { Reason = "should be refused" });
-    Assert.Equal(HttpStatusCode.Conflict, raw.StatusCode);
-    Assert.Contains("through that module", await raw.Content.ReadAsStringAsync());
+    private static async Task<HttpResponseMessage> PostWithModuleAsync(
+        HttpClient http, Guid clientId, PostEntryRequest body, string key, string secret)
+    {
+        HttpRequestMessage req = new(HttpMethod.Post, $"/clients/{clientId}/entries");
+        req.Headers.Add("X-Module-Key", key);
+        req.Headers.Add("X-Module-Secret", secret);
+        req.Content = JsonContent.Create(body);
+        return await http.SendAsync(req);
+    }
 
-    // The entry is untouched — still active/posting-pending.
-    EntryResponse after = (await http.GetFromJsonAsync<EntryResponse[]>(
-        $"/clients/{clientId}/entries?sourceRef={mv.Movement.Id}"))!.Single();
-    Assert.Equal("Active", after.Status);
+    private static async Task<HttpResponseMessage> MutateWithModuleAsync(
+        HttpClient http, Guid clientId, string path, object body, string key, string secret)
+    {
+        HttpRequestMessage req = new(HttpMethod.Post, $"/clients/{clientId}/entries/{path}");
+        req.Headers.Add("X-Module-Key", key);
+        req.Headers.Add("X-Module-Secret", secret);
+        req.Content = JsonContent.Create(body);
+        return await http.SendAsync(req);
+    }
+
+    /// <summary>Register the guard-test module (upsert) and add a Clerk (holds ap.write) to drive it.</summary>
+    private async Task<(SeededClient Client, HttpClient Clerk)> SeedWithModuleClerkAsync(string name)
+    {
+        SeededClient c = await fixture.SeedClientAsync(name);
+        await fixture.Control().RegisterModuleAsync(new ModuleRegistration
+        {
+            Key = ModuleKey, Name = "Payables", Enabled = true, Secret = ModuleSecret,
+        });
+        Guid clerkId = Guid.NewGuid();
+        await fixture.Control().AddMembershipAsync(clerkId, c.ClientId, LedgerRole.Clerk);
+        return (c, fixture.ClientFor(clerkId, "Clerk"));
+    }
+
+    private static async Task<Guid> PostModuleEntryAsync((SeededClient Client, HttpClient Clerk) seed)
+    {
+        HttpResponseMessage posted = await PostWithModuleAsync(seed.Clerk, seed.Client.ClientId, Balanced(), ModuleKey, ModuleSecret);
+        posted.EnsureSuccessStatusCode();
+        return (await posted.Content.ReadFromJsonAsync<PostEntryResponse>())!.Id;
+    }
+
+    // ---- manual entries: unchanged ----
+
+    [Fact]
+    public async Task Raw_void_of_a_manual_entry_still_succeeds()
+    {
+        SeededClient c = await fixture.SeedClientAsync("GuardManualVoid");
+        HttpResponseMessage posted = await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", Balanced());
+        posted.EnsureSuccessStatusCode();
+        PostEntryResponse created = (await posted.Content.ReadFromJsonAsync<PostEntryResponse>())!;
+
+        HttpResponseMessage voided = await c.Http.PostAsJsonAsync(
+            $"/clients/{c.ClientId}/entries/{created.Id}/void", new VoidRequest("manual void"));
+        Assert.Equal(HttpStatusCode.OK, voided.StatusCode);
+    }
+
+    [Fact]
+    public async Task Raw_void_of_a_manual_entry_without_permission_is_forbidden()
+    {
+        SeededClient c = await fixture.SeedClientAsync("GuardManualVoidNoPerm");
+        HttpResponseMessage posted = await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", Balanced());
+        posted.EnsureSuccessStatusCode();
+        PostEntryResponse created = (await posted.Content.ReadFromJsonAsync<PostEntryResponse>())!;
+
+        HttpClient auditor = await fixture.AddMemberAsync(c.ClientId, LedgerRole.Auditor, "Auditor"); // no gl.void
+        HttpResponseMessage voided = await auditor.PostAsJsonAsync(
+            $"/clients/{c.ClientId}/entries/{created.Id}/void", new VoidRequest("nope"));
+        Assert.Equal(HttpStatusCode.Forbidden, voided.StatusCode);
+    }
+
+    // ---- module-owned entries: guarded ----
+
+    [Fact]
+    public async Task Raw_void_of_a_module_owned_entry_is_refused()
+    {
+        (SeededClient c, HttpClient clerk) seed = await SeedWithModuleClerkAsync("GuardModuleVoidRefused");
+        Guid entryId = await PostModuleEntryAsync(seed);
+
+        // The Controller (seed.Client.Http) holds gl.void, but the entry is module-owned and the request
+        // carries no module credential → refused.
+        HttpResponseMessage raw = await seed.Client.Http.PostAsJsonAsync(
+            $"/clients/{seed.Client.ClientId}/entries/{entryId}/void", new VoidRequest("raw void"));
+        Assert.Equal(HttpStatusCode.Conflict, raw.StatusCode);
+        Assert.Contains("through that module", await raw.Content.ReadAsStringAsync());
+
+        EntryResponse after = (await seed.Client.Http.GetFromJsonAsync<EntryResponse>(
+            $"/clients/{seed.Client.ClientId}/entries/{entryId}"))!;
+        Assert.Equal("Active", after.Status);
+    }
+
+    [Fact]
+    public async Task Module_credentialed_void_of_a_module_owned_entry_is_allowed()
+    {
+        (SeededClient c, HttpClient clerk) seed = await SeedWithModuleClerkAsync("GuardModuleVoidAllowed");
+        Guid entryId = await PostModuleEntryAsync(seed);
+
+        // The module drives its own void: credential present + matching ViaModule, and the Clerk holds ap.write.
+        HttpResponseMessage viaModule = await MutateWithModuleAsync(
+            seed.Clerk, seed.Client.ClientId, $"{entryId}/void", new VoidRequest("through module"), ModuleKey, ModuleSecret);
+        Assert.Equal(HttpStatusCode.OK, viaModule.StatusCode);
+    }
 }
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail.**
 
-Run: `dotnet test Backend/Accounting101.Ledger.Api.Tests/Accounting101.Ledger.Api.Tests.csproj --filter "FullyQualifiedName~ModuleEntryGuard"` and `dotnet test Modules/Inventory/Accounting101.Inventory.Tests/Accounting101.Inventory.Tests.csproj --filter "FullyQualifiedName~A_raw_journal_void_of_a_module_owned_entry_is_refused"`
-Expected: test 3 FAILS (raw void currently returns 200, not 409); tests 1-2 likely PASS already (raw path unchanged).
+Run: `dotnet test Backend/Accounting101.Ledger.Api.Tests/Accounting101.Ledger.Api.Tests.csproj --filter "FullyQualifiedName~ModuleEntryGuard"`
+Expected: `Raw_void_of_a_module_owned_entry_is_refused` and `Module_credentialed_void_of_a_module_owned_entry_is_allowed` FAIL (raw void currently returns 200 regardless of module credential; there is no module-void path yet). The two manual-entry tests PASS already (raw path unchanged).
 
 - [ ] **Step 3: Add the gateway helpers.**
 
@@ -245,16 +325,15 @@ In `Backend/Accounting101.Ledger.Api/Endpoints/LedgerEndpoints.cs`, replace the 
 
 - [ ] **Step 5: Run the Task-2 tests to verify they pass.**
 
-Run: `dotnet test Backend/Accounting101.Ledger.Api.Tests/Accounting101.Ledger.Api.Tests.csproj --filter "FullyQualifiedName~ModuleEntryGuard"` and `dotnet test Modules/Inventory/Accounting101.Inventory.Tests/Accounting101.Inventory.Tests.csproj --filter "FullyQualifiedName~Void"`
-Expected: all PASS — raw void of a module entry now 409; the module's own void (via `POST /movements/{id}/void`, which now sends the credential) still 200; manual-entry void unchanged.
+Run: `dotnet test Backend/Accounting101.Ledger.Api.Tests/Accounting101.Ledger.Api.Tests.csproj --filter "FullyQualifiedName~ModuleEntryGuard"`
+Expected: all four PASS — raw void of a module-owned entry now 409; the module-credentialed void 200; both manual-entry paths unchanged. (Real-module integration — the inventory module's own void still working through the guard — is confirmed by the full-suite run in Task 5.)
 
 - [ ] **Step 6: Commit.**
 
 ```bash
 git add Backend/Accounting101.Ledger.Api/Endpoints/LedgerGateway.cs \
         Backend/Accounting101.Ledger.Api/Endpoints/LedgerEndpoints.cs \
-        Backend/Accounting101.Ledger.Api.Tests/ModuleEntryGuardTests.cs \
-        Modules/Inventory/Accounting101.Inventory.Tests/MovementVoidE2eTests.cs
+        Backend/Accounting101.Ledger.Api.Tests/ModuleEntryGuardTests.cs
 git commit -m "feat(ledger): guard void of module-owned entries — correct through the module
 
 VoidEntry now branches on the target entry's Audit.ViaModule: a module-owned
@@ -272,18 +351,60 @@ Apply the same branch to `ReverseEntry` (reuse the Task-2 gateway helpers).
 
 **Files:**
 - Modify: `Backend/Accounting101.Ledger.Api/Endpoints/LedgerEndpoints.cs` (the `ReverseEntry` handler, currently at lines 255+)
-- Test: `Backend/Accounting101.Ledger.Api.Tests/ModuleEntryGuardTests.cs` (extend); `Modules/Inventory/Accounting101.Inventory.Tests/MovementVoidE2eTests.cs` (extend).
+- Test: `Backend/Accounting101.Ledger.Api.Tests/ModuleEntryGuardTests.cs` (extend — reuse the Task-2 helpers).
 
 **Interfaces:**
-- Consumes: `LedgerGateway.ResolveMemberAsync`, `LedgerGateway.AuthorizeEntryMutationAsync` (Task 2), `Permission.Reverse`.
+- Consumes: `LedgerGateway.ResolveMemberAsync`, `LedgerGateway.AuthorizeEntryMutationAsync` (Task 2), `Permission.Reverse`, and the Task-2 test helpers (`SeedWithModuleClerkAsync`, `PostModuleEntryAsync`, `MutateWithModuleAsync`, `Balanced`).
 
-- [ ] **Step 1: Write the failing test.** Add to `ModuleEntryGuardTests.cs` a `Raw_reverse_of_a_module_owned_entry_is_refused` test (post a module entry via the inventory module as in Task 2, approve it so it is `Posting == "Posted"`, then `POST /entries/{id}/reverse` as a raw user with `gl.reverse` → expect 409 and body contains "through that module"). Keep a `Raw_reverse_of_a_manual_posted_entry_still_succeeds` test for the unchanged path.
+- [ ] **Step 1: Write the failing tests.** Append to `ModuleEntryGuardTests.cs` (reverse needs the entry Posted, so approve it first — `SeedClientAsync` defaults SoD off, and the Controller approving the Clerk-posted entry is a distinct user anyway):
 
-- [ ] **Step 2: Run to verify it fails.** Run: `dotnet test Backend/Accounting101.Ledger.Api.Tests/Accounting101.Ledger.Api.Tests.csproj --filter "FullyQualifiedName~Reverse"` — Expected: the module-owned reverse test FAILS (currently 200/201).
+```csharp
+    [Fact]
+    public async Task Raw_reverse_of_a_module_owned_entry_is_refused()
+    {
+        (SeededClient c, HttpClient clerk) seed = await SeedWithModuleClerkAsync("GuardModuleReverseRefused");
+        Guid entryId = await PostModuleEntryAsync(seed);
+        (await seed.Client.Http.PostAsync($"/clients/{seed.Client.ClientId}/entries/{entryId}/approve", null)).EnsureSuccessStatusCode();
 
-- [ ] **Step 3: Rewire `ReverseEntry`.** Replace its context resolution + not-found preamble with the member-resolve + load + `AuthorizeEntryMutationAsync(..., original.Audit.ViaModule, Permission.Reverse, moduleAuth, ...)` pattern from `VoidEntry` (Task 2 Step 4), keeping the rest of the handler (the `ReverseAsync(originalId, request.ReversalDate, ctx.Actor, request.Reason, ...)` call and its existing catch blocks) intact. Add `IModuleAuthenticator moduleAuth` to the handler's parameter list.
+        HttpResponseMessage raw = await seed.Client.Http.PostAsJsonAsync(
+            $"/clients/{seed.Client.ClientId}/entries/{entryId}/reverse", new ReverseRequest(new DateOnly(2026, 7, 1), "raw reverse"));
+        Assert.Equal(HttpStatusCode.Conflict, raw.StatusCode);
+        Assert.Contains("through that module", await raw.Content.ReadAsStringAsync());
+    }
 
-- [ ] **Step 4: Run to verify it passes.** Run the same filter — Expected: PASS. The inventory module's own void, when the spawned entry was approved (its reverse branch, already covered by `MovementVoidE2eTests`), still 200 because the module now sends the credential.
+    [Fact]
+    public async Task Module_credentialed_reverse_of_a_module_owned_entry_is_allowed()
+    {
+        (SeededClient c, HttpClient clerk) seed = await SeedWithModuleClerkAsync("GuardModuleReverseAllowed");
+        Guid entryId = await PostModuleEntryAsync(seed);
+        (await seed.Client.Http.PostAsync($"/clients/{seed.Client.ClientId}/entries/{entryId}/approve", null)).EnsureSuccessStatusCode();
+
+        HttpResponseMessage viaModule = await MutateWithModuleAsync(
+            seed.Clerk, seed.Client.ClientId, $"{entryId}/reverse",
+            new ReverseRequest(new DateOnly(2026, 7, 1), "through module"), ModuleKey, ModuleSecret);
+        Assert.Equal(HttpStatusCode.Created, viaModule.StatusCode);
+    }
+
+    [Fact]
+    public async Task Raw_reverse_of_a_manual_posted_entry_still_succeeds()
+    {
+        SeededClient c = await fixture.SeedClientAsync("GuardManualReverse");
+        HttpResponseMessage posted = await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", Balanced());
+        posted.EnsureSuccessStatusCode();
+        PostEntryResponse created = (await posted.Content.ReadFromJsonAsync<PostEntryResponse>())!;
+        (await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{created.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        HttpResponseMessage reversed = await c.Http.PostAsJsonAsync(
+            $"/clients/{c.ClientId}/entries/{created.Id}/reverse", new ReverseRequest(new DateOnly(2026, 7, 1), "manual reverse"));
+        Assert.Equal(HttpStatusCode.Created, reversed.StatusCode);
+    }
+```
+
+- [ ] **Step 2: Run to verify they fail.** Run: `dotnet test Backend/Accounting101.Ledger.Api.Tests/Accounting101.Ledger.Api.Tests.csproj --filter "FullyQualifiedName~Reverse"` — Expected: `Raw_reverse_of_a_module_owned_entry_is_refused` and `Module_credentialed_reverse...` FAIL (raw reverse currently returns 201 and there is no module-reverse path yet).
+
+- [ ] **Step 3: Rewire `ReverseEntry`.** Add `IModuleAuthenticator moduleAuth` to the handler's parameter list. Replace its `gateway.ResolveAsync(user, clientId, Permission.Reverse, ...)` + not-found preamble with the member-resolve + load + `AuthorizeEntryMutationAsync(user, clientId, original.Audit.ViaModule, Permission.Reverse, moduleAuth, ct)` guard, exactly as `VoidEntry` was rewired in Task 2 Step 4 (load the original via `ctx.Ledger.Journal.GetAsync(originalId, ct)`). Keep the rest of the handler (the `ReverseAsync(originalId, request.ReversalDate, ctx.Actor, request.Reason, ...)` call and its existing catch blocks) intact.
+
+- [ ] **Step 4: Run to verify they pass.** Run the same filter — Expected: PASS.
 
 - [ ] **Step 5: Commit.**
 
@@ -308,9 +429,41 @@ Apply the same branch to `ReviseEntry` (currently at lines 218-253). Modules do 
 **Interfaces:**
 - Consumes: `LedgerGateway.ResolveMemberAsync`, `LedgerGateway.AuthorizeEntryMutationAsync` (Task 2), `Permission.Revise`.
 
-- [ ] **Step 1: Write the failing test.** Add `Raw_revise_of_a_module_owned_entry_is_refused` (post a module entry via the inventory module, then `POST /entries/{id}/revise` as a raw user with `gl.revise` → expect 409). Keep a `Raw_revise_of_a_manual_entry_still_succeeds` for the unchanged path (revise a manual entry → 201 Created).
+- [ ] **Step 1: Write the failing tests.** Append to `ModuleEntryGuardTests.cs` (reuse the Task-2 helpers). Modules never call revise, so there is only the refusal case plus the unchanged-manual case:
 
-- [ ] **Step 2: Run to verify it fails.** Run: `dotnet test Backend/Accounting101.Ledger.Api.Tests/Accounting101.Ledger.Api.Tests.csproj --filter "FullyQualifiedName~Revise"` — Expected: the module-owned revise test FAILS.
+```csharp
+    [Fact]
+    public async Task Raw_revise_of_a_module_owned_entry_is_refused()
+    {
+        (SeededClient c, HttpClient clerk) seed = await SeedWithModuleClerkAsync("GuardModuleReviseRefused");
+        Guid entryId = await PostModuleEntryAsync(seed);
+
+        HttpResponseMessage raw = await seed.Client.Http.PostAsJsonAsync(
+            $"/clients/{seed.Client.ClientId}/entries/{entryId}/revise",
+            new ReviseRequest(null, new DateOnly(2026, 6, 26), "GUARD-REV", "revised", "correction",
+                [new PostLineRequest(Guid.NewGuid(), "Debit", 100m), new PostLineRequest(Guid.NewGuid(), "Credit", 100m)]));
+        Assert.Equal(HttpStatusCode.Conflict, raw.StatusCode);
+        Assert.Contains("through that module", await raw.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Raw_revise_of_a_manual_entry_still_succeeds()
+    {
+        SeededClient c = await fixture.SeedClientAsync("GuardManualRevise");
+        HttpResponseMessage posted = await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", Balanced());
+        posted.EnsureSuccessStatusCode();
+        PostEntryResponse created = (await posted.Content.ReadFromJsonAsync<PostEntryResponse>())!;
+        (await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{created.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        HttpResponseMessage revised = await c.Http.PostAsJsonAsync(
+            $"/clients/{c.ClientId}/entries/{created.Id}/revise",
+            new ReviseRequest(null, new DateOnly(2026, 6, 26), "GUARD-REV", "revised", "correction",
+                [new PostLineRequest(Guid.NewGuid(), "Debit", 100m), new PostLineRequest(Guid.NewGuid(), "Credit", 100m)]));
+        Assert.Equal(HttpStatusCode.Created, revised.StatusCode);
+    }
+```
+
+- [ ] **Step 2: Run to verify it fails.** Run: `dotnet test Backend/Accounting101.Ledger.Api.Tests/Accounting101.Ledger.Api.Tests.csproj --filter "FullyQualifiedName~Revise"` — Expected: `Raw_revise_of_a_module_owned_entry_is_refused` FAILS (raw revise currently returns 201).
 
 - [ ] **Step 3: Rewire `ReviseEntry`.** Add `IModuleAuthenticator moduleAuth` to the parameter list. Replace its `gateway.ResolveAsync(user, clientId, Permission.Revise, ...)` + not-found preamble with: `ResolveMemberAsync` → `GetAsync(originalId)` → `if (entry is null) return NotFound()` → `AuthorizeEntryMutationAsync(user, clientId, entry.Audit.ViaModule, Permission.Revise, moduleAuth, ct)` guard. Keep everything after (the `MapReplacement`, `ChartViolationsAsync`, `ReviseAsync`, and existing catch blocks) unchanged, referencing `ctx.Actor`/`ctx.Ledger` from the member-resolve.
 
