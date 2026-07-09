@@ -61,7 +61,7 @@ describe('MovementEditor', () => {
     ctrl.verify();
   });
 
-  it('posts an Issue with a negative quantity and no unit cost', () => {
+  it('posts an Issue with a positive quantity and no unit cost', () => {
     const ctrl = setup();
     const f = TestBed.createComponent(MovementEditor);
     f.detectChanges();
@@ -69,9 +69,9 @@ describe('MovementEditor', () => {
     c.type.set('Issue'); c.quantityMagnitude.set(4); c.effectiveDate.set('2026-07-01');
     c.save();
     const req = ctrl.expectOne('http://localhost:5000/clients/C1/movements');
-    expect(req.request.body).toEqual({ itemId: 'i1', type: 'Issue', quantity: -4, unitCost: null, effectiveDate: '2026-07-01', memo: null });
+    expect(req.request.body).toEqual({ itemId: 'i1', type: 'Issue', quantity: 4, unitCost: null, effectiveDate: '2026-07-01', memo: null });
     req.flush({ movement: { id: 'm2', number: 'MV-2', itemId: 'i1', type: 'Issue', effectiveDate: '2026-07-01', memo: null,
-      quantity: -4, appliedUnitCost: 5, extendedCost: -20, resultingOnHand: 6, resultingTotalValue: 30, status: 'Posted' } });
+      quantity: 4, appliedUnitCost: 5, extendedCost: 20, resultingOnHand: 6, resultingTotalValue: 30, status: 'Posted' } });
     ctrl.verify();
   });
 
@@ -85,7 +85,7 @@ describe('MovementEditor', () => {
     const req = ctrl.expectOne('http://localhost:5000/clients/C1/movements');
     expect(req.request.body).toEqual({ itemId: 'i1', type: 'Adjustment', quantity: -2, unitCost: null, effectiveDate: '2026-07-01', memo: null });
     req.flush({ movement: { id: 'm3', number: 'MV-3', itemId: 'i1', type: 'Adjustment', effectiveDate: '2026-07-01', memo: null,
-      quantity: -2, appliedUnitCost: 5, extendedCost: -10, resultingOnHand: 4, resultingTotalValue: 20, status: 'Posted' } });
+      quantity: -2, appliedUnitCost: 5, extendedCost: 10, resultingOnHand: 4, resultingTotalValue: 20, status: 'Posted' } });
     ctrl.verify();
   });
 

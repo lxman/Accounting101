@@ -38,6 +38,11 @@ public sealed class InventoryMovementService(
             _ => throw new ArgumentOutOfRangeException(nameof(request)),
         };
 
+        // Reject a non-positive extended cost BEFORE any side effect — otherwise the movement would be
+        // persisted and the item mutated before InventoryPosting rejects it, stranding an entry-less movement.
+        if (effect.ExtendedCost <= 0m)
+            throw new ArgumentException("Movement extended cost must be positive.");
+
         // 4. Resolve accounts BEFORE persistence — config error must fail before side effects.
         InventoryPostingAccounts postingAccounts = await accounts.GetAccountsAsync(clientId, ct);
 

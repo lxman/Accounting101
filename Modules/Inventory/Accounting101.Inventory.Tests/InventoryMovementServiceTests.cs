@@ -80,6 +80,29 @@ public sealed class InventoryMovementServiceTests
             new RecordMovement(item.Id, MovementType.Receipt, 10m, null, new DateOnly(2026, 1, 15), null)));
     }
 
+    /// <summary>A zero-cost receipt passes the valuation guards (which only reject a NEGATIVE unit cost)
+    /// but produces a zero extended cost, which InventoryPosting.Compose rejects. That rejection must
+    /// happen BEFORE any side effect — otherwise the movement would be persisted and the item's on-hand
+    /// mutated with no GL entry ever posted for it (a stranded movement).</summary>
+    [Fact]
+    public async Task Receipt_with_zero_unit_cost_throws_before_any_side_effect()
+    {
+        (InventoryMovementService svc, InMemoryItemStore items, InMemoryStockMovementStore movements, FakeLedgerClient ledger, _) = Build();
+        Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Receipt, 10m, 0m, new DateOnly(2026, 1, 15), null)));
+
+        Item after = (await items.GetAsync(Client, item.Id))!;
+        Assert.Equal(0m, after.OnHandQuantity);
+        Assert.Equal(0m, after.TotalValue);
+
+        PagedResponse<StockMovement> paged = await movements.GetByItemPagedAsync(Client, item.Id, 0, 200, true, true);
+        Assert.Empty(paged.Items);
+
+        Assert.Empty(ledger.Posted);
+    }
+
     /// <summary>Issue costs at the item's current average — no unit cost is supplied. Drives a (20,60)
     /// item down through a partial issue of 5 (COGS 15, item becomes (15,45)) and then a full issue of
     /// the remaining 15 (COGS 45, item clears to exactly (0,0) — no rounding residue). Each issue posts

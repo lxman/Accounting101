@@ -110,7 +110,8 @@ export class MovementEditor {
 
   readonly signedQuantity = computed(() => {
     const mag = Math.abs(this.quantityMagnitude());
-    if (this.type() === 'Issue') return -mag;
+    // Receipt and Issue are positive magnitudes; the backend derives an Issue's
+    // stock-decreasing effect from the Type. Only an Adjustment carries a sign.
     if (this.type() === 'Adjustment') return this.direction() === 'Shrinkage' ? -mag : mag;
     return mag;
   });
