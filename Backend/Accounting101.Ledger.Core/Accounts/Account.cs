@@ -21,12 +21,13 @@ public sealed record Account
     /// <summary>Whether entries may post here. Summary/header accounts are not postable.</summary>
     public bool Postable { get; init; } = true;
 
-    /// <summary>
-    /// If set, this is a control account requiring that dimension <em>type</em> on every posting line
-    /// (e.g. A/R → "Customer"). A free-string key the engine never interprets — it only enforces the
-    /// line carries a tag of that type.
-    /// </summary>
-    public string? RequiredDimension { get; init; }
+    /// <summary>Dimension types every posting line touching this account MUST carry. Empty = unconstrained.
+    /// A control account (e.g. A/R) may require several (Customer AND Invoice).</summary>
+    public IReadOnlyCollection<string> RequiredDimensions { get; init; } = [];
+
+    /// <summary>Legacy single-dimension accessor: the first required dimension, or null. Retained for callers/
+    /// responses that predate the set. Prefer <see cref="RequiredDimensions"/>.</summary>
+    public string? RequiredDimension => RequiredDimensions.Count == 0 ? null : RequiredDimensions.First();
 
     /// <summary>
     /// Which statement-of-cash-flows activity this account's movements represent. Null falls back to a

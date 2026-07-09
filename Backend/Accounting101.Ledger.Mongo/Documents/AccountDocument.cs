@@ -20,7 +20,7 @@ public sealed class AccountDocument
     public Guid? ParentId { get; set; }
     public bool Postable { get; set; } = true;
 
-    public string? RequiredDimension { get; set; }
+    public List<string> RequiredDimensions { get; set; } = [];
 
     [BsonRepresentation(BsonType.String)]
     public CashFlowActivity? CashFlowActivity { get; set; }
@@ -37,7 +37,7 @@ public sealed class AccountDocument
         Type = a.Type,
         ParentId = a.ParentId,
         Postable = a.Postable,
-        RequiredDimension = a.RequiredDimension,
+        RequiredDimensions = a.RequiredDimensions.ToList(),
         CashFlowActivity = a.CashFlowActivity,
         IsRetainedEarnings = a.IsRetainedEarnings,
         Active = a.Active,
@@ -52,7 +52,7 @@ public sealed class AccountDocument
         Type = Type,
         ParentId = ParentId,
         Postable = Postable,
-        RequiredDimension = RequiredDimension,
+        RequiredDimensions = RequiredDimensions ?? [],
         CashFlowActivity = CashFlowActivity,
         IsRetainedEarnings = IsRetainedEarnings,
         Active = Active,

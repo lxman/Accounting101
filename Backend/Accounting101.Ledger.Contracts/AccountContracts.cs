@@ -16,8 +16,14 @@ public sealed record AccountRequest
     public bool Postable { get; init; } = true;
 
     /// <summary>The dimension type a control account requires on every posting line (e.g. "Customer").
-    /// A free-string axis the engine never interprets; omit for a non-control account.</summary>
+    /// A free-string axis the engine never interprets; omit for a non-control account. Legacy single-value
+    /// form — still honored, but <see cref="RequiredDimensions"/> wins if present.</summary>
     public string? RequiredDimension { get; init; }
+
+    /// <summary>The full set of dimension types a control account requires on every posting line (e.g.
+    /// A/R → ["Customer", "Invoice"]). Optional; when present, wins over the legacy single
+    /// <see cref="RequiredDimension"/>.</summary>
+    public IReadOnlyList<string>? RequiredDimensions { get; init; }
 
     /// <summary>Cash | Operating | Investing | Financing — the statement-of-cash-flows bucket. Omit to use
     /// the type-based default; set Cash on the cash accounts and the investing/financing exceptions.</summary>
@@ -35,6 +41,7 @@ public sealed record AccountResponse(
     Guid? ParentId,
     bool Postable,
     string? RequiredDimension,
+    IReadOnlyList<string> RequiredDimensions,
     string? CashFlowActivity,
     bool IsRetainedEarnings,
     bool Active,

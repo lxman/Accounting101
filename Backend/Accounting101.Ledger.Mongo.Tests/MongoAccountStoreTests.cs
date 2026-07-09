@@ -20,7 +20,7 @@ public sealed class MongoAccountStoreTests(MongoFixture fixture) : IClassFixture
             Number = "1200",
             Name = "Accounts Receivable",
             Type = AccountType.Asset,
-            RequiredDimension = "Customer",
+            RequiredDimensions = ["Customer"],
         };
 
         await store.UpsertAsync(receivable);
