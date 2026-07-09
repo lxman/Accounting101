@@ -1,4 +1,5 @@
 using Accounting101.Ledger.Contracts;
+using Accounting101.Settlement;
 
 namespace Accounting101.Receivables;
 
@@ -13,6 +14,9 @@ public static class PaymentPosting
     public const string RefundSourceType = "Refund";
     public const string CustomerDimension = "Customer";
 
+    /// <summary>The per-invoice dimension the recipe tags on each A/R credit line (additive; not yet required).</summary>
+    private const string InvoiceDimension = "Invoice";
+
     public static PostEntryRequest ComposePayment(Guid paymentId, PaymentBody body, PaymentPostingAccounts accounts)
     {
         ArgumentNullException.ThrowIfNull(body);
@@ -23,8 +27,17 @@ public static class PaymentPosting
         Dictionary<string, Guid> dim = new() { [CustomerDimension] = body.CustomerId };
 
         List<PostLineRequest> lines = [new(accounts.CashAccountId, "Debit", body.Amount)];
-        if (allocated != 0m)
-            lines.Add(new(accounts.ReceivableAccountId, "Credit", allocated, Dimensions: dim));
+        foreach (Allocation a in body.Allocations)
+        {
+            if (a.Amount == 0m)
+                continue;
+            lines.Add(new(accounts.ReceivableAccountId, "Credit", a.Amount,
+                Dimensions: new Dictionary<string, Guid>
+                {
+                    [CustomerDimension] = body.CustomerId,
+                    [InvoiceDimension] = a.TargetId,
+                }));
+        }
         if (remainder != 0m)
             lines.Add(new(accounts.CustomerCreditsAccountId, "Credit", remainder, Dimensions: dim));
 
