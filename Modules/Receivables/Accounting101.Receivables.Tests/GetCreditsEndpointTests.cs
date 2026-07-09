@@ -33,7 +33,7 @@ public sealed class GetCreditsEndpointTests(ReceivablesHostFixture fixture) : IC
             }))
             .EnsureSuccessStatusCode();
 
-    private static async Task<Guid> IssueInvoiceAsync(HttpClient clerk, Guid clientId, Guid customerId, decimal amount)
+    private static async Task<Guid> IssueInvoiceAsync(HttpClient clerk, HttpClient approver, Guid clientId, Guid customerId, decimal amount)
     {
         DraftInvoiceRequest draftRequest = new(customerId,
             [new InvoiceLine { Description = "Services", Quantity = 1m, UnitPrice = amount, Taxable = false }],
@@ -42,27 +42,40 @@ public sealed class GetCreditsEndpointTests(ReceivablesHostFixture fixture) : IC
             .Content.ReadFromJsonAsync<Invoice>())!;
         Invoice issued = (await (await clerk.PostAsync($"/clients/{clientId}/invoices/{draft.Id}/issue", null))
             .Content.ReadFromJsonAsync<Invoice>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, issued.Id);
         return issued.Id;
+    }
+
+    /// <summary>Approve every PendingApproval entry sourced from the given document — allocation validation
+    /// (open balance, available credit) now folds the ledger, which only reflects Posted (approved) entries.</summary>
+    private static async Task ApproveBySourceRefAsync(HttpClient reader, HttpClient approver, Guid clientId, Guid sourceRef)
+    {
+        EntryResponse[] entries = (await reader.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={sourceRef}"))!;
+        foreach (EntryResponse e in entries.Where(e => e.Posting == "PendingApproval"))
+            (await approver.PostAsync($"/clients/{clientId}/entries/{e.Id}/approve", null)).EnsureSuccessStatusCode();
     }
 
     [Fact]
     public async Task GET_credits_returns_unified_date_descending_list_with_memo()
     {
-        (Guid clientId, HttpClient controller, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
         await SetUpChartAsync(controller, clientId);
         Customer customer = (await (await clerk.PostAsJsonAsync(
             $"/clients/{clientId}/customers", new CreateCustomerRequest("Stark", null)))
             .Content.ReadFromJsonAsync<Customer>())!;
 
-        Guid inv1 = await IssueInvoiceAsync(clerk, clientId, customer.Id, 100m);   // → write-off
-        Guid inv2 = await IssueInvoiceAsync(clerk, clientId, customer.Id, 100m);   // → credit-note
-        Guid inv3 = await IssueInvoiceAsync(clerk, clientId, customer.Id, 100m);   // → overpaid (creates credit)
-        Guid inv4 = await IssueInvoiceAsync(clerk, clientId, customer.Id, 100m);   // → credit-application target
+        Guid inv1 = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m);   // → write-off
+        Guid inv2 = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m);   // → credit-note
+        Guid inv3 = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m);   // → overpaid (creates credit)
+        Guid inv4 = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m);   // → credit-application target
 
         // Overpay inv3 by 50 → 50 of unapplied customer credit.
-        (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
-            new RecordPaymentRequest(customer.Id, new DateOnly(2026, 3, 2), 150m, "check",
-                [new Allocation(inv3, 100m)]))).EnsureSuccessStatusCode();
+        Payment payment = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
+                new RecordPaymentRequest(customer.Id, new DateOnly(2026, 3, 2), 150m, "check",
+                    [new Allocation(inv3, 100m)])))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Payment>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, payment.Id);
 
         (await clerk.PostAsJsonAsync($"/clients/{clientId}/write-offs",
             new WriteOffRequest(customer.Id, new DateOnly(2026, 3, 5), [new Allocation(inv1, 100m)], "uncollectible")))
@@ -103,7 +116,7 @@ public sealed class GetCreditsEndpointTests(ReceivablesHostFixture fixture) : IC
             $"/clients/{clientId}/customers", new CreateCustomerRequest("Wayne", null)))
             .Content.ReadFromJsonAsync<Customer>())!;
 
-        Guid inv = await IssueInvoiceAsync(clerk, clientId, customer.Id, 100m);
+        Guid inv = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m);
 
         // Record a credit-note as clerk.
         CreditNote cn = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/credit-notes",

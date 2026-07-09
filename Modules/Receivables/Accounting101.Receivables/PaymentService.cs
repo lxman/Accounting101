@@ -42,7 +42,7 @@ public sealed class PaymentService(
             if (invoice.CustomerId != customerId)
                 throw new InvalidOperationException($"Invoice {a.TargetId} belongs to a different customer.");
 
-            decimal alreadyApplied = await AppliedToInvoiceAsync(clientId, customerId, a.TargetId, ct);
+            decimal alreadyApplied = await AppliedToInvoiceAsync(clientId, invoice, ct);
             if (alreadyApplied + a.Amount > invoice.Total)
                 throw new InvalidOperationException($"Allocation to invoice {a.TargetId} exceeds its open balance.");
         }
@@ -51,18 +51,13 @@ public sealed class PaymentService(
     public async Task<IReadOnlyList<InvoiceView>> ListInvoiceViewsAsync(Guid clientId, Guid customerId, SettlementFilter? filter, CancellationToken ct = default)
     {
         IReadOnlyList<Invoice> customerInvoices = await invoices.GetByCustomerAsync(clientId, customerId, ct);
-        IReadOnlyList<Payment> ps = await payments.GetPaymentsByCustomerAsync(clientId, customerId, ct);
-        IReadOnlyList<CreditApplication> cs = await payments.GetCreditApplicationsByCustomerAsync(clientId, customerId, ct);
-        IReadOnlyList<WriteOff> ws = await payments.GetWriteOffsByCustomerAsync(clientId, customerId, ct);
-        IReadOnlyList<CreditNote> ns = await payments.GetCreditNotesByCustomerAsync(clientId, customerId, ct);
 
-        Dictionary<Guid, decimal> applied = new();
-        foreach (Allocation a in ps.Where(p => !p.Voided).SelectMany(p => p.Allocations)
-                     .Concat(cs.Where(c => !c.Voided).SelectMany(c => c.Allocations)))
-            applied[a.TargetId] = applied.GetValueOrDefault(a.TargetId) + a.Amount;
-        foreach (Allocation a in ws.Where(w => !w.Voided).SelectMany(w => w.Allocations)
-                     .Concat(ns.Where(n => !n.Voided).SelectMany(n => n.Allocations)))
-            applied[a.TargetId] = applied.GetValueOrDefault(a.TargetId) + a.Amount;
+        PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
+        IReadOnlyList<SubledgerLineResponse> arByInvoice =
+            await ledger.GetSubledgerAsync(clientId, posting.ReceivableAccountId, "Invoice", null, ct);
+        Dictionary<Guid, decimal> openByInvoice = arByInvoice.ToDictionary(l => l.DimensionValue, l => l.Balance);
+        Dictionary<Guid, decimal> applied = customerInvoices.ToDictionary(
+            i => i.Id, i => i.Total - openByInvoice.GetValueOrDefault(i.Id, i.Total));
 
         IEnumerable<InvoiceView> views = customerInvoices
             .Where(inv => inv.Status == InvoiceStatus.Issued)
@@ -85,7 +80,7 @@ public sealed class PaymentService(
     {
         Invoice? invoice = await invoices.GetAsync(clientId, invoiceId, ct);
         if (invoice is null) return null;
-        decimal applied = await AppliedToInvoiceAsync(clientId, invoice.CustomerId, invoiceId, ct);
+        decimal applied = await AppliedToInvoiceAsync(clientId, invoice, ct);
         return new InvoiceView(invoice, Accounting101.Settlement.Settlement.OpenBalance(invoice.Total, applied), Accounting101.Settlement.Settlement.Status(invoice.Total, applied));
     }
 
@@ -121,16 +116,14 @@ public sealed class PaymentService(
         return all.OrderByDescending(c => c.Date).ToList();
     }
 
-    /// <summary>Unapplied customer credit = non-voided payment remainders minus non-voided credit applications minus non-voided refunds.</summary>
+    /// <summary>Unapplied customer credit, folded from the ledger's Customer-axis Customer Credits
+    /// subledger. Customer Credits is a liability (credit-normal); the ledger's debit-positive fold reads
+    /// a positive available credit as NEGATIVE — negate it to present a positive balance.</summary>
     public async Task<decimal> GetCustomerCreditBalanceAsync(Guid clientId, Guid customerId, CancellationToken ct = default)
     {
-        IReadOnlyList<Payment> ps = await payments.GetPaymentsByCustomerAsync(clientId, customerId, ct);
-        IReadOnlyList<CreditApplication> cs = await payments.GetCreditApplicationsByCustomerAsync(clientId, customerId, ct);
-        IReadOnlyList<Refund> rs = await payments.GetRefundsByCustomerAsync(clientId, customerId, ct);
-        decimal created = ps.Where(p => !p.Voided).Sum(p => p.Unapplied);
-        decimal spent = cs.Where(c => !c.Voided).Sum(c => c.Applied);
-        decimal refunded = rs.Where(r => !r.Voided).Sum(r => r.Amount);
-        return created - spent - refunded;
+        PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
+        return (await ledger.GetSubledgerAsync(clientId, posting.CustomerCreditsAccountId, "Customer", null, ct))
+            .Where(l => l.DimensionValue == customerId).Sum(l => -l.Balance);
     }
 
     public async Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, CreditApplicationBody body, CancellationToken ct = default)
@@ -270,17 +263,15 @@ public sealed class PaymentService(
             await ledger.VoidAsync(clientId, entry.Id, new VoidRequest(reason ?? $"Voided {label} {sourceRef}"), ct);
     }
 
-    /// <summary>Total non-voided allocations (payments + credit applications + write-offs + credit notes) applied to one invoice.</summary>
-    private async Task<decimal> AppliedToInvoiceAsync(Guid clientId, Guid customerId, Guid invoiceId, CancellationToken ct)
+    /// <summary>Total amount applied to one invoice, folded from the ledger's Invoice-axis A/R subledger:
+    /// applied = invoice.Total − open, where open is the fold's signed balance for this invoice (0 if it
+    /// carries no on-the-books A/R line yet).</summary>
+    private async Task<decimal> AppliedToInvoiceAsync(Guid clientId, Invoice invoice, CancellationToken ct)
     {
-        IReadOnlyList<Payment> ps = await payments.GetPaymentsByCustomerAsync(clientId, customerId, ct);
-        IReadOnlyList<CreditApplication> cs = await payments.GetCreditApplicationsByCustomerAsync(clientId, customerId, ct);
-        IReadOnlyList<WriteOff> ws = await payments.GetWriteOffsByCustomerAsync(clientId, customerId, ct);
-        IReadOnlyList<CreditNote> ns = await payments.GetCreditNotesByCustomerAsync(clientId, customerId, ct);
-        decimal fromPayments = ps.Where(p => !p.Voided).SelectMany(p => p.Allocations).Where(x => x.TargetId == invoiceId).Sum(x => x.Amount);
-        decimal fromCredits = cs.Where(c => !c.Voided).SelectMany(c => c.Allocations).Where(x => x.TargetId == invoiceId).Sum(x => x.Amount);
-        decimal fromWriteOffs = ws.Where(w => !w.Voided).SelectMany(w => w.Allocations).Where(x => x.TargetId == invoiceId).Sum(x => x.Amount);
-        decimal fromCreditNotes = ns.Where(n => !n.Voided).SelectMany(n => n.Allocations).Where(x => x.TargetId == invoiceId).Sum(x => x.Amount);
-        return fromPayments + fromCredits + fromWriteOffs + fromCreditNotes;
+        PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
+        IReadOnlyList<SubledgerLineResponse> fold =
+            await ledger.GetSubledgerAsync(clientId, posting.ReceivableAccountId, "Invoice", null, ct);
+        decimal open = fold.FirstOrDefault(l => l.DimensionValue == invoice.Id)?.Balance ?? 0m;
+        return invoice.Total - open;
     }
 }

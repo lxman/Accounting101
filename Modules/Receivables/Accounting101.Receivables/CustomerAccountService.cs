@@ -1,8 +1,14 @@
+using Accounting101.Ledger.Contracts;
+
 namespace Accounting101.Receivables;
 
 /// <summary>Assembles the read-only <see cref="CustomerAccountView"/> for one customer by reading its
-/// documents and folding them with <see cref="CustomerAccountBuilder"/>. Read-only; computes, never stores.</summary>
-public sealed class CustomerAccountService(ICustomerStore customers, IInvoiceStore invoices, IPaymentStore payments)
+/// documents and folding the ledger for every AR-derived figure — the Invoice-axis and Customer-axis
+/// subledgers are the single source of truth for what's actually open (on the books). Read-only; computes,
+/// never stores.</summary>
+public sealed class CustomerAccountService(
+    ICustomerStore customers, IInvoiceStore invoices, IPaymentStore payments,
+    IPaymentAccountsProvider accountsProvider, ILedgerClient ledger)
 {
     public async Task<CustomerAccountView?> GetAccountAsync(
         Guid clientId, Guid customerId, DateOnly asOf, CancellationToken ct = default)
@@ -17,11 +23,22 @@ public sealed class CustomerAccountService(ICustomerStore customers, IInvoiceSto
         IReadOnlyList<CreditNote> ns = await payments.GetCreditNotesByCustomerAsync(clientId, customerId, ct);
         IReadOnlyList<Refund> rs = await payments.GetRefundsByCustomerAsync(clientId, customerId, ct);
 
-        Dictionary<Guid, decimal> applied = CustomerAccountBuilder.AppliedByInvoice(ps, cs, ws, ns);
+        PaymentPostingAccounts accounts = await accountsProvider.GetAsync(clientId, ct);
+
+        IReadOnlyList<SubledgerLineResponse> arByInvoice =
+            await ledger.GetSubledgerAsync(clientId, accounts.ReceivableAccountId, "Invoice", asOf, ct);
+        Dictionary<Guid, decimal> openByInvoice = arByInvoice.ToDictionary(l => l.DimensionValue, l => l.Balance);
+        // applied = total - open; OpenInvoices keeps its existing (total, applied) contract. An invoice
+        // absent from the fold (its own AR line not yet on the books) defaults to fully open.
+        Dictionary<Guid, decimal> applied = invs.ToDictionary(
+            i => i.Id, i => i.Total - openByInvoice.GetValueOrDefault(i.Id, i.Total));
+
         IReadOnlyList<OpenInvoiceLine> open = CustomerAccountBuilder.OpenInvoices(invs, applied, asOf);
-        decimal credit = ps.Where(p => !p.Voided).Sum(p => p.Unapplied)
-                         - cs.Where(c => !c.Voided).Sum(c => c.Applied)
-                         - rs.Where(r => !r.Voided).Sum(r => r.Amount);
+
+        // Customer Credits is a liability (credit-normal); the ledger's debit-positive fold reads a
+        // positive available credit as NEGATIVE — negate it to present a positive balance.
+        decimal credit = (await ledger.GetSubledgerAsync(clientId, accounts.CustomerCreditsAccountId, "Customer", asOf, ct))
+            .Where(l => l.DimensionValue == customerId).Sum(l => -l.Balance);
 
         return new CustomerAccountView(
             customer,

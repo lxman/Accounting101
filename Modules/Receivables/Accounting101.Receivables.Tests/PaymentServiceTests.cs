@@ -11,7 +11,30 @@ public sealed class PaymentServiceTests
         BadDebtExpenseAccountId = Guid.NewGuid(), SalesReturnsAccountId = Guid.NewGuid(),
     };
 
+    private static readonly Guid DummyRevenueAccountId = Guid.NewGuid();
+
     private sealed record Harness(PaymentService Service, FakeLedgerClient Ledger, InMemoryInvoiceStore Invoices, InMemoryPaymentStore Payments);
+
+    /// <summary>
+    /// PaymentService now derives every open balance/applied/credit figure by folding the ledger
+    /// (<c>ILedgerClient.GetSubledgerAsync</c>), not the module's stored <c>Allocation[]</c>. This harness's
+    /// invoices are created directly through <see cref="InMemoryInvoiceStore"/> — bypassing InvoiceService,
+    /// which is what posts an invoice's own AR-debit line in production — so the fold would see only the
+    /// relief-side credit lines PaymentService posts, never the invoice's own debit. Seed that debit here so
+    /// the fold starts from the correct open balance, mirroring what InvoiceService's issue recipe posts.
+    /// Uses <see cref="FakeLedgerClient.SeedEntry"/> (not <c>PostAsync</c>) so this bookkeeping doesn't show
+    /// up in <c>ledger.Posted</c>/<c>LastPosted</c> assertions, which are about what PaymentService itself posts.
+    /// </summary>
+    private static void PostInvoiceArDebit(FakeLedgerClient ledger, Guid customerId, Invoice invoice) =>
+        ledger.SeedEntry(new PostEntryRequest(
+            Id: null, EffectiveDate: invoice.IssueDate, Reference: invoice.Number, Memo: null,
+            Lines:
+            [
+                new PostLineRequest(Accounts.ReceivableAccountId, "Debit", invoice.Total,
+                    Dimensions: new Dictionary<string, Guid> { ["Customer"] = customerId, ["Invoice"] = invoice.Id }),
+                new PostLineRequest(DummyRevenueAccountId, "Credit", invoice.Total),
+            ],
+            SourceRef: invoice.Id, SourceType: "Invoice"));
 
     private static async Task<(Harness h, Guid clientId, Guid customerId, Invoice invoice)> SetupWithIssuedInvoiceAsync(decimal invoiceTotal)
     {
@@ -24,6 +47,7 @@ public sealed class PaymentServiceTests
         Invoice issued = await invoices.PromoteDraftAsync(clientId, draft.Id);
 
         FakeLedgerClient ledger = new();
+        PostInvoiceArDebit(ledger, customerId, issued);
         InMemoryPaymentStore payments = new();
         PaymentService service = new(payments, invoices, new FixedPaymentAccountsProvider(Accounts), ledger);
         return (new Harness(service, ledger, invoices, payments), clientId, customerId, issued);
@@ -95,8 +119,7 @@ public sealed class PaymentServiceTests
         // Create $50 of credit via over-payment on the first invoice.
         await h.Service.RecordPaymentAsync(clientId, new PaymentBody(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(first.Id, 100m)]));
         // A second issued invoice to apply credit against.
-        Invoice draft2 = await h.Invoices.CreateDraftAsync(clientId, new InvoiceBody(customerId, new DateOnly(2026, 4, 1), null, 0m, null, [new LineBody("More", 1m, 100m, false)]));
-        Invoice second = await h.Invoices.PromoteDraftAsync(clientId, draft2.Id);
+        Invoice second = await IssueAnotherInvoiceAsync(h, clientId, customerId, 100m);
 
         CreditApplication applied = await h.Service.RecordCreditApplicationAsync(clientId,
             new CreditApplicationBody(customerId, new DateOnly(2026, 4, 2), [new Allocation(second.Id, 50m)]));
@@ -136,8 +159,7 @@ public sealed class PaymentServiceTests
         // Pay the first invoice in full -> Paid.
         await h.Service.RecordPaymentAsync(clientId, new PaymentBody(customerId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(first.Id, 100m)]));
         // A second, unpaid invoice -> Open.
-        Invoice d2 = await h.Invoices.CreateDraftAsync(clientId, new InvoiceBody(customerId, new DateOnly(2026, 4, 1), null, 0m, null, [new LineBody("More", 1m, 100m, false)]));
-        Invoice second = await h.Invoices.PromoteDraftAsync(clientId, d2.Id);
+        Invoice second = await IssueAnotherInvoiceAsync(h, clientId, customerId, 100m);
 
         IReadOnlyList<InvoiceView> open = await h.Service.ListInvoiceViewsAsync(clientId, customerId, SettlementFilter.Open);
         IReadOnlyList<InvoiceView> paid = await h.Service.ListInvoiceViewsAsync(clientId, customerId, SettlementFilter.Paid);
@@ -464,7 +486,9 @@ public sealed class PaymentServiceTests
     {
         Invoice draft = await h.Invoices.CreateDraftAsync(clientId, new InvoiceBody(
             customerId, new DateOnly(2026, 3, 1), null, 0m, null, [new LineBody("Services", 1m, total, false)]));
-        return await h.Invoices.PromoteDraftAsync(clientId, draft.Id);
+        Invoice issued = await h.Invoices.PromoteDraftAsync(clientId, draft.Id);
+        PostInvoiceArDebit(h.Ledger, customerId, issued);
+        return issued;
     }
 
     [Fact]

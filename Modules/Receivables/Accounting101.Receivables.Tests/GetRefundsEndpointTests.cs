@@ -29,7 +29,7 @@ public sealed class GetRefundsEndpointTests(ReceivablesHostFixture fixture) : IC
             }))
             .EnsureSuccessStatusCode();
 
-    private static async Task<Guid> IssueInvoiceAsync(HttpClient clerk, Guid clientId, Guid customerId, decimal amount)
+    private static async Task<Guid> IssueInvoiceAsync(HttpClient clerk, HttpClient approver, Guid clientId, Guid customerId, decimal amount)
     {
         DraftInvoiceRequest draftRequest = new(customerId,
             [new InvoiceLine { Description = "Services", Quantity = 1m, UnitPrice = amount, Taxable = false }],
@@ -38,7 +38,18 @@ public sealed class GetRefundsEndpointTests(ReceivablesHostFixture fixture) : IC
             .Content.ReadFromJsonAsync<Invoice>())!;
         Invoice issued = (await (await clerk.PostAsync($"/clients/{clientId}/invoices/{draft.Id}/issue", null))
             .Content.ReadFromJsonAsync<Invoice>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, issued.Id);
         return issued.Id;
+    }
+
+    /// <summary>Approve every PendingApproval entry sourced from the given document — the customer-credit
+    /// balance validation now folds the ledger, which only reflects Posted (approved) entries.</summary>
+    private static async Task ApproveBySourceRefAsync(HttpClient reader, HttpClient approver, Guid clientId, Guid sourceRef)
+    {
+        EntryResponse[] entries = (await reader.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={sourceRef}"))!;
+        foreach (EntryResponse e in entries.Where(e => e.Posting == "PendingApproval"))
+            (await approver.PostAsync($"/clients/{clientId}/entries/{e.Id}/approve", null)).EnsureSuccessStatusCode();
     }
 
     [Fact]
@@ -51,10 +62,12 @@ public sealed class GetRefundsEndpointTests(ReceivablesHostFixture fixture) : IC
             .Content.ReadFromJsonAsync<Customer>())!;
 
         // Create $100 of unapplied credit: issue a $100 invoice, pay $200 allocating $100 → $100 credit.
-        Guid invoiceId = await IssueInvoiceAsync(clerk, clientId, customer.Id, 100m);
-        (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
-            new RecordPaymentRequest(customer.Id, new DateOnly(2026, 3, 2), 200m, "check",
-                [new Allocation(invoiceId, 100m)]))).EnsureSuccessStatusCode();
+        Guid invoiceId = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m);
+        Payment payment = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
+                new RecordPaymentRequest(customer.Id, new DateOnly(2026, 3, 2), 200m, "check",
+                    [new Allocation(invoiceId, 100m)])))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Payment>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, payment.Id);
 
         Refund first = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/refunds",
             new RefundRequest(customer.Id, new DateOnly(2026, 3, 5), 30m, "partial")))
