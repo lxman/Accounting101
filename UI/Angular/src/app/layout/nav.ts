@@ -21,6 +21,7 @@ export const NAV: NavSection[] = [
       { label: 'Bank Reconciliation', path: '/cash/reconciliation', area: 'bankrec' },
     ] },
     { label: 'Fixed Assets', path: '/fixed-assets', area: 'fixedassets' },
+    { label: 'Inventory', path: '/inventory', area: 'inventory' },
   ] },
   { label: 'Assurance', items: [
     { label: 'Audit', path: '/audit', area: 'audit', children: [

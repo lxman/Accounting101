@@ -64,6 +64,11 @@ import { StatementEditor } from './features/banking/statement-editor';
 import { StatementDetail } from './features/banking/statement-detail';
 import { ReconciliationList } from './features/banking/reconciliation-list';
 import { ReconciliationWorksheet } from './features/banking/reconciliation-worksheet';
+import { ItemList } from './features/inventory/item-list';
+import { ItemEditor } from './features/inventory/item-editor';
+import { ItemDetail } from './features/inventory/item-detail';
+import { MovementEditor } from './features/inventory/movement-editor';
+import { MovementDetail } from './features/inventory/movement-detail';
 import { navLeafPaths } from './layout/nav';
 import { canWrite } from './core/capabilities/can.guard';
 import { deploymentAdminGuard } from './core/capabilities/deployment-admin.guard';
@@ -162,6 +167,14 @@ export const routes: Routes = [
     { path: 'reconciliation', component: ReconciliationList },
     { path: 'reconciliation/:id', component: ReconciliationWorksheet },
   ] },
+  { path: 'inventory', children: [
+    { path: '', pathMatch: 'full', component: ItemList },
+    { path: 'items/new', component: ItemEditor, canActivate: [canWrite], data: { requiredCapability: 'inventory.write', fallback: '/inventory' } },
+    { path: 'items/:id/edit', component: ItemEditor, canActivate: [canWrite], data: { requiredCapability: 'inventory.write', fallback: '/inventory' } },
+    { path: 'items/:id', component: ItemDetail },
+    { path: 'movements/new', component: MovementEditor, canActivate: [canWrite], data: { requiredCapability: 'inventory.write', fallback: '/inventory' } },
+    { path: 'movements/:id', component: MovementDetail },
+  ] },
   { path: 'admin/users', component: MemberList },
   { path: 'admin/users/:userId', component: MemberEditor, canActivate: [canWrite], data: { requiredCapability: 'admin.users', fallback: '/admin/users' } },
   { path: 'admin/access/sets', component: CapabilitySetList, canActivate: [deploymentAdminGuard('/admin/users')] },
@@ -169,7 +182,7 @@ export const routes: Routes = [
   { path: 'admin/access/sets/:id', component: CapabilitySetEditor, canActivate: [deploymentAdminGuard('/admin/users')] },
   // Every nav leaf not served by a built route tree above → Placeholder.
   ...(() => {
-    const built = ['/dashboard', '/journal', '/trial-balance', '/statements', '/accounts', '/receivables', '/payables', '/payroll', '/fixed-assets', '/cash', '/admin/users', '/admin/access/sets', '/admin/access/sets/new'];
+    const built = ['/dashboard', '/journal', '/trial-balance', '/statements', '/accounts', '/receivables', '/payables', '/payroll', '/fixed-assets', '/cash', '/inventory', '/admin/users', '/admin/access/sets', '/admin/access/sets/new'];
     const isBuilt = (p: string) => built.some((b) => p === b || p.startsWith(b + '/'));
     return navLeafPaths()
       .filter((p) => !isBuilt(p))

@@ -32,6 +32,8 @@ public static class Capabilities
     public const string BankRecWrite = "bankrec.write";
     public const string FixedAssetsRead = "fixedassets.read";
     public const string FixedAssetsWrite = "fixedassets.write";
+    public const string InventoryRead = "inventory.read";
+    public const string InventoryWrite = "inventory.write";
 
     // Assurance.
     public const string AuditRead = "audit.read";
@@ -79,6 +81,7 @@ public static class Capabilities
         "cash"           => level == ModuleAccessLevel.Write ? CashWrite : CashRead,
         "reconciliation" => level == ModuleAccessLevel.Write ? BankRecWrite : BankRecRead,
         "fixedassets"    => level == ModuleAccessLevel.Write ? FixedAssetsWrite : FixedAssetsRead,
+        "inventory"      => level == ModuleAccessLevel.Write ? InventoryWrite : InventoryRead,
         _ => null,
     };
 
@@ -88,6 +91,7 @@ public static class Capabilities
         GlRead, GlPost, GlRevise, GlApprove, GlVoid, GlReverse, GlClose, GlManageAccounts, GlReopen,
         ArRead, ArWrite, ApRead, ApWrite, PayrollRead, PayrollWrite, CashRead, CashWrite,
         BankRecRead, BankRecWrite, FixedAssetsRead, FixedAssetsWrite,
+        InventoryRead, InventoryWrite,
         AuditRead, ReportsRead,
         AdminUsers, AdminFirm, AdminClient, AdminFiscal, AdminPostingAccounts,
     };
