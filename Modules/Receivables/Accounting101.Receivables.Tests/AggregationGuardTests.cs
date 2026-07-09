@@ -88,9 +88,9 @@ public sealed class AggregationGuardTests
 
         // Record 3 payments each with $50 unapplied credit (amount 150, allocated 100).
         DateOnly date = new(2026, 3, 31);
-        await paymentSvc.RecordPaymentAsync(clientId, new PaymentBody(customer.Id, date, 150m, null, [new Allocation(inv1.Id, 100m)]));
-        await paymentSvc.RecordPaymentAsync(clientId, new PaymentBody(customer.Id, date, 150m, null, [new Allocation(inv2.Id, 100m)]));
-        await paymentSvc.RecordPaymentAsync(clientId, new PaymentBody(customer.Id, date, 150m, null, [new Allocation(inv3.Id, 100m)]));
+        await paymentSvc.RecordPaymentAsync(clientId, new PaymentCommand(customer.Id, date, 150m, null, [new Allocation(inv1.Id, 100m)]));
+        await paymentSvc.RecordPaymentAsync(clientId, new PaymentCommand(customer.Id, date, 150m, null, [new Allocation(inv2.Id, 100m)]));
+        await paymentSvc.RecordPaymentAsync(clientId, new PaymentCommand(customer.Id, date, 150m, null, [new Allocation(inv3.Id, 100m)]));
 
         // Act: credit balance aggregation (unbounded store read — GetPaymentsByCustomerAsync).
         decimal credit = await paymentSvc.GetCustomerCreditBalanceAsync(clientId, customer.Id);

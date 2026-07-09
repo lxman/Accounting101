@@ -10,22 +10,23 @@ namespace Accounting101.Receivables;
 public sealed class PaymentService(
     IPaymentStore payments, IInvoiceStore invoices, IPaymentAccountsProvider accounts, ILedgerClient ledger)
 {
-    public async Task<Payment> RecordPaymentAsync(Guid clientId, PaymentBody body, CancellationToken ct = default)
+    public async Task<Payment> RecordPaymentAsync(Guid clientId, PaymentCommand command, CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(body);
-        if (body.Amount <= 0m)
+        ArgumentNullException.ThrowIfNull(command);
+        if (command.Amount <= 0m)
             throw new InvalidOperationException("A payment amount must be greater than zero.");
-        if (body.Allocations.Any(a => a.Amount <= 0m))
+        if (command.Allocations.Any(a => a.Amount <= 0m))
             throw new InvalidOperationException("Every allocation amount must be greater than zero.");
-        decimal allocated = body.Allocations.Sum(a => a.Amount);
-        if (allocated > body.Amount)
+        decimal allocated = command.Allocations.Sum(a => a.Amount);
+        if (allocated > command.Amount)
             throw new InvalidOperationException("Allocations cannot exceed the payment amount.");
 
-        await ValidateAllocationsAsync(clientId, body.CustomerId, body.Allocations, ct);
+        await ValidateAllocationsAsync(clientId, command.CustomerId, command.Allocations, ct);
 
+        PaymentBody body = new(command.CustomerId, command.Date, command.Amount, command.Method);
         Payment recorded = await payments.RecordPaymentAsync(clientId, body, ct);
         PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
-        PostEntryRequest entry = PaymentPosting.ComposePayment(recorded.Id, body, posting);
+        PostEntryRequest entry = PaymentPosting.ComposePayment(recorded.Id, body, command.Allocations, posting);
         await ledger.PostAsync(clientId, entry, ct);
         return recorded;
     }
@@ -100,18 +101,26 @@ public sealed class PaymentService(
 
     /// <summary>The customer's allocation-based dispositions — credit notes, write-offs, and credit
     /// applications — as one date-descending list. Read-only; powers the Credits list. Memo comes from the
-    /// stored note/write-off; credit applications carry none.</summary>
+    /// stored note/write-off; credit applications carry none. Amount is each document's AR relief, folded
+    /// from its ledger entry (the module stores no allocation array to sum directly).</summary>
     public async Task<IReadOnlyList<CreditDocument>> GetCreditsByCustomerAsync(
         Guid clientId, Guid customerId, CancellationToken ct = default)
     {
         IReadOnlyList<CreditNote> notes = await payments.GetCreditNotesByCustomerAsync(clientId, customerId, ct);
         IReadOnlyList<WriteOff> writeOffs = await payments.GetWriteOffsByCustomerAsync(clientId, customerId, ct);
         IReadOnlyList<CreditApplication> apps = await payments.GetCreditApplicationsByCustomerAsync(clientId, customerId, ct);
+        PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
 
-        IEnumerable<CreditDocument> all =
-            notes.Select(n => new CreditDocument("credit-note", n.Id, n.CustomerId, n.Date, n.Total, n.Memo, n.Allocations, n.Voided))
-            .Concat(writeOffs.Select(w => new CreditDocument("write-off", w.Id, w.CustomerId, w.Date, w.Total, w.Memo, w.Allocations, w.Voided)))
-            .Concat(apps.Select(a => new CreditDocument("credit-application", a.Id, a.CustomerId, a.Date, a.Applied, null, a.Allocations, a.Voided)));
+        List<CreditDocument> all = [];
+        foreach (CreditNote n in notes)
+            all.Add(new CreditDocument("credit-note", n.Id, n.CustomerId, n.Date,
+                await SettlementRelief.ForSourceAsync(ledger, clientId, n.Id, posting.ReceivableAccountId, ct), n.Memo, n.Voided));
+        foreach (WriteOff w in writeOffs)
+            all.Add(new CreditDocument("write-off", w.Id, w.CustomerId, w.Date,
+                await SettlementRelief.ForSourceAsync(ledger, clientId, w.Id, posting.ReceivableAccountId, ct), w.Memo, w.Voided));
+        foreach (CreditApplication a in apps)
+            all.Add(new CreditDocument("credit-application", a.Id, a.CustomerId, a.Date,
+                await SettlementRelief.ForSourceAsync(ledger, clientId, a.Id, posting.ReceivableAccountId, ct), null, a.Voided));
 
         return all.OrderByDescending(c => c.Date).ToList();
     }
@@ -126,22 +135,23 @@ public sealed class PaymentService(
             .Where(l => l.DimensionValue == customerId).Sum(l => -l.Balance);
     }
 
-    public async Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, CreditApplicationBody body, CancellationToken ct = default)
+    public async Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, CreditApplicationCommand command, CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(body);
-        if (body.Allocations.Count == 0 || body.Allocations.Any(a => a.Amount <= 0m))
+        ArgumentNullException.ThrowIfNull(command);
+        if (command.Allocations.Count == 0 || command.Allocations.Any(a => a.Amount <= 0m))
             throw new InvalidOperationException("A credit application needs positive allocations.");
 
-        decimal applying = body.Allocations.Sum(a => a.Amount);
-        decimal available = await GetCustomerCreditBalanceAsync(clientId, body.CustomerId, ct);
+        decimal applying = command.Allocations.Sum(a => a.Amount);
+        decimal available = await GetCustomerCreditBalanceAsync(clientId, command.CustomerId, ct);
         if (applying > available)
             throw new InvalidOperationException($"Credit application of {applying} exceeds available credit {available}.");
 
-        await ValidateAllocationsAsync(clientId, body.CustomerId, body.Allocations, ct);
+        await ValidateAllocationsAsync(clientId, command.CustomerId, command.Allocations, ct);
 
+        CreditApplicationBody body = new(command.CustomerId, command.Date);
         CreditApplication recorded = await payments.RecordCreditApplicationAsync(clientId, body, ct);
         PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
-        PostEntryRequest entry = PaymentPosting.ComposeCreditApplication(recorded.Id, body, posting);
+        PostEntryRequest entry = PaymentPosting.ComposeCreditApplication(recorded.Id, body, command.Allocations, posting);
         await ledger.PostAsync(clientId, entry, ct);
         return recorded;
     }
@@ -156,13 +166,17 @@ public sealed class PaymentService(
         // A void reverses the whole payment, including the overpayment that landed as customer credit. If that
         // credit has since been applied or refunded, removing it would drive the credit balance negative (a
         // debit balance on a liability) — a corrupt state. Refuse; the consuming application/refund must be
-        // reversed first.
-        if (payment.Unapplied > 0m)
+        // reversed first. Unapplied is folded from the payment's own entry (the module stores no allocation
+        // array to compute it from directly).
+        PaymentPostingAccounts postingForVoid = await accounts.GetAsync(clientId, ct);
+        decimal allocated = await SettlementRelief.ForSourceAsync(ledger, clientId, paymentId, postingForVoid.ReceivableAccountId, ct);
+        decimal unapplied = payment.Amount - allocated;
+        if (unapplied > 0m)
         {
             decimal creditBalance = await GetCustomerCreditBalanceAsync(clientId, payment.CustomerId, ct);
-            if (creditBalance - payment.Unapplied < 0m)
+            if (creditBalance - unapplied < 0m)
                 throw new InvalidOperationException(
-                    $"Cannot void payment {paymentId}: its overpayment credit ({payment.Unapplied:C}) has already " +
+                    $"Cannot void payment {paymentId}: its overpayment credit ({unapplied:C}) has already " +
                     $"been applied or refunded (available credit is only {creditBalance:C}). Reverse the credit " +
                     $"application(s)/refund(s) first, then void this payment.");
         }
@@ -173,15 +187,16 @@ public sealed class PaymentService(
         return (await payments.GetPaymentAsync(clientId, paymentId, ct))!;
     }
 
-    public async Task<WriteOff> RecordWriteOffAsync(Guid clientId, WriteOffBody body, CancellationToken ct = default)
+    public async Task<WriteOff> RecordWriteOffAsync(Guid clientId, WriteOffCommand command, CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(body);
-        if (body.Allocations.Count == 0 || body.Allocations.Any(a => a.Amount <= 0m))
+        ArgumentNullException.ThrowIfNull(command);
+        if (command.Allocations.Count == 0 || command.Allocations.Any(a => a.Amount <= 0m))
             throw new InvalidOperationException("A write-off needs positive allocations.");
-        await ValidateAllocationsAsync(clientId, body.CustomerId, body.Allocations, ct);
+        await ValidateAllocationsAsync(clientId, command.CustomerId, command.Allocations, ct);
+        WriteOffBody body = new(command.CustomerId, command.Date, command.Memo);
         WriteOff recorded = await payments.RecordWriteOffAsync(clientId, body, ct);
         PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
-        await ledger.PostAsync(clientId, PaymentPosting.ComposeWriteOff(recorded.Id, body, posting), ct);
+        await ledger.PostAsync(clientId, PaymentPosting.ComposeWriteOff(recorded.Id, body, command.Allocations, posting), ct);
         return recorded;
     }
 
@@ -197,15 +212,16 @@ public sealed class PaymentService(
         return (await payments.GetWriteOffAsync(clientId, writeOffId, ct))!;
     }
 
-    public async Task<CreditNote> RecordCreditNoteAsync(Guid clientId, CreditNoteBody body, CancellationToken ct = default)
+    public async Task<CreditNote> RecordCreditNoteAsync(Guid clientId, CreditNoteCommand command, CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(body);
-        if (body.Allocations.Count == 0 || body.Allocations.Any(a => a.Amount <= 0m))
+        ArgumentNullException.ThrowIfNull(command);
+        if (command.Allocations.Count == 0 || command.Allocations.Any(a => a.Amount <= 0m))
             throw new InvalidOperationException("A credit note needs positive allocations.");
-        await ValidateAllocationsAsync(clientId, body.CustomerId, body.Allocations, ct);
+        await ValidateAllocationsAsync(clientId, command.CustomerId, command.Allocations, ct);
+        CreditNoteBody body = new(command.CustomerId, command.Date, command.Memo);
         CreditNote recorded = await payments.RecordCreditNoteAsync(clientId, body, ct);
         PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
-        await ledger.PostAsync(clientId, PaymentPosting.ComposeCreditNote(recorded.Id, body, posting), ct);
+        await ledger.PostAsync(clientId, PaymentPosting.ComposeCreditNote(recorded.Id, body, command.Allocations, posting), ct);
         return recorded;
     }
 

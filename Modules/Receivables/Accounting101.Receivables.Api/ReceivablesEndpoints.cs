@@ -218,7 +218,7 @@ public static class ReceivablesEndpoints
         try
         {
             Payment recorded = await service.RecordPaymentAsync(clientId,
-                new PaymentBody(request.CustomerId, request.Date, request.Amount, request.Method, request.Allocations),
+                new PaymentCommand(request.CustomerId, request.Date, request.Amount, request.Method, request.Allocations),
                 cancellationToken);
             return Results.Created($"/clients/{clientId}/payments/{recorded.Id}", recorded);
         }
@@ -256,7 +256,7 @@ public static class ReceivablesEndpoints
         try
         {
             CreditApplication applied = await service.RecordCreditApplicationAsync(clientId,
-                new CreditApplicationBody(request.CustomerId, request.Date, request.Allocations), cancellationToken);
+                new CreditApplicationCommand(request.CustomerId, request.Date, request.Allocations), cancellationToken);
             return Results.Created($"/clients/{clientId}/credit-applications/{applied.Id}", applied);
         }
         catch (InvalidOperationException ex)
@@ -282,7 +282,7 @@ public static class ReceivablesEndpoints
         try
         {
             WriteOff recorded = await service.RecordWriteOffAsync(clientId,
-                new WriteOffBody(request.CustomerId, request.Date, request.Allocations, request.Memo), cancellationToken);
+                new WriteOffCommand(request.CustomerId, request.Date, request.Allocations, request.Memo), cancellationToken);
             return Results.Created($"/clients/{clientId}/write-offs/{recorded.Id}", recorded);
         }
         catch (InvalidOperationException ex)
@@ -319,7 +319,7 @@ public static class ReceivablesEndpoints
         try
         {
             CreditNote recorded = await service.RecordCreditNoteAsync(clientId,
-                new CreditNoteBody(request.CustomerId, request.Date, request.Allocations, request.Memo), cancellationToken);
+                new CreditNoteCommand(request.CustomerId, request.Date, request.Allocations, request.Memo), cancellationToken);
             return Results.Created($"/clients/{clientId}/credit-notes/{recorded.Id}", recorded);
         }
         catch (InvalidOperationException ex)

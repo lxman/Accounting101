@@ -40,13 +40,25 @@ public sealed class CustomerAccountService(
         decimal credit = (await ledger.GetSubledgerAsync(clientId, accounts.CustomerCreditsAccountId, "Customer", asOf, ct))
             .Where(l => l.DimensionValue == customerId).Sum(l => -l.Balance);
 
+        // Per-document AR relief — what each settlement document actually applied to invoices — folded from
+        // its own ledger entry now that the module stores no allocation array. Feeds Statement/CreditActivity.
+        Dictionary<Guid, decimal> reliefByDocument = new();
+        foreach (Payment p in ps.Where(p => !p.Voided))
+            reliefByDocument[p.Id] = await SettlementRelief.ForSourceAsync(ledger, clientId, p.Id, accounts.ReceivableAccountId, ct);
+        foreach (CreditNote n in ns.Where(n => !n.Voided))
+            reliefByDocument[n.Id] = await SettlementRelief.ForSourceAsync(ledger, clientId, n.Id, accounts.ReceivableAccountId, ct);
+        foreach (WriteOff w in ws.Where(w => !w.Voided))
+            reliefByDocument[w.Id] = await SettlementRelief.ForSourceAsync(ledger, clientId, w.Id, accounts.ReceivableAccountId, ct);
+        foreach (CreditApplication c in cs.Where(c => !c.Voided))
+            reliefByDocument[c.Id] = await SettlementRelief.ForSourceAsync(ledger, clientId, c.Id, accounts.ReceivableAccountId, ct);
+
         return new CustomerAccountView(
             customer,
             CustomerAccountBuilder.ArBalance(open),
             credit,
             CustomerAccountBuilder.Aging(open),
             open,
-            CustomerAccountBuilder.Statement(invs, ps, ns, ws, cs),
-            CustomerAccountBuilder.CreditActivity(ps, cs, rs));
+            CustomerAccountBuilder.Statement(invs, ps, ns, ws, cs, reliefByDocument),
+            CustomerAccountBuilder.CreditActivity(ps, cs, rs, reliefByDocument));
     }
 }

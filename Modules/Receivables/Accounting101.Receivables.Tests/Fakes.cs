@@ -39,7 +39,7 @@ internal sealed class FakeLedgerClient : ILedgerClient
         _posted.Add(entry);
         LastPosted = entry;
         var id = Guid.NewGuid();
-        _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "PendingApproval", reversalOf: null);
+        _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "PendingApproval", reversalOf: null, lines: entry.Lines);
         _linesById[id] = entry.Lines;
         return Task.FromResult(new PostEntryResponse(id, "Active", "PendingApproval"));
     }
@@ -53,7 +53,7 @@ internal sealed class FakeLedgerClient : ILedgerClient
     public void SeedEntry(PostEntryRequest entry)
     {
         var id = Guid.NewGuid();
-        _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "Posted", reversalOf: null);
+        _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "Posted", reversalOf: null, lines: entry.Lines);
         _linesById[id] = entry.Lines;
     }
 
@@ -69,12 +69,14 @@ internal sealed class FakeLedgerClient : ILedgerClient
         ReversalCount++;
         EntryResponse original = _entries[entryId];
         var id = Guid.NewGuid();
-        EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "PendingApproval", reversalOf: entryId);
-        _entries[id] = reversal;
         // A reversal's fold effect is the original entry's lines with direction flipped — the original
         // entry stays Active (and still counted) so the pair nets to zero, exactly like the real engine.
-        if (_linesById.TryGetValue(entryId, out IReadOnlyList<PostLineRequest>? originalLines))
-            _linesById[id] = originalLines.Select(l => l with { Direction = Flip(l.Direction) }).ToList();
+        IReadOnlyList<PostLineRequest> reversedLines = _linesById.TryGetValue(entryId, out IReadOnlyList<PostLineRequest>? originalLines)
+            ? originalLines.Select(l => l with { Direction = Flip(l.Direction) }).ToList()
+            : [];
+        EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "PendingApproval", reversalOf: entryId, lines: reversedLines);
+        _entries[id] = reversal;
+        _linesById[id] = reversedLines;
         return Task.FromResult(reversal);
     }
 
@@ -135,8 +137,14 @@ internal sealed class FakeLedgerClient : ILedgerClient
 
     private static string Flip(string direction) => direction == "Debit" ? "Credit" : "Debit";
 
-    private static EntryResponse Entry(Guid id, Guid? sourceRef, string? sourceType, string posting, Guid? reversalOf) =>
-        new(id, 0, default, "Standard", "Active", posting, 0, null, null, reversalOf, null, [], sourceRef, sourceType);
+    private static EntryResponse Entry(
+        Guid id, Guid? sourceRef, string? sourceType, string posting, Guid? reversalOf,
+        IReadOnlyList<PostLineRequest>? lines = null)
+    {
+        IReadOnlyList<EntryLineResponse> mapped = (lines ?? []).Select(l =>
+            new EntryLineResponse(l.AccountId, l.Direction, l.Amount, l.Dimensions ?? new Dictionary<string, Guid>(), null)).ToList();
+        return new(id, 0, default, "Standard", "Active", posting, mapped.Count, null, null, reversalOf, null, mapped, sourceRef, sourceType);
+    }
 }
 
 internal sealed class InMemoryCustomerStore : ICustomerStore
@@ -271,7 +279,7 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
         Payment p = new()
         {
             Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date, Amount = body.Amount,
-            Method = body.Method, Allocations = body.Allocations, Voided = false,
+            Method = body.Method, Voided = false,
         };
         _payments[(clientId, p.Id)] = p;
         return Task.FromResult(p);
@@ -281,8 +289,7 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
     {
         CreditApplication c = new()
         {
-            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date,
-            Allocations = body.Allocations, Voided = false,
+            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date, Voided = false,
         };
         _credits[(clientId, c.Id)] = c;
         return Task.FromResult(c);
@@ -309,7 +316,7 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
         WriteOff w = new()
         {
             Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date,
-            Allocations = body.Allocations, Voided = false,
+            Memo = body.Memo, Voided = false,
         };
         _writeOffs[(clientId, w.Id)] = w;
         return Task.FromResult(w);
@@ -333,7 +340,7 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
         CreditNote n = new()
         {
             Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date,
-            Allocations = body.Allocations, Voided = false,
+            Memo = body.Memo, Voided = false,
         };
         _creditNotes[(clientId, n.Id)] = n;
         return Task.FromResult(n);

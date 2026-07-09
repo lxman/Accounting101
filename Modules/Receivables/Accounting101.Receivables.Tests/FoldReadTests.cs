@@ -109,12 +109,13 @@ public sealed class FoldReadTests(ReceivablesHostFixture fixture) : IClassFixtur
     [Fact]
     public async Task Unapproved_payment_does_not_reduce_the_open_balance_until_the_entry_is_approved()
     {
-        // The genuine divergence this task is meant to fix: the module records the allocation the instant
-        // RecordPaymentAsync returns (Payment.Allocations, still stored today), but the ledger — the
-        // fold's source of truth — only reflects an entry once it is Posted (approved). Before this task
-        // the read folded the module's own array, so it showed the invoice relieved immediately even
-        // though the payment's AR-relief line was not yet on the books. That made this test RED
-        // pre-change: it asserted 100 before approval where the old code already reported 70.
+        // The genuine divergence this test pins: an unapproved payment's AR-relief line is not yet on the
+        // books, so the fold-derived open balance must still read the full 100 until the entry is approved.
+        // Historically (pre-Task-7) the module recorded an allocation into Payment.Allocations the instant
+        // RecordPaymentAsync returned and reads folded that array immediately, showing the invoice relieved
+        // before anything had actually hit the books — that made this test RED pre-change: it asserted 100
+        // before approval where the old code already reported 70. Task 8 deleted the array entirely; reads
+        // now have no other source to fall back to.
         (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
         await SetUpChartAsync(http, clientId);
         Guid customerId = await CreateCustomerAsync(http, clientId);
@@ -195,5 +196,48 @@ public sealed class FoldReadTests(ReceivablesHostFixture fixture) : IClassFixtur
                 $"/clients/{clientId}/subledger?account={fixture.CustomerCreditsAccountId}&dimension=Customer"))!
             .Lines.Single(l => l.DimensionValue == customerId).Balance;
         Assert.Equal(-40m, rawFold);
+    }
+
+    /// <summary>
+    /// Task 8: the persisted payment document carries no allocation array. That is now a compile-time
+    /// guarantee — <see cref="Payment"/> has no <c>Allocations</c> member to deserialize into — so this test
+    /// proves the runtime half of the claim: a fresh GET of the payment still round-trips correctly, and the
+    /// invoice's Invoice-axis fold (the only place the per-invoice split now lives) still reads the correct
+    /// open balance. Reads never needed the array.
+    /// </summary>
+    [Fact]
+    public async Task Payment_persists_no_allocation_array_yet_folds_correctly()
+    {
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
+        await SetUpChartAsync(http, clientId);
+        Guid customerId = await CreateCustomerAsync(http, clientId);
+
+        Invoice invoice = await IssueInvoiceAsync(http, clientId, customerId, 100m);
+        await ApproveSourceEntryAsync(http, clientId, invoice.Id);
+
+        HttpResponseMessage payResp = await http.PostAsJsonAsync($"/clients/{clientId}/payments",
+            new RecordPaymentRequest(customerId, new DateOnly(2026, 3, 31), 30m, "check", [new Allocation(invoice.Id, 30m)]));
+        payResp.EnsureSuccessStatusCode();
+        Payment payment = (await payResp.Content.ReadFromJsonAsync<Payment>())!;
+        await ApproveSourceEntryAsync(http, clientId, payment.Id);
+
+        // Re-read the payment via GET — the persisted document surfaces no allocation array (Payment has no
+        // Allocations member) yet round-trips its real fields correctly.
+        Payment[] rePersisted = (await http.GetFromJsonAsync<Payment[]>(
+            $"/clients/{clientId}/payments?customerId={customerId}"))!;
+        Payment reread = Assert.Single(rePersisted);
+        Assert.Equal(payment.Id, reread.Id);
+        Assert.Equal(30m, reread.Amount);
+        Assert.False(reread.Voided);
+
+        // The invoice's fold-derived open balance still reflects the payment's relief — reads rely only on
+        // the ledger, never the deleted array.
+        InvoiceView invoiceView = (await http.GetFromJsonAsync<InvoiceView>($"/clients/{clientId}/invoices/{invoice.Id}"))!;
+        Assert.Equal(70m, invoiceView.OpenBalance);
+
+        decimal invoiceFold = (await http.GetFromJsonAsync<SubledgerResponse>(
+                $"/clients/{clientId}/subledger?dimension=Invoice"))!
+            .Lines.Single(l => l.AccountId == fixture.ReceivableAccountId && l.DimensionValue == invoice.Id).Balance;
+        Assert.Equal(70m, invoiceFold);
     }
 }

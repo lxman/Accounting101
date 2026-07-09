@@ -7,7 +7,9 @@ using Accounting101.Settlement;
 namespace Accounting101.Receivables.Tests;
 
 /// <summary>Proves the read endpoint that powers the UI's applied-payments list: it returns a customer's
-/// payments (with allocations) and rejects a missing customerId.</summary>
+/// payments and rejects a missing customerId. The persisted payment carries no allocation array (a
+/// compile-time guarantee — <c>Payment</c> has no <c>Allocations</c> member); the per-invoice split is
+/// proven separately by the ledger fold (see <c>PaymentDimensionTests</c>, <c>FoldReadTests</c>).</summary>
 public sealed class GetPaymentsEndpointTests(ReceivablesHostFixture fixture) : IClassFixture<ReceivablesHostFixture>
 {
     private async Task SetUpChartAsync(HttpClient controller, Guid clientId)
@@ -53,7 +55,7 @@ public sealed class GetPaymentsEndpointTests(ReceivablesHostFixture fixture) : I
     }
 
     [Fact]
-    public async Task GET_payments_returns_customer_payments_with_allocations()
+    public async Task GET_payments_returns_customer_payments_with_no_allocation_array_and_the_invoice_fold_reflects_it()
     {
         (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
         await SetUpChartAsync(controller, clientId);
@@ -66,14 +68,21 @@ public sealed class GetPaymentsEndpointTests(ReceivablesHostFixture fixture) : I
             new RecordPaymentRequest(customer.Id, new DateOnly(2026, 3, 31), 60m, "check",
                 [new Allocation(invoiceId, 60m)])))
             .Content.ReadFromJsonAsync<Payment>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, payment.Id);
 
+        // Read the payment back through the store/endpoint: the persisted document carries no allocation
+        // array. `Payment` has no `Allocations` member — a compile-time guarantee, so there is nothing to
+        // assert at runtime beyond the shape below. The per-invoice split still took effect: prove it by
+        // reading the invoice's fold-derived open balance after this fresh GET.
         Payment[] list = (await clerk.GetFromJsonAsync<Payment[]>(
             $"/clients/{clientId}/payments?customerId={customer.Id}"))!;
 
         Assert.Single(list);
         Assert.Equal(payment.Id, list[0].Id);
         Assert.Equal(60m, list[0].Amount);
-        Assert.Equal(invoiceId, list[0].Allocations.Single().TargetId);
+
+        InvoiceView view = (await clerk.GetFromJsonAsync<InvoiceView>($"/clients/{clientId}/invoices/{invoiceId}"))!;
+        Assert.Equal(40m, view.OpenBalance);   // 100 - 60, sourced only from the ledger fold
     }
 
     [Fact]

@@ -17,17 +17,19 @@ public static class PaymentPosting
     /// <summary>The per-invoice dimension the recipe tags on each A/R credit line (additive; not yet required).</summary>
     private const string InvoiceDimension = "Invoice";
 
-    public static PostEntryRequest ComposePayment(Guid paymentId, PaymentBody body, PaymentPostingAccounts accounts)
+    public static PostEntryRequest ComposePayment(
+        Guid paymentId, PaymentBody body, IReadOnlyList<Allocation> allocations, PaymentPostingAccounts accounts)
     {
         ArgumentNullException.ThrowIfNull(body);
+        ArgumentNullException.ThrowIfNull(allocations);
         ArgumentNullException.ThrowIfNull(accounts);
 
-        decimal allocated = body.Allocations.Sum(a => a.Amount);
+        decimal allocated = allocations.Sum(a => a.Amount);
         decimal remainder = body.Amount - allocated;
         Dictionary<string, Guid> dim = new() { [CustomerDimension] = body.CustomerId };
 
         List<PostLineRequest> lines = [new(accounts.CashAccountId, "Debit", body.Amount)];
-        foreach (Allocation a in body.Allocations)
+        foreach (Allocation a in allocations)
         {
             if (a.Amount == 0m)
                 continue;
@@ -46,16 +48,18 @@ public static class PaymentPosting
             Lines: lines, SourceRef: paymentId, SourceType: PaymentSourceType);
     }
 
-    public static PostEntryRequest ComposeCreditApplication(Guid id, CreditApplicationBody body, PaymentPostingAccounts accounts)
+    public static PostEntryRequest ComposeCreditApplication(
+        Guid id, CreditApplicationBody body, IReadOnlyList<Allocation> allocations, PaymentPostingAccounts accounts)
     {
         ArgumentNullException.ThrowIfNull(body);
+        ArgumentNullException.ThrowIfNull(allocations);
         ArgumentNullException.ThrowIfNull(accounts);
 
-        decimal applied = body.Allocations.Sum(a => a.Amount);
+        decimal applied = allocations.Sum(a => a.Amount);
         Dictionary<string, Guid> dim = new() { [CustomerDimension] = body.CustomerId };
 
         List<PostLineRequest> lines = [new(accounts.CustomerCreditsAccountId, "Debit", applied, Dimensions: dim)];
-        foreach (Allocation a in body.Allocations)
+        foreach (Allocation a in allocations)
         {
             if (a.Amount == 0m)
                 continue;
@@ -72,13 +76,15 @@ public static class PaymentPosting
             Lines: lines, SourceRef: id, SourceType: CreditApplicationSourceType);
     }
 
-    public static PostEntryRequest ComposeWriteOff(Guid writeOffId, WriteOffBody body, PaymentPostingAccounts accounts)
+    public static PostEntryRequest ComposeWriteOff(
+        Guid writeOffId, WriteOffBody body, IReadOnlyList<Allocation> allocations, PaymentPostingAccounts accounts)
     {
         ArgumentNullException.ThrowIfNull(body);
+        ArgumentNullException.ThrowIfNull(allocations);
         ArgumentNullException.ThrowIfNull(accounts);
-        decimal allocated = body.Allocations.Sum(a => a.Amount);
+        decimal allocated = allocations.Sum(a => a.Amount);
         List<PostLineRequest> lines = [new(accounts.BadDebtExpenseAccountId, "Debit", allocated)];
-        foreach (Allocation a in body.Allocations)
+        foreach (Allocation a in allocations)
         {
             if (a.Amount == 0m)
                 continue;
@@ -94,13 +100,15 @@ public static class PaymentPosting
             Reference: null, Memo: body.Memo, Lines: lines, SourceRef: writeOffId, SourceType: WriteOffSourceType);
     }
 
-    public static PostEntryRequest ComposeCreditNote(Guid creditNoteId, CreditNoteBody body, PaymentPostingAccounts accounts)
+    public static PostEntryRequest ComposeCreditNote(
+        Guid creditNoteId, CreditNoteBody body, IReadOnlyList<Allocation> allocations, PaymentPostingAccounts accounts)
     {
         ArgumentNullException.ThrowIfNull(body);
+        ArgumentNullException.ThrowIfNull(allocations);
         ArgumentNullException.ThrowIfNull(accounts);
-        decimal allocated = body.Allocations.Sum(a => a.Amount);
+        decimal allocated = allocations.Sum(a => a.Amount);
         List<PostLineRequest> lines = [new(accounts.SalesReturnsAccountId, "Debit", allocated)];
-        foreach (Allocation a in body.Allocations)
+        foreach (Allocation a in allocations)
         {
             if (a.Amount == 0m)
                 continue;

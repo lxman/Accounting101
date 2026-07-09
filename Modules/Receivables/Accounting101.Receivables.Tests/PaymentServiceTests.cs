@@ -58,8 +58,8 @@ public sealed class PaymentServiceTests
     {
         (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(100m);
 
-        PaymentBody body = new(customerId, new DateOnly(2026, 3, 31), 40m, null, [new Allocation(invoice.Id, 40m)]);
-        Payment recorded = await h.Service.RecordPaymentAsync(clientId, body);
+        PaymentCommand command = new(customerId, new DateOnly(2026, 3, 31), 40m, null, [new Allocation(invoice.Id, 40m)]);
+        Payment recorded = await h.Service.RecordPaymentAsync(clientId, command);
 
         Assert.NotEqual(Guid.Empty, recorded.Id);
         PostEntryRequest entry = Assert.Single(h.Ledger.Posted);
@@ -72,9 +72,9 @@ public sealed class PaymentServiceTests
     {
         (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(100m);
 
-        PaymentBody body = new(customerId, new DateOnly(2026, 3, 31), 40m, null, [new Allocation(invoice.Id, 60m)]);
+        PaymentCommand command = new(customerId, new DateOnly(2026, 3, 31), 40m, null, [new Allocation(invoice.Id, 60m)]);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => h.Service.RecordPaymentAsync(clientId, body));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => h.Service.RecordPaymentAsync(clientId, command));
         Assert.Empty(h.Ledger.Posted);
     }
 
@@ -83,16 +83,16 @@ public sealed class PaymentServiceTests
     {
         (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(100m);
 
-        PaymentBody body = new(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice.Id, 150m)]);
+        PaymentCommand command = new(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice.Id, 150m)]);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => h.Service.RecordPaymentAsync(clientId, body));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => h.Service.RecordPaymentAsync(clientId, command));
     }
 
     [Fact]
     public async Task Invoice_view_reflects_a_partial_payment()
     {
         (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(100m);
-        await h.Service.RecordPaymentAsync(clientId, new PaymentBody(customerId, new DateOnly(2026, 3, 31), 40m, null, [new Allocation(invoice.Id, 40m)]));
+        await h.Service.RecordPaymentAsync(clientId, new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 40m, null, [new Allocation(invoice.Id, 40m)]));
 
         InvoiceView? view = await h.Service.GetInvoiceViewAsync(clientId, invoice.Id);
 
@@ -105,7 +105,7 @@ public sealed class PaymentServiceTests
     public async Task Over_payment_raises_the_customer_credit_balance()
     {
         (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(100m);
-        await h.Service.RecordPaymentAsync(clientId, new PaymentBody(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice.Id, 100m)]));
+        await h.Service.RecordPaymentAsync(clientId, new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice.Id, 100m)]));
 
         Assert.Equal(50m, await h.Service.GetCustomerCreditBalanceAsync(clientId, customerId));
         InvoiceView? view = await h.Service.GetInvoiceViewAsync(clientId, invoice.Id);
@@ -117,14 +117,18 @@ public sealed class PaymentServiceTests
     {
         (Harness h, Guid clientId, Guid customerId, Invoice first) = await SetupWithIssuedInvoiceAsync(100m);
         // Create $50 of credit via over-payment on the first invoice.
-        await h.Service.RecordPaymentAsync(clientId, new PaymentBody(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(first.Id, 100m)]));
+        await h.Service.RecordPaymentAsync(clientId, new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(first.Id, 100m)]));
         // A second issued invoice to apply credit against.
         Invoice second = await IssueAnotherInvoiceAsync(h, clientId, customerId, 100m);
 
         CreditApplication applied = await h.Service.RecordCreditApplicationAsync(clientId,
-            new CreditApplicationBody(customerId, new DateOnly(2026, 4, 2), [new Allocation(second.Id, 50m)]));
+            new CreditApplicationCommand(customerId, new DateOnly(2026, 4, 2), [new Allocation(second.Id, 50m)]));
 
-        Assert.Equal(50m, applied.Applied);
+        // CreditApplication no longer carries an Allocations array (or an Applied accessor derived from
+        // one) — prove the 50 applied by folding it from the document's own posted entry instead.
+        IReadOnlyList<EntryResponse> appliedEntries = await h.Ledger.GetEntriesBySourceRefAsync(clientId, applied.Id);
+        EntryResponse appliedEntry = appliedEntries.Single(e => e.ReversalOf == null);
+        Assert.Equal(50m, appliedEntry.Lines.Where(l => l.AccountId == Accounts.ReceivableAccountId).Sum(l => l.Amount));
         Assert.Equal(0m, await h.Service.GetCustomerCreditBalanceAsync(clientId, customerId));
         Assert.Equal(50m, (await h.Service.GetInvoiceViewAsync(clientId, second.Id))!.OpenBalance);
         Assert.Contains(h.Ledger.Posted, e => e.SourceType == "CreditApplication");
@@ -136,14 +140,14 @@ public sealed class PaymentServiceTests
         (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(100m);
         // No credit created yet.
         await Assert.ThrowsAsync<InvalidOperationException>(() => h.Service.RecordCreditApplicationAsync(clientId,
-            new CreditApplicationBody(customerId, new DateOnly(2026, 4, 2), [new Allocation(invoice.Id, 25m)])));
+            new CreditApplicationCommand(customerId, new DateOnly(2026, 4, 2), [new Allocation(invoice.Id, 25m)])));
     }
 
     [Fact]
     public async Task Voiding_a_payment_restores_the_invoice_open_balance()
     {
         (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(100m);
-        Payment p = await h.Service.RecordPaymentAsync(clientId, new PaymentBody(customerId, new DateOnly(2026, 3, 31), 40m, null, [new Allocation(invoice.Id, 40m)]));
+        Payment p = await h.Service.RecordPaymentAsync(clientId, new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 40m, null, [new Allocation(invoice.Id, 40m)]));
         Assert.Equal(60m, (await h.Service.GetInvoiceViewAsync(clientId, invoice.Id))!.OpenBalance);
 
         await h.Service.VoidPaymentAsync(clientId, p.Id);
@@ -157,7 +161,7 @@ public sealed class PaymentServiceTests
     {
         (Harness h, Guid clientId, Guid customerId, Invoice first) = await SetupWithIssuedInvoiceAsync(100m);
         // Pay the first invoice in full -> Paid.
-        await h.Service.RecordPaymentAsync(clientId, new PaymentBody(customerId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(first.Id, 100m)]));
+        await h.Service.RecordPaymentAsync(clientId, new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(first.Id, 100m)]));
         // A second, unpaid invoice -> Open.
         Invoice second = await IssueAnotherInvoiceAsync(h, clientId, customerId, 100m);
 
@@ -230,7 +234,7 @@ public sealed class PaymentServiceTests
         // Act & Assert: paying a draft must throw with a message mentioning "issued".
         InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.RecordPaymentAsync(clientId,
-                new PaymentBody(customerId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(draft.Id, 100m)])));
+                new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(draft.Id, 100m)])));
         Assert.Contains("issued", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -244,7 +248,7 @@ public sealed class PaymentServiceTests
         // Act & Assert: paying a void invoice must throw.
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             h.Service.RecordPaymentAsync(clientId,
-                new PaymentBody(customerId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(invoice.Id, 100m)])));
+                new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(invoice.Id, 100m)])));
     }
 
     [Fact]
@@ -255,7 +259,7 @@ public sealed class PaymentServiceTests
 
         // Act: pay in full — must not throw.
         Payment recorded = await h.Service.RecordPaymentAsync(clientId,
-            new PaymentBody(customerId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(invoice.Id, 100m)]));
+            new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(invoice.Id, 100m)]));
 
         // Assert: payment recorded and settled.
         Assert.NotEqual(Guid.Empty, recorded.Id);
@@ -280,7 +284,7 @@ public sealed class PaymentServiceTests
             await SetupIssuedInvoiceAsync(total: 250m);
 
         WriteOff wo = await service.RecordWriteOffAsync(clientId,
-            new WriteOffBody(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 250m)], "uncollectible"));
+            new WriteOffCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 250m)], "uncollectible"));
 
         InvoiceView view = (await service.GetInvoiceViewAsync(clientId, invoice))!;
         Assert.Equal(0m, view.OpenBalance);
@@ -297,7 +301,7 @@ public sealed class PaymentServiceTests
             await SetupIssuedInvoiceAsync(total: 100m);
 
         await service.RecordCreditNoteAsync(clientId,
-            new CreditNoteBody(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 30m)], "partial return"));
+            new CreditNoteCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 30m)], "partial return"));
 
         InvoiceView view = (await service.GetInvoiceViewAsync(clientId, invoice))!;
         Assert.Equal(70m, view.OpenBalance);
@@ -310,7 +314,7 @@ public sealed class PaymentServiceTests
         (PaymentService service, _, Guid clientId, Guid customer, Guid invoice) =
             await SetupIssuedInvoiceAsync(total: 100m);
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.RecordWriteOffAsync(clientId,
-            new WriteOffBody(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 150m)], null)));
+            new WriteOffCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 150m)], null)));
     }
 
     [Fact]
@@ -319,7 +323,7 @@ public sealed class PaymentServiceTests
         (PaymentService service, _, Guid clientId, Guid customer, Guid invoice) =
             await SetupIssuedInvoiceAsync(total: 250m);
         WriteOff wo = await service.RecordWriteOffAsync(clientId,
-            new WriteOffBody(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 250m)], null));
+            new WriteOffCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 250m)], null));
 
         await service.VoidWriteOffAsync(clientId, wo.Id, "keyed in error");
 
@@ -334,7 +338,7 @@ public sealed class PaymentServiceTests
         (PaymentService service, _, Guid clientId, Guid customer, Guid invoice) =
             await SetupIssuedInvoiceAsync(total: 100m);
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.RecordCreditNoteAsync(clientId,
-            new CreditNoteBody(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 150m)], null)));
+            new CreditNoteCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 150m)], null)));
     }
 
     [Fact]
@@ -343,7 +347,7 @@ public sealed class PaymentServiceTests
         (PaymentService service, _, Guid clientId, Guid customer, Guid invoice) =
             await SetupIssuedInvoiceAsync(total: 100m);
         CreditNote cn = await service.RecordCreditNoteAsync(clientId,
-            new CreditNoteBody(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 40m)], null));
+            new CreditNoteCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 40m)], null));
         Assert.Equal(60m, (await service.GetInvoiceViewAsync(clientId, invoice))!.OpenBalance);
 
         await service.VoidCreditNoteAsync(clientId, cn.Id, "issued in error");
@@ -360,7 +364,7 @@ public sealed class PaymentServiceTests
             await SetupIssuedInvoiceAsync(total: 100m);
         Guid otherCustomer = Guid.NewGuid();
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.RecordWriteOffAsync(clientId,
-            new WriteOffBody(otherCustomer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 50m)], null)));
+            new WriteOffCommand(otherCustomer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 50m)], null)));
     }
 
     [Fact]
@@ -369,7 +373,7 @@ public sealed class PaymentServiceTests
         (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(100m);
         await h.Invoices.VoidAsync(clientId, invoice.Id);
         await Assert.ThrowsAsync<InvalidOperationException>(() => h.Service.RecordCreditNoteAsync(clientId,
-            new CreditNoteBody(customerId, new DateOnly(2026, 3, 1), [new Allocation(invoice.Id, 50m)], null)));
+            new CreditNoteCommand(customerId, new DateOnly(2026, 3, 1), [new Allocation(invoice.Id, 50m)], null)));
     }
 
     // ── customer refund disposition ──────────────────────────────────────────
@@ -381,7 +385,7 @@ public sealed class PaymentServiceTests
         (PaymentService service, FakeLedgerClient ledger, Guid clientId, Guid customer, Guid invoice) =
             await SetupIssuedInvoiceAsync(total: 100m);
         await service.RecordPaymentAsync(clientId,
-            new PaymentBody(customer, new DateOnly(2026, 3, 1), 140m, "wire", [new Allocation(invoice, 100m)]));
+            new PaymentCommand(customer, new DateOnly(2026, 3, 1), 140m, "wire", [new Allocation(invoice, 100m)]));
         Assert.Equal(40m, await service.GetCustomerCreditBalanceAsync(clientId, customer));
 
         Refund refund = await service.RecordRefundAsync(clientId, new RefundBody(customer, new DateOnly(2026, 3, 2), 40m, "returned"));
@@ -404,7 +408,7 @@ public sealed class PaymentServiceTests
     {
         (PaymentService service, _, Guid clientId, Guid customer, Guid invoice) = await SetupIssuedInvoiceAsync(total: 100m);
         await service.RecordPaymentAsync(clientId,
-            new PaymentBody(customer, new DateOnly(2026, 3, 1), 140m, "wire", [new Allocation(invoice, 100m)]));
+            new PaymentCommand(customer, new DateOnly(2026, 3, 1), 140m, "wire", [new Allocation(invoice, 100m)]));
         Refund refund = await service.RecordRefundAsync(clientId, new RefundBody(customer, new DateOnly(2026, 3, 2), 40m, null));
         Assert.Equal(0m, await service.GetCustomerCreditBalanceAsync(clientId, customer));
 
@@ -422,7 +426,7 @@ public sealed class PaymentServiceTests
         (PaymentService service, FakeLedgerClient ledger, Guid clientId, Guid customer, Guid invoice) =
             await SetupIssuedInvoiceAsync(total: 250m);
         WriteOff wo = await service.RecordWriteOffAsync(clientId,
-            new WriteOffBody(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 250m)], null));
+            new WriteOffCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 250m)], null));
         IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, wo.Id);
         EntryResponse active = entries.Single(e => e.Status == "Active" && e.ReversalOf == null);
         await ledger.ApproveAsync(clientId, active.Id); // flip to Posted
@@ -443,7 +447,7 @@ public sealed class PaymentServiceTests
         (PaymentService service, FakeLedgerClient ledger, Guid clientId, Guid customer, Guid invoice) =
             await SetupIssuedInvoiceAsync(total: 100m);
         CreditNote cn = await service.RecordCreditNoteAsync(clientId,
-            new CreditNoteBody(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 40m)], null));
+            new CreditNoteCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 40m)], null));
         IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, cn.Id);
         EntryResponse active = entries.Single(e => e.Status == "Active" && e.ReversalOf == null);
         await ledger.ApproveAsync(clientId, active.Id); // flip to Posted
@@ -464,7 +468,7 @@ public sealed class PaymentServiceTests
         (PaymentService service, FakeLedgerClient ledger, Guid clientId, Guid customer, Guid invoice) =
             await SetupIssuedInvoiceAsync(total: 100m);
         await service.RecordPaymentAsync(clientId,
-            new PaymentBody(customer, new DateOnly(2026, 3, 1), 140m, "wire", [new Allocation(invoice, 100m)]));
+            new PaymentCommand(customer, new DateOnly(2026, 3, 1), 140m, "wire", [new Allocation(invoice, 100m)]));
         Refund refund = await service.RecordRefundAsync(clientId,
             new RefundBody(customer, new DateOnly(2026, 3, 2), 40m, null));
         IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, refund.Id);
@@ -497,11 +501,11 @@ public sealed class PaymentServiceTests
         (Harness h, Guid clientId, Guid customerId, Invoice invoice1) = await SetupWithIssuedInvoiceAsync(100m);
         // Overpay invoice1 by 50 → $50 customer credit.
         Payment pay = await h.Service.RecordPaymentAsync(clientId,
-            new PaymentBody(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice1.Id, 100m)]));
+            new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice1.Id, 100m)]));
         // Apply that $50 credit to a second invoice → pool now 0.
         Invoice invoice2 = await IssueAnotherInvoiceAsync(h, clientId, customerId, 100m);
         await h.Service.RecordCreditApplicationAsync(clientId,
-            new CreditApplicationBody(customerId, new DateOnly(2026, 4, 1), [new Allocation(invoice2.Id, 50m)]));
+            new CreditApplicationCommand(customerId, new DateOnly(2026, 4, 1), [new Allocation(invoice2.Id, 50m)]));
 
         InvalidOperationException ex = await Assert.ThrowsAsync<InvalidOperationException>(
             () => h.Service.VoidPaymentAsync(clientId, pay.Id));
@@ -516,7 +520,7 @@ public sealed class PaymentServiceTests
     {
         (Harness h, Guid clientId, Guid customerId, Invoice invoice1) = await SetupWithIssuedInvoiceAsync(100m);
         Payment pay = await h.Service.RecordPaymentAsync(clientId,
-            new PaymentBody(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice1.Id, 100m)]));
+            new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice1.Id, 100m)]));
 
         Payment voided = await h.Service.VoidPaymentAsync(clientId, pay.Id);
 
@@ -530,14 +534,14 @@ public sealed class PaymentServiceTests
         (Harness h, Guid clientId, Guid customerId, Invoice invoice1) = await SetupWithIssuedInvoiceAsync(100m);
         // Two overpayments → pool $100.
         Payment payA = await h.Service.RecordPaymentAsync(clientId,
-            new PaymentBody(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice1.Id, 100m)]));
+            new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice1.Id, 100m)]));
         Invoice invoice2 = await IssueAnotherInvoiceAsync(h, clientId, customerId, 100m);
         await h.Service.RecordPaymentAsync(clientId,
-            new PaymentBody(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice2.Id, 100m)]));
+            new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice2.Id, 100m)]));
         // Spend $50 of credit on a third invoice → pool $50 remains.
         Invoice invoice3 = await IssueAnotherInvoiceAsync(h, clientId, customerId, 100m);
         await h.Service.RecordCreditApplicationAsync(clientId,
-            new CreditApplicationBody(customerId, new DateOnly(2026, 4, 1), [new Allocation(invoice3.Id, 50m)]));
+            new CreditApplicationCommand(customerId, new DateOnly(2026, 4, 1), [new Allocation(invoice3.Id, 50m)]));
 
         // Voiding payA ($50 unapplied) is allowed: pool ($50) still covers it (payB's credit absorbs the spend).
         Payment voided = await h.Service.VoidPaymentAsync(clientId, payA.Id);
