@@ -33,4 +33,10 @@ public interface ILedgerClient
 
     /// <summary>Every entry the engine has tied to a source document — how the module finds the entry an invoice produced.</summary>
     Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default);
+
+    /// <summary>Read a per-dimension control-account fold: the signed (debit-positive) balance of
+    /// <paramref name="account"/> grouped by the value of dimension <paramref name="dimension"/>
+    /// (e.g. "Customer" or "Invoice"). This is how ledger-first read paths derive balances.</summary>
+    Task<IReadOnlyList<SubledgerLineResponse>> GetSubledgerAsync(
+        Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default);
 }

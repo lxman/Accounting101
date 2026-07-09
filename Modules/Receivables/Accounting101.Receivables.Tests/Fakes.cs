@@ -69,6 +69,12 @@ internal sealed class FakeLedgerClient : ILedgerClient
     public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<EntryResponse>>(_entries.Values.Where(e => e.SourceRef == sourceRef).ToList());
 
+    /// <summary>Not exercised by the fake-backed tests (they assert against posted requests directly); returns
+    /// an empty fold so any accidental call is harmless rather than throwing NotImplementedException.</summary>
+    public Task<IReadOnlyList<SubledgerLineResponse>> GetSubledgerAsync(
+        Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<SubledgerLineResponse>>([]);
+
     private static EntryResponse Entry(Guid id, Guid? sourceRef, string? sourceType, string posting, Guid? reversalOf) =>
         new(id, 0, default, "Standard", "Active", posting, 0, null, null, reversalOf, null, [], sourceRef, sourceType);
 }

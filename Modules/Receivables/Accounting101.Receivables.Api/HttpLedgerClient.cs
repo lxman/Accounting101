@@ -90,6 +90,19 @@ public sealed class HttpLedgerClient(
         return (await response.Content.ReadFromJsonAsync<List<EntryResponse>>(cancellationToken))!;
     }
 
+    public async Task<IReadOnlyList<SubledgerLineResponse>> GetSubledgerAsync(
+        Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default)
+    {
+        string url = $"clients/{clientId}/subledger?account={account}&dimension={Uri.EscapeDataString(dimension)}";
+        if (asOf is { } d) url += $"&asOf={d:yyyy-MM-dd}";
+        // A plain member read — like GetEntriesBySourceRefAsync, no module credential is attached.
+        using HttpRequestMessage request = Forwarded(HttpMethod.Get, url);
+        using HttpResponseMessage response = await http.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        SubledgerResponse body = (await response.Content.ReadFromJsonAsync<SubledgerResponse>(cancellationToken))!;
+        return body.Lines;
+    }
+
     /// <summary>
     /// Throw a typed <see cref="LedgerClientException"/> carrying the engine's status and reason on any
     /// non-success response, so a caller (and the module's endpoints) can relay the real cause instead of
