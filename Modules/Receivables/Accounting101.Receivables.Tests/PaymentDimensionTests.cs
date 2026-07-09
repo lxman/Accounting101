@@ -8,8 +8,8 @@ namespace Accounting101.Receivables.Tests;
 /// <summary>
 /// Proves the payment-posting recipe emits one Invoice-dimensioned A/R credit line PER allocation,
 /// replacing the single aggregate line. The per-invoice split moves from the module's Allocation[]
-/// onto ledger dimensions; A/R still requires only Customer at this point (flipped later), so the new
-/// tag is purely additive — it rides along and the Invoice-axis fold ties out once it's present.
+/// onto ledger dimensions; A/R now requires {Customer, Invoice} (flipped in Task 6), so the tag is
+/// load-bearing — omitting it would 422.
 /// </summary>
 public sealed class PaymentDimensionTests(ReceivablesHostFixture fixture) : IClassFixture<ReceivablesHostFixture>
 {
@@ -17,7 +17,7 @@ public sealed class PaymentDimensionTests(ReceivablesHostFixture fixture) : ICla
     private async Task SetUpChartAsync(HttpClient http, Guid clientId)
     {
         (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.ReceivableAccountId}",
-            new AccountRequest { Number = "1200", Name = "Accounts Receivable", Type = "Asset", RequiredDimension = "Customer" }))
+            new AccountRequest { Number = "1200", Name = "Accounts Receivable", Type = "Asset", RequiredDimensions = ["Customer", "Invoice"] }))
             .EnsureSuccessStatusCode();
         (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.RevenueAccountId}",
             new AccountRequest { Number = "4000", Name = "Revenue", Type = "Revenue" }))

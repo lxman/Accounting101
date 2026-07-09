@@ -6,8 +6,7 @@ namespace Accounting101.Receivables.Tests;
 
 /// <summary>
 /// Proves the invoice-issue recipe tags the A/R line with BOTH the Customer and Invoice dimensions.
-/// A/R still requires only Customer at this point (flipped later), so this is purely additive — the
-/// tag rides along and the Invoice-axis fold ties out once it's present.
+/// A/R now requires both (flipped in Task 6), so the tag is load-bearing — omitting it would 422.
 /// </summary>
 public sealed class InvoiceDimensionTests(ReceivablesHostFixture fixture) : IClassFixture<ReceivablesHostFixture>
 {
@@ -15,7 +14,7 @@ public sealed class InvoiceDimensionTests(ReceivablesHostFixture fixture) : ICla
     private async Task SetUpChartAsync(HttpClient controllerHttp, Guid clientId)
     {
         (await controllerHttp.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.ReceivableAccountId}",
-            new AccountRequest { Number = "1200", Name = "Accounts Receivable", Type = "Asset", RequiredDimension = "Customer" }))
+            new AccountRequest { Number = "1200", Name = "Accounts Receivable", Type = "Asset", RequiredDimensions = ["Customer", "Invoice"] }))
             .EnsureSuccessStatusCode();
         (await controllerHttp.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.RevenueAccountId}",
             new AccountRequest { Number = "4000", Name = "Revenue", Type = "Revenue" }))
@@ -61,15 +60,17 @@ public sealed class InvoiceDimensionTests(ReceivablesHostFixture fixture) : ICla
         Assert.Equal(customer.Id, ar.Dimensions["Customer"]);
         Assert.Equal(issued.Id, ar.Dimensions["Invoice"]);
 
-        // The Invoice-axis fold ties to the invoice total. NOTE: the /subledger/reconciliation endpoint
-        // can't be used here — it 422s unless the queried dimension is in the account's RequiredDimensions,
-        // and A/R still requires only Customer at this stage (flipped to {Customer, Invoice} in Task 6).
-        // The bare /subledger endpoint bypasses that gate when no 'account' is supplied, so it can still
-        // prove the fold is correct: the A/R line, now tagged with Invoice, sums to the invoice total.
+        // The Invoice-axis fold ties to the invoice total. A/R now requires {Customer, Invoice} (Task 6),
+        // so the stronger /subledger/reconciliation assertion (gated on the account's RequiredDimensions)
+        // is available too; assert both the bare fold and the reconciliation tie-out.
         SubledgerResponse fold = (await clerk.GetFromJsonAsync<SubledgerResponse>(
             $"/clients/{clientId}/subledger?dimension=Invoice"))!;
         SubledgerLineResponse arFold = fold.Lines.Single(
             l => l.AccountId == fixture.ReceivableAccountId && l.DimensionValue == issued.Id);
         Assert.Equal(ar.Amount, arFold.Balance);
+
+        SubledgerReconciliationResponse recon = (await clerk.GetFromJsonAsync<SubledgerReconciliationResponse>(
+            $"/clients/{clientId}/subledger/reconciliation?account={fixture.ReceivableAccountId}&dimension=Invoice"))!;
+        Assert.True(recon.TiesOut);
     }
 }

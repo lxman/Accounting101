@@ -8,8 +8,8 @@ namespace Accounting101.Receivables.Tests;
 /// <summary>
 /// Proves the three A/R-relieving dispositions (write-off, credit note, credit application) emit one
 /// Invoice-dimensioned A/R line PER allocation — same recipe shape as payments (Task 4). Refund relieves
-/// no A/R and is out of scope. A/R still requires only Customer at this point (flipped in Task 6), so the
-/// Invoice tag is purely additive; the Invoice-axis fold ties out once it's present.
+/// no A/R and is out of scope. A/R now requires {Customer, Invoice} (flipped in Task 6), so the Invoice
+/// tag is load-bearing — omitting it would 422.
 /// </summary>
 public sealed class DispositionDimensionTests(ReceivablesHostFixture fixture) : IClassFixture<ReceivablesHostFixture>
 {
@@ -17,7 +17,7 @@ public sealed class DispositionDimensionTests(ReceivablesHostFixture fixture) : 
     private async Task SetUpChartAsync(HttpClient http, Guid clientId)
     {
         (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.ReceivableAccountId}",
-            new AccountRequest { Number = "1200", Name = "Accounts Receivable", Type = "Asset", RequiredDimension = "Customer" }))
+            new AccountRequest { Number = "1200", Name = "Accounts Receivable", Type = "Asset", RequiredDimensions = ["Customer", "Invoice"] }))
             .EnsureSuccessStatusCode();
         (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.RevenueAccountId}",
             new AccountRequest { Number = "4000", Name = "Revenue", Type = "Revenue" }))

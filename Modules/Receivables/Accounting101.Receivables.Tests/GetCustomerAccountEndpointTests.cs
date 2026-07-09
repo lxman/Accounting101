@@ -13,7 +13,7 @@ public sealed class GetCustomerAccountEndpointTests(ReceivablesHostFixture fixtu
 {
     private async Task SetUpChartAsync(HttpClient controller, Guid clientId)
     {
-        await PutAccountAsync(controller, clientId, fixture.ReceivableAccountId, "1100", "Accounts Receivable", "Asset", "Customer");
+        await PutAccountAsync(controller, clientId, fixture.ReceivableAccountId, "1100", "Accounts Receivable", "Asset", null, ["Customer", "Invoice"]);
         await PutAccountAsync(controller, clientId, fixture.RevenueAccountId, "4000", "Revenue", "Revenue", null);
         await PutAccountAsync(controller, clientId, fixture.SalesTaxPayableAccountId, "2200", "Sales Tax Payable", "Liability", null);
         await PutAccountAsync(controller, clientId, fixture.CashAccountId, "1000", "Cash", "Asset", null);
@@ -22,9 +22,13 @@ public sealed class GetCustomerAccountEndpointTests(ReceivablesHostFixture fixtu
     }
 
     private static async Task PutAccountAsync(HttpClient http, Guid clientId, Guid accountId,
-        string number, string name, string type, string? requiredDimension) =>
+        string number, string name, string type, string? requiredDimension, string[]? requiredDimensions = null) =>
         (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{accountId}",
-            new AccountRequest { Number = number, Name = name, Type = type, RequiredDimension = requiredDimension }))
+            new AccountRequest
+            {
+                Number = number, Name = name, Type = type,
+                RequiredDimension = requiredDimension, RequiredDimensions = requiredDimensions,
+            }))
             .EnsureSuccessStatusCode();
 
     private static async Task<Guid> IssueInvoiceAsync(HttpClient clerk, Guid clientId, Guid customerId, decimal amount, DateOnly due)
