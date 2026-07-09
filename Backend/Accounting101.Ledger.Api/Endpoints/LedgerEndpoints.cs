@@ -505,7 +505,8 @@ public static class LedgerEndpoints
 
     private static async Task<IResult> GetSubledger(
         Guid clientId, string? dimension, Guid? account, DateOnly? asOf,
-        LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+        LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken,
+        bool includePending = false)
     {
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
@@ -528,8 +529,8 @@ public static class LedgerEndpoints
                     $"Account {namedAccountId} requires the '{namedAccount.RequiredDimension}' dimension, not '{dimension}'.");
         }
 
-        IReadOnlyList<SubledgerBalance> balances =
-            await ctx.Ledger.Journal.AggregateSubledgerAsync(clientId, dimension, account, asOf, cancellationToken);
+        IReadOnlyList<SubledgerBalance> balances = await ctx.Ledger.Journal.AggregateSubledgerAsync(
+            clientId, dimension, account, asOf, includePending, cancellationToken);
 
         return Results.Ok(new SubledgerResponse(
             dimension,
@@ -569,7 +570,7 @@ public static class LedgerEndpoints
         decimal control = balances.GetValueOrDefault(accountId);
 
         IReadOnlyList<SubledgerBalance> subledger =
-            await ctx.Ledger.Journal.AggregateSubledgerAsync(clientId, dimension, accountId, asOf, cancellationToken);
+            await ctx.Ledger.Journal.AggregateSubledgerAsync(clientId, dimension, accountId, asOf, cancellationToken: cancellationToken);
         decimal subledgerTotal = subledger.Sum(s => s.Balance);
 
         decimal variance = control - subledgerTotal;

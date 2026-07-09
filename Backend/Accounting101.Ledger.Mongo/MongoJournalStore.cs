@@ -323,12 +323,19 @@ public sealed class MongoJournalStore
     /// dimension is included. Because it is the very same lines grouped finer, the per-dimension balances
     /// sum back to the control-account balance by construction — the subledger cannot drift from the GL.
     /// Only lines that actually carry the dimension contribute.
+    /// <para>
+    /// <paramref name="includePending"/> (default false) preserves the on-the-books-only gate: reads (open
+    /// balance, aging, views) must reflect only Posted entries. Writes that need to reserve against a
+    /// not-yet-approved relief — e.g. rejecting a second unapproved payment that would over-apply an
+    /// invoice — pass <c>true</c> so a PendingApproval (Active but not yet Posted) entry also counts.
+    /// Void/reversed/rejected entries are excluded either way.
+    /// </para>
     /// </summary>
     public async Task<IReadOnlyList<SubledgerBalance>> AggregateSubledgerAsync(
         Guid clientId, string dimensionType, Guid? accountId = null, DateOnly? asOf = null,
-        CancellationToken cancellationToken = default)
+        bool includePending = false, CancellationToken cancellationToken = default)
     {
-        BsonDocument match = OnBooks(clientId);
+        BsonDocument match = OnBooks(clientId, includePending);
         if (asOf is { } asOfDate)
             match.Add("EffectiveDate", new BsonDocument("$lte", Iso(asOfDate)));
 
@@ -367,12 +374,22 @@ public sealed class MongoJournalStore
         return balances;
     }
 
-    /// <summary>The on-the-books predicate shared by every balance fold: this client, Active and Posted.</summary>
-    private static BsonDocument OnBooks(Guid clientId) => new()
+    /// <summary>
+    /// The on-the-books predicate shared by every balance fold: this client, Active, and Posted. With
+    /// <paramref name="includePending"/> the posting gate also admits PendingApproval — used only by the
+    /// pending-inclusive subledger fold that write-path validation reserves against (see
+    /// <see cref="AggregateSubledgerAsync"/>); every other fold (trial balance, activity, and the default
+    /// subledger read) keeps the strict Posted-only gate.
+    /// </summary>
+    private static BsonDocument OnBooks(Guid clientId, bool includePending = false) => new()
     {
         { "ClientId", new BsonBinaryData(clientId, GuidRepresentation.Standard) },
         { "Status", nameof(LifecycleStatus.Active) },
-        { "Posting", nameof(PostingState.Posted) },
+        {
+            "Posting", includePending
+                ? new BsonDocument("$in", new BsonArray { nameof(PostingState.Posted), nameof(PostingState.PendingApproval) })
+                : nameof(PostingState.Posted)
+        },
     };
 
     private static string Iso(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);

@@ -36,7 +36,14 @@ public interface ILedgerClient
 
     /// <summary>Read a per-dimension control-account fold: the signed (debit-positive) balance of
     /// <paramref name="account"/> grouped by the value of dimension <paramref name="dimension"/>
-    /// (e.g. "Customer" or "Invoice"). This is how ledger-first read paths derive balances.</summary>
+    /// (e.g. "Customer" or "Invoice"). This is how ledger-first read paths derive balances.
+    /// <para>
+    /// <paramref name="includePending"/> (default false) keeps the fold Posted-only, matching what is
+    /// actually on the books — the correct semantics for every read (open balance, aging, views). Pass
+    /// <c>true</c> only from write-path validation that must reserve against a not-yet-approved relief
+    /// (e.g. rejecting a second unapproved payment that would over-apply an invoice); never from a read.
+    /// </para></summary>
     Task<IReadOnlyList<SubledgerLineResponse>> GetSubledgerAsync(
-        Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default);
+        Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default,
+        bool includePending = false);
 }

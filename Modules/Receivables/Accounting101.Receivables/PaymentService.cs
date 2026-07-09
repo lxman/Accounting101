@@ -42,7 +42,7 @@ public sealed class PaymentService(
             if (invoice.CustomerId != customerId)
                 throw new InvalidOperationException($"Invoice {a.TargetId} belongs to a different customer.");
 
-            decimal alreadyApplied = await AppliedToInvoiceAsync(clientId, invoice, ct);
+            decimal alreadyApplied = await ReservedAgainstInvoiceAsync(clientId, invoice, ct);
             if (alreadyApplied + a.Amount > invoice.Total)
                 throw new InvalidOperationException($"Allocation to invoice {a.TargetId} exceeds its open balance.");
         }
@@ -263,15 +263,38 @@ public sealed class PaymentService(
             await ledger.VoidAsync(clientId, entry.Id, new VoidRequest(reason ?? $"Voided {label} {sourceRef}"), ct);
     }
 
-    /// <summary>Total amount applied to one invoice, folded from the ledger's Invoice-axis A/R subledger:
-    /// applied = invoice.Total − open, where open is the fold's signed balance for this invoice (0 if it
-    /// carries no on-the-books A/R line yet).</summary>
+    /// <summary>
+    /// Total amount applied to one invoice — the READ path. Folded Posted-only from the ledger's
+    /// Invoice-axis A/R subledger (reads reflect only what is actually on the books): applied =
+    /// invoice.Total − open, where open is the fold's signed balance for this invoice. When the invoice
+    /// carries no on-the-books A/R line yet (its own issue entry is still PendingApproval), <c>open</c>
+    /// defaults to <c>invoice.Total</c> — i.e. applied = 0 — so a freshly issued but unapproved invoice
+    /// reads as fully open (not Paid). This mirrors how <see cref="ListInvoiceViewsAsync"/> already
+    /// defaults an absent fold entry to Total.
+    /// </summary>
     private async Task<decimal> AppliedToInvoiceAsync(Guid clientId, Invoice invoice, CancellationToken ct)
     {
         PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
         IReadOnlyList<SubledgerLineResponse> fold =
             await ledger.GetSubledgerAsync(clientId, posting.ReceivableAccountId, "Invoice", null, ct);
-        decimal open = fold.FirstOrDefault(l => l.DimensionValue == invoice.Id)?.Balance ?? 0m;
+        decimal open = fold.FirstOrDefault(l => l.DimensionValue == invoice.Id)?.Balance ?? invoice.Total;
+        return invoice.Total - open;
+    }
+
+    /// <summary>
+    /// Total amount reserved against one invoice — the WRITE-PATH validation computation used by
+    /// <see cref="ValidateAllocationsAsync"/>. Folded PENDING-INCLUSIVE (Posted + PendingApproval,
+    /// non-void) so an unapproved relief (payment allocation, write-off, credit note/application) already
+    /// recorded against the invoice reserves against it: a second, also-unapproved relief then fails this
+    /// check instead of both passing and over-relieving the invoice once approved. Deliberately NOT used
+    /// by any read path — reads must stay Posted-only (see <see cref="AppliedToInvoiceAsync"/>).
+    /// </summary>
+    private async Task<decimal> ReservedAgainstInvoiceAsync(Guid clientId, Invoice invoice, CancellationToken ct)
+    {
+        PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
+        IReadOnlyList<SubledgerLineResponse> fold = await ledger.GetSubledgerAsync(
+            clientId, posting.ReceivableAccountId, "Invoice", null, ct, includePending: true);
+        decimal open = fold.FirstOrDefault(l => l.DimensionValue == invoice.Id)?.Balance ?? invoice.Total;
         return invoice.Total - open;
     }
 }

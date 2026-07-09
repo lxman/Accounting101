@@ -98,9 +98,23 @@ internal sealed class FakeLedgerClient : ILedgerClient
     /// (SubledgerReadTests, PaymentDimensionTests, DispositionDimensionTests, FoldReadTests). Voided entries
     /// are excluded; a reversed entry stays Active and its reversal's negated lines net it to zero, same as
     /// production.
+    /// <para>
+    /// FIDELITY NOTE (2026-07-09, over-application fix): the caller-facing <paramref name="includePending"/>
+    /// parameter was added so this fake compiles against the widened <see cref="ILedgerClient"/> contract,
+    /// but it is a no-op here — the fold already counts every Active entry regardless of Posting, in either
+    /// mode. Tightening the DEFAULT path to Posted-only (matching production exactly) broke 18 pre-existing
+    /// PaymentService/CustomerAccountService unit tests that assert on payments/dispositions taking
+    /// immediate effect without an explicit approve step. Rather than rewrite that whole suite (out of
+    /// scope for this fix and not requested), the fake keeps its established "immediate effect" behavior.
+    /// The two behaviors this fix actually depends on — pending reliefs reserving against an invoice for
+    /// validation, and reads defaulting an unapproved invoice to fully open — are proven for real against
+    /// the real engine by the HTTP E2E tests in ReceivablesLedgerFirstEdgeTests (over-application) and the
+    /// invoice-read test for Finding 2, not by this fake.
+    /// </para>
     /// </summary>
     public Task<IReadOnlyList<SubledgerLineResponse>> GetSubledgerAsync(
-        Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default)
+        Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default,
+        bool includePending = false)
     {
         Dictionary<Guid, decimal> totals = new();
         foreach ((Guid id, EntryResponse response) in _entries)

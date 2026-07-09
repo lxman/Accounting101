@@ -141,6 +141,40 @@ public sealed class MongoJournalStoreTests(MongoFixture fixture) : IClassFixture
     }
 
     [Fact]
+    public async Task Subledger_fold_excludes_pending_relief_by_default_but_includes_it_when_requested()
+    {
+        MongoJournalStore store = fixture.NewStore();
+        var clientId = Guid.NewGuid();
+        var ar = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var invoice = Guid.NewGuid();
+
+        // The invoice's own AR-debit line is on the books (Posted): open balance 100.
+        await store.AppendAsync(Posted(clientId, 1)
+            .Debit(ar, 100m, new Dictionary<string, Guid> { ["Invoice"] = invoice })
+            .Credit(revenue, 100m)
+            .Build());
+
+        // A relief (payment allocation) against the same invoice, still awaiting approval (PendingApproval,
+        // the builder's default Posting).
+        JournalEntryBuilder pendingRelief = Builder(clientId, 2);
+        pendingRelief.SourceType = "Payment";
+        await store.AppendAsync(pendingRelief
+            .Debit(cash, 100m)
+            .Credit(ar, 100m, new Dictionary<string, Guid> { ["Invoice"] = invoice })
+            .Build());
+
+        IReadOnlyList<SubledgerBalance> defaultFold =
+            await store.AggregateSubledgerAsync(clientId, "Invoice", accountId: ar);
+        Assert.Equal(100m, defaultFold.Single(s => s.DimensionValue == invoice).Balance); // pending relief excluded
+
+        IReadOnlyList<SubledgerBalance> pendingInclusiveFold =
+            await store.AggregateSubledgerAsync(clientId, "Invoice", accountId: ar, includePending: true);
+        Assert.Equal(0m, pendingInclusiveFold.Single(s => s.DimensionValue == invoice).Balance); // 100 - 100
+    }
+
+    [Fact]
     public async Task Dimension_detail_returns_only_entries_touching_that_customer()
     {
         MongoJournalStore store = fixture.NewStore();

@@ -138,6 +138,31 @@ public sealed class FoldReadTests(ReceivablesHostFixture fixture) : IClassFixtur
         Assert.Equal(70m, after.OpenBalance);
     }
 
+    /// <summary>
+    /// IMPORTANT read-default bug (Task 7 finding 2): the invoice-view read used to default a missing fold
+    /// entry's <c>open</c> to <c>0m</c>, so <c>applied = Total − 0 = Total</c> — a freshly issued but
+    /// unapproved invoice (its own AR-debit line still PendingApproval, not yet on the books) read as
+    /// fully Paid / OpenBalance 0 via <c>GET /invoices/{id}</c>. The fix defaults the missing-fold
+    /// <c>open</c> to <c>invoice.Total</c> (applied 0), matching how <see cref="CustomerAccountService"/>
+    /// already treats an absent fold entry.
+    /// </summary>
+    [Fact]
+    public async Task Unapproved_invoice_reads_fully_open_not_paid()
+    {
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
+        await SetUpChartAsync(http, clientId);
+        Guid customerId = await CreateCustomerAsync(http, clientId);
+
+        // Issue but deliberately do NOT approve — the invoice's own AR-debit line is still PendingApproval,
+        // so it carries no on-the-books line at all in the Posted-only fold.
+        Invoice invoice = await IssueInvoiceAsync(http, clientId, customerId, 100m);
+
+        InvoiceView view = (await http.GetFromJsonAsync<InvoiceView>($"/clients/{clientId}/invoices/{invoice.Id}"))!;
+
+        Assert.Equal(100m, view.OpenBalance);
+        Assert.NotEqual(SettlementStatus.Paid, view.SettlementStatus);
+    }
+
     [Fact]
     public async Task Customer_credit_balance_from_the_fold_is_positive_for_available_credit()
     {

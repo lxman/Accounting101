@@ -138,4 +138,33 @@ public sealed class AllocationBoundaryE2eTests(ReceivablesHostFixture fixture) :
 
         await AssertProblemAsync(resp, HttpStatusCode.UnprocessableEntity, "allocation amount must be greater than zero");
     }
+
+    /// <summary>
+    /// CRITICAL over-application hole (Task 7 finding 1): allocation validation used to source
+    /// <c>alreadyApplied</c> from the Posted-only ledger fold, so two reliefs recorded against the same
+    /// invoice while BOTH are still unapproved each validated against the same stale open balance (100).
+    /// Payment A (100) posts PendingApproval — nothing is on the books yet — so Payment B (100) against
+    /// the same invoice also saw open=100 and would have been accepted too, over-relieving the invoice to
+    /// -100 once both were approved. The fix makes allocation validation reserve against PENDING-plus-
+    /// posted (non-void) reliefs, so Payment B must be rejected here, before either payment is approved.
+    /// </summary>
+    [Fact]
+    public async Task Second_unapproved_payment_over_applying_the_same_invoice_is_rejected()
+    {
+        (Guid clientId, _, HttpClient clerk, HttpClient approver) = await ArrangeAsync();
+        Guid customer = await CreateCustomerAsync(clerk, clientId);
+        Guid invoice = await IssueInvoiceAsync(clerk, approver, clientId, customer, 100m);
+
+        // Payment A: alloc 100, recorded but deliberately left PendingApproval (nothing approves it).
+        HttpResponseMessage payAResp = await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
+            new RecordPaymentRequest(customer, new DateOnly(2026, 3, 5), 100m, "check", [new Allocation(invoice, 100m)]));
+        payAResp.EnsureSuccessStatusCode();
+
+        // Payment B: also alloc 100 against the same invoice, while A is still pending. Must be rejected —
+        // A already reserves the invoice's whole open balance, even though nothing is on the books yet.
+        HttpResponseMessage payBResp = await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
+            new RecordPaymentRequest(customer, new DateOnly(2026, 3, 6), 100m, "check", [new Allocation(invoice, 100m)]));
+
+        await AssertProblemAsync(payBResp, HttpStatusCode.UnprocessableEntity, "exceeds its open balance");
+    }
 }
