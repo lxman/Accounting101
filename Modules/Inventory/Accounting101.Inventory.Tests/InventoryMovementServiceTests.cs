@@ -132,4 +132,80 @@ public sealed class InventoryMovementServiceTests
         await Assert.ThrowsAsync<InvalidOperationException>(() => svc.RecordAsync(Client,
             new RecordMovement(item.Id, MovementType.Issue, 999m, null, new DateOnly(2026, 1, 15), null)));
     }
+
+    /// <summary>Overage (positive signed quantity) behaves like a receipt at the supplied unit cost: a
+    /// (10,30) item (avg $3) taking a +5 @ $4 overage becomes (15,50) and posts Dr Inventory / Cr
+    /// InventoryAdjustment for the extended cost.</summary>
+    [Fact]
+    public async Task Overage_adjustment_costs_at_supplied_unit_cost_and_posts_inventory_debit()
+    {
+        (InventoryMovementService svc, InMemoryItemStore items, InMemoryStockMovementStore _, FakeLedgerClient ledger, FixedInventoryAccountsProvider accts) = Build();
+        Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
+        await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Receipt, 10m, 3m, new DateOnly(2026, 1, 1), null));
+
+        StockMovement mv = await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Adjustment, 5m, 4m, new DateOnly(2026, 1, 15), "Cycle count overage"));
+
+        Assert.Equal(4m, mv.AppliedUnitCost);
+        Assert.Equal(20m, mv.ExtendedCost);
+        Item after = (await items.GetAsync(Client, item.Id))!;
+        Assert.Equal(15m, after.OnHandQuantity);
+        Assert.Equal(50m, after.TotalValue);
+
+        Assert.Equal(2, ledger.Posted.Count);
+        PostEntryRequest posted = ledger.Posted[1];
+        Assert.Contains(posted.Lines, l => l.AccountId == accts.InventoryAssetAccountId && l.Direction == "Debit" && l.Amount == 20m);
+        Assert.Contains(posted.Lines, l => l.AccountId == accts.InventoryAdjustmentAccountId && l.Direction == "Credit" && l.Amount == 20m);
+    }
+
+    /// <summary>Shrinkage (negative signed quantity) costs at the item's current average — no unit cost is
+    /// supplied. A (10,30) item (avg $3) taking a -4 shrinkage becomes (6,18) and posts Dr
+    /// InventoryAdjustment / Cr Inventory for the extended cost.</summary>
+    [Fact]
+    public async Task Shrinkage_adjustment_costs_at_average_and_posts_inventory_credit()
+    {
+        (InventoryMovementService svc, InMemoryItemStore items, InMemoryStockMovementStore _, FakeLedgerClient ledger, FixedInventoryAccountsProvider accts) = Build();
+        Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
+        await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Receipt, 10m, 3m, new DateOnly(2026, 1, 1), null));
+
+        StockMovement mv = await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Adjustment, -4m, null, new DateOnly(2026, 1, 15), "Cycle count shrinkage"));
+
+        Assert.Equal(3m, mv.AppliedUnitCost);
+        Assert.Equal(12m, mv.ExtendedCost);
+        Item after = (await items.GetAsync(Client, item.Id))!;
+        Assert.Equal(6m, after.OnHandQuantity);
+        Assert.Equal(18m, after.TotalValue);
+
+        Assert.Equal(2, ledger.Posted.Count);
+        PostEntryRequest posted = ledger.Posted[1];
+        Assert.Contains(posted.Lines, l => l.AccountId == accts.InventoryAdjustmentAccountId && l.Direction == "Debit" && l.Amount == 12m);
+        Assert.Contains(posted.Lines, l => l.AccountId == accts.InventoryAssetAccountId && l.Direction == "Credit" && l.Amount == 12m);
+    }
+
+    [Fact]
+    public async Task Shrinkage_beyond_on_hand_throws_InvalidOperationException()
+    {
+        (InventoryMovementService svc, InMemoryItemStore items, _, _, _) = Build();
+        Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
+        await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Receipt, 10m, 3m, new DateOnly(2026, 1, 1), null));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Adjustment, -999m, null, new DateOnly(2026, 1, 15), null)));
+    }
+
+    [Fact]
+    public async Task Overage_missing_unit_cost_throws_ArgumentException()
+    {
+        (InventoryMovementService svc, InMemoryItemStore items, _, _, _) = Build();
+        Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
+        await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Receipt, 10m, 3m, new DateOnly(2026, 1, 1), null));
+
+        await Assert.ThrowsAsync<ArgumentException>(() => svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Adjustment, 5m, null, new DateOnly(2026, 1, 15), null)));
+    }
 }
