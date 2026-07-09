@@ -19,6 +19,7 @@ public static class InventoryEndpoints
         clients.MapGet("/items", ListItems);
 
         clients.MapPost("/movements", RecordMovement);
+        clients.MapPost("/movements/{id:guid}/void", VoidMovement);
         clients.MapGet("/movements/{id:guid}", GetMovement);
         clients.MapGet("/movements", ListMovements);
     }
@@ -42,6 +43,24 @@ public static class InventoryEndpoints
         catch (ArgumentException ex)
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
+        }
+    }
+
+    private static async Task<IResult> VoidMovement(
+        Guid clientId, Guid id, VoidReasonRequest? request, InventoryMovementService service, CancellationToken cancellationToken)
+    {
+        try
+        {
+            StockMovement movement = await service.VoidAsync(clientId, id, request?.Reason, cancellationToken);
+            return Results.Ok(new StockMovementView(movement));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status404NotFound);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
         }
     }
 

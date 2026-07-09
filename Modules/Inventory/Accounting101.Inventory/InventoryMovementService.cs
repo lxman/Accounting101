@@ -58,6 +58,46 @@ public sealed class InventoryMovementService(
         return movement;
     }
 
+    /// <summary>Voids the most-recent stock movement for its item — LIFO enforced: only the latest
+    /// non-void movement for the item may be voided, never an earlier one while a later one still stands.
+    /// Reverses the movement's spawned entry if posted (or withdraws it if still pending; tolerates a
+    /// stranded post with no entry at all), restores the item's valuation to its pre-movement state by
+    /// subtracting the movement's own signed effect, and flips the movement's Status to Void. Mirrors
+    /// FixedAssetsRunService.VoidRunAsync.</summary>
+    public async Task<StockMovement> VoidAsync(Guid clientId, Guid movementId, string? reason, CancellationToken ct = default)
+    {
+        StockMovement movement = await movements.GetAsync(clientId, movementId, ct)
+            ?? throw new KeyNotFoundException($"Stock movement {movementId} not found.");
+        if (movement.Status != MovementStatus.Posted)
+            throw new InvalidOperationException($"Only a posted movement can be voided; {movementId} is {movement.Status}.");
+
+        // LIFO — only the most recent non-voided movement FOR THIS ITEM may be voided.
+        StockMovement? latest = await movements.GetLatestForItemAsync(clientId, movement.ItemId, ct);
+        if (latest is null || latest.Id != movement.Id)
+            throw new InvalidOperationException("Only the most recent movement for this item can be voided.");
+
+        // Reverse the posted entry (or withdraw it if still pending). Tolerate a missing entry (stranded post).
+        IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, movementId, ct);
+        EntryResponse? entry = spawned.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null });
+        if (entry is not null)
+        {
+            if (entry.Posting == "Posted")
+                await ledger.ReverseAsync(clientId, entry.Id, new ReverseRequest(movement.EffectiveDate, reason ?? $"Voided movement {movementId}"), ct);
+            else
+                await ledger.VoidAsync(clientId, entry.Id, new VoidRequest(reason ?? $"Voided movement {movementId}"), ct);
+        }
+
+        // Restore the item's valuation to its pre-movement state (subtract this movement's applied effect).
+        Item item = await items.GetAsync(clientId, movement.ItemId, ct)
+            ?? throw new KeyNotFoundException($"Item {movement.ItemId} not found.");
+        decimal restoredOnHand = item.OnHandQuantity - movement.SignedQuantityEffect;
+        decimal restoredValue  = item.TotalValue     - movement.SignedValueEffect;
+        await items.SetValuationAsync(clientId, movement.ItemId, restoredOnHand, restoredValue, ct);
+
+        await movements.VoidAsync(clientId, movementId, ct);
+        return (await movements.GetAsync(clientId, movementId, ct))!;
+    }
+
     private static void ValidateShape(RecordMovement r)
     {
         switch (r.Type)

@@ -16,3 +16,6 @@ public sealed record RecordMovementRequest(
 {
     public RecordMovement ToRequest() => new(ItemId, Type, Quantity, UnitCost, EffectiveDate, Memo);
 }
+
+/// <summary>Optional free-text reason accompanying a void.</summary>
+public sealed record VoidReasonRequest(string? Reason);

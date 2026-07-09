@@ -208,4 +208,58 @@ public sealed class InventoryMovementServiceTests
         await Assert.ThrowsAsync<ArgumentException>(() => svc.RecordAsync(Client,
             new RecordMovement(item.Id, MovementType.Adjustment, 5m, null, new DateOnly(2026, 1, 15), null)));
     }
+
+    private static DateOnly D(int year, int month, int day) => new(year, month, day);
+
+    /// <summary>Voiding the latest movement for an item reverses (or withdraws) its spawned entry,
+    /// restores the item's pre-movement valuation, and flips the movement's own Status to Void.</summary>
+    [Fact]
+    public async Task Void_latest_restores_valuation_and_reverses_entry()
+    {
+        (var svc, var items, var movements, var ledger, _) = Build();
+        Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
+        await svc.RecordAsync(Client, new RecordMovement(item.Id, MovementType.Receipt, 10m, 2m, D(2026, 1, 10), null));
+        StockMovement issue = await svc.RecordAsync(Client, new RecordMovement(item.Id, MovementType.Issue, 4m, null, D(2026, 1, 20), null));
+        // item now (6, 12). Void the issue → back to (10, 20).
+        StockMovement voided = await svc.VoidAsync(Client, issue.Id, "oops");
+        Item after = (await items.GetAsync(Client, item.Id))!;
+        Assert.Equal(10m, after.OnHandQuantity);
+        Assert.Equal(20m, after.TotalValue);
+        Assert.True(ledger.ReversedOrWithdrawn);
+        Assert.Equal(MovementStatus.Void, voided.Status);
+    }
+
+    /// <summary>LIFO enforcement: only the most-recent non-voided movement for an item may be voided —
+    /// attempting to void an earlier movement while a later one still stands is rejected.</summary>
+    [Fact]
+    public async Task Void_of_non_latest_movement_throws_InvalidOperationException()
+    {
+        (InventoryMovementService svc, InMemoryItemStore items, _, _, _) = Build();
+        Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
+        StockMovement receipt = await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Receipt, 10m, 2m, D(2026, 1, 10), null));
+        await svc.RecordAsync(Client, new RecordMovement(item.Id, MovementType.Issue, 4m, null, D(2026, 1, 20), null));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => svc.VoidAsync(Client, receipt.Id, null));
+    }
+
+    [Fact]
+    public async Task Void_of_already_void_movement_throws_InvalidOperationException()
+    {
+        (InventoryMovementService svc, InMemoryItemStore items, _, _, _) = Build();
+        Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
+        StockMovement receipt = await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Receipt, 10m, 2m, D(2026, 1, 10), null));
+        await svc.VoidAsync(Client, receipt.Id, null);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => svc.VoidAsync(Client, receipt.Id, null));
+    }
+
+    [Fact]
+    public async Task Void_of_missing_movement_throws_KeyNotFoundException()
+    {
+        (InventoryMovementService svc, _, _, _, _) = Build();
+
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => svc.VoidAsync(Client, Guid.NewGuid(), null));
+    }
 }
