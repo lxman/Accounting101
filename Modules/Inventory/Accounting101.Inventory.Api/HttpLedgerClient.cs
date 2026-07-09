@@ -17,10 +17,9 @@ namespace Accounting101.Inventory.Api;
 /// never hardcoded.
 /// </para>
 /// <para>
-/// <see cref="ReverseAsync"/> and <see cref="VoidAsync"/> do NOT attach the credential. Those endpoints
-/// authorize <c>Reverse</c>/<c>Void</c> permissions, not <c>Post</c>; the user carries those permissions
-/// today and the engine does not require a module credential for them. Sending the credential anyway
-/// would be harmless but misleading — the module is not the originator of those lifecycle transitions.
+/// <see cref="ReverseAsync"/> and <see cref="VoidAsync"/> also attach the module credential
+/// (<c>X-Module-Key</c>/<c>X-Module-Secret</c>). The engine's mutation endpoints require it to authorize a
+/// correction of a module-owned entry: the correction must be driven by the owning module, not a raw user.
 /// </para>
 /// </summary>
 public sealed class HttpLedgerClient(
@@ -43,6 +42,8 @@ public sealed class HttpLedgerClient(
     public async Task<EntryResponse> ReverseAsync(Guid clientId, Guid entryId, ReverseRequest request, CancellationToken cancellationToken = default)
     {
         using HttpRequestMessage message = Forwarded(HttpMethod.Post, $"clients/{clientId}/entries/{entryId}/reverse");
+        message.Headers.TryAddWithoutValidation("X-Module-Key", credential.Key);
+        message.Headers.TryAddWithoutValidation("X-Module-Secret", credential.Secret);
         message.Content = JsonContent.Create(request);
         using HttpResponseMessage response = await http.SendAsync(message, cancellationToken);
         response.EnsureSuccessStatusCode();
@@ -52,6 +53,8 @@ public sealed class HttpLedgerClient(
     public async Task<EntryResponse> VoidAsync(Guid clientId, Guid entryId, VoidRequest request, CancellationToken cancellationToken = default)
     {
         using HttpRequestMessage message = Forwarded(HttpMethod.Post, $"clients/{clientId}/entries/{entryId}/void");
+        message.Headers.TryAddWithoutValidation("X-Module-Key", credential.Key);
+        message.Headers.TryAddWithoutValidation("X-Module-Secret", credential.Secret);
         message.Content = JsonContent.Create(request);
         using HttpResponseMessage response = await http.SendAsync(message, cancellationToken);
         response.EnsureSuccessStatusCode();

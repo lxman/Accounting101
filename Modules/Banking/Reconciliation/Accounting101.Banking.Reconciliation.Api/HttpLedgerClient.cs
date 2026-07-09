@@ -9,8 +9,14 @@ namespace Accounting101.Banking.Reconciliation.Api;
 
 /// <summary>The module's POSTING ledger client. Forwards the caller's bearer; on PostAsync also attaches the
 /// module credential (X-Module-Key/Secret) so the engine authorizes the module post and stamps
-/// ViaModule="reconciliation". Reverse/Void/GetEntriesBySourceRef forward the bearer only. Non-success
-/// responses throw a typed LedgerClientException so the module relays the engine's real status, not a 500.</summary>
+/// ViaModule="reconciliation".
+/// <para>
+/// ReverseAsync and VoidAsync also attach the module credential (X-Module-Key/X-Module-Secret). The engine's
+/// mutation endpoints require it to authorize a correction of a module-owned entry: the correction must be
+/// driven by the owning module, not a raw user. GetEntriesBySourceRefAsync forwards the bearer only.
+/// </para>
+/// Non-success responses throw a typed LedgerClientException so the module relays the engine's real status,
+/// not a 500.</summary>
 public sealed class HttpLedgerClient(
     HttpClient http,
     IHttpContextAccessor context,
@@ -30,6 +36,8 @@ public sealed class HttpLedgerClient(
     public async Task<EntryResponse> ReverseAsync(Guid clientId, Guid entryId, ReverseRequest request, CancellationToken cancellationToken = default)
     {
         using HttpRequestMessage message = Forwarded(HttpMethod.Post, $"clients/{clientId}/entries/{entryId}/reverse");
+        message.Headers.TryAddWithoutValidation("X-Module-Key", credential.Key);
+        message.Headers.TryAddWithoutValidation("X-Module-Secret", credential.Secret);
         message.Content = JsonContent.Create(request);
         using HttpResponseMessage response = await http.SendAsync(message, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
@@ -39,6 +47,8 @@ public sealed class HttpLedgerClient(
     public async Task<EntryResponse> VoidAsync(Guid clientId, Guid entryId, VoidRequest request, CancellationToken cancellationToken = default)
     {
         using HttpRequestMessage message = Forwarded(HttpMethod.Post, $"clients/{clientId}/entries/{entryId}/void");
+        message.Headers.TryAddWithoutValidation("X-Module-Key", credential.Key);
+        message.Headers.TryAddWithoutValidation("X-Module-Secret", credential.Secret);
         message.Content = JsonContent.Create(request);
         using HttpResponseMessage response = await http.SendAsync(message, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);

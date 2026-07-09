@@ -90,10 +90,16 @@ public sealed class PolicyTests(ApiFixture fixture) : IClassFixture<ApiFixture>
             $"/clients/{c.ClientId}/entries", Entry(cash, revenue, 100m));
         Assert.Equal(HttpStatusCode.Forbidden, post.StatusCode);
 
-        // Raw revise is denied too (the permission check precedes the entry lookup, so a
-        // nonexistent id still yields 403, not 404).
+        // Raw revise is denied too. The module-owned entry guard loads the target entry before
+        // deciding the authorization path (so it can read Audit.ViaModule), so the entry must
+        // exist and be posted for a meaningful permission check: a controller posts and approves,
+        // then the clerk is refused.
+        HttpClient poster = await fixture.AddMemberAsync(c.ClientId, LedgerRole.Controller);
+        Guid id = await PostAsync(poster, c.ClientId, cash, revenue, 100m);
+        (await poster.PostAsync($"/clients/{c.ClientId}/entries/{id}/approve", null)).EnsureSuccessStatusCode();
+
         HttpResponseMessage revise = await c.Http.PostAsJsonAsync(
-            $"/clients/{c.ClientId}/entries/{Guid.NewGuid()}/revise",
+            $"/clients/{c.ClientId}/entries/{id}/revise",
             new ReviseRequest(null, new DateOnly(2026, 4, 1), null, null, "x",
                 [new PostLineRequest(cash, "Debit", 100m), new PostLineRequest(revenue, "Credit", 100m)]));
         Assert.Equal(HttpStatusCode.Forbidden, revise.StatusCode);
@@ -132,10 +138,17 @@ public sealed class PolicyTests(ApiFixture fixture) : IClassFixture<ApiFixture>
     public async Task A_clerk_cannot_reverse()
     {
         SeededClient c = await fixture.SeedClientAsync(role: LedgerRole.Clerk);
+        Guid cash = Guid.NewGuid(), revenue = Guid.NewGuid();
 
-        // The permission check precedes the entry lookup, so a clerk is refused outright.
+        // The module-owned entry guard loads the target entry before deciding the authorization
+        // path (so it can read Audit.ViaModule), so the entry must exist and be posted for a
+        // meaningful permission check: a controller posts and approves, then the clerk is refused.
+        HttpClient poster = await fixture.AddMemberAsync(c.ClientId, LedgerRole.Controller);
+        Guid id = await PostAsync(poster, c.ClientId, cash, revenue, 100m);
+        (await poster.PostAsync($"/clients/{c.ClientId}/entries/{id}/approve", null)).EnsureSuccessStatusCode();
+
         HttpResponseMessage reverse = await c.Http.PostAsJsonAsync(
-            $"/clients/{c.ClientId}/entries/{Guid.NewGuid()}/reverse",
+            $"/clients/{c.ClientId}/entries/{id}/reverse",
             new ReverseRequest(new DateOnly(2026, 4, 1), null));
         Assert.Equal(HttpStatusCode.Forbidden, reverse.StatusCode);
     }

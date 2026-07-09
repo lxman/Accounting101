@@ -4,6 +4,7 @@ using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Control;
 using Accounting101.Ledger.Api.Tenancy;
 using Accounting101.Ledger.Mongo;
+using Microsoft.AspNetCore.Http;
 
 namespace Accounting101.Ledger.Api.Endpoints;
 
@@ -65,6 +66,56 @@ public sealed class LedgerGateway(IActorFactory actorFactory, ControlStore contr
 
         // Raw path: user must hold Post permission (unchanged from today).
         return await ResolveAsync(user, clientId, Permission.Post, cancellationToken);
+    }
+
+    /// <summary>Resolve actor + ledger for a caller who is a MEMBER of the client, without gating on any
+    /// specific permission — so an entry-mutation endpoint can load the target entry before deciding the
+    /// authorization path. Mutation authz is applied afterward via <see cref="AuthorizeEntryMutationAsync"/>.</summary>
+    public async Task<LedgerContext> ResolveMemberAsync(
+        ClaimsPrincipal user, Guid clientId, CancellationToken cancellationToken)
+    {
+        Actor actor = actorFactory.Create(user);
+        Membership? membership = await control.GetMembershipAsync(actor.UserId, clientId, cancellationToken);
+        if (membership is null) return LedgerContext.Forbidden();
+        ClientLedger? ledger = await ledgers.CreateAsync(clientId, cancellationToken);
+        return ledger is null ? LedgerContext.NotFound() : LedgerContext.Ok(actor, ledger);
+    }
+
+    /// <summary>Authorize a void/reverse/revise of an already-loaded entry. Two paths, decided by whether the
+    /// target entry is module-owned:
+    /// <list type="bullet">
+    ///   <item><b>Manual entry</b> (<paramref name="entryViaModule"/> null): unchanged — the caller's role must
+    ///     hold <paramref name="rawPermission"/>.</item>
+    ///   <item><b>Module-owned entry</b>: the request MUST carry the owning module's credential
+    ///     (<c>X-Module-Key</c>/<c>X-Module-Secret</c> whose key equals <paramref name="entryViaModule"/>) and that
+    ///     module must be authorized (registered + enabled, caller a member). A raw caller — no matching module
+    ///     credential — is refused (409): the correction must go through the owning module. (Break-glass admin
+    ///     override is a documented follow-up; module-owned entries are default-closed to raw mutation.)</item>
+    /// </list>
+    /// Returns null when the mutation is allowed, or an <see cref="IResult"/> error (403/409) when refused.</summary>
+    public async Task<IResult?> AuthorizeEntryMutationAsync(
+        ClaimsPrincipal user, Guid clientId, string? entryViaModule, Permission rawPermission,
+        IModuleAuthenticator moduleAuth, CancellationToken cancellationToken)
+    {
+        Actor actor = actorFactory.Create(user);
+
+        if (entryViaModule is null)
+        {
+            Membership? membership = await control.GetMembershipAsync(actor.UserId, clientId, cancellationToken);
+            if (membership is null || !membership.Capabilities.Contains(Capabilities.CapabilityForPermission(rawPermission)))
+                return Results.Forbid();
+            return null;
+        }
+
+        ModuleIdentity? module = await moduleAuth.AuthenticateAsync();
+        if (module is null || !string.Equals(module.Key, entryViaModule, StringComparison.Ordinal))
+            return Results.Problem(
+                $"Entry belongs to module '{entryViaModule}'; void or reverse it through that module, not the raw journal.",
+                statusCode: StatusCodes.Status409Conflict);
+
+        ModuleAccessDecision decision = await moduleAccess.AuthorizeAsync(
+            module, module.Key, actor.UserId, clientId, ModuleAccessLevel.Write, cancellationToken);
+        return decision == ModuleAccessDecision.Allowed ? null : Results.Forbid();
     }
 }
 
