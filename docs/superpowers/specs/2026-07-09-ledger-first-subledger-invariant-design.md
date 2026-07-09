@@ -122,3 +122,4 @@ Recommendation: **(a)** — merge Inventory consistent-with-siblings, then conve
 - **Dimension cardinality/indexing:** confirm the engine's dimension store indexes per-(account,dimension,value) folds efficiently at invoice/customer/item cardinality; add indexes if not.
 - **Break-glass audit shape** for the admin escape hatch.
 - Whether the control-total self-check (§7/§4) is worth building at all once nothing is stored twice.
+- Break-glass admin override for module-owned entries: NOT built in the guard plan (2026-07-09-module-entry-guard.md) — module-owned entries are default-closed to raw mutation. Follow-up must define the deployment-admin + step-up + audit shape before adding an override path.
