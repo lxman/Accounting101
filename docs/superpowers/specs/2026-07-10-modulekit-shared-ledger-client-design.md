@@ -32,24 +32,40 @@ Extract the shared module→ledger surface into a small **ModuleKit** — a dev-
 module authors — so the exception, the relay helpers, the ledger-truth resolver,
 and the HTTP client plumbing each have exactly one home. Each module's concrete
 client collapses to a thin subclass; its narrow `ILedgerClient` interface stays
-per-module (ISP preserved). This is a **pure, behavior-preserving refactor** — no
-observable behavior change — that also gives the previously-uncovered resolver its
-first direct tests and makes closing the deferred write-path relay gap a trivial
-follow-up.
+per-module (ISP preserved). The extraction is behavior-preserving; on top of it,
+because every module now throws the one typed exception uniformly, a **single
+relay middleware** (provided by ModuleKit, registered once in the host) can
+translate any escaping `LedgerClientException` into a clean 4xx — closing the
+write-path relay gap for all modules at once and letting the ~22 scattered
+per-endpoint `catch` arms be deleted. The resolver also gains its first direct
+tests.
+
+### Where the 500s come from (and why the fix is one middleware, not the engine)
+
+The ledger engine is already correct: it returns clean 4xx `ProblemDetails` for
+every refusal it owns (409 closed-period, 422 unbalanced / fold-dimension-mismatch,
+403 SoD). A 500 is *manufactured inside the module* when the typed
+`LedgerClientException` escapes an endpoint that doesn't `catch` it — ASP.NET's
+default pipeline turns any unhandled exception into a 500. So there is nothing to
+fix at the ledger level; the fix belongs one level *above* the endpoints, at the
+module-host boundary. Once the refactor makes every module throw the single
+`ModuleKit.LedgerClientException`, one middleware at that boundary relays it
+faithfully — a real engine 500 stays 500 (honest), a clean 4xx is relayed as a 4xx
+(no longer swallowed). This is the reusable payoff that justifies ModuleKit: the
+relay becomes *one home*, not N endpoint catches.
 
 ## Non-goals (explicit — not bundled here)
 
-1. **Closing the write-path relay gap.** post/reverse/void still surface 500 (not a
-   clean 4xx) where their endpoints don't `catch (LedgerClientException)`. This
-   refactor makes the typed exception uniform across all modules, turning that
-   closure into a one-catch-per-endpoint follow-up — but does not do it here (it is
-   a deliberate behavior change).
-2. **Unifying the `ILedgerClient` interfaces.** They stay narrow and per-module by
+1. **Unifying the `ILedgerClient` interfaces.** They stay narrow and per-module by
    design (ISP: consumers see only the methods they use). Only the *implementation*
    is shared.
-3. **Onboarding/startup chart validation** — unrelated deferred item.
-4. **Touching the engine.** Nothing in `Backend/` changes; ModuleKit references the
+2. **Onboarding/startup chart validation** — unrelated deferred item.
+3. **Touching the engine.** Nothing in `Backend/` changes; ModuleKit references the
    engine, never the reverse.
+4. **Retiring the host's existing exception middleware.** The host already maps
+   `ModuleAccessDeniedException` → 403 and `JsonException` → 400 (`Program.cs:46`).
+   That stays; the ModuleKit relay is an additional, disjoint middleware for
+   `LedgerClientException` only.
 
 ## Scope decisions (and the reasoning)
 
@@ -65,14 +81,25 @@ Cash/Payroll *domain* projects to depend on an Api assembly (dragging AspNetCore
 inversion. So:
 
 - **`Accounting101.ModuleKit`** (domain-safe) — references only
-  `Accounting101.Ledger.Contracts`.
+  `Accounting101.Ledger.Contracts`. Holds `LedgerTruth` (used by Cash/Payroll
+  *domain* services) and the pure `LedgerClientException`.
 - **`Accounting101.ModuleKit.Api`** (Api-side) — references
-  `Accounting101.ModuleKit` + `Accounting101.Ledger.Api` +
-  `Microsoft.AspNetCore.Http.Abstractions`.
+  `Accounting101.ModuleKit` + `Accounting101.Ledger.Api`, with a
+  `<FrameworkReference Include="Microsoft.AspNetCore.App" />` (it needs
+  `IHttpContextAccessor` for the client base and `IApplicationBuilder`/`Results` for
+  the relay middleware). Holds the `ModuleLedgerClient` base, the relay middleware,
+  and the DI extension.
 
-Concrete proof the exception belongs in the domain-safe half: the AR/AP **domain**
-services (`InvoiceService`, `BillService`) already `catch (LedgerClientException)`,
-so those domain projects must see the type without an Api dependency.
+The **forcing constraint** for the domain-safe assembly is the `LedgerTruth`
+resolver: it is consumed in the domain layer (`CashService`/`PayrollService`), whose
+projects reference only `Ledger.Contracts` and must not gain an Api dependency.
+`LedgerClientException` is placed in the same domain-safe assembly because it is a
+pure, dependency-free type and that is the Core tier the Api tier builds on — not
+because domain code catches it (it does not: the AR/AP domain services only let it
+propagate, so the doc stays Draft; only `.Api` endpoints and the relay middleware
+reference the type). Consequently only **Cash and Payroll** domain projects gain a
+`ModuleKit` reference (for `LedgerTruth`); the other modules touch ModuleKit only
+from their `.Api` projects.
 
 **`ILedgerClient` interfaces stay narrow and per-module.** The audit
 ([[accounting101-module-shared-sdk-audit]]) established these diverge by design:
@@ -117,13 +144,22 @@ implementation moves to the base.
     and `ValidateAsync` (they send `X-Module-Key`/`X-Module-Secret`); `ApproveAsync`
     and all reads do **not** attach it — the exact same rule as the current AR/AP
     implementations.
-  - All operations call `EnsureSuccessAsync` (relay everywhere) — see Behavior
-    Preservation for why this is observable-behavior-neutral.
+  - All operations call `EnsureSuccessAsync` (relay everywhere), so every non-2xx —
+    read or write — throws `LedgerClientException` uniformly. This is the precondition
+    the single relay middleware needs; see "Behavior: what's preserved, what improves."
 - **`AddModuleLedgerClient<TInterface, TClient>(this IServiceCollection, string name)`**
   — a DI extension standardizing the named typed-`HttpClient` + typed-client
   registration each module's `ServiceExtensions` does by hand today, where
   `TClient : ModuleLedgerClient, TInterface` and `name` is the module key /
   HttpClient name.
+- **`UseModuleLedgerExceptionRelay(this IApplicationBuilder)`** — a middleware that
+  wraps the pipeline; on an escaping `LedgerClientException` it writes an
+  `application/problem+json` response with `Status = ex.StatusCode` and
+  `Detail = ex.Reason` (matching the host's existing hand-rolled exception
+  middleware convention, `Program.cs:46`). It catches *only* `LedgerClientException`;
+  every other exception falls through unchanged. Registered once in the host
+  (`app.UseModuleLedgerExceptionRelay();`), it is the single home of the relay — a
+  real engine 500 relays as a structured 500, a clean 4xx relays as that 4xx.
 
 ### Per-module concrete client (sub-choice **2b**: public base + selector interface)
 
@@ -153,52 +189,80 @@ consumer → injects narrow IXLedgerClient
          → concrete XHttpLedgerClient (ctor-only) : ModuleLedgerClient
               → Forwarded(bearer) + [X-Module-Key/Secret on writes] → engine
               → EnsureSuccessAsync → (non-2xx) throw ModuleKit.LedgerClientException
-                 → module endpoint / domain service catch relays it (unchanged per module)
+                 → propagates out of the endpoint
+                 → UseModuleLedgerExceptionRelay middleware → problem+json (ex.StatusCode, ex.Reason)
 
 CashService/PayrollService status read → LedgerTruth.ShowsVoided(entriesForOneDoc)
    → union with envelope status (promote-only) — unchanged
 ```
 
-## Behavior preservation (the acceptance bar)
+## Behavior: what's preserved, what improves
 
-Zero observable behavior change:
+**Preserved (the refactor half):**
 
-- **Relay per module is preserved.** The base throws `LedgerClientException` on any
-  non-2xx. AR/AP/Reconciliation already relayed on every path → identical. FA/
-  Inventory relayed on reads and 500'd on writes → still 500 on writes (their write
-  endpoints don't catch it; the internal exception type changes, the client-observed
-  result doesn't). Cash/Payroll had no relay → same, still 500 where uncaught.
-  Nothing an endpoint currently catches changes; nothing it doesn't catch changes.
-- **`LedgerTruth.ShowsVoided` is bit-identical** to the two resolvers it replaces.
+- **`LedgerTruth.ShowsVoided` is bit-identical** to the two resolvers it replaces —
+  Cash/Payroll status reads unchanged.
 - **Credential attach, `ViaModule` stamping, named clients** all preserved — the
   engine authorizes and stamps exactly as before.
+- **Paths that already relayed** (AR/AP/Reconciliation everywhere; FA/Inventory
+  reads) return the **same** response: previously via a per-endpoint
+  `Results.Problem(ex.Reason, statusCode: ex.StatusCode)`, now via the middleware,
+  which produces the identical status + detail. Deleting those catch arms is
+  behavior-identical.
+
+**Improves (the relay-closure half — the intentional change):**
+
+- **Uncaught write paths stop manufacturing 500s.** post/reverse/void on FA,
+  Inventory, Cash, Payroll, plus FA `UpdateAsset`/`ReactivateAsset` and Inventory
+  `ReactivateItem`, previously let the exception escape → 500. The middleware now
+  relays the engine's real status (409/422/403) as `problem+json`. This closes the
+  deferred write-path relay gap.
+- **Genuine engine 500s remain 500** — the middleware relays whatever status the
+  engine returned, so it never masks a real server fault; it only stops turning a
+  clean 4xx into a 500.
+- **Non-`LedgerClientException` exceptions** (module bugs) are untouched — the
+  middleware ignores them; the default pipeline still 500s.
 
 ## Migration & blast radius
 
 **New (once):** the two ModuleKit projects + a `ModuleKit` test project, added to
-`Accounting101.slnx`. Green with zero consumers first.
+`Accounting101.slnx`. Register `app.UseModuleLedgerExceptionRelay();` in
+`Accounting101.Host/Program.cs` (adjacent to the existing exception middleware,
+before `MapXEndpoints`). Green with zero module consumers — the middleware catches
+`ModuleKit.LedgerClientException`, which nothing throws yet, so it is inert until
+modules migrate.
 
 **All 7 modules:** `HttpLedgerClient.cs` → ~5-line 2b subclass; `.Api` `.csproj` +=
 `ModuleKit.Api`; `ServiceExtensions` adopts `AddModuleLedgerClient<…>(…)`.
 
-**5 modules with `LedgerClientException`** (AR, AP, Reconciliation, FA, Inventory):
-delete the file; re-namespace every reference to
-`Accounting101.ModuleKit.LedgerClientException` — catch sites in `.Api` endpoints
-**and** the AR/AP domain services (`InvoiceService`/`BillService`); those domain
-projects += `ModuleKit`.
+**5 modules with `LedgerClientException`** (AR 11, AP 5, Reconciliation 2, FA 2,
+Inventory 2 — 22 `catch (LedgerClientException)` arms total): delete the local
+`LedgerClientException.cs`; **delete every `catch (LedgerClientException)` arm**
+(keep the sibling `catch (InvalidOperationException)` arms) — the global middleware
+now owns that relay. Because each module only starts throwing
+`ModuleKit.LedgerClientException` once its client is swapped to the base, the client
+swap and the catch deletions happen in the **same task**, so at every commit the
+module's relay is served by exactly one mechanism (its own catches before, the
+middleware after). Their domain projects do **not** gain a `ModuleKit` reference
+(they don't reference the type in code).
 
 **Cash + Payroll:** delete `CashLedgerStatus.cs` / `PayrollLedgerStatus.cs`;
 `CashService`/`PayrollService` call `LedgerTruth.ShowsVoided(...)`; domain `.csproj`
-+= `ModuleKit`. They also inherit the base's relay helpers (behavior-preserving).
++= `ModuleKit`. They have no `LedgerClientException` catches today; after the client
+swap they gain relay via the middleware for the first time (write-path improvement).
 
 **Tests:** module `Fakes.cs` implement each `ILedgerClient` directly (not via the
 base) → untouched except any referencing `LedgerClientException` by its old
-namespace.
+namespace. FA/Inventory `LedgerErrorRelayE2eTests` keep passing — they now exercise
+the middleware relay instead of a per-endpoint catch (still valid regression
+guards).
 
-**Ordering (green at every commit):** build both ModuleKit assemblies + unit tests
-first → migrate **Cash first** as the pattern-setter (it exercises *both* assemblies
-— resolver and client base) and verify → then the remaining six, deleting each
-module's local copies only as it migrates.
+**Ordering (green at every commit):** (1) build both ModuleKit assemblies + unit
+tests **and register the middleware in the host** first — the relay is live before
+any catch is deleted, so no read path regresses to 500. (2) migrate **Cash** as the
+pattern-setter (exercises *both* assemblies — resolver and client base) and verify.
+(3) migrate the remaining six, each deleting its local copies + catch arms in the
+same commit.
 
 ## Testing
 
@@ -211,30 +275,38 @@ module's local copies only as it migrates.
   AR/AP `HttpLedgerClientTests`.
 - **Existing per-module suites are the regression oracle** — FA 112, Inventory 94,
   and the AR/AP/Cash/Payroll/Reconciliation suites plus the whole-solution run stay
-  green unchanged; that is what proves behavior preservation. The relay E2E tests
-  (`LedgerErrorRelayE2eTests`, AR/AP relay tests) exercise the base's relay through
-  the real host post-migration.
-- **No new E2E behavior** beyond the SDK's own unit tests.
+  green unchanged; that is what proves the refactor half preserved behavior. The
+  relay E2E tests (`LedgerErrorRelayE2eTests`, AR/AP relay tests) exercise the
+  middleware relay through the real host post-migration.
+- **One new write-path relay E2E test** proving the closure: a module *write*
+  (e.g. an FA depreciation-run void, or a Cash disbursement void, dated into a
+  closed period) that the engine refuses now returns the relayed 4xx `problem+json`,
+  **not** a 500 — the behavior this effort adds. Mirror the existing AR/AP
+  `LedgerErrorRelayE2eTests` closed-period scenario, on a module whose write path
+  previously 500'd.
 
 ## Success criteria
 
 - One home each for `LedgerClientException`, `LedgerTruth.ShowsVoided`, the relay
-  helpers, and the client plumbing; the 5/5/2/7 duplication counts drop to 1 each.
+  helpers, and the client plumbing; the 5/5/2/7 duplication counts drop to 1 each,
+  and the 22 per-endpoint `catch (LedgerClientException)` arms drop to one host
+  middleware.
 - Every module's concrete client is a ctor-only 2b subclass; narrow per-module
   `ILedgerClient` interfaces unchanged.
 - Two new assemblies, correct dependency direction (arrows point toward the engine
   only); engine untouched.
-- Whole solution green with no test changes beyond namespace updates + the new
-  ModuleKit unit tests; behavior observably unchanged.
+- **No module write path manufactures a 500 from a clean engine 4xx** — every
+  ledger refusal (read or write) relays as `problem+json` with the engine's status
+  and reason; genuine engine 500s still relay as 500.
+- Whole solution green — existing suites unchanged except namespace updates, plus
+  the new ModuleKit unit tests and the one write-path relay E2E.
 
 ## Future Work (deferred — documented so the analysis isn't lost)
 
-- **Write-path relay closure** — add `catch (LedgerClientException)` to the
-  post/reverse/void endpoints (and the FA `UpdateAsset`/`ReactivateAsset` +
-  Inventory `ReactivateItem` write-path re-fold endpoints) so they surface a clean
-  4xx instead of 500. This refactor makes it uniform and trivial; it is a separate,
-  deliberate behavior change.
 - **`AddModuleLedgerClient` could grow** into a fuller module-registration helper
   (manifest, document store, authenticator wiring) if a future module author needs
   it — but YAGNI until then; this SDK covers only the ledger-client surface that is
   actually duplicated today.
+- **Onboarding/startup chart validation** — prevent the fold-dimension misconfig up
+  front rather than relay its 422 at runtime. Unrelated cross-module item; unchanged
+  by this work.
