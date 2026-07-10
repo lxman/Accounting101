@@ -15,12 +15,14 @@ public sealed class DepreciationRunE2eTests(FixedAssetsHostFixture fixture) : IC
     private async Task SetUpChartAsync(HttpClient http, Guid clientId)
     {
         await PutAccountAsync(http, clientId, fixture.DepreciationExpenseAccountId,     "6200", "Depreciation Expense",     "Expense");
-        await PutAccountAsync(http, clientId, fixture.AccumulatedDepreciationAccountId, "1590", "Accumulated Depreciation", "Asset");
+        await PutAccountAsync(http, clientId, fixture.AccumulatedDepreciationAccountId, "1590", "Accumulated Depreciation", "Asset",
+            requiredDimensions: ["Asset"]);
     }
 
-    private static async Task PutAccountAsync(HttpClient http, Guid clientId, Guid accountId, string number, string name, string type) =>
+    private static async Task PutAccountAsync(HttpClient http, Guid clientId, Guid accountId, string number, string name, string type,
+        IReadOnlyList<string>? requiredDimensions = null) =>
         (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{accountId}",
-            new { Number = number, Name = name, Type = type, RequiredDimension = (string?)null }))
+            new AccountRequest { Number = number, Name = name, Type = type, RequiredDimensions = requiredDimensions }))
             .EnsureSuccessStatusCode();
 
     private static async Task<AssetView> CreateAssetAsync(HttpClient http, Guid clientId, SaveAssetRequest req) =>
@@ -167,5 +169,26 @@ public sealed class DepreciationRunE2eTests(FixedAssetsHostFixture fixture) : IC
         HttpResponseMessage run = await http.PostAsJsonAsync(
             $"/clients/{clientId}/depreciation-runs", new RunDepreciationRequest(2026, 1, null, null));
         Assert.Equal(HttpStatusCode.Forbidden, run.StatusCode);
+    }
+
+    /// <summary>Proves the Task 3 enforcement flip: once Accumulated Depreciation requires the Asset
+    /// dimension, an untagged (unfoldable) accum line becomes structurally impossible — the engine
+    /// rejects it at post, 422, naming the missing dimension. This bypasses the depreciation-run recipe
+    /// entirely and posts a hand-built entry directly, so it proves the engine-level guarantee independent
+    /// of the recipe's own (already-correct, per Task 2) dimensioning.</summary>
+    [Fact]
+    public async Task Accumulated_depreciation_account_rejects_an_untagged_line()
+    {
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
+        await SetUpChartAsync(http, clientId); // sets RequiredDimensions=["Asset"] on the accum account
+
+        PostEntryRequest e = new(null, new DateOnly(2026, 6, 30), "R", "m",
+        [
+            new PostLineRequest(fixture.DepreciationExpenseAccountId, "Debit", 100m),
+            new PostLineRequest(fixture.AccumulatedDepreciationAccountId, "Credit", 100m), // no Asset
+        ]);
+        HttpResponseMessage r = await http.PostAsJsonAsync($"/clients/{clientId}/entries", e);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, r.StatusCode);
+        Assert.Contains("Asset", await r.Content.ReadAsStringAsync());
     }
 }

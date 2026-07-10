@@ -14,16 +14,18 @@ public sealed class DisposalE2eTests(FixedAssetsHostFixture fixture) : IClassFix
     private async Task SetUpChartAsync(HttpClient http, Guid clientId)
     {
         await PutAccountAsync(http, clientId, fixture.DepreciationExpenseAccountId,     "6200", "Depreciation Expense",     "Expense");
-        await PutAccountAsync(http, clientId, fixture.AccumulatedDepreciationAccountId, "1590", "Accumulated Depreciation", "Asset");
+        await PutAccountAsync(http, clientId, fixture.AccumulatedDepreciationAccountId, "1590", "Accumulated Depreciation", "Asset",
+            requiredDimensions: ["Asset"]);
         await PutAccountAsync(http, clientId, fixture.AssetCostAccountId,               "1500", "Fixed Assets",             "Asset");
         await PutAccountAsync(http, clientId, fixture.DisposalProceedsAccountId,        "1000", "Cash",                     "Asset");
         await PutAccountAsync(http, clientId, fixture.GainOnDisposalAccountId,          "7100", "Gain on Disposal",         "Revenue");
         await PutAccountAsync(http, clientId, fixture.LossOnDisposalAccountId,          "7200", "Loss on Disposal",         "Expense");
     }
 
-    private static async Task PutAccountAsync(HttpClient http, Guid clientId, Guid accountId, string number, string name, string type) =>
+    private static async Task PutAccountAsync(HttpClient http, Guid clientId, Guid accountId, string number, string name, string type,
+        IReadOnlyList<string>? requiredDimensions = null) =>
         (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{accountId}",
-            new { Number = number, Name = name, Type = type, RequiredDimension = (string?)null })).EnsureSuccessStatusCode();
+            new AccountRequest { Number = number, Name = name, Type = type, RequiredDimensions = requiredDimensions })).EnsureSuccessStatusCode();
 
     private static async Task<AssetView> CreateAssetAsync(HttpClient http, Guid clientId, SaveAssetRequest req) =>
         (await (await http.PostAsJsonAsync($"/clients/{clientId}/assets", req)).EnsureSuccessStatusCode()
