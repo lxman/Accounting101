@@ -25,11 +25,16 @@ public sealed class FixedAssetsRunService(
             throw new InvalidOperationException($"A depreciation run already exists for {period.Year}-{period.Month:D2}.");
 
         // 2. Enumerate eligible active assets (in service on/before the period, not fully depreciated).
+        // Accumulated depreciation is folded from the ledger (pending-inclusive: declining-balance bases the
+        // next period on prior accum, which must include a not-yet-approved earlier run in the same batch)
+        // and overlaid per asset before the depreciation method reads it.
+        Dictionary<Guid, decimal> accum = await FoldAccumAsync(clientId, ct); // pending-inclusive
         List<DepreciationRunLine> lines = [];
-        foreach (Asset asset in await ActiveAssetsAsync(clientId, ct))
+        foreach (Asset stored in await ActiveAssetsAsync(clientId, ct))
         {
-            if (asset.Status != AssetStatus.Active) continue; // disposed assets don't depreciate
-            if (!period.OnOrAfterServiceMonth(asset.InServiceDate)) continue;
+            if (stored.Status != AssetStatus.Active) continue; // disposed assets don't depreciate
+            if (!period.OnOrAfterServiceMonth(stored.InServiceDate)) continue;
+            Asset asset = stored with { AccumulatedDepreciation = accum.GetValueOrDefault(stored.Id) };
             decimal amount = methods.For(asset.Method).DepreciationForPeriod(asset);
             if (amount > 0m) lines.Add(new DepreciationRunLine(asset.Id, amount));
         }
@@ -90,6 +95,15 @@ public sealed class FixedAssetsRunService(
 
     public Task<DepreciationRun?> GetRunAsync(Guid clientId, Guid runId, CancellationToken ct = default) =>
         runs.GetAsync(clientId, runId, ct);
+
+    // Pending-inclusive per-asset accumulated depreciation, negated (contra-asset: the debit-positive fold
+    // reads Accumulated Depreciation's credit balance NEGATIVE, so accum = −Balance).
+    private async Task<Dictionary<Guid, decimal>> FoldAccumAsync(Guid clientId, CancellationToken ct)
+    {
+        FixedAssetsPostingAccounts acc = await accounts.GetAccountsAsync(clientId, ct);
+        return (await ledger.GetSubledgerAsync(clientId, acc.AccumulatedDepreciationAccountId, "Asset", null, ct, includePending: true))
+            .ToDictionary(l => l.DimensionValue, l => -l.Balance);
+    }
 
     /// <summary>All active (non-deactivated) assets for the client — the depreciation candidate set.</summary>
     private async Task<IReadOnlyList<Asset>> ActiveAssetsAsync(Guid clientId, CancellationToken ct)

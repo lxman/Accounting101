@@ -45,11 +45,14 @@ public sealed class DisposalE2eTests(FixedAssetsHostFixture fixture) : IClassFix
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         DisposalView disposal = (await created.Content.ReadFromJsonAsync<DisposalView>())!;
         Assert.Equal(500m, disposal.Disposal.GainLoss);
+        // The final accumulated depreciation is captured on the evidentiary disposal doc.
+        Assert.Equal(2500m, disposal.Disposal.AccumulatedAtDisposal);
 
-        // Asset is Disposed with final accumulated.
+        // Asset is Disposed; its reported accumulated depreciation folds the ledger, which the disposal
+        // entry cleared (the {Asset} accum debit nets the fold to 0), so a disposed asset reports 0.
         AssetView after = (await http.GetFromJsonAsync<AssetView>($"/clients/{clientId}/assets/{asset.Asset.Id}"))!;
         Assert.Equal(AssetStatus.Disposed, after.Asset.Status);
-        Assert.Equal(2500m, after.Asset.AccumulatedDepreciation);
+        Assert.Equal(0m, after.Asset.AccumulatedDepreciation);
 
         // One balanced PendingApproval entry via fixedassets.
         EntryResponse[] entries = (await http.GetFromJsonAsync<EntryResponse[]>(

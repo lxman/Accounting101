@@ -46,12 +46,6 @@ public sealed class DepreciationRunE2eTests(FixedAssetsHostFixture fixture) : IC
         DepreciationRunView run = (await created.Content.ReadFromJsonAsync<DepreciationRunView>())!;
         Assert.Equal(1500m, run.Run.Total); // 500 + 1000
 
-        // Assets advanced.
-        AssetView slAfter = (await http.GetFromJsonAsync<AssetView>($"/clients/{clientId}/assets/{sl.Asset.Id}"))!;
-        AssetView dbAfter = (await http.GetFromJsonAsync<AssetView>($"/clients/{clientId}/assets/{db.Asset.Id}"))!;
-        Assert.Equal(500m, slAfter.Asset.AccumulatedDepreciation);
-        Assert.Equal(1000m, dbAfter.Asset.AccumulatedDepreciation);
-
         // One balanced PendingApproval entry via fixedassets.
         EntryResponse[] entries = (await http.GetFromJsonAsync<EntryResponse[]>(
             $"/clients/{clientId}/entries?sourceRef={run.Run.Id}"))!;
@@ -64,6 +58,19 @@ public sealed class DepreciationRunE2eTests(FixedAssetsHostFixture fixture) : IC
             l.AccountId == fixture.AccumulatedDepreciationAccountId && l.Direction == "Credit" && l.Dimensions["Asset"] == sl.Asset.Id).Amount);
         Assert.Equal(1000m, entry.Lines.Single(l =>
             l.AccountId == fixture.AccumulatedDepreciationAccountId && l.Direction == "Credit" && l.Dimensions["Asset"] == db.Asset.Id).Amount);
+
+        // Reported accumulated depreciation folds the ledger Posted-only, so it reflects the run only once
+        // the entry is approved (single-client seed: SoD not required, so the same Controller may approve).
+        // Before approval the fold is 0; after approval it equals each asset's per-{Asset} accum credit.
+        AssetView slPending = (await http.GetFromJsonAsync<AssetView>($"/clients/{clientId}/assets/{sl.Asset.Id}"))!;
+        Assert.Equal(0m, slPending.Asset.AccumulatedDepreciation); // pending run not yet on the books
+
+        (await http.PostAsync($"/clients/{clientId}/entries/{entry.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        AssetView slAfter = (await http.GetFromJsonAsync<AssetView>($"/clients/{clientId}/assets/{sl.Asset.Id}"))!;
+        AssetView dbAfter = (await http.GetFromJsonAsync<AssetView>($"/clients/{clientId}/assets/{db.Asset.Id}"))!;
+        Assert.Equal(500m, slAfter.Asset.AccumulatedDepreciation);
+        Assert.Equal(1000m, dbAfter.Asset.AccumulatedDepreciation);
     }
 
     [Fact]

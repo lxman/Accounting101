@@ -37,7 +37,11 @@ public sealed class FixedAssetsDisposalService(
         IDepreciationMethod method = methods.For(asset.Method);
         int targetMonths = DepreciationSchedule.TargetMonths(asset, request.DisposalDate);
         decimal targetAccumulated = DepreciationSchedule.AccumulatedAfter(method, asset, targetMonths);
-        decimal currentAccumulated = asset.AccumulatedDepreciation;
+        // Current accumulated depreciation folded from the ledger (pending-inclusive: a not-yet-approved
+        // run's accum must be included so catch-up is measured against the real prior basis), negated
+        // (contra-asset: the debit-positive fold reads the credit balance NEGATIVE, so accum = −Balance).
+        decimal currentAccumulated = (await ledger.GetSubledgerAsync(clientId, postingAccounts.AccumulatedDepreciationAccountId, "Asset", null, ct, includePending: true))
+            .Where(l => l.DimensionValue == assetId).Sum(l => -l.Balance);
         decimal catchUp = Math.Max(0m, targetAccumulated - currentAccumulated);
         decimal finalAccumulated = currentAccumulated + catchUp;
         decimal nbv = asset.AcquisitionCost - finalAccumulated;
