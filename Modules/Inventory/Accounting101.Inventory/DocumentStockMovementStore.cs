@@ -83,8 +83,6 @@ public sealed class DocumentStockMovementStore(IDocumentStore documents) : IStoc
         Quantity = r.Body.Quantity,
         AppliedUnitCost = r.Body.AppliedUnitCost,
         ExtendedCost = r.Body.ExtendedCost,
-        ResultingOnHand = r.Body.ResultingOnHand,
-        ResultingTotalValue = r.Body.ResultingTotalValue,
         Status = r.State switch
         {
             DocumentLifecycle.Voided or DocumentLifecycle.Superseded => MovementStatus.Void,

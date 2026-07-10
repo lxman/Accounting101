@@ -112,6 +112,7 @@ internal sealed class InMemoryItemStore : IItemStore
     public Task<Item> CreateAsync(Guid clientId, ItemBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
+        // Valuation is derived on read (the service overlays the ledger fold); the store defaults it to 0.
         Item item = new()
         {
             Id = Guid.NewGuid(),
@@ -164,13 +165,6 @@ internal sealed class InMemoryItemStore : IItemStore
         if (_items.TryGetValue(itemId, out Item? item))
             _items[itemId] = item with { Status = ItemStatus.Inactive };
     }
-
-    public Task SetValuationAsync(Guid clientId, Guid itemId, decimal onHand, decimal totalValue, CancellationToken ct = default)
-    {
-        if (_items.TryGetValue(itemId, out Item? item))
-            _items[itemId] = item with { OnHandQuantity = onHand, TotalValue = totalValue };
-        return Task.CompletedTask;
-    }
 }
 
 /// <summary>An in-memory stock-movement store: assigns incrementing MV-##### numbers and filters voided
@@ -194,8 +188,6 @@ internal sealed class InMemoryStockMovementStore : IStockMovementStore
             Quantity = body.Quantity,
             AppliedUnitCost = body.AppliedUnitCost,
             ExtendedCost = body.ExtendedCost,
-            ResultingOnHand = body.ResultingOnHand,
-            ResultingTotalValue = body.ResultingTotalValue,
             Status = MovementStatus.Posted,
         };
         _movements.Add(movement);

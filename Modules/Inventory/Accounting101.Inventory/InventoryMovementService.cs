@@ -8,10 +8,11 @@ namespace Accounting101.Inventory;
 public sealed record RecordMovement(
     Guid ItemId, MovementType Type, decimal Quantity, decimal? UnitCost, DateOnly EffectiveDate, string? Memo);
 
-/// <summary>Records a stock movement: validates shape, resolves and locks the item, re-blends its
-/// valuation via <see cref="InventoryValuation"/>, persists the numbered movement, applies the new
-/// valuation to the item, and posts one balanced PendingApproval entry via <see cref="InventoryPosting"/>.
-/// This is the module's first GL-posting service.</summary>
+/// <summary>Records a stock movement: validates shape, resolves the item, computes the costing effect
+/// from the folded (pending-inclusive) valuation via <see cref="InventoryValuation"/>, persists the
+/// numbered movement, and posts one balanced PendingApproval entry via <see cref="InventoryPosting"/>.
+/// On-hand/value are never stamped onto the item — they are derived on read from the ledger fold +
+/// movement projection. This is the module's first GL-posting service.</summary>
 public sealed class InventoryMovementService(
     IItemStore items, IStockMovementStore movements, IInventoryAccountsProvider accounts, ILedgerClient ledger,
     ItemValuationService valuation)
@@ -49,16 +50,13 @@ public sealed class InventoryMovementService(
         // 4. Resolve accounts BEFORE persistence — config error must fail before side effects.
         InventoryPostingAccounts postingAccounts = await accounts.GetAccountsAsync(clientId, ct);
 
-        // 5. Persist the numbered movement with its snapshot.
+        // 5. Persist the numbered movement. No valuation snapshot is stored — on-hand and value are
+        // derived on read from the ledger fold + movement projection.
         StockMovement movement = await movements.RecordAsync(clientId, new StockMovementBody(
             request.ItemId, request.Type, request.EffectiveDate, request.Memo,
-            request.Quantity, effect.AppliedUnitCost, effect.ExtendedCost,
-            effect.ResultingOnHand, effect.ResultingTotalValue), ct);
+            request.Quantity, effect.AppliedUnitCost, effect.ExtendedCost), ct);
 
-        // 6. Apply the new valuation to the item.
-        await items.SetValuationAsync(clientId, request.ItemId, effect.ResultingOnHand, effect.ResultingTotalValue, ct);
-
-        // 7. Compose + post one PendingApproval entry.
+        // 6. Compose + post one PendingApproval entry.
         PostEntryRequest entry = InventoryPosting.Compose(
             request.Type, request.Quantity, movement.Id, request.ItemId, effect.ExtendedCost, request.EffectiveDate, request.Memo, postingAccounts);
         await ledger.PostAsync(clientId, entry, ct);
@@ -69,8 +67,9 @@ public sealed class InventoryMovementService(
     /// <summary>Voids the most-recent stock movement for its item — LIFO enforced: only the latest
     /// non-void movement for the item may be voided, never an earlier one while a later one still stands.
     /// Reverses the movement's spawned entry if posted (or withdraws it if still pending; tolerates a
-    /// stranded post with no entry at all), restores the item's valuation to its pre-movement state by
-    /// subtracting the movement's own signed effect, and flips the movement's Status to Void. Mirrors
+    /// stranded post with no entry at all), then flips the movement's Status to Void. There is NO manual
+    /// valuation restore: the reversed/withdrawn entry and the now-void movement drop straight out of the
+    /// ledger fold + quantity projection, so the item's on-hand/value roll back on the next read. Mirrors
     /// FixedAssetsRunService.VoidRunAsync.</summary>
     public async Task<StockMovement> VoidAsync(Guid clientId, Guid movementId, string? reason, CancellationToken ct = default)
     {
@@ -94,13 +93,6 @@ public sealed class InventoryMovementService(
             else
                 await ledger.VoidAsync(clientId, entry.Id, new VoidRequest(reason ?? $"Voided movement {movementId}"), ct);
         }
-
-        // Restore the item's valuation to its pre-movement state (subtract this movement's applied effect).
-        Item item = await items.GetAsync(clientId, movement.ItemId, ct)
-            ?? throw new KeyNotFoundException($"Item {movement.ItemId} not found.");
-        decimal restoredOnHand = item.OnHandQuantity - movement.SignedQuantityEffect;
-        decimal restoredValue  = item.TotalValue     - movement.SignedValueEffect;
-        await items.SetValuationAsync(clientId, movement.ItemId, restoredOnHand, restoredValue, ct);
 
         await movements.VoidAsync(clientId, movementId, ct);
         return (await movements.GetAsync(clientId, movementId, ct))!;

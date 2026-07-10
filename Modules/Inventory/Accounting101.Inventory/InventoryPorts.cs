@@ -14,9 +14,6 @@ public interface IItemStore
     Task<Item?> GetBySkuAsync(Guid clientId, string sku, CancellationToken ct = default);
     Task<PagedResponse<Item>> GetByClientPagedAsync(
         Guid clientId, int skip, int limit, bool descending, bool includeInactive, CancellationToken ct = default);
-
-    /// <summary>Overwrite the item's server-owned valuation (on-hand + total value). Used by movements.</summary>
-    Task SetValuationAsync(Guid clientId, Guid itemId, decimal onHand, decimal totalValue, CancellationToken ct = default);
 }
 
 /// <summary>Outcome of an item update: not found, refused because inactive (reactivate first), duplicate

@@ -11,9 +11,8 @@ public sealed class StockMovementStoreTests(StockMovementStoreFixture fixture) :
     private static readonly DateOnly When = new(2026, 1, 15);
 
     private static StockMovementBody Body(
-        Guid itemId, MovementType type, decimal quantity, decimal appliedUnitCost, decimal extendedCost,
-        decimal resultingOnHand, decimal resultingTotalValue) =>
-        new(itemId, type, When, null, quantity, appliedUnitCost, extendedCost, resultingOnHand, resultingTotalValue);
+        Guid itemId, MovementType type, decimal quantity, decimal appliedUnitCost, decimal extendedCost) =>
+        new(itemId, type, When, null, quantity, appliedUnitCost, extendedCost);
 
     [Fact]
     public async Task Records_number_and_latest_is_per_item()
@@ -21,9 +20,9 @@ public sealed class StockMovementStoreTests(StockMovementStoreFixture fixture) :
         DocumentStockMovementStore store = Store();
         Guid itemA = Guid.NewGuid(), itemB = Guid.NewGuid();
 
-        StockMovement a1 = await store.RecordAsync(Fx.ClientId, Body(itemA, MovementType.Receipt, 10m, 2m, 20m, 10m, 20m));
-        StockMovement b1 = await store.RecordAsync(Fx.ClientId, Body(itemB, MovementType.Receipt, 5m, 3m, 15m, 5m, 15m));
-        StockMovement a2 = await store.RecordAsync(Fx.ClientId, Body(itemA, MovementType.Issue, 4m, 2m, 8m, 6m, 12m));
+        StockMovement a1 = await store.RecordAsync(Fx.ClientId, Body(itemA, MovementType.Receipt, 10m, 2m, 20m));
+        StockMovement b1 = await store.RecordAsync(Fx.ClientId, Body(itemB, MovementType.Receipt, 5m, 3m, 15m));
+        StockMovement a2 = await store.RecordAsync(Fx.ClientId, Body(itemA, MovementType.Issue, 4m, 2m, 8m));
 
         Assert.StartsWith("MV-", a1.Number);
         Assert.NotEqual(a1.Number, b1.Number);
@@ -42,7 +41,7 @@ public sealed class StockMovementStoreTests(StockMovementStoreFixture fixture) :
         Guid itemId = Guid.NewGuid();
 
         StockMovement recorded = await store.RecordAsync(
-            Fx.ClientId, Body(itemId, MovementType.Receipt, 10m, 2m, 20m, 10m, 20m));
+            Fx.ClientId, Body(itemId, MovementType.Receipt, 10m, 2m, 20m));
 
         Assert.Equal(MovementStatus.Posted, recorded.Status);
         Assert.Equal(itemId, recorded.ItemId);
@@ -51,9 +50,6 @@ public sealed class StockMovementStoreTests(StockMovementStoreFixture fixture) :
         Assert.Equal(10m, recorded.Quantity);
         Assert.Equal(2m, recorded.AppliedUnitCost);
         Assert.Equal(20m, recorded.ExtendedCost);
-        Assert.Equal(10m, recorded.ResultingOnHand);
-        Assert.Equal(20m, recorded.ResultingTotalValue);
-        Assert.Equal(20m, recorded.SignedValueEffect);
         Assert.Equal(10m, recorded.SignedQuantityEffect);
 
         StockMovement? fetched = await store.GetAsync(Fx.ClientId, recorded.Id);
@@ -62,35 +58,32 @@ public sealed class StockMovementStoreTests(StockMovementStoreFixture fixture) :
     }
 
     [Fact]
-    public async Task Issue_signed_effects_are_negative()
+    public async Task Issue_signed_quantity_effect_is_negative()
     {
         DocumentStockMovementStore store = Store();
         Guid itemId = Guid.NewGuid();
 
         StockMovement issue = await store.RecordAsync(
-            Fx.ClientId, Body(itemId, MovementType.Issue, 4m, 2m, 8m, 6m, 12m));
+            Fx.ClientId, Body(itemId, MovementType.Issue, 4m, 2m, 8m));
 
         Assert.Equal(-4m, issue.SignedQuantityEffect);
-        Assert.Equal(-8m, issue.SignedValueEffect);
     }
 
     [Fact]
-    public async Task Adjustment_signed_effects_follow_the_sign_of_quantity()
+    public async Task Adjustment_signed_quantity_effect_follows_the_sign_of_quantity()
     {
         DocumentStockMovementStore store = Store();
         Guid itemId = Guid.NewGuid();
 
-        // Overage: +3 units, ExtendedCost is a positive magnitude → adds to value.
+        // Overage: +3 units.
         StockMovement overage = await store.RecordAsync(
-            Fx.ClientId, Body(itemId, MovementType.Adjustment, 3m, 2m, 6m, 3m, 6m));
+            Fx.ClientId, Body(itemId, MovementType.Adjustment, 3m, 2m, 6m));
         Assert.Equal(3m, overage.SignedQuantityEffect);
-        Assert.Equal(6m, overage.SignedValueEffect);
 
-        // Shrinkage: -2 units, ExtendedCost still a positive magnitude → subtracts from value.
+        // Shrinkage: -2 units.
         StockMovement shrinkage = await store.RecordAsync(
-            Fx.ClientId, Body(itemId, MovementType.Adjustment, -2m, 2m, 4m, 1m, 2m));
+            Fx.ClientId, Body(itemId, MovementType.Adjustment, -2m, 2m, 4m));
         Assert.Equal(-2m, shrinkage.SignedQuantityEffect);
-        Assert.Equal(-4m, shrinkage.SignedValueEffect);
     }
 
     [Fact]
@@ -100,9 +93,9 @@ public sealed class StockMovementStoreTests(StockMovementStoreFixture fixture) :
         Guid itemId = Guid.NewGuid();
         Guid otherItemId = Guid.NewGuid();
 
-        StockMovement m1 = await store.RecordAsync(Fx.ClientId, Body(itemId, MovementType.Receipt, 10m, 2m, 20m, 10m, 20m));
-        await store.RecordAsync(Fx.ClientId, Body(otherItemId, MovementType.Receipt, 1m, 1m, 1m, 1m, 1m));
-        await store.RecordAsync(Fx.ClientId, Body(itemId, MovementType.Issue, 4m, 2m, 8m, 6m, 12m));
+        StockMovement m1 = await store.RecordAsync(Fx.ClientId, Body(itemId, MovementType.Receipt, 10m, 2m, 20m));
+        await store.RecordAsync(Fx.ClientId, Body(otherItemId, MovementType.Receipt, 1m, 1m, 1m));
+        await store.RecordAsync(Fx.ClientId, Body(itemId, MovementType.Issue, 4m, 2m, 8m));
 
         await store.VoidAsync(Fx.ClientId, m1.Id);
 
@@ -121,8 +114,8 @@ public sealed class StockMovementStoreTests(StockMovementStoreFixture fixture) :
         DocumentStockMovementStore store = Store();
         Guid itemId = Guid.NewGuid();
 
-        StockMovement m1 = await store.RecordAsync(Fx.ClientId, Body(itemId, MovementType.Receipt, 10m, 2m, 20m, 10m, 20m));
-        StockMovement m2 = await store.RecordAsync(Fx.ClientId, Body(itemId, MovementType.Issue, 4m, 2m, 8m, 6m, 12m));
+        StockMovement m1 = await store.RecordAsync(Fx.ClientId, Body(itemId, MovementType.Receipt, 10m, 2m, 20m));
+        StockMovement m2 = await store.RecordAsync(Fx.ClientId, Body(itemId, MovementType.Issue, 4m, 2m, 8m));
 
         await store.VoidAsync(Fx.ClientId, m2.Id);
 

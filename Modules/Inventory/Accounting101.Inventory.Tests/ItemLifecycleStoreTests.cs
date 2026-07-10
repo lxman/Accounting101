@@ -65,17 +65,17 @@ public sealed class ItemLifecycleStoreTests(ItemDocumentStoreFixture fixture)
     }
 
     [Fact]
-    public async Task Reactivate_preserves_valuation()
+    public async Task Reactivate_round_trips_the_item()
     {
         DocumentItemStore store = Store();
         Guid clientId = fixture.ClientId;
         Item i = await store.CreateAsync(clientId, Body(sku: "A5"), default);
-        await store.SetValuationAsync(clientId, i.Id, 0m, 0m, default);
-        // Item must be zero-stock to deactivate.
         await store.DeactivateAsync(clientId, i.Id, default);
         await store.ReactivateAsync(clientId, i.Id, default);
 
         Item? got = await store.GetAsync(clientId, i.Id, default);
+        Assert.NotNull(got);
+        // Valuation is derived on read; the store layer returns it as 0.
         Assert.Equal(0m, got!.OnHandQuantity);
         Assert.Equal(0m, got.TotalValue);
     }

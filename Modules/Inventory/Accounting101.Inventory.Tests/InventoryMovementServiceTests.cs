@@ -45,15 +45,18 @@ public sealed class InventoryMovementServiceTests
     [Fact]
     public async Task Receipt_updates_item_and_posts_inventory_debit()
     {
-        (InventoryMovementService svc, InMemoryItemStore items, InMemoryStockMovementStore _, FakeLedgerClient ledger, FixedInventoryAccountsProvider accts) = Build();
+        (InventoryMovementService svc, InMemoryItemStore items, InMemoryStockMovementStore movements, FakeLedgerClient ledger, FixedInventoryAccountsProvider accts) = Build();
+        ItemValuationService valuation = new(movements, accts, ledger);
         Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
 
         StockMovement mv = await svc.RecordAsync(Client,
             new RecordMovement(item.Id, MovementType.Receipt, 10m, 2m, new DateOnly(2026, 1, 15), null));
 
         Assert.NotNull(mv.Number);
-        Item after = (await items.GetAsync(Client, item.Id))!;
-        Assert.Equal(10m, after.OnHandQuantity);
+        // Valuation is derived from the ledger fold, not stamped on the store (includePending: the fake
+        // leaves the spawned entry PendingApproval).
+        ItemValuation after = await valuation.GetAsync(Client, item.Id, includePending: true);
+        Assert.Equal(10m, after.OnHand);
         Assert.Equal(20m, after.TotalValue);
 
         PostEntryRequest posted = Assert.Single(ledger.Posted);
@@ -131,7 +134,8 @@ public sealed class InventoryMovementServiceTests
     [Fact]
     public async Task Issue_costs_at_average_and_posts_cogs_debit_and_inventory_credit()
     {
-        (InventoryMovementService svc, InMemoryItemStore items, InMemoryStockMovementStore _, FakeLedgerClient ledger, FixedInventoryAccountsProvider accts) = Build();
+        (InventoryMovementService svc, InMemoryItemStore items, InMemoryStockMovementStore movements, FakeLedgerClient ledger, FixedInventoryAccountsProvider accts) = Build();
+        ItemValuationService valuation = new(movements, accts, ledger);
         Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
         await svc.RecordAsync(Client,
             new RecordMovement(item.Id, MovementType.Receipt, 20m, 3m, new DateOnly(2026, 1, 1), null));
@@ -141,8 +145,8 @@ public sealed class InventoryMovementServiceTests
 
         Assert.Equal(3m, issue1.AppliedUnitCost);
         Assert.Equal(15m, issue1.ExtendedCost);
-        Item afterFirst = (await items.GetAsync(Client, item.Id))!;
-        Assert.Equal(15m, afterFirst.OnHandQuantity);
+        ItemValuation afterFirst = await valuation.GetAsync(Client, item.Id, includePending: true);
+        Assert.Equal(15m, afterFirst.OnHand);
         Assert.Equal(45m, afterFirst.TotalValue);
 
         Assert.Equal(2, ledger.Posted.Count);
@@ -155,8 +159,8 @@ public sealed class InventoryMovementServiceTests
 
         Assert.Equal(3m, issue2.AppliedUnitCost);
         Assert.Equal(45m, issue2.ExtendedCost);
-        Item afterSecond = (await items.GetAsync(Client, item.Id))!;
-        Assert.Equal(0m, afterSecond.OnHandQuantity);
+        ItemValuation afterSecond = await valuation.GetAsync(Client, item.Id, includePending: true);
+        Assert.Equal(0m, afterSecond.OnHand);
         Assert.Equal(0m, afterSecond.TotalValue);
 
         Assert.Equal(3, ledger.Posted.Count);
@@ -183,7 +187,8 @@ public sealed class InventoryMovementServiceTests
     [Fact]
     public async Task Overage_adjustment_costs_at_supplied_unit_cost_and_posts_inventory_debit()
     {
-        (InventoryMovementService svc, InMemoryItemStore items, InMemoryStockMovementStore _, FakeLedgerClient ledger, FixedInventoryAccountsProvider accts) = Build();
+        (InventoryMovementService svc, InMemoryItemStore items, InMemoryStockMovementStore movements, FakeLedgerClient ledger, FixedInventoryAccountsProvider accts) = Build();
+        ItemValuationService valuation = new(movements, accts, ledger);
         Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
         await svc.RecordAsync(Client,
             new RecordMovement(item.Id, MovementType.Receipt, 10m, 3m, new DateOnly(2026, 1, 1), null));
@@ -193,8 +198,8 @@ public sealed class InventoryMovementServiceTests
 
         Assert.Equal(4m, mv.AppliedUnitCost);
         Assert.Equal(20m, mv.ExtendedCost);
-        Item after = (await items.GetAsync(Client, item.Id))!;
-        Assert.Equal(15m, after.OnHandQuantity);
+        ItemValuation after = await valuation.GetAsync(Client, item.Id, includePending: true);
+        Assert.Equal(15m, after.OnHand);
         Assert.Equal(50m, after.TotalValue);
 
         Assert.Equal(2, ledger.Posted.Count);
@@ -209,7 +214,8 @@ public sealed class InventoryMovementServiceTests
     [Fact]
     public async Task Shrinkage_adjustment_costs_at_average_and_posts_inventory_credit()
     {
-        (InventoryMovementService svc, InMemoryItemStore items, InMemoryStockMovementStore _, FakeLedgerClient ledger, FixedInventoryAccountsProvider accts) = Build();
+        (InventoryMovementService svc, InMemoryItemStore items, InMemoryStockMovementStore movements, FakeLedgerClient ledger, FixedInventoryAccountsProvider accts) = Build();
+        ItemValuationService valuation = new(movements, accts, ledger);
         Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
         await svc.RecordAsync(Client,
             new RecordMovement(item.Id, MovementType.Receipt, 10m, 3m, new DateOnly(2026, 1, 1), null));
@@ -219,8 +225,8 @@ public sealed class InventoryMovementServiceTests
 
         Assert.Equal(3m, mv.AppliedUnitCost);
         Assert.Equal(12m, mv.ExtendedCost);
-        Item after = (await items.GetAsync(Client, item.Id))!;
-        Assert.Equal(6m, after.OnHandQuantity);
+        ItemValuation after = await valuation.GetAsync(Client, item.Id, includePending: true);
+        Assert.Equal(6m, after.OnHand);
         Assert.Equal(18m, after.TotalValue);
 
         Assert.Equal(2, ledger.Posted.Count);
@@ -255,19 +261,44 @@ public sealed class InventoryMovementServiceTests
 
     private static DateOnly D(int year, int month, int day) => new(year, month, day);
 
+    /// <summary>The payoff of the ledger-first redesign: after voiding an issue, the item's on-hand and
+    /// value fold back to their pre-issue state read straight from the ledger (includePending) — with NO
+    /// manual stored-valuation restore in the void path. The fold IS the source; the reversed/withdrawn
+    /// entry alone moves the numbers back. (Reuses Build()'s accounts provider so the fold reads the very
+    /// account the movement service posted to — a fresh provider would read an unposted account as zero.)</summary>
+    [Fact]
+    public async Task Void_returns_on_hand_and_value_via_the_ledger_with_no_stored_restore()
+    {
+        (InventoryMovementService svc, InMemoryItemStore items, InMemoryStockMovementStore movements,
+            FakeLedgerClient ledger, FixedInventoryAccountsProvider accounts) = Build();
+        ItemValuationService valuation = new(movements, accounts, ledger);
+        Guid clientId = Guid.NewGuid();
+        Item item = await items.CreateAsync(clientId, new ItemBody("SKU1", "Widget", null, "ea"));
+
+        await svc.RecordAsync(clientId, new RecordMovement(item.Id, MovementType.Receipt, 10m, 10m, new DateOnly(2026, 1, 1), null));
+        StockMovement issue = await svc.RecordAsync(clientId, new RecordMovement(item.Id, MovementType.Issue, 4m, null, new DateOnly(2026, 1, 2), null));
+        await svc.VoidAsync(clientId, issue.Id, "oops");
+
+        ItemValuation v = await valuation.GetAsync(clientId, item.Id, includePending: true);
+        Assert.Equal(10m, v.OnHand);      // back to the receipt-only state
+        Assert.Equal(100m, v.TotalValue);
+    }
+
     /// <summary>Voiding the latest movement for an item reverses (or withdraws) its spawned entry,
     /// restores the item's pre-movement valuation, and flips the movement's own Status to Void.</summary>
     [Fact]
     public async Task Void_latest_restores_valuation_and_reverses_entry()
     {
-        (var svc, var items, var movements, var ledger, _) = Build();
+        (var svc, var items, var movements, var ledger, var accts) = Build();
+        ItemValuationService valuation = new(movements, accts, ledger);
         Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
         await svc.RecordAsync(Client, new RecordMovement(item.Id, MovementType.Receipt, 10m, 2m, D(2026, 1, 10), null));
         StockMovement issue = await svc.RecordAsync(Client, new RecordMovement(item.Id, MovementType.Issue, 4m, null, D(2026, 1, 20), null));
-        // item now (6, 12). Void the issue → back to (10, 20).
+        // item now (6, 12). Void the issue → the withdrawn entry + now-void movement drop out of the fold,
+        // rolling the derived valuation back to (10, 20) with no stored restore.
         StockMovement voided = await svc.VoidAsync(Client, issue.Id, "oops");
-        Item after = (await items.GetAsync(Client, item.Id))!;
-        Assert.Equal(10m, after.OnHandQuantity);
+        ItemValuation after = await valuation.GetAsync(Client, item.Id, includePending: true);
+        Assert.Equal(10m, after.OnHand);
         Assert.Equal(20m, after.TotalValue);
         Assert.True(ledger.ReversedOrWithdrawn);
         Assert.Equal(MovementStatus.Void, voided.Status);

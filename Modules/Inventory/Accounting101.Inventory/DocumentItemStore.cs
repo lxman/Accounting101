@@ -3,10 +3,11 @@ using Accounting101.Ledger.Contracts;
 namespace Accounting101.Inventory;
 
 /// <summary>Persists items through the engine's document store as reference data (mutable, audited,
-/// deactivatable). Server-owned fields — OnHandQuantity and TotalValue — are stamped by the store: zero on
-/// create, preserved on update, overwritten only via SetValuationAsync. Status is NOT stored in the document
-/// body; it is derived from the document's DocumentLifecycle (Active/Inactive), so any Map that needs
-/// Status must read it from the DocumentResult. The module speaks only IDocumentStore.</summary>
+/// deactivatable). Valuation (on-hand/value) is NOT stored — the document body carries only editable
+/// register fields; on-hand and value are derived on read from the ledger fold + movement projection
+/// (InventoryService overlays them onto the returned Item, which the store leaves at 0). Status is NOT
+/// stored in the document body either; it is derived from the document's DocumentLifecycle (Active/Inactive),
+/// so any Map that needs Status must read it from the DocumentResult. The module speaks only IDocumentStore.</summary>
 public sealed class DocumentItemStore(IDocumentStore documents) : IItemStore
 {
     private const string Collection = "items";
@@ -16,7 +17,7 @@ public sealed class DocumentItemStore(IDocumentStore documents) : IItemStore
     {
         ArgumentNullException.ThrowIfNull(body);
         Guid id = Guid.NewGuid();
-        ItemDocument doc = ToDocument(body, 0m, 0m);
+        ItemDocument doc = ToDocument(body);
         await documents.PutAsync(clientId, Collection, id, doc, NoTags, ct);
         // A freshly-put reference document is always Active.
         return Map(id, doc, ItemStatus.Active);
@@ -35,8 +36,8 @@ public sealed class DocumentItemStore(IDocumentStore documents) : IItemStore
             if (bySku is not null && bySku.Id != itemId) return UpdateResult.DuplicateSku;
         }
 
-        // Only the editable params change; the valuation fields are preserved (movements own them).
-        ItemDocument doc = ToDocument(body, existing.Body.OnHandQuantity, existing.Body.TotalValue);
+        // Only the editable register params are stored — valuation is derived on read, never persisted.
+        ItemDocument doc = ToDocument(body);
         await documents.PutAsync(clientId, Collection, itemId, doc, NoTags, ct);
         return UpdateResult.Updated(Map(itemId, doc, ItemStatus.Active));
     }
@@ -46,8 +47,8 @@ public sealed class DocumentItemStore(IDocumentStore documents) : IItemStore
         DocumentResult<ItemDocument>? existing = await documents.GetAsync<ItemDocument>(clientId, Collection, itemId, ct);
         if (existing is null) return DeactivateResult.NotFound;
         if (existing.State == DocumentLifecycle.Inactive) return DeactivateResult.AlreadyInactive;
-        // Has-stock guard moved up to InventoryService.DeactivateAsync, which reads the posted-only ledger
-        // projection instead of this document's (now write-only) OnHandQuantity field.
+        // Has-stock guard lives in InventoryService.DeactivateAsync, which reads the posted-only ledger
+        // projection; the document no longer carries any on-hand field to guard on.
         await documents.DeactivateAsync(clientId, Collection, itemId, ct);
         return DeactivateResult.Deactivated;
     }
@@ -59,7 +60,7 @@ public sealed class DocumentItemStore(IDocumentStore documents) : IItemStore
         if (existing.State != DocumentLifecycle.Inactive) return ReactivateResult.AlreadyActive;
         // The engine has no explicit reactivate primitive; a Put on a reference doc rebuilds it Active
         // (ScopedDocumentStore.PutReferenceAsync always sets DocumentState.Active). Re-put the SAME body
-        // (preserving server-owned valuation) so only the lifecycle flips.
+        // so only the lifecycle flips.
         await documents.PutAsync(clientId, Collection, itemId, existing.Body, NoTags, ct);
         return ReactivateResult.Reactivated;
     }
@@ -89,23 +90,16 @@ public sealed class DocumentItemStore(IDocumentStore documents) : IItemStore
         return new PagedResponse<Item>(page.Select(r => Map(r.Id, r.Body, StatusOf(r))).ToList(), total, skip, limit);
     }
 
-    public async Task SetValuationAsync(Guid clientId, Guid itemId, decimal onHand, decimal totalValue, CancellationToken ct = default)
-    {
-        DocumentResult<ItemDocument>? existing = await documents.GetAsync<ItemDocument>(clientId, Collection, itemId, ct);
-        if (existing is null) return;
-        ItemDocument doc = existing.Body with { OnHandQuantity = onHand, TotalValue = totalValue };
-        await documents.PutAsync(clientId, Collection, itemId, doc, NoTags, ct);
-    }
-
     private static ItemStatus StatusOf(DocumentResult<ItemDocument> result) =>
         result.State == DocumentLifecycle.Inactive ? ItemStatus.Inactive : ItemStatus.Active;
 
-    private static ItemDocument ToDocument(ItemBody body, decimal onHand, decimal totalValue) =>
-        new(body.Sku, body.Name, body.Description, body.UnitOfMeasure, onHand, totalValue);
+    private static ItemDocument ToDocument(ItemBody body) =>
+        new(body.Sku, body.Name, body.Description, body.UnitOfMeasure);
 
+    // Valuation is derived on read (InventoryService overlays the fold); the store returns it as 0.
     private static Item Map(Guid id, ItemDocument d, ItemStatus status) => new()
     {
         Id = id, Sku = d.Sku, Name = d.Name, Description = d.Description, UnitOfMeasure = d.UnitOfMeasure,
-        Status = status, OnHandQuantity = d.OnHandQuantity, TotalValue = d.TotalValue,
+        Status = status, OnHandQuantity = 0m, TotalValue = 0m,
     };
 }
