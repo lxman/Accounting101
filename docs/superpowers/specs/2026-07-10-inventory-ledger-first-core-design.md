@@ -112,3 +112,5 @@ Order is the safety net — dimension the recipe before requiring the dimension;
 - **Transition safety** — step 4 switches reads to the folds while the fields are still written; step 5 deletes them only after. Never reorder.
 - **Fold-on-read on unconfigured chart** (carried fast-follow from FA) — a fold when the Inventory account lacks `{Item}` config can 500; degrade-to-0 or validate-at-onboarding. Deferred, noted.
 - **Sign is the easy case here** — debit-normal asset, positive fold, no negation. The opposite of AR/FA; do **not** copy their negation.
+
+Onboarding: the Inventory (1400) account must be configured `RequiredDimensions = ["Item"]`; the dev seed (`.localdev/start.ps1`) already sets the four inventory account ids — add the PUT that sets this on 1400.
