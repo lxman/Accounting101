@@ -1,4 +1,5 @@
 using Accounting101.Ledger.Contracts;
+using Accounting101.ModuleKit;
 
 namespace Accounting101.Payroll;
 
@@ -50,7 +51,7 @@ public sealed class PayrollService(
         PayrollRun? run = await runs.GetAsync(clientId, runId, ct);
         if (run is null) return null;
         IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, runId, ct);
-        return run.Status == PayrollRunStatus.Void || PayrollLedgerStatus.ShowsVoided(entries)
+        return run.Status == PayrollRunStatus.Void || LedgerTruth.ShowsVoided(entries)
             ? run with { Status = PayrollRunStatus.Void }
             : run;
     }
@@ -94,7 +95,7 @@ public sealed class PayrollService(
         TaxRemittance? remittance = await remittances.GetAsync(clientId, remittanceId, ct);
         if (remittance is null) return null;
         IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, remittanceId, ct);
-        return remittance.Status == TaxRemittanceStatus.Void || PayrollLedgerStatus.ShowsVoided(entries)
+        return remittance.Status == TaxRemittanceStatus.Void || LedgerTruth.ShowsVoided(entries)
             ? remittance with { Status = TaxRemittanceStatus.Void }
             : remittance;
     }
@@ -107,7 +108,7 @@ public sealed class PayrollService(
         PagedResponse<PayrollRun> page = await runs.GetByClientPagedAsync(clientId, skip, limit, descending, includeVoided, ct);
         ILookup<Guid, EntryResponse> byRef = await EntriesByRefAsync(clientId, page.Items.Select(r => r.Id), ct);
         List<PayrollRun> overlaid = page.Items
-            .Select(r => r.Status == PayrollRunStatus.Void || PayrollLedgerStatus.ShowsVoided(byRef[r.Id].ToList())
+            .Select(r => r.Status == PayrollRunStatus.Void || LedgerTruth.ShowsVoided(byRef[r.Id].ToList())
                 ? r with { Status = PayrollRunStatus.Void }
                 : r)
             .ToList();
@@ -120,7 +121,7 @@ public sealed class PayrollService(
         PagedResponse<TaxRemittance> page = await remittances.GetByClientPagedAsync(clientId, skip, limit, descending, includeVoided, ct);
         ILookup<Guid, EntryResponse> byRef = await EntriesByRefAsync(clientId, page.Items.Select(r => r.Id), ct);
         List<TaxRemittance> overlaid = page.Items
-            .Select(r => r.Status == TaxRemittanceStatus.Void || PayrollLedgerStatus.ShowsVoided(byRef[r.Id].ToList())
+            .Select(r => r.Status == TaxRemittanceStatus.Void || LedgerTruth.ShowsVoided(byRef[r.Id].ToList())
                 ? r with { Status = TaxRemittanceStatus.Void }
                 : r)
             .ToList();
