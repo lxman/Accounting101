@@ -1,4 +1,5 @@
 using Accounting101.Ledger.Contracts;
+using Accounting101.Settlement;
 
 namespace Accounting101.Payables;
 
@@ -45,13 +46,21 @@ public static class BillPosting
 
         decimal allocated = body.Allocations.Sum(a => a.Amount);
         decimal remainder = body.Amount - allocated;
-        Dictionary<string, Guid> dim = new() { [VendorDimension] = body.VendorId };
 
         List<PostLineRequest> lines = [];
-        if (allocated != 0m)
-            lines.Add(new(accounts.PayableAccountId, "Debit", allocated, Dimensions: dim));
+        foreach (Allocation a in body.Allocations)
+        {
+            if (a.Amount == 0m) continue;
+            lines.Add(new(accounts.PayableAccountId, "Debit", a.Amount,
+                Dimensions: new Dictionary<string, Guid>
+                {
+                    [VendorDimension] = body.VendorId,
+                    [BillDimension] = a.TargetId,
+                }));
+        }
         if (remainder != 0m)
-            lines.Add(new(accounts.VendorCreditsAccountId, "Debit", remainder, Dimensions: dim));
+            lines.Add(new(accounts.VendorCreditsAccountId, "Debit", remainder,
+                Dimensions: new Dictionary<string, Guid> { [VendorDimension] = body.VendorId }));
         lines.Add(new(accounts.CashAccountId, "Credit", body.Amount));
 
         return new PostEntryRequest(
