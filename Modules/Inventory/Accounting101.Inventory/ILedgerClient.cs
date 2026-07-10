@@ -23,4 +23,16 @@ public interface ILedgerClient
 
     /// <summary>Every entry the engine has tied to a source document — how the module finds the entry a run produced.</summary>
     Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default);
+
+    /// <summary>Batch of <see cref="GetEntriesBySourceRefAsync"/> — every entry tied to any of the given
+    /// source documents, in one call (the quantity projection checks each movement's entry status).</summary>
+    Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefsAsync(
+        Guid clientId, IReadOnlyList<Guid> sourceRefs, CancellationToken cancellationToken = default);
+
+    /// <summary>Subsidiary-ledger balances for a control account grouped by one dimension type (e.g. the
+    /// Inventory account by "Item"). Debit-positive. <paramref name="includePending"/> admits not-yet-approved
+    /// entries — used by write paths (next-issue cost, block-negative); reads pass false (posted-only).</summary>
+    Task<IReadOnlyList<SubledgerLineResponse>> GetSubledgerAsync(
+        Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default,
+        bool includePending = false);
 }
