@@ -38,12 +38,13 @@ internal sealed class FakeLedgerClient : ILedgerClient
         ReversedOrWithdrawn = true;
         EntryResponse original = _entries[entryId];
         var id = Guid.NewGuid();
-        // Negated lines, posted immediately so the pair nets to zero under a posted-only fold; the original
-        // stays Active (still counted) exactly like the real engine.
+        // Negated lines; the reversal is PendingApproval until approved (exactly like the real engine —
+        // LedgerService.ReverseAsync) and the original stays Active. A posted-only fold does NOT roll back
+        // until the reversal is approved (call ApproveAll to model that).
         IReadOnlyList<PostLineRequest> reversedLines = _linesById.TryGetValue(entryId, out IReadOnlyList<PostLineRequest>? originalLines)
             ? originalLines.Select(l => l with { Direction = Flip(l.Direction) }).ToList()
             : [];
-        EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "Posted", reversalOf: entryId, lines: reversedLines);
+        EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "PendingApproval", reversalOf: entryId, lines: reversedLines);
         _entries[id] = reversal;
         _linesById[id] = reversedLines;
         return Task.FromResult(reversal);
