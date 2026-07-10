@@ -45,8 +45,15 @@ public sealed class CashService(
         return await RequireDisbursementAsync(clientId, id, ct);
     }
 
-    public Task<CashDisbursement?> GetDisbursementAsync(Guid clientId, Guid id, CancellationToken ct = default) =>
-        disbursements.GetAsync(clientId, id, ct);
+    public async Task<CashDisbursement?> GetDisbursementAsync(Guid clientId, Guid id, CancellationToken ct = default)
+    {
+        CashDisbursement? doc = await disbursements.GetAsync(clientId, id, ct);
+        if (doc is null) return null;
+        IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, id, ct);
+        return doc.Status == CashDisbursementStatus.Void || CashLedgerStatus.ShowsVoided(entries)
+            ? doc with { Status = CashDisbursementStatus.Void }
+            : doc;
+    }
 
     // ── Cash Deposits ────────────────────────────────────────────────────────
 
@@ -82,8 +89,15 @@ public sealed class CashService(
         return await RequireDepositAsync(clientId, id, ct);
     }
 
-    public Task<CashDeposit?> GetDepositAsync(Guid clientId, Guid id, CancellationToken ct = default) =>
-        deposits.GetAsync(clientId, id, ct);
+    public async Task<CashDeposit?> GetDepositAsync(Guid clientId, Guid id, CancellationToken ct = default)
+    {
+        CashDeposit? doc = await deposits.GetAsync(clientId, id, ct);
+        if (doc is null) return null;
+        IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, id, ct);
+        return doc.Status == CashDepositStatus.Void || CashLedgerStatus.ShowsVoided(entries)
+            ? doc with { Status = CashDepositStatus.Void }
+            : doc;
+    }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 

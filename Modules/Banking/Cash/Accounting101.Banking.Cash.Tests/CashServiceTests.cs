@@ -260,4 +260,49 @@ public sealed class CashServiceTests
         Assert.Contains(h.Ledger.Posted, e => e.SourceRef == disbursement.Id && e.SourceType == CashPosting.DisbursementSourceType);
         Assert.Contains(h.Ledger.Posted, e => e.SourceRef == deposit.Id && e.SourceType == CashPosting.DepositSourceType);
     }
+
+    // ── Ledger-truth status overlay (detail reads) ──────────────────────────
+
+    [Fact]
+    public async Task GetDeposit_reports_Void_when_ledger_entry_is_withdrawn_even_if_envelope_stays_Posted()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        Guid capitalAccount = Guid.NewGuid();
+        CashDeposit doc = await h.Service.RecordDepositAsync(clientId,
+            new CashDepositBody([new CashLine(capitalAccount, 25_000m)], new DateOnly(2026, 1, 2), null, null));
+
+        // Simulate the crash: the GL entry is withdrawn, but the document envelope was never marked void.
+        IReadOnlyList<EntryResponse> spawned = await h.Ledger.GetEntriesBySourceRefAsync(clientId, doc.Id);
+        Guid entryId = Assert.Single(spawned).Id;
+        await h.Ledger.VoidAsync(clientId, entryId, new VoidRequest("withdrawn directly"));
+
+        // Envelope still says Posted…
+        CashDeposit? envelope = await h.DepositStore.GetAsync(clientId, doc.Id);
+        Assert.Equal(CashDepositStatus.Posted, envelope!.Status);
+
+        // …but the service read reports ledger-truth Void.
+        CashDeposit? read = await h.Service.GetDepositAsync(clientId, doc.Id);
+        Assert.Equal(CashDepositStatus.Void, read!.Status);
+    }
+
+    [Fact]
+    public async Task GetDisbursement_reports_Void_when_ledger_entry_is_withdrawn_even_if_envelope_stays_Posted()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        Guid expenseAccount = Guid.NewGuid();
+        CashDisbursement doc = await h.Service.RecordDisbursementAsync(clientId,
+            new CashDisbursementBody([new CashLine(expenseAccount, 1_000m)], new DateOnly(2026, 6, 15), null, null));
+
+        IReadOnlyList<EntryResponse> spawned = await h.Ledger.GetEntriesBySourceRefAsync(clientId, doc.Id);
+        Guid entryId = Assert.Single(spawned).Id;
+        await h.Ledger.VoidAsync(clientId, entryId, new VoidRequest("withdrawn directly"));
+
+        CashDisbursement? envelope = await h.DisbursementStore.GetAsync(clientId, doc.Id);
+        Assert.Equal(CashDisbursementStatus.Posted, envelope!.Status);
+
+        CashDisbursement? read = await h.Service.GetDisbursementAsync(clientId, doc.Id);
+        Assert.Equal(CashDisbursementStatus.Void, read!.Status);
+    }
 }
