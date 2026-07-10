@@ -287,6 +287,27 @@ public sealed class CashServiceTests
     }
 
     [Fact]
+    public async Task GetDeposit_reports_Void_when_ledger_entry_is_reversed_even_if_envelope_stays_Posted()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        Guid capitalAccount = Guid.NewGuid();
+        CashDeposit doc = await h.Service.RecordDepositAsync(clientId,
+            new CashDepositBody([new CashLine(capitalAccount, 25_000m)], new DateOnly(2026, 1, 2), null, null));
+
+        // Simulate reversed-after-posting: a reversal entry is created directly (original stays Active),
+        // and the document envelope is never marked void.
+        Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, doc.Id)).Id;
+        await h.Ledger.ReverseAsync(clientId, entryId, new ReverseRequest(new DateOnly(2026, 1, 3), "reversed directly"));
+
+        CashDeposit? envelope = await h.DepositStore.GetAsync(clientId, doc.Id);
+        Assert.Equal(CashDepositStatus.Posted, envelope!.Status);   // envelope still Posted
+
+        CashDeposit? read = await h.Service.GetDepositAsync(clientId, doc.Id);
+        Assert.Equal(CashDepositStatus.Void, read!.Status);          // ledger-truth via the reversal
+    }
+
+    [Fact]
     public async Task GetDisbursement_reports_Void_when_ledger_entry_is_withdrawn_even_if_envelope_stays_Posted()
     {
         Harness h = BuildHarness();
@@ -328,5 +349,27 @@ public sealed class CashServiceTests
 
         Assert.Equal(CashDepositStatus.Posted, page.Items.Single(d => d.Id == stayPosted.Id).Status);
         Assert.Equal(CashDepositStatus.Void, page.Items.Single(d => d.Id == goVoid.Id).Status);
+    }
+
+    [Fact]
+    public async Task ListDisbursements_reports_Void_per_row_from_ledger_truth()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        Guid expenseAccount = Guid.NewGuid();
+
+        CashDisbursement stayPosted = await h.Service.RecordDisbursementAsync(clientId,
+            new CashDisbursementBody([new CashLine(expenseAccount, 1_000m)], new DateOnly(2026, 6, 1), null, null));
+        CashDisbursement goVoid = await h.Service.RecordDisbursementAsync(clientId,
+            new CashDisbursementBody([new CashLine(expenseAccount, 2_000m)], new DateOnly(2026, 6, 2), null, null));
+
+        // Withdraw the second disbursement's entry directly — envelope stays Posted.
+        Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, goVoid.Id)).Id;
+        await h.Ledger.VoidAsync(clientId, entryId, new VoidRequest("withdrawn directly"));
+
+        PagedResponse<CashDisbursement> page = await h.Service.ListDisbursementsAsync(clientId, 0, 50, descending: false, includeVoided: true);
+
+        Assert.Equal(CashDisbursementStatus.Posted, page.Items.Single(d => d.Id == stayPosted.Id).Status);
+        Assert.Equal(CashDisbursementStatus.Void, page.Items.Single(d => d.Id == goVoid.Id).Status);
     }
 }

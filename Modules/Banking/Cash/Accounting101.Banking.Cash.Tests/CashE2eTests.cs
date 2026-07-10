@@ -276,8 +276,8 @@ public sealed class CashE2eTests(CashHostFixture fixture) : IClassFixture<CashHo
         RecordCashDepositRequest r1 = new([new CashLineRequest(fixture.MembersCapitalAccountId, 10_000m)], new DateOnly(2026, 1, 2), null, null);
         RecordCashDepositRequest r2 = new([new CashLineRequest(fixture.MembersCapitalAccountId, 20_000m)], new DateOnly(2026, 1, 3), null, null);
 
-        CashDeposit d1 = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/cash-deposits", r1)).Content.ReadFromJsonAsync<CashDeposit>())!;
-        CashDeposit d2 = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/cash-deposits", r2)).Content.ReadFromJsonAsync<CashDeposit>())!;
+        CashDeposit d1 = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/cash-deposits", r1)).EnsureSuccessStatusCode().Content.ReadFromJsonAsync<CashDeposit>())!;
+        CashDeposit d2 = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/cash-deposits", r2)).EnsureSuccessStatusCode().Content.ReadFromJsonAsync<CashDeposit>())!;
 
         // Void the second via the module (Controller holds cash.write + gl.void under SoD).
         (await controller.PostAsJsonAsync($"/clients/{clientId}/cash-deposits/{d2.Id}/void", new Api.VoidReasonRequest("error"))).EnsureSuccessStatusCode();
@@ -296,7 +296,7 @@ public sealed class CashE2eTests(CashHostFixture fixture) : IClassFixture<CashHo
         await SetUpCashChartAsync(controller, clientId);
 
         RecordCashDepositRequest request = new([new CashLineRequest(fixture.MembersCapitalAccountId, 5_000m)], new DateOnly(2026, 1, 2), null, null);
-        CashDeposit deposit = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/cash-deposits", request)).Content.ReadFromJsonAsync<CashDeposit>())!;
+        CashDeposit deposit = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/cash-deposits", request)).EnsureSuccessStatusCode().Content.ReadFromJsonAsync<CashDeposit>())!;
 
         // Find and approve the spawned entry, so a reversal (not a withdrawal) is what a raw caller would attempt.
         EntryResponse entry = Assert.Single((await clerk.GetFromJsonAsync<EntryResponse[]>($"/clients/{clientId}/entries?sourceRef={deposit.Id}"))!);

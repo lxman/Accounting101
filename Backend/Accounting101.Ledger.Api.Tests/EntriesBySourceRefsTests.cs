@@ -57,4 +57,36 @@ public sealed class EntriesBySourceRefsTests(ApiFixture fixture) : IClassFixture
             $"/clients/{c.ClientId}/entries?sourceRefs="))!;
         Assert.Empty(union);
     }
+
+    [Fact]
+    public async Task SourceRefs_trims_whitespace_around_elements()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid docA = Guid.NewGuid(), docB = Guid.NewGuid();
+        Guid entryA = await PostWithSource(c, docA);
+        Guid entryB = await PostWithSource(c, docB);
+
+        // Spaces around and between the comma-separated Guids must be trimmed, not rejected.
+        List<EntryResponse> union = (await c.Http.GetFromJsonAsync<List<EntryResponse>>(
+            $"/clients/{c.ClientId}/entries?sourceRefs= {docA} , {docB} "))!;
+
+        Assert.Equal(2, union.Count);
+        Assert.Contains(union, e => e.Id == entryA);
+        Assert.Contains(union, e => e.Id == entryB);
+    }
+
+    [Fact]
+    public async Task Singular_sourceRef_takes_precedence_when_both_are_supplied()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid docA = Guid.NewGuid(), docB = Guid.NewGuid();
+        Guid entryA = await PostWithSource(c, docA);
+        await PostWithSource(c, docB);
+
+        // Both supplied: singular sourceRef wins; only docA's entry comes back.
+        List<EntryResponse> result = (await c.Http.GetFromJsonAsync<List<EntryResponse>>(
+            $"/clients/{c.ClientId}/entries?sourceRef={docA}&sourceRefs={docB}"))!;
+
+        Assert.Equal(entryA, Assert.Single(result).Id);
+    }
 }
