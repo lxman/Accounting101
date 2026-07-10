@@ -24,6 +24,7 @@
     <ProjectReference Include="..\Accounting101.Banking.Cash\Accounting101.Banking.Cash.csproj" />
     <ProjectReference Include="..\..\..\..\Backend\Accounting101.Ledger.Api\Accounting101.Ledger.Api.csproj" />
     <ProjectReference Include="..\..\..\..\Backend\Accounting101.Ledger.Contracts\Accounting101.Ledger.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Accounting101.ModuleKit.Api\Accounting101.ModuleKit.Api.csproj" />
   </ItemGroup>
 
 </Project>

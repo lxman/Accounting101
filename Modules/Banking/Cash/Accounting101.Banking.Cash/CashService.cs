@@ -1,4 +1,5 @@
 using Accounting101.Ledger.Contracts;
+using Accounting101.ModuleKit;
 
 namespace Accounting101.Banking.Cash;
 
@@ -50,7 +51,7 @@ public sealed class CashService(
         CashDisbursement? doc = await disbursements.GetAsync(clientId, id, ct);
         if (doc is null) return null;
         IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, id, ct);
-        return doc.Status == CashDisbursementStatus.Void || CashLedgerStatus.ShowsVoided(entries)
+        return doc.Status == CashDisbursementStatus.Void || LedgerTruth.ShowsVoided(entries)
             ? doc with { Status = CashDisbursementStatus.Void }
             : doc;
     }
@@ -94,7 +95,7 @@ public sealed class CashService(
         CashDeposit? doc = await deposits.GetAsync(clientId, id, ct);
         if (doc is null) return null;
         IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, id, ct);
-        return doc.Status == CashDepositStatus.Void || CashLedgerStatus.ShowsVoided(entries)
+        return doc.Status == CashDepositStatus.Void || LedgerTruth.ShowsVoided(entries)
             ? doc with { Status = CashDepositStatus.Void }
             : doc;
     }
@@ -107,7 +108,7 @@ public sealed class CashService(
         PagedResponse<CashDeposit> page = await deposits.GetByClientPagedAsync(clientId, skip, limit, descending, includeVoided, ct);
         ILookup<Guid, EntryResponse> byRef = await EntriesByRefAsync(clientId, page.Items.Select(d => d.Id), ct);
         List<CashDeposit> overlaid = page.Items
-            .Select(d => d.Status == CashDepositStatus.Void || CashLedgerStatus.ShowsVoided(byRef[d.Id].ToList())
+            .Select(d => d.Status == CashDepositStatus.Void || LedgerTruth.ShowsVoided(byRef[d.Id].ToList())
                 ? d with { Status = CashDepositStatus.Void }
                 : d)
             .ToList();
@@ -120,7 +121,7 @@ public sealed class CashService(
         PagedResponse<CashDisbursement> page = await disbursements.GetByClientPagedAsync(clientId, skip, limit, descending, includeVoided, ct);
         ILookup<Guid, EntryResponse> byRef = await EntriesByRefAsync(clientId, page.Items.Select(d => d.Id), ct);
         List<CashDisbursement> overlaid = page.Items
-            .Select(d => d.Status == CashDisbursementStatus.Void || CashLedgerStatus.ShowsVoided(byRef[d.Id].ToList())
+            .Select(d => d.Status == CashDisbursementStatus.Void || LedgerTruth.ShowsVoided(byRef[d.Id].ToList())
                 ? d with { Status = CashDisbursementStatus.Void }
                 : d)
             .ToList();
