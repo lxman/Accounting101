@@ -309,4 +309,46 @@ public sealed class PayrollServiceTests
         TaxRemittance? read = await h.Service.GetRemittanceAsync(clientId, remittance.Id);
         Assert.Equal(TaxRemittanceStatus.Void, read!.Status);
     }
+
+    // ── Ledger-truth status overlay (list reads, batched) ────────────────────
+
+    [Fact]
+    public async Task ListRuns_reports_Void_per_row_from_ledger_truth()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+
+        PayrollRun stayPosted = await h.Service.RecordRunAsync(clientId,
+            new PayrollRunBody(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, 6, 30), null));
+        PayrollRun goVoid = await h.Service.RecordRunAsync(clientId,
+            new PayrollRunBody(20_000m, 1_240m, 1_240m, 0m, 3_000m, new DateOnly(2026, 7, 31), null));
+
+        Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, goVoid.Id)).Id;
+        await h.Ledger.VoidAsync(clientId, entryId, new VoidRequest("withdrawn directly"));
+
+        PagedResponse<PayrollRun> page = await h.Service.ListRunsAsync(clientId, 0, 50, descending: false, includeVoided: true);
+
+        Assert.Equal(PayrollRunStatus.Posted, page.Items.Single(r => r.Id == stayPosted.Id).Status);
+        Assert.Equal(PayrollRunStatus.Void, page.Items.Single(r => r.Id == goVoid.Id).Status);
+    }
+
+    [Fact]
+    public async Task ListRemittances_reports_Void_per_row_from_ledger_truth()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+
+        TaxRemittance stayPosted = await h.Service.RecordRemittanceAsync(clientId,
+            new TaxRemittanceBody(1_700m, 1_240m, new DateOnly(2026, 7, 15), null));
+        TaxRemittance goVoid = await h.Service.RecordRemittanceAsync(clientId,
+            new TaxRemittanceBody(900m, 500m, new DateOnly(2026, 8, 15), null));
+
+        Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, goVoid.Id)).Id;
+        await h.Ledger.VoidAsync(clientId, entryId, new VoidRequest("withdrawn directly"));
+
+        PagedResponse<TaxRemittance> page = await h.Service.ListRemittancesAsync(clientId, 0, 50, descending: false, includeVoided: true);
+
+        Assert.Equal(TaxRemittanceStatus.Posted, page.Items.Single(r => r.Id == stayPosted.Id).Status);
+        Assert.Equal(TaxRemittanceStatus.Void, page.Items.Single(r => r.Id == goVoid.Id).Status);
+    }
 }
