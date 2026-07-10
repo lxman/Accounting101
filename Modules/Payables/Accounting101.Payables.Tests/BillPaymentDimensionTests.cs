@@ -8,8 +8,8 @@ namespace Accounting101.Payables.Tests;
 /// <summary>
 /// Proves the bill-payment recipe tags EACH A/P line with the Bill it relieves — a single split payment
 /// against two bills produces two `Dr A/P` lines, one per allocation, rather than one aggregate line. A/P
-/// still requires only Vendor at this stage (flipped in a later task), so the Bill tag is additive here;
-/// only the bare fold is asserted for the Bill axis.
+/// now requires both Vendor and Bill (flipped in Task 5), so the Bill tag is load-bearing — omitting it
+/// would 422.
 /// </summary>
 public sealed class BillPaymentDimensionTests(PayablesHostFixture fixture) : IClassFixture<PayablesHostFixture>
 {
@@ -17,7 +17,7 @@ public sealed class BillPaymentDimensionTests(PayablesHostFixture fixture) : ICl
     private async Task SetUpChartAsync(HttpClient controllerHttp, Guid clientId)
     {
         (await controllerHttp.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.PayableAccountId}",
-            new AccountRequest { Number = "2000", Name = "Accounts Payable", Type = "Liability", RequiredDimension = "Vendor" }))
+            new AccountRequest { Number = "2000", Name = "Accounts Payable", Type = "Liability", RequiredDimensions = ["Vendor", "Bill"] }))
             .EnsureSuccessStatusCode();
         (await controllerHttp.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.CashAccountId}",
             new AccountRequest { Number = "1000", Name = "Cash", Type = "Asset" }))
@@ -83,8 +83,7 @@ public sealed class BillPaymentDimensionTests(PayablesHostFixture fixture) : ICl
         Assert.Equal(50m, lineB.Amount);
         Assert.Equal(vendor.Id, lineB.Dimensions["Vendor"]);
 
-        // The Bill-axis fold via the UNGATED bare /subledger endpoint (not the reconciliation endpoint,
-        // which 422s until A/P requires Bill in a later task). A/P is credit-normal, so the debit-positive
+        // The Bill-axis fold via the bare /subledger endpoint. A/P is credit-normal, so the debit-positive
         // fold reads a payable's balance as negative its open amount; open = -fold.
         SubledgerResponse fold = (await clerk.GetFromJsonAsync<SubledgerResponse>(
             $"/clients/{clientId}/subledger?dimension=Bill"))!;

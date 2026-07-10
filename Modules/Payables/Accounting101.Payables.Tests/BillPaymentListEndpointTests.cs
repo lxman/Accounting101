@@ -11,9 +11,13 @@ namespace Accounting101.Payables.Tests;
 public sealed class BillPaymentListEndpointTests(PayablesHostFixture fixture) : IClassFixture<PayablesHostFixture>
 {
     private static async Task PutAccountAsync(HttpClient http, Guid clientId, Guid accountId,
-        string number, string name, string type, string? requiredDimension) =>
+        string number, string name, string type, string? requiredDimension, string[]? requiredDimensions = null) =>
         (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{accountId}",
-            new AccountRequest { Number = number, Name = name, Type = type, RequiredDimension = requiredDimension }))
+            new AccountRequest
+            {
+                Number = number, Name = name, Type = type,
+                RequiredDimension = requiredDimension, RequiredDimensions = requiredDimensions,
+            }))
             .EnsureSuccessStatusCode();
 
     [Fact]
@@ -23,7 +27,7 @@ public sealed class BillPaymentListEndpointTests(PayablesHostFixture fixture) : 
             await fixture.SeedSodClientAsync();
         await PutAccountAsync(controller, clientId, fixture.CashAccountId,          "1000", "Cash",           "Asset", null);
         await PutAccountAsync(controller, clientId, fixture.VendorCreditsAccountId, "1300", "Vendor Credits", "Asset", "Vendor");
-        await PutAccountAsync(controller, clientId, fixture.PayableAccountId,       "2000", "Accounts Payable","Liability", "Vendor");
+        await PutAccountAsync(controller, clientId, fixture.PayableAccountId,       "2000", "Accounts Payable","Liability", null, ["Vendor", "Bill"]);
 
         Vendor vendor = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/vendors",
             new CreateVendorRequest("PropCo", null))).Content.ReadFromJsonAsync<Vendor>())!;

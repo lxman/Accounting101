@@ -8,9 +8,8 @@ namespace Accounting101.Payables.Tests;
 /// <summary>
 /// Proves the vendor-credit-application recipe tags EACH A/P relief line with the Bill it relieves,
 /// same as bill payment — one `Dr A/P {Vendor, Bill}` line per allocation, rather than one aggregate
-/// line, plus one `Cr Vendor Credits {Vendor}` line for the total applied. A/P still requires only
-/// Vendor at this stage (flipped in a later task), so the Bill tag is additive here; only the bare
-/// fold is asserted for the Bill axis.
+/// line, plus one `Cr Vendor Credits {Vendor}` line for the total applied. A/P now requires both
+/// Vendor and Bill (flipped in Task 5), so the Bill tag is load-bearing — omitting it would 422.
 /// </summary>
 public sealed class VendorCreditApplicationDimensionTests(PayablesHostFixture fixture) : IClassFixture<PayablesHostFixture>
 {
@@ -18,7 +17,7 @@ public sealed class VendorCreditApplicationDimensionTests(PayablesHostFixture fi
     private async Task SetUpChartAsync(HttpClient controllerHttp, Guid clientId)
     {
         (await controllerHttp.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.PayableAccountId}",
-            new AccountRequest { Number = "2000", Name = "Accounts Payable", Type = "Liability", RequiredDimension = "Vendor" }))
+            new AccountRequest { Number = "2000", Name = "Accounts Payable", Type = "Liability", RequiredDimensions = ["Vendor", "Bill"] }))
             .EnsureSuccessStatusCode();
         (await controllerHttp.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.CashAccountId}",
             new AccountRequest { Number = "1000", Name = "Cash", Type = "Asset" }))
@@ -91,8 +90,7 @@ public sealed class VendorCreditApplicationDimensionTests(PayablesHostFixture fi
         Assert.Equal(60m, creditsLine.Amount);
         Assert.Equal(vendor.Id, creditsLine.Dimensions["Vendor"]);
 
-        // The Bill-axis fold via the UNGATED bare /subledger endpoint (not the reconciliation endpoint,
-        // which 422s until A/P requires Bill in a later task). A/P is credit-normal, so the debit-positive
+        // The Bill-axis fold via the bare /subledger endpoint. A/P is credit-normal, so the debit-positive
         // fold reads a payable's balance as negative its open amount; open = -fold.
         SubledgerResponse fold = (await clerk.GetFromJsonAsync<SubledgerResponse>(
             $"/clients/{clientId}/subledger?dimension=Bill"))!;

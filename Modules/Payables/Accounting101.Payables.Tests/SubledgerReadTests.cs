@@ -19,7 +19,7 @@ public sealed class SubledgerReadTests(PayablesHostFixture fixture) : IClassFixt
     private async Task SetUpChartAsync(HttpClient controllerHttp, Guid clientId)
     {
         (await controllerHttp.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.PayableAccountId}",
-            new AccountRequest { Number = "2000", Name = "Accounts Payable", Type = "Liability", RequiredDimension = "Vendor" }))
+            new AccountRequest { Number = "2000", Name = "Accounts Payable", Type = "Liability", RequiredDimensions = ["Vendor", "Bill"] }))
             .EnsureSuccessStatusCode();
         (await controllerHttp.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.RentExpenseAccountId}",
             new AccountRequest { Number = "5200", Name = "Rent Expense", Type = "Expense" }))
