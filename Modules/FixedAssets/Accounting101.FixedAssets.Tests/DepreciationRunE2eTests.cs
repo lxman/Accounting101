@@ -242,6 +242,35 @@ public sealed class DepreciationRunE2eTests(FixedAssetsHostFixture fixture) : IC
         Assert.Equal(HttpStatusCode.Forbidden, run.StatusCode);
     }
 
+    /// <summary>FA-scoped guard proof (mirrors Payroll/Cash's <c>Raw_gl_reverse_of_a_..._entry_is_refused_by_the_guard</c>):
+    /// under SoD, the Clerk records a depreciation run and the Approver approves its entry, then the
+    /// Controller — who holds raw <c>gl.reverse</c> — attempts a raw <c>POST /entries/{id}/reverse</c>
+    /// directly against the journal, carrying no module credential. The module-entry guard refuses it:
+    /// an entry stamped <c>ViaModule="fixedassets"</c> may only be reversed through that module (its own
+    /// void surface), never the raw journal, regardless of the caller's GL permissions.</summary>
+    [Fact]
+    public async Task Raw_gl_reverse_of_a_depreciation_entry_is_refused_by_the_guard()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId);
+        await CreateAssetAsync(clerk, clientId,
+            new SaveAssetRequest("Van", 12000m, new DateOnly(2026, 1, 1), 24, 0m, DepreciationMethod.StraightLine, null));
+
+        DepreciationRunView run = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/depreciation-runs",
+            new RunDepreciationRequest(2026, 1, null, null))).EnsureSuccessStatusCode()
+            .Content.ReadFromJsonAsync<DepreciationRunView>())!;
+
+        EntryResponse entry = Assert.Single((await clerk.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={run.Run.Id}"))!);
+        (await approver.PostAsync($"/clients/{clientId}/entries/{entry.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        // Raw reverse — a plain user request carrying no module credential — is refused: correct it through the module.
+        HttpResponseMessage rawReverse = await controller.PostAsJsonAsync(
+            $"/clients/{clientId}/entries/{entry.Id}/reverse",
+            new ReverseRequest(new DateOnly(2026, 2, 1), "raw reversal attempt"));
+        Assert.Equal(HttpStatusCode.Conflict, rawReverse.StatusCode);
+    }
+
     /// <summary>Proves the Task 3 enforcement flip: once Accumulated Depreciation requires the Asset
     /// dimension, an untagged (unfoldable) accum line becomes structurally impossible — the engine
     /// rejects it at post, 422, naming the missing dimension. This bypasses the depreciation-run recipe
