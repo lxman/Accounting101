@@ -11,6 +11,7 @@ public static class BillPosting
     public const string BillPaymentSourceType = "BillPayment";
     public const string VendorCreditApplicationSourceType = "VendorCreditApplication";
     public const string VendorDimension = "Vendor";
+    public const string BillDimension = "Bill";
 
     public static PostEntryRequest ComposeBill(Bill bill, BillPostingAccounts accounts)
     {
@@ -26,7 +27,11 @@ public static class BillPosting
             .ToList();
 
         lines.Add(new(accounts.PayableAccountId, "Credit", bill.Total,
-            Dimensions: new Dictionary<string, Guid> { [VendorDimension] = bill.VendorId }));
+            Dimensions: new Dictionary<string, Guid>
+            {
+                [VendorDimension] = bill.VendorId,
+                [BillDimension] = bill.Id,
+            }));
 
         return new PostEntryRequest(
             Id: EntryIdentity.ForSource(BillSourceType, bill.Id), EffectiveDate: bill.BillDate, Reference: bill.Number, Memo: bill.Memo,
