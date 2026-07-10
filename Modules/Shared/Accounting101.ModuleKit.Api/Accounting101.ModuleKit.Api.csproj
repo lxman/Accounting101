@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Accounting101.ModuleKit\Accounting101.ModuleKit.csproj" />
+    <ProjectReference Include="..\..\..\Backend\Accounting101.Ledger.Api\Accounting101.Ledger.Api.csproj" />
+  </ItemGroup>
+</Project>

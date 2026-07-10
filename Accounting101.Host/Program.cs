@@ -8,6 +8,7 @@ using Accounting101.Banking.Reconciliation.Api;
 using Accounting101.Ledger.Api.Platform;
 using Accounting101.FixedAssets.Api;
 using Accounting101.Inventory.Api;
+using Accounting101.ModuleKit.Api;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -80,6 +81,10 @@ app.Use(async (ctx, next) =>
         }, options: null, contentType: "application/problem+json", cancellationToken: ctx.RequestAborted);
     }
 });
+
+// Relay any escaping module ledger-client refusal (LedgerClientException) as problem+json carrying the
+// engine's real status + reason — the single home of the module→ledger error relay.
+app.UseModuleLedgerExceptionRelay();
 
 if (app.Environment.IsDevelopment())
     app.UseCors();
