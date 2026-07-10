@@ -41,6 +41,7 @@ public sealed class FixedAssetsService(
         Guid clientId, int skip, int limit, bool descending, bool includeInactive, CancellationToken ct = default)
     {
         PagedResponse<Asset> page = await store.GetByClientPagedAsync(clientId, skip, limit, descending, includeInactive, ct);
+        if (page.Items.Count == 0) return page; // nothing to overlay — skip the fold (and its account resolution)
         Dictionary<Guid, decimal> accum = await FoldAccumAsync(clientId, includePending: false, ct);
         List<Asset> overlaid = page.Items.Select(a => a with { AccumulatedDepreciation = accum.GetValueOrDefault(a.Id) }).ToList();
         return new PagedResponse<Asset>(overlaid, page.Total, page.Skip, page.Limit);

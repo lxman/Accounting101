@@ -121,7 +121,6 @@ internal sealed class InMemoryAssetStore : IAssetStore
             Method = body.Method,
             DecliningBalanceFactor = body.DecliningBalanceFactor,
             Status = AssetStatus.Active,
-            AccumulatedDepreciation = 0m,
         };
         _assets[asset.Id] = asset;
         return Task.FromResult(asset);
@@ -154,42 +153,21 @@ internal sealed class InMemoryAssetStore : IAssetStore
         return Task.FromResult(new PagedResponse<Asset>(items, ordered.Count, skip, limit));
     }
 
-    public Task ApplyDepreciationAsync(Guid clientId, IReadOnlyList<DepreciationRunLine> lines, CancellationToken ct = default)
-    {
-        foreach (DepreciationRunLine line in lines)
-            _assets[line.AssetId] = _assets[line.AssetId] with
-            {
-                AccumulatedDepreciation = _assets[line.AssetId].AccumulatedDepreciation + line.Amount,
-            };
-        return Task.CompletedTask;
-    }
-
-    public Task ReverseDepreciationAsync(Guid clientId, IReadOnlyList<DepreciationRunLine> lines, CancellationToken ct = default)
-    {
-        foreach (DepreciationRunLine line in lines)
-            _assets[line.AssetId] = _assets[line.AssetId] with
-            {
-                AccumulatedDepreciation = _assets[line.AssetId].AccumulatedDepreciation - line.Amount,
-            };
-        return Task.CompletedTask;
-    }
-
-    public Task<DisposeStamp> MarkDisposedAsync(Guid clientId, Guid assetId, decimal finalAccumulated, CancellationToken ct = default)
+    public Task<DisposeStamp> MarkDisposedAsync(Guid clientId, Guid assetId, CancellationToken ct = default)
     {
         if (!_assets.TryGetValue(assetId, out Asset? a))
-            return Task.FromResult(new DisposeStamp(DisposeOutcome.NotFound, null, 0m));
+            return Task.FromResult(new DisposeStamp(DisposeOutcome.NotFound, null));
         if (a.Status != AssetStatus.Active)
-            return Task.FromResult(new DisposeStamp(DisposeOutcome.NotActive, null, a.AccumulatedDepreciation));
-        decimal prior = a.AccumulatedDepreciation;
-        Asset disposed = a with { Status = AssetStatus.Disposed, AccumulatedDepreciation = finalAccumulated };
+            return Task.FromResult(new DisposeStamp(DisposeOutcome.NotActive, null));
+        Asset disposed = a with { Status = AssetStatus.Disposed };
         _assets[assetId] = disposed;
-        return Task.FromResult(new DisposeStamp(DisposeOutcome.Disposed, disposed, prior));
+        return Task.FromResult(new DisposeStamp(DisposeOutcome.Disposed, disposed));
     }
 
-    public Task ReinstateAsync(Guid clientId, Guid assetId, decimal restoreAccumulated, CancellationToken ct = default)
+    public Task ReinstateAsync(Guid clientId, Guid assetId, CancellationToken ct = default)
     {
         if (_assets.TryGetValue(assetId, out Asset? a))
-            _assets[assetId] = a with { Status = AssetStatus.Active, AccumulatedDepreciation = restoreAccumulated };
+            _assets[assetId] = a with { Status = AssetStatus.Active };
         return Task.CompletedTask;
     }
 }

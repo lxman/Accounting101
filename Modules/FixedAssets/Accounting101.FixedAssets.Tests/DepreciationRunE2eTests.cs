@@ -74,6 +74,37 @@ public sealed class DepreciationRunE2eTests(FixedAssetsHostFixture fixture) : IC
     }
 
     [Fact]
+    public async Task List_endpoint_folds_accumulated_depreciation_per_asset_after_approval()
+    {
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
+        await SetUpChartAsync(http, clientId);
+
+        AssetView sl = await CreateAssetAsync(http, clientId,
+            new SaveAssetRequest("SL Van", 12000m, new DateOnly(2026, 1, 1), 24, 0m, DepreciationMethod.StraightLine, null)); // 500/mo
+        AssetView db = await CreateAssetAsync(http, clientId,
+            new SaveAssetRequest("DB Rig", 12000m, new DateOnly(2026, 1, 1), 24, 0m, DepreciationMethod.DecliningBalance, 2.0m)); // 1000 first mo
+
+        DepreciationRunView run = (await (await http.PostAsJsonAsync($"/clients/{clientId}/depreciation-runs",
+            new RunDepreciationRequest(2026, 1, null, "January depreciation"))).EnsureSuccessStatusCode()
+            .Content.ReadFromJsonAsync<DepreciationRunView>())!;
+
+        EntryResponse entry = Assert.Single((await http.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={run.Run.Id}"))!);
+
+        // Before approval the Posted-only fold reads 0 on the LIST endpoint too (proves it goes through the fold,
+        // not a stored default of 0 that would look identical here — the post-approval assertion is the real proof).
+        PagedResponse<AssetView> pending = (await http.GetFromJsonAsync<PagedResponse<AssetView>>($"/clients/{clientId}/assets"))!;
+        Assert.All(pending.Items, a => Assert.Equal(0m, a.Asset.AccumulatedDepreciation));
+
+        (await http.PostAsync($"/clients/{clientId}/entries/{entry.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        // The stored field is gone; the LIST endpoint must overlay each asset's per-{Asset} accum from the ledger fold.
+        PagedResponse<AssetView> listed = (await http.GetFromJsonAsync<PagedResponse<AssetView>>($"/clients/{clientId}/assets"))!;
+        Assert.Equal(500m, listed.Items.Single(a => a.Asset.Id == sl.Asset.Id).Asset.AccumulatedDepreciation);
+        Assert.Equal(1000m, listed.Items.Single(a => a.Asset.Id == db.Asset.Id).Asset.AccumulatedDepreciation);
+    }
+
+    [Fact]
     public async Task Second_run_for_the_same_period_returns_409()
     {
         (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();

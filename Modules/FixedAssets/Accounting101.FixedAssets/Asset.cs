@@ -12,5 +12,5 @@ public sealed record Asset
     public required DepreciationMethod Method { get; init; }
     public decimal? DecliningBalanceFactor { get; init; }
     public required AssetStatus Status { get; init; }
-    public required decimal AccumulatedDepreciation { get; init; }
+    public decimal AccumulatedDepreciation { get; init; }
 }

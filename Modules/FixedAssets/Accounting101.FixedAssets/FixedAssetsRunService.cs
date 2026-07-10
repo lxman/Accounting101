@@ -3,10 +3,10 @@ using Accounting101.Ledger.Contracts;
 namespace Accounting101.FixedAssets;
 
 /// <summary>Orchestrates depreciation: compute one period across all eligible assets, persist the
-/// evidentiary run, advance each asset's accumulated depreciation, and post one PendingApproval GL
-/// entry. Void is LIFO — only the latest non-voided run may be voided; it reverses the entry (or
-/// withdraws it if still pending) and rolls each asset's accumulated depreciation back. The module
-/// never self-approves.</summary>
+/// evidentiary run, and post one PendingApproval GL entry. The dimensioned post IS the accumulated
+/// depreciation change — reads fold it back from the ledger; there is no stored field. Void is LIFO —
+/// only the latest non-voided run may be voided; it reverses the entry (or withdraws it if still
+/// pending), which rolls the fold back automatically. The module never self-approves.</summary>
 public sealed class FixedAssetsRunService(
     IAssetStore assets,
     IDepreciationRunStore runs,
@@ -53,10 +53,8 @@ public sealed class FixedAssetsRunService(
         DepreciationRun run = await runs.RecordAsync(clientId,
             new DepreciationRunBody(period, effectiveDate, request.Memo, lines, total), ct);
 
-        // 6. Advance each asset's accumulated depreciation.
-        await assets.ApplyDepreciationAsync(clientId, lines, ct);
-
-        // 7. Compose + post one PendingApproval aggregate entry.
+        // 6. Compose + post one PendingApproval aggregate entry — the dimensioned post IS the accum change
+        // (the fold reads it back; there is no separate stored field to advance).
         PostEntryRequest entry = FixedAssetsPosting.ComposeDepreciationRun(run.Id, lines, total, effectiveDate, request.Memo, postingAccounts);
         await ledger.PostAsync(clientId, entry, ct);
 
@@ -87,8 +85,8 @@ public sealed class FixedAssetsRunService(
                 await ledger.VoidAsync(clientId, entry.Id, new VoidRequest(reason ?? $"Voided depreciation run {runId}"), ct);
         }
 
-        // Roll each asset's accumulated depreciation back, then void the doc.
-        await assets.ReverseDepreciationAsync(clientId, run.Lines, ct);
+        // Void the doc — the entry reversal above rolls the ledger fold (the accum source) back automatically;
+        // there is no stored field to reverse.
         await runs.VoidAsync(clientId, runId, ct);
         return (await runs.GetAsync(clientId, runId, ct))!;
     }

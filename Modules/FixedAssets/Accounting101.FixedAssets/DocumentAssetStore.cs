@@ -3,8 +3,9 @@ using Accounting101.Ledger.Contracts;
 namespace Accounting101.FixedAssets;
 
 /// <summary>Persists assets through the engine's document store as reference data (mutable, audited,
-/// deactivatable). Server-owned fields — Status and AccumulatedDepreciation — are stamped by the store:
-/// Active/0 on create, preserved on update. The module speaks only IDocumentStore.</summary>
+/// deactivatable). The server-owned Status is stamped by the store: Active on create, preserved on update.
+/// Accumulated depreciation is no longer stored — it is folded from the ledger on read (FixedAssetsService).
+/// The module speaks only IDocumentStore.</summary>
 public sealed class DocumentAssetStore(IDocumentStore documents) : IAssetStore
 {
     private const string Collection = "assets";
@@ -14,7 +15,7 @@ public sealed class DocumentAssetStore(IDocumentStore documents) : IAssetStore
     {
         ArgumentNullException.ThrowIfNull(body);
         Guid id = Guid.NewGuid();
-        AssetDocument doc = ToDocument(body, AssetStatus.Active, 0m);
+        AssetDocument doc = ToDocument(body, AssetStatus.Active);
         await documents.PutAsync(clientId, Collection, id, doc, NoTags, ct);
         return Map(id, doc);
     }
@@ -26,8 +27,8 @@ public sealed class DocumentAssetStore(IDocumentStore documents) : IAssetStore
         if (existing is null) return UpdateResult.NotFound;
         if (existing.Body.Status == AssetStatus.Disposed) return UpdateResult.Disposed; // frozen until void
         if (existing.State == DocumentLifecycle.Inactive) return UpdateResult.Inactive; // sticky: reactivate first
-        // Only the editable params change; Status + AccumulatedDepreciation are preserved (FA-2/FA-3 own them).
-        AssetDocument doc = ToDocument(body, existing.Body.Status, existing.Body.AccumulatedDepreciation);
+        // Only the editable params change; the server-owned Status is preserved (FA-2/FA-3 own it).
+        AssetDocument doc = ToDocument(body, existing.Body.Status);
         await documents.PutAsync(clientId, Collection, assetId, doc, NoTags, ct);
         return UpdateResult.Updated(Map(assetId, doc));
     }
@@ -50,46 +51,26 @@ public sealed class DocumentAssetStore(IDocumentStore documents) : IAssetStore
         if (existing.State != DocumentLifecycle.Inactive) return ReactivateResult.AlreadyActive;
         // The engine has no explicit reactivate primitive; a Put on a reference doc rebuilds it Active
         // (ScopedDocumentStore.PutReferenceAsync always sets DocumentState.Active). Re-put the SAME body
-        // (preserving server-owned Status + AccumulatedDepreciation) so only the lifecycle flips.
+        // (preserving the server-owned Status) so only the lifecycle flips.
         await documents.PutAsync(clientId, Collection, assetId, existing.Body, NoTags, ct);
         return ReactivateResult.Reactivated;
     }
 
-    public async Task ApplyDepreciationAsync(Guid clientId, IReadOnlyList<DepreciationRunLine> lines, CancellationToken ct = default) =>
-        await AdjustAccumulatedAsync(clientId, lines, sign: +1m, ct);
-
-    public async Task ReverseDepreciationAsync(Guid clientId, IReadOnlyList<DepreciationRunLine> lines, CancellationToken ct = default) =>
-        await AdjustAccumulatedAsync(clientId, lines, sign: -1m, ct);
-
-    private async Task AdjustAccumulatedAsync(Guid clientId, IReadOnlyList<DepreciationRunLine> lines, decimal sign, CancellationToken ct)
-    {
-        ArgumentNullException.ThrowIfNull(lines);
-        foreach (DepreciationRunLine line in lines)
-        {
-            DocumentResult<AssetDocument>? existing = await documents.GetAsync<AssetDocument>(clientId, Collection, line.AssetId, ct);
-            if (existing is null) continue; // asset gone; skip (run void tolerates missing assets)
-            decimal updated = existing.Body.AccumulatedDepreciation + sign * line.Amount;
-            AssetDocument doc = existing.Body with { AccumulatedDepreciation = updated };
-            await documents.PutAsync(clientId, Collection, line.AssetId, doc, NoTags, ct);
-        }
-    }
-
-    public async Task<DisposeStamp> MarkDisposedAsync(Guid clientId, Guid assetId, decimal finalAccumulated, CancellationToken ct = default)
+    public async Task<DisposeStamp> MarkDisposedAsync(Guid clientId, Guid assetId, CancellationToken ct = default)
     {
         DocumentResult<AssetDocument>? existing = await documents.GetAsync<AssetDocument>(clientId, Collection, assetId, ct);
-        if (existing is null) return new DisposeStamp(DisposeOutcome.NotFound, null, 0m);
-        if (existing.Body.Status != AssetStatus.Active) return new DisposeStamp(DisposeOutcome.NotActive, null, existing.Body.AccumulatedDepreciation);
-        decimal prior = existing.Body.AccumulatedDepreciation;
-        AssetDocument doc = existing.Body with { Status = AssetStatus.Disposed, AccumulatedDepreciation = finalAccumulated };
+        if (existing is null) return new DisposeStamp(DisposeOutcome.NotFound, null);
+        if (existing.Body.Status != AssetStatus.Active) return new DisposeStamp(DisposeOutcome.NotActive, null);
+        AssetDocument doc = existing.Body with { Status = AssetStatus.Disposed };
         await documents.PutAsync(clientId, Collection, assetId, doc, NoTags, ct);
-        return new DisposeStamp(DisposeOutcome.Disposed, Map(assetId, doc), prior);
+        return new DisposeStamp(DisposeOutcome.Disposed, Map(assetId, doc));
     }
 
-    public async Task ReinstateAsync(Guid clientId, Guid assetId, decimal restoreAccumulated, CancellationToken ct = default)
+    public async Task ReinstateAsync(Guid clientId, Guid assetId, CancellationToken ct = default)
     {
         DocumentResult<AssetDocument>? existing = await documents.GetAsync<AssetDocument>(clientId, Collection, assetId, ct);
         if (existing is null) return; // asset gone; nothing to reinstate (disposal void tolerates it)
-        AssetDocument doc = existing.Body with { Status = AssetStatus.Active, AccumulatedDepreciation = restoreAccumulated };
+        AssetDocument doc = existing.Body with { Status = AssetStatus.Active };
         await documents.PutAsync(clientId, Collection, assetId, doc, NoTags, ct);
     }
 
@@ -108,14 +89,15 @@ public sealed class DocumentAssetStore(IDocumentStore documents) : IAssetStore
         return new PagedResponse<Asset>(page.Select(r => Map(r.Id, r.Body)).ToList(), total, skip, limit);
     }
 
-    private static AssetDocument ToDocument(AssetBody body, AssetStatus status, decimal accumulated) =>
+    private static AssetDocument ToDocument(AssetBody body, AssetStatus status) =>
         new(body.Description, body.AcquisitionCost, body.InServiceDate, body.UsefulLifeMonths,
-            body.SalvageValue, body.Method, body.DecliningBalanceFactor, status, accumulated);
+            body.SalvageValue, body.Method, body.DecliningBalanceFactor, status);
 
+    // AccumulatedDepreciation is intentionally not set here — it defaults to 0 and the service overlays the fold.
     private static Asset Map(Guid id, AssetDocument d) => new()
     {
         Id = id, Description = d.Description, AcquisitionCost = d.AcquisitionCost, InServiceDate = d.InServiceDate,
         UsefulLifeMonths = d.UsefulLifeMonths, SalvageValue = d.SalvageValue, Method = d.Method,
-        DecliningBalanceFactor = d.DecliningBalanceFactor, Status = d.Status, AccumulatedDepreciation = d.AccumulatedDepreciation,
+        DecliningBalanceFactor = d.DecliningBalanceFactor, Status = d.Status,
     };
 }

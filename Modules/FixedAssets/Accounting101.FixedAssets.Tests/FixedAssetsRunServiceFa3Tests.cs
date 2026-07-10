@@ -20,7 +20,7 @@ public sealed class FixedAssetsRunServiceFa3Tests
 
         Asset active = await assets.CreateAsync(clientId, Sl(12000m, 24, new DateOnly(2026, 1, 1)), default); // 500/mo
         Asset disposed = await assets.CreateAsync(clientId, Sl(6000m, 24, new DateOnly(2026, 1, 1)), default);
-        await assets.MarkDisposedAsync(clientId, disposed.Id, 0m, default); // Disposed → excluded
+        await assets.MarkDisposedAsync(clientId, disposed.Id, default); // Disposed → excluded
 
         DepreciationRun run = await svc.RunDepreciationAsync(clientId, new DepreciationRunRequest(2026, 1, null, null), default);
         Assert.Equal(500m, run.Total);                 // only the active asset
@@ -49,23 +49,24 @@ public sealed class FixedAssetsRunServiceFa3Tests
     }
 
     [Fact]
-    public async Task Voiding_a_run_with_no_spawned_entry_still_rolls_back_and_marks_voided()
+    public async Task Voiding_a_run_with_no_spawned_entry_still_marks_voided()
     {
         InMemoryAssetStore assets = new();
         InMemoryDepreciationRunStore runs = new();
-        FakeLedgerClient ledger = new() { ReturnNoEntries = true }; // simulate a post that never landed
+        FakeLedgerClient ledger = new();
         FixedAccountsProvider accounts = new();
         DepreciationMethodSelector selector = new([new StraightLineDepreciation(), new DecliningBalanceDepreciation()]);
         FixedAssetsRunService svc = new(assets, runs, selector, accounts, ledger);
         Guid clientId = Guid.NewGuid();
-        Asset a = await assets.CreateAsync(clientId, Sl(12000m, 24, new DateOnly(2026, 1, 1)), default);
+        await assets.CreateAsync(clientId, Sl(12000m, 24, new DateOnly(2026, 1, 1)), default);
 
         DepreciationRun run = await svc.RunDepreciationAsync(clientId, new DepreciationRunRequest(2026, 1, null, null), default);
-        Assert.Equal(500m, (await assets.GetAsync(clientId, a.Id, default))!.AccumulatedDepreciation);
 
+        // Simulate a run stranded by a post that never landed — the void can find no spawned entry to reverse.
+        ledger.ReturnNoEntries = true;
         DepreciationRun voided = await svc.VoidRunAsync(clientId, run.Id, "recover", default);
-        Assert.Equal(DepreciationRunStatus.Voided, voided.Status);
-        Assert.Equal(0m, (await assets.GetAsync(clientId, a.Id, default))!.AccumulatedDepreciation); // rolled back
+        Assert.Equal(DepreciationRunStatus.Voided, voided.Status); // tolerated the missing entry, still recoverable
+        Assert.False(ledger.ReversedOrWithdrawn);                  // nothing to reverse
     }
 }
 
