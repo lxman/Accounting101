@@ -67,11 +67,11 @@ public static class CashEndpoints
 
     private static async Task<IResult> ListDisbursements(
         Guid clientId, int? skip, int? limit, string? order, bool? includeVoided,
-        ICashDisbursementStore store, CancellationToken cancellationToken)
+        CashService service, CancellationToken cancellationToken)
     {
         if (!TryOrder(order, out bool descending))
             return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
-        PagedResponse<CashDisbursement> page = await store.GetByClientPagedAsync(
+        PagedResponse<CashDisbursement> page = await service.ListDisbursementsAsync(
             clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeVoided ?? false, cancellationToken);
         return Results.Ok(new PagedResponse<CashDisbursementView>(
             page.Items.Select(d => new CashDisbursementView(d)).ToList(), page.Total, page.Skip, page.Limit));
@@ -122,11 +122,11 @@ public static class CashEndpoints
 
     private static async Task<IResult> ListDeposits(
         Guid clientId, int? skip, int? limit, string? order, bool? includeVoided,
-        ICashDepositStore store, CancellationToken cancellationToken)
+        CashService service, CancellationToken cancellationToken)
     {
         if (!TryOrder(order, out bool descending))
             return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
-        PagedResponse<CashDeposit> page = await store.GetByClientPagedAsync(
+        PagedResponse<CashDeposit> page = await service.ListDepositsAsync(
             clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeVoided ?? false, cancellationToken);
         return Results.Ok(new PagedResponse<CashDepositView>(
             page.Items.Select(d => new CashDepositView(d)).ToList(), page.Total, page.Skip, page.Limit));

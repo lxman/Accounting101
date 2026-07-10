@@ -69,6 +69,16 @@ public sealed class HttpLedgerClient(
         return (await response.Content.ReadFromJsonAsync<List<EntryResponse>>(cancellationToken))!;
     }
 
+    public async Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefsAsync(Guid clientId, IReadOnlyList<Guid> sourceRefs, CancellationToken cancellationToken = default)
+    {
+        if (sourceRefs.Count == 0) return [];
+        string csv = string.Join(',', sourceRefs);
+        using HttpRequestMessage request = Forwarded(HttpMethod.Get, $"clients/{clientId}/entries?sourceRefs={csv}");
+        using HttpResponseMessage response = await http.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return (await response.Content.ReadFromJsonAsync<List<EntryResponse>>(cancellationToken))!;
+    }
+
     /// <summary>Build a request carrying the caller's bearer token, so the engine acts as that user.</summary>
     private HttpRequestMessage Forwarded(HttpMethod method, string uri)
     {

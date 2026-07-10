@@ -305,4 +305,28 @@ public sealed class CashServiceTests
         CashDisbursement? read = await h.Service.GetDisbursementAsync(clientId, doc.Id);
         Assert.Equal(CashDisbursementStatus.Void, read!.Status);
     }
+
+    // ── Ledger-truth status overlay (list reads, batched) ────────────────────
+
+    [Fact]
+    public async Task ListDeposits_reports_Void_per_row_from_ledger_truth()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        Guid capitalAccount = Guid.NewGuid();
+
+        CashDeposit stayPosted = await h.Service.RecordDepositAsync(clientId,
+            new CashDepositBody([new CashLine(capitalAccount, 10_000m)], new DateOnly(2026, 1, 1), null, null));
+        CashDeposit goVoid = await h.Service.RecordDepositAsync(clientId,
+            new CashDepositBody([new CashLine(capitalAccount, 20_000m)], new DateOnly(2026, 1, 2), null, null));
+
+        // Withdraw the second deposit's entry directly — envelope stays Posted.
+        Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, goVoid.Id)).Id;
+        await h.Ledger.VoidAsync(clientId, entryId, new VoidRequest("withdrawn directly"));
+
+        PagedResponse<CashDeposit> page = await h.Service.ListDepositsAsync(clientId, 0, 50, descending: false, includeVoided: true);
+
+        Assert.Equal(CashDepositStatus.Posted, page.Items.Single(d => d.Id == stayPosted.Id).Status);
+        Assert.Equal(CashDepositStatus.Void, page.Items.Single(d => d.Id == goVoid.Id).Status);
+    }
 }

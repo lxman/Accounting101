@@ -23,4 +23,8 @@ public interface ILedgerClient
 
     /// <summary>Every entry the engine has tied to a source document — how the module finds the entry a disbursement or deposit produced.</summary>
     Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default);
+
+    /// <summary>Every entry tied to any of the given source documents, in one round-trip — how a list
+    /// read folds ledger-truth status across a page without an N+1 of singular lookups.</summary>
+    Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefsAsync(Guid clientId, IReadOnlyList<Guid> sourceRefs, CancellationToken cancellationToken = default);
 }
