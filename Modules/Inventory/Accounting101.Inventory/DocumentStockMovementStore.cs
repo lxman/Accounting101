@@ -62,6 +62,14 @@ public sealed class DocumentStockMovementStore(IDocumentStore documents) : IStoc
         return latest is null ? null : Map(latest);
     }
 
+    public async Task<IReadOnlyList<StockMovement>> GetAllByItemAsync(Guid clientId, Guid itemId, CancellationToken ct = default)
+    {
+        // Unbounded scan (the store already relies on this pattern): all statuses for the item.
+        IReadOnlyList<DocumentResult<StockMovementBody>> all =
+            await documents.QueryAsync<StockMovementBody>(clientId, Collection, Tags(), includeVoided: true, cancellationToken: ct);
+        return all.Where(r => r.Body.ItemId == itemId).Select(Map).ToList();
+    }
+
     private static Dictionary<string, string> Tags() => new();
 
     private static StockMovement Map(DocumentResult<StockMovementBody> r) => new()

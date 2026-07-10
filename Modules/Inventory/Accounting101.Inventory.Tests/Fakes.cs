@@ -227,6 +227,9 @@ internal sealed class InMemoryStockMovementStore : IStockMovementStore
             .Where(m => m.ItemId == itemId && m.Status != MovementStatus.Void)
             .OrderByDescending(m => m.Number)
             .FirstOrDefault());
+
+    public Task<IReadOnlyList<StockMovement>> GetAllByItemAsync(Guid clientId, Guid itemId, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<StockMovement>>(_movements.Where(m => m.ItemId == itemId).ToList());
 }
 
 /// <summary>Fixed set of posting accounts, exposed as public properties for test assertions.</summary>

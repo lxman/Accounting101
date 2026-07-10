@@ -51,4 +51,8 @@ public interface IStockMovementStore
     /// <summary>The most-recent non-voided movement for the given item (not any other item) — the LIFO
     /// void's target.</summary>
     Task<StockMovement?> GetLatestForItemAsync(Guid clientId, Guid itemId, CancellationToken ct = default);
+
+    /// <summary>Every movement for the item, all statuses, unbounded — the quantity projection's input
+    /// (it gates on each movement's ENTRY state, not the document state).</summary>
+    Task<IReadOnlyList<StockMovement>> GetAllByItemAsync(Guid clientId, Guid itemId, CancellationToken ct = default);
 }

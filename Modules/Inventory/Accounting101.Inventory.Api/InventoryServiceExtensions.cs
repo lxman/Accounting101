@@ -26,6 +26,7 @@ public static class InventoryServiceExtensions
         services.AddScoped<IStockMovementStore>(sp =>
             new DocumentStockMovementStore(sp.GetRequiredKeyedService<IDocumentStore>("inventory")));
         services.AddScoped<InventoryMovementService>();
+        services.AddScoped<ItemValuationService>();
         services.AddSingleton<IInventoryAccountsProvider, ConfiguredInventoryAccountsProvider>();
 
         // Explicit client name to avoid the ILedgerClient short-name collision across modules.
