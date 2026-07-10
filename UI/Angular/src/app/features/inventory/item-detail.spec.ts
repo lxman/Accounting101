@@ -29,7 +29,7 @@ describe('ItemDetail', () => {
     ctrl.expectOne('http://localhost:5000/clients/C1/items/i1').flush(itemBody(10));
     ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/movements').flush({
       items: [{ movement: { id: 'm1', number: 'MV-1', itemId: 'i1', type: 'Receipt', effectiveDate: '2026-07-01', memo: null,
-        quantity: 10, appliedUnitCost: 50, extendedCost: 500, resultingOnHand: 10, resultingTotalValue: 500, status: 'Posted' } }],
+        quantity: 10, appliedUnitCost: 50, extendedCost: 500, status: 'Posted' } }],
       total: 1, skip: 0, limit: 20,
     });
     f.detectChanges();

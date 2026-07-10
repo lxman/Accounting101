@@ -57,7 +57,7 @@ import { Paginator } from '../../shared/paginator';
                 <tr hlmTr>
                   <th hlmTh>#</th><th hlmTh>Type</th><th hlmTh>Effective date</th>
                   <th hlmTh class="text-right">Quantity</th><th hlmTh class="text-right">Unit cost</th>
-                  <th hlmTh class="text-right">Resulting on hand</th><th hlmTh>Status</th>
+                  <th hlmTh>Status</th>
                 </tr>
               </thead>
               <tbody hlmTBody>
@@ -69,7 +69,6 @@ import { Paginator } from '../../shared/paginator';
                     <td hlmTd>{{ formatDate(m.effectiveDate) }}</td>
                     <td hlmTd class="text-right tabular-nums">{{ m.quantity }}</td>
                     <td hlmTd class="text-right tabular-nums">{{ money(m.appliedUnitCost) }}</td>
-                    <td hlmTd class="text-right tabular-nums">{{ m.resultingOnHand }}</td>
                     <td hlmTd [class.text-destructive]="m.status === 'Void'">{{ m.status }}</td>
                   </tr>
                 }

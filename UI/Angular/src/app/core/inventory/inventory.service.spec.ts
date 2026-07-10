@@ -22,8 +22,7 @@ const item: Item = {
 const movement: StockMovement = {
   id: 'm1', number: 'MV-00001', itemId: 'i1', type: 'Receipt',
   effectiveDate: '2026-03-01', memo: null, quantity: 5,
-  appliedUnitCost: 10, extendedCost: 50,
-  resultingOnHand: 15, resultingTotalValue: 150, status: 'Posted',
+  appliedUnitCost: 10, extendedCost: 50, status: 'Posted',
 };
 
 describe('InventoryService — items', () => {

@@ -18,7 +18,7 @@ function setup(caps: string[]) {
 
 const movementBody = (status: 'Posted' | 'Void' = 'Posted') => ({
   movement: { id: 'm1', number: 'MV-1', itemId: 'i1', type: 'Receipt', effectiveDate: '2026-07-01', memo: null,
-    quantity: 10, appliedUnitCost: 5, extendedCost: 50, resultingOnHand: 10, resultingTotalValue: 50, status },
+    quantity: 10, appliedUnitCost: 5, extendedCost: 50, status },
 });
 
 describe('MovementDetail', () => {

@@ -57,7 +57,7 @@ describe('MovementEditor', () => {
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual({ itemId: 'i1', type: 'Receipt', quantity: 10, unitCost: 5, effectiveDate: '2026-07-01', memo: null });
     req.flush({ movement: { id: 'm1', number: 'MV-1', itemId: 'i1', type: 'Receipt', effectiveDate: '2026-07-01', memo: null,
-      quantity: 10, appliedUnitCost: 5, extendedCost: 50, resultingOnHand: 10, resultingTotalValue: 50, status: 'Posted' } });
+      quantity: 10, appliedUnitCost: 5, extendedCost: 50, status: 'Posted' } });
     ctrl.verify();
   });
 
@@ -71,7 +71,7 @@ describe('MovementEditor', () => {
     const req = ctrl.expectOne('http://localhost:5000/clients/C1/movements');
     expect(req.request.body).toEqual({ itemId: 'i1', type: 'Issue', quantity: 4, unitCost: null, effectiveDate: '2026-07-01', memo: null });
     req.flush({ movement: { id: 'm2', number: 'MV-2', itemId: 'i1', type: 'Issue', effectiveDate: '2026-07-01', memo: null,
-      quantity: 4, appliedUnitCost: 5, extendedCost: 20, resultingOnHand: 6, resultingTotalValue: 30, status: 'Posted' } });
+      quantity: 4, appliedUnitCost: 5, extendedCost: 20, status: 'Posted' } });
     ctrl.verify();
   });
 
@@ -85,7 +85,7 @@ describe('MovementEditor', () => {
     const req = ctrl.expectOne('http://localhost:5000/clients/C1/movements');
     expect(req.request.body).toEqual({ itemId: 'i1', type: 'Adjustment', quantity: -2, unitCost: null, effectiveDate: '2026-07-01', memo: null });
     req.flush({ movement: { id: 'm3', number: 'MV-3', itemId: 'i1', type: 'Adjustment', effectiveDate: '2026-07-01', memo: null,
-      quantity: -2, appliedUnitCost: 5, extendedCost: 10, resultingOnHand: 4, resultingTotalValue: 20, status: 'Posted' } });
+      quantity: -2, appliedUnitCost: 5, extendedCost: 10, status: 'Posted' } });
     ctrl.verify();
   });
 
@@ -99,7 +99,7 @@ describe('MovementEditor', () => {
     const req = ctrl.expectOne('http://localhost:5000/clients/C1/movements');
     expect(req.request.body).toEqual({ itemId: 'i1', type: 'Adjustment', quantity: 3, unitCost: 6, effectiveDate: '2026-07-01', memo: null });
     req.flush({ movement: { id: 'm4', number: 'MV-4', itemId: 'i1', type: 'Adjustment', effectiveDate: '2026-07-01', memo: null,
-      quantity: 3, appliedUnitCost: 6, extendedCost: 18, resultingOnHand: 7, resultingTotalValue: 38, status: 'Posted' } });
+      quantity: 3, appliedUnitCost: 6, extendedCost: 18, status: 'Posted' } });
     ctrl.verify();
   });
 });
