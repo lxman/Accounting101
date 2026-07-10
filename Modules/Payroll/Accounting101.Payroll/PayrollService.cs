@@ -45,8 +45,15 @@ public sealed class PayrollService(
         return await RequireRunAsync(clientId, runId, ct);
     }
 
-    public Task<PayrollRun?> GetRunAsync(Guid clientId, Guid runId, CancellationToken ct = default) =>
-        runs.GetAsync(clientId, runId, ct);
+    public async Task<PayrollRun?> GetRunAsync(Guid clientId, Guid runId, CancellationToken ct = default)
+    {
+        PayrollRun? run = await runs.GetAsync(clientId, runId, ct);
+        if (run is null) return null;
+        IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, runId, ct);
+        return run.Status == PayrollRunStatus.Void || PayrollLedgerStatus.ShowsVoided(entries)
+            ? run with { Status = PayrollRunStatus.Void }
+            : run;
+    }
 
     // ── Tax Remittances ─────────────────────────────────────────────────────
 
@@ -82,8 +89,15 @@ public sealed class PayrollService(
         return await RequireRemittanceAsync(clientId, remittanceId, ct);
     }
 
-    public Task<TaxRemittance?> GetRemittanceAsync(Guid clientId, Guid remittanceId, CancellationToken ct = default) =>
-        remittances.GetAsync(clientId, remittanceId, ct);
+    public async Task<TaxRemittance?> GetRemittanceAsync(Guid clientId, Guid remittanceId, CancellationToken ct = default)
+    {
+        TaxRemittance? remittance = await remittances.GetAsync(clientId, remittanceId, ct);
+        if (remittance is null) return null;
+        IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, remittanceId, ct);
+        return remittance.Status == TaxRemittanceStatus.Void || PayrollLedgerStatus.ShowsVoided(entries)
+            ? remittance with { Status = TaxRemittanceStatus.Void }
+            : remittance;
+    }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 

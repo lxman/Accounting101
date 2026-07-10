@@ -235,4 +235,78 @@ public sealed class PayrollServiceTests
         Assert.Contains(h.Ledger.Posted, e => e.SourceRef == run.Id && e.SourceType == PayrollPosting.PayrollRunSourceType);
         Assert.Contains(h.Ledger.Posted, e => e.SourceRef == remittance.Id && e.SourceType == PayrollPosting.TaxRemittanceSourceType);
     }
+
+    // ── Ledger-truth status overlay (detail reads) ──────────────────────────
+
+    [Fact]
+    public async Task GetRun_reports_Void_when_ledger_entry_is_withdrawn_even_if_envelope_stays_Posted()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        PayrollRun run = await h.Service.RecordRunAsync(clientId,
+            new PayrollRunBody(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, 6, 30), null));
+
+        Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, run.Id)).Id;
+        await h.Ledger.VoidAsync(clientId, entryId, new VoidRequest("withdrawn directly"));
+
+        PayrollRun? envelope = await h.RunStore.GetAsync(clientId, run.Id);
+        Assert.Equal(PayrollRunStatus.Posted, envelope!.Status);
+
+        PayrollRun? read = await h.Service.GetRunAsync(clientId, run.Id);
+        Assert.Equal(PayrollRunStatus.Void, read!.Status);
+    }
+
+    [Fact]
+    public async Task GetRun_reports_Void_when_ledger_entry_is_reversed_even_if_envelope_stays_Posted()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        PayrollRun run = await h.Service.RecordRunAsync(clientId,
+            new PayrollRunBody(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, 6, 30), null));
+
+        Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, run.Id)).Id;
+        await h.Ledger.ReverseAsync(clientId, entryId, new ReverseRequest(new DateOnly(2026, 7, 1), "reversed directly"));
+
+        PayrollRun? envelope = await h.RunStore.GetAsync(clientId, run.Id);
+        Assert.Equal(PayrollRunStatus.Posted, envelope!.Status);
+
+        PayrollRun? read = await h.Service.GetRunAsync(clientId, run.Id);
+        Assert.Equal(PayrollRunStatus.Void, read!.Status);
+    }
+
+    [Fact]
+    public async Task GetRemittance_reports_Void_when_ledger_entry_is_withdrawn_even_if_envelope_stays_Posted()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        TaxRemittance remittance = await h.Service.RecordRemittanceAsync(clientId,
+            new TaxRemittanceBody(1_700m, 1_240m, new DateOnly(2026, 7, 15), null));
+
+        Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, remittance.Id)).Id;
+        await h.Ledger.VoidAsync(clientId, entryId, new VoidRequest("withdrawn directly"));
+
+        TaxRemittance? envelope = await h.RemittanceStore.GetAsync(clientId, remittance.Id);
+        Assert.Equal(TaxRemittanceStatus.Posted, envelope!.Status);
+
+        TaxRemittance? read = await h.Service.GetRemittanceAsync(clientId, remittance.Id);
+        Assert.Equal(TaxRemittanceStatus.Void, read!.Status);
+    }
+
+    [Fact]
+    public async Task GetRemittance_reports_Void_when_ledger_entry_is_reversed_even_if_envelope_stays_Posted()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        TaxRemittance remittance = await h.Service.RecordRemittanceAsync(clientId,
+            new TaxRemittanceBody(1_700m, 1_240m, new DateOnly(2026, 7, 15), null));
+
+        Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, remittance.Id)).Id;
+        await h.Ledger.ReverseAsync(clientId, entryId, new ReverseRequest(new DateOnly(2026, 7, 16), "reversed directly"));
+
+        TaxRemittance? envelope = await h.RemittanceStore.GetAsync(clientId, remittance.Id);
+        Assert.Equal(TaxRemittanceStatus.Posted, envelope!.Status);
+
+        TaxRemittance? read = await h.Service.GetRemittanceAsync(clientId, remittance.Id);
+        Assert.Equal(TaxRemittanceStatus.Void, read!.Status);
+    }
 }
