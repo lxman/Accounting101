@@ -52,4 +52,9 @@ public interface IStockMovementStore
     /// <summary>Every movement for the item, all statuses, unbounded — the quantity projection's input
     /// (it gates on each movement's ENTRY state, not the document state).</summary>
     Task<IReadOnlyList<StockMovement>> GetAllByItemAsync(Guid clientId, Guid itemId, CancellationToken ct = default);
+
+    /// <summary>Every movement for ANY of the given items, all statuses, unbounded, in ONE pass — the
+    /// batch quantity projection's input (a page's worth of items in a single scan instead of one scan
+    /// per item). Returns an empty list without scanning when <paramref name="itemIds"/> is empty.</summary>
+    Task<IReadOnlyList<StockMovement>> GetAllByItemsAsync(Guid clientId, IReadOnlyList<Guid> itemIds, CancellationToken ct = default);
 }

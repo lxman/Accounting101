@@ -16,6 +16,11 @@ internal sealed class FakeLedgerClient : ILedgerClient
     public bool ReversedOrWithdrawn { get; private set; }
     public bool ReturnNoEntries { get; set; }
 
+    /// <summary>Call counters — test-only, for asserting a batch read is a CONSTANT number of ledger
+    /// calls (not per-item). Do not affect behavior.</summary>
+    public int GetSubledgerCallCount;
+    public int GetEntriesBySourceRefsCallCount;
+
     public Task<PostEntryResponse> PostAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
     {
         _posted.Add(entry);
@@ -63,15 +68,19 @@ internal sealed class FakeLedgerClient : ILedgerClient
             ? []
             : _entries.Values.Where(e => e.SourceRef == sourceRef).ToList());
 
-    public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefsAsync(Guid clientId, IReadOnlyList<Guid> sourceRefs, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<EntryResponse>>(ReturnNoEntries
+    public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefsAsync(Guid clientId, IReadOnlyList<Guid> sourceRefs, CancellationToken cancellationToken = default)
+    {
+        GetEntriesBySourceRefsCallCount++;
+        return Task.FromResult<IReadOnlyList<EntryResponse>>(ReturnNoEntries
             ? []
             : _entries.Values.Where(e => e.SourceRef is { } s && sourceRefs.Contains(s)).ToList());
+    }
 
     public Task<IReadOnlyList<SubledgerLineResponse>> GetSubledgerAsync(
         Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default,
         bool includePending = false)
     {
+        GetSubledgerCallCount++;
         Dictionary<Guid, decimal> totals = new();
         foreach ((Guid id, EntryResponse response) in _entries)
         {
@@ -222,6 +231,12 @@ internal sealed class InMemoryStockMovementStore : IStockMovementStore
 
     public Task<IReadOnlyList<StockMovement>> GetAllByItemAsync(Guid clientId, Guid itemId, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<StockMovement>>(_movements.Where(m => m.ItemId == itemId).ToList());
+
+    public Task<IReadOnlyList<StockMovement>> GetAllByItemsAsync(Guid clientId, IReadOnlyList<Guid> itemIds, CancellationToken ct = default)
+    {
+        HashSet<Guid> ids = itemIds.ToHashSet();
+        return Task.FromResult<IReadOnlyList<StockMovement>>(_movements.Where(m => ids.Contains(m.ItemId)).ToList());
+    }
 }
 
 /// <summary>Fixed set of posting accounts, exposed as public properties for test assertions.</summary>

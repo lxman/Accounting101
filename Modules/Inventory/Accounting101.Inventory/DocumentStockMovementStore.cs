@@ -70,6 +70,17 @@ public sealed class DocumentStockMovementStore(IDocumentStore documents) : IStoc
         return all.Where(r => r.Body.ItemId == itemId).Select(Map).ToList();
     }
 
+    public async Task<IReadOnlyList<StockMovement>> GetAllByItemsAsync(
+        Guid clientId, IReadOnlyList<Guid> itemIds, CancellationToken ct = default)
+    {
+        if (itemIds.Count == 0) return [];
+        // ONE unbounded scan for the whole set of items (a ListItems page), not one scan per item.
+        HashSet<Guid> ids = itemIds.ToHashSet();
+        IReadOnlyList<DocumentResult<StockMovementBody>> all =
+            await documents.QueryAsync<StockMovementBody>(clientId, Collection, Tags(), includeVoided: true, cancellationToken: ct);
+        return all.Where(r => ids.Contains(r.Body.ItemId)).Select(Map).ToList();
+    }
+
     private static Dictionary<string, string> Tags() => new();
 
     private static StockMovement Map(DocumentResult<StockMovementBody> r) => new()

@@ -119,4 +119,58 @@ public class ItemValuationServiceTests
         Assert.Equal(0m, v.TotalValue);
         Assert.Equal(0m, v.AverageUnitCost);
     }
+
+    /// <summary>The batch path (GetManyAsync, used by ListItems) must agree with the single-item path
+    /// (GetAsync) for every item in the page, including an item with no movements at all.</summary>
+    [Fact]
+    public async Task GetManyAsync_agrees_with_GetAsync_for_each_item()
+    {
+        (ItemValuationService svc, InMemoryStockMovementStore movements, FakeLedgerClient ledger, FixedInventoryAccountsProvider acct) = Build();
+        Guid itemA = Guid.NewGuid();
+        Guid itemB = Guid.NewGuid();
+        Guid itemNoMovements = Guid.NewGuid();
+
+        await Post(movements, ledger, acct, itemA, MovementType.Receipt, 10m, 100m);
+        await Post(movements, ledger, acct, itemB, MovementType.Receipt, 4m, 60m);
+        ledger.ApproveAll();
+
+        ItemValuation expectedA = await svc.GetAsync(Client, itemA, includePending: false);
+        ItemValuation expectedB = await svc.GetAsync(Client, itemB, includePending: false);
+
+        IReadOnlyDictionary<Guid, ItemValuation> many = await svc.GetManyAsync(
+            Client, [itemA, itemB, itemNoMovements], includePending: false);
+
+        Assert.Equal(expectedA.OnHand, many[itemA].OnHand);
+        Assert.Equal(expectedA.TotalValue, many[itemA].TotalValue);
+        Assert.Equal(expectedA.AverageUnitCost, many[itemA].AverageUnitCost);
+
+        Assert.Equal(expectedB.OnHand, many[itemB].OnHand);
+        Assert.Equal(expectedB.TotalValue, many[itemB].TotalValue);
+        Assert.Equal(expectedB.AverageUnitCost, many[itemB].AverageUnitCost);
+
+        Assert.Equal(0m, many[itemNoMovements].OnHand);
+        Assert.Equal(0m, many[itemNoMovements].TotalValue);
+    }
+
+    /// <summary>Proves the ListItems performance fix: GetManyAsync makes a CONSTANT number of ledger calls
+    /// (one subledger fold, at most one batched entry-status read) no matter how many items are in the page
+    /// — not the N+1 shape of calling GetAsync once per item.</summary>
+    [Fact]
+    public async Task GetManyAsync_makes_a_constant_number_of_ledger_calls()
+    {
+        (ItemValuationService svc, InMemoryStockMovementStore movements, FakeLedgerClient ledger, FixedInventoryAccountsProvider acct) = Build();
+        Guid itemA = Guid.NewGuid();
+        Guid itemB = Guid.NewGuid();
+        Guid itemC = Guid.NewGuid();
+
+        await Post(movements, ledger, acct, itemA, MovementType.Receipt, 10m, 100m);
+        await Post(movements, ledger, acct, itemB, MovementType.Receipt, 4m, 60m);
+        await Post(movements, ledger, acct, itemC, MovementType.Receipt, 2m, 20m);
+        ledger.ApproveAll();
+
+        await svc.GetManyAsync(Client, [itemA, itemB, itemC], includePending: false);
+
+        Assert.Equal(1, ledger.GetSubledgerCallCount);
+        Assert.True(ledger.GetEntriesBySourceRefsCallCount <= 1);
+    }
 }

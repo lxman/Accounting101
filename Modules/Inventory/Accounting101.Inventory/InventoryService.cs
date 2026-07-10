@@ -47,8 +47,16 @@ public sealed class InventoryService(IItemStore store, ItemValuationService valu
         Guid clientId, int skip, int limit, bool descending, bool includeInactive, CancellationToken ct = default)
     {
         PagedResponse<Item> page = await store.GetByClientPagedAsync(clientId, skip, limit, descending, includeInactive, ct);
-        List<Item> folded = [];
-        foreach (Item item in page.Items) folded.Add(await WithValuationAsync(clientId, item, ct));
+        // ONE batched valuation call for the whole page (constant ledger calls), not one per item.
+        IReadOnlyDictionary<Guid, ItemValuation> valuations =
+            await valuation.GetManyAsync(clientId, page.Items.Select(i => i.Id).ToList(), includePending: false, ct);
+        List<Item> folded = page.Items
+            .Select(item =>
+            {
+                ItemValuation v = valuations.GetValueOrDefault(item.Id);
+                return item with { OnHandQuantity = v.OnHand, TotalValue = v.TotalValue };
+            })
+            .ToList();
         return new PagedResponse<Item>(folded, page.Total, page.Skip, page.Limit);
     }
 
