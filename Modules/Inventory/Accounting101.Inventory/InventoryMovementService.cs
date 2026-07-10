@@ -57,7 +57,7 @@ public sealed class InventoryMovementService(
 
         // 7. Compose + post one PendingApproval entry.
         PostEntryRequest entry = InventoryPosting.Compose(
-            request.Type, request.Quantity, movement.Id, effect.ExtendedCost, request.EffectiveDate, request.Memo, postingAccounts);
+            request.Type, request.Quantity, movement.Id, request.ItemId, effect.ExtendedCost, request.EffectiveDate, request.Memo, postingAccounts);
         await ledger.PostAsync(clientId, entry, ct);
 
         return movement;
