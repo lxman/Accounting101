@@ -197,6 +197,48 @@ public sealed class PayrollE2eTests(PayrollHostFixture fixture) : IClassFixture<
         Assert.Equal("payroll", Assert.Single(runEntries).ViaModule);
     }
 
+    [Fact]
+    public async Task Run_list_reflects_module_void_across_the_page()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        await SetUpPayrollChartAsync(controller, clientId);
+
+        RecordPayrollRunRequest r1 = new(Gross, EmployeeFica, EmployerFica, Deductions, IncomeTax, new DateOnly(2026, 6, 30), null);
+        RecordPayrollRunRequest r2 = new(Gross, EmployeeFica, EmployerFica, Deductions, IncomeTax, new DateOnly(2026, 7, 31), null);
+
+        PayrollRun run1 = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/payroll-runs", r1)).EnsureSuccessStatusCode().Content.ReadFromJsonAsync<PayrollRun>())!;
+        PayrollRun run2 = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/payroll-runs", r2)).EnsureSuccessStatusCode().Content.ReadFromJsonAsync<PayrollRun>())!;
+
+        // Void the second via the module (Controller holds payroll.write + gl.void under SoD).
+        (await controller.PostAsJsonAsync($"/clients/{clientId}/payroll-runs/{run2.Id}/void", new Api.VoidReasonRequest("error"))).EnsureSuccessStatusCode();
+
+        PagedResponse<PayrollRunView> page = (await clerk.GetFromJsonAsync<PagedResponse<PayrollRunView>>(
+            $"/clients/{clientId}/payroll-runs?includeVoided=true&order=asc"))!;
+
+        Assert.Equal(PayrollRunStatus.Posted, page.Items.Single(v => v.Run.Id == run1.Id).Run.Status);
+        Assert.Equal(PayrollRunStatus.Void, page.Items.Single(v => v.Run.Id == run2.Id).Run.Status);
+    }
+
+    [Fact]
+    public async Task Raw_gl_reverse_of_a_payroll_entry_is_refused_by_the_guard()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpPayrollChartAsync(controller, clientId);
+
+        RecordPayrollRunRequest request = new(Gross, EmployeeFica, EmployerFica, Deductions, IncomeTax, new DateOnly(2026, 6, 30), null);
+        PayrollRun run = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/payroll-runs", request)).EnsureSuccessStatusCode().Content.ReadFromJsonAsync<PayrollRun>())!;
+
+        // Find and approve the spawned entry, so a reversal (not a withdrawal) is what a raw caller would attempt.
+        EntryResponse entry = Assert.Single((await clerk.GetFromJsonAsync<EntryResponse[]>($"/clients/{clientId}/entries?sourceRef={run.Id}"))!);
+        (await approver.PostAsync($"/clients/{clientId}/entries/{entry.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        // Raw reverse — a plain user request carrying no module credential — is refused: correct it through the module.
+        HttpResponseMessage rawReverse = await controller.PostAsJsonAsync(
+            $"/clients/{clientId}/entries/{entry.Id}/reverse",
+            new ReverseRequest(new DateOnly(2026, 7, 1), "raw reversal attempt"));
+        Assert.Equal(HttpStatusCode.Conflict, rawReverse.StatusCode);
+    }
+
     private static void AssertLine(EntryResponse entry, Guid accountId, string direction, decimal amount)
     {
         EntryLineResponse line = Assert.Single(entry.Lines, l => l.AccountId == accountId);
