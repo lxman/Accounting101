@@ -40,6 +40,10 @@ Scope is the **core slice** (see §8). Dispositions (credit memo / write-off / c
 - **Post-time enforcement:** for each line touching a control account, every dimension type in `RequiredDimensions` must be present in the line's `Dimensions`, else the post is rejected 422 (naming the missing dimension). If a post-time gate already exists for the single-dimension case, extend it to iterate the set; if none exists, add it.
 - Configure **A/R** with `RequiredDimensions = {Customer, Invoice}`.
 - **Inception opening balances:** an opening AR balance seeded at `OpenAsync` must be modeled so its AR line carries an `Invoice` dimension (e.g. an opening-balance pseudo-invoice) rather than an untagged AR line — otherwise enforcement rejects it. The plan handles the seed path explicitly.
+- **Required chart configuration (deployment requirement — surfaced by dev smoke 2026-07-09).** The ledger-first read path folds two accounts through the dimension-gated subledger endpoint, so BOTH must be configured as control accounts carrying the queried dimension, or a customer-account read returns 422→500:
+  - **Accounts Receivable** → `RequiredDimensions = {Customer, Invoice}` (folded by `Invoice` for per-invoice open balances; enforced on posts).
+  - **Customer Credits** → `RequiredDimensions = {Customer}` (folded by `Customer` for the available-credit balance).
+  Onboarding / chart seeding must set these; a chart that predates the feature (single- or no-dimension accounts) reads legacy documents fine (global `IgnoreExtraElements`) but will 422 on the customer-account fold until reconfigured. Hardening follow-up: consider degrading the fold gracefully (empty → 0) or validating the chart at onboarding rather than 500-ing on a mis-dimensioned control account.
 
 ## 6. Posting recipes
 
