@@ -94,7 +94,10 @@ public sealed class VendorAccountEndpointE2eTests(PayablesHostFixture fixture) :
     [Fact]
     public async Task GET_account_rejects_non_iso_asOf_and_accepts_iso()
     {
-        (Guid clientId, _, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        (Guid clientId, HttpClient controller, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        // The account view now folds the ledger's A/P and Vendor-Credits accounts, so they must exist even
+        // though this test never posts a financial document.
+        await SetUpChartAsync(controller, clientId);
         Vendor vendor = (await (await clerk.PostAsJsonAsync(
             $"/clients/{clientId}/vendors", new CreateVendorRequest("PropCo", null)))
             .Content.ReadFromJsonAsync<Vendor>())!;

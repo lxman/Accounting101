@@ -25,6 +25,19 @@ internal sealed class FakeLedgerClient : ILedgerClient
     }
 
     /// <summary>
+    /// Seed a Posted (on-the-books) entry directly into the fold WITHOUT recording it in <see cref="Posted"/>.
+    /// For tests to establish pre-existing ledger state — e.g. a bill's own A/P-credit line, which
+    /// BillService posts in production but is out of scope for a BillPaymentService-only unit-test harness —
+    /// without polluting assertions against what the code under test itself posted.
+    /// </summary>
+    public void SeedEntry(PostEntryRequest entry)
+    {
+        var id = Guid.NewGuid();
+        _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "Posted", reversalOf: null, lines: entry.Lines);
+        _linesById[id] = entry.Lines;
+    }
+
+    /// <summary>
     /// Optional hook: tests set this to drive the validation outcome. When null (the default), validation
     /// succeeds silently. Set to a delegate that throws <see cref="LedgerClientException"/> to simulate a
     /// rejection (e.g. a closed-period 409) without HTTP.

@@ -6,7 +6,7 @@ namespace Accounting101.Payables;
 /// <summary>The cash-disbursement lifecycle: record a bill payment (allocate across bills, hold over-payment
 /// as vendor credit), apply existing vendor credit, and void. Each document posts one balanced entry that
 /// lands PendingApproval — approval is the client's normal maker-checker flow. Open balances and vendor
-/// credit are derived from stored allocations, never stored.</summary>
+/// credit are folded from the ledger's Bill/Vendor-axis subledgers on every read.</summary>
 public sealed class BillPaymentService(
     IBillPaymentStore payments, IBillStore bills, IBillAccountsProvider accounts, ILedgerClient ledger)
 {
@@ -59,6 +59,10 @@ public sealed class BillPaymentService(
         // A void reverses the whole payment, including the overpayment that landed as vendor credit. If that
         // credit has since been applied, removing it would drive the credit balance negative (a credit balance
         // on the Vendor Credits asset) — a corrupt state. Refuse; the consuming application must be reversed first.
+        // TODO(Task 7): once the module stops storing Allocation[], payment.Unapplied moves to
+        // SettlementRelief.ForSourceAsync(..., postedOnly: false) for the same immediacy this guard needs
+        // (the payment being voided may itself still be pending). Until then Allocation[] is still stored,
+        // so payment.Unapplied is already immediate — this guard is unchanged.
         if (payment.Unapplied > 0m)
         {
             decimal creditBalance = await GetVendorCreditBalanceAsync(clientId, payment.VendorId, ct);
@@ -86,29 +90,30 @@ public sealed class BillPaymentService(
     {
         Bill? bill = await bills.GetAsync(clientId, billId, ct);
         if (bill is null) return null;
-        decimal applied = await AppliedToBillAsync(clientId, bill.VendorId, billId, ct);
+        decimal applied = await AppliedToBillAsync(clientId, bill, ct);
         return new BillView(bill, Accounting101.Settlement.Settlement.OpenBalance(bill.Total, applied), Accounting101.Settlement.Settlement.Status(bill.Total, applied));
     }
 
+    /// <summary>Unapplied vendor credit, folded from the ledger's Vendor-axis Vendor Credits subledger.
+    /// Vendor Credits is an ASSET (debit-normal); the fold reads available credit directly POSITIVE — NO
+    /// negation (the mirror of AR's Customer Credits, a liability, which negates).</summary>
     public async Task<decimal> GetVendorCreditBalanceAsync(Guid clientId, Guid vendorId, CancellationToken ct = default)
     {
-        IReadOnlyList<BillPayment> ps = await payments.GetPaymentsByVendorAsync(clientId, vendorId, ct);
-        IReadOnlyList<VendorCreditApplication> cs = await payments.GetCreditApplicationsByVendorAsync(clientId, vendorId, ct);
-        decimal created = ps.Where(p => !p.Voided).Sum(p => p.Unapplied);
-        decimal spent = cs.Where(c => !c.Voided).Sum(c => c.Applied);
-        return created - spent;
+        BillPaymentPostingAccounts posting = await accounts.GetPaymentAccountsAsync(clientId, ct);
+        return (await ledger.GetSubledgerAsync(clientId, posting.VendorCreditsAccountId, "Vendor", null, ct))
+            .Where(l => l.DimensionValue == vendorId).Sum(l => l.Balance);
     }
 
     public async Task<IReadOnlyList<BillView>> ListBillViewsAsync(Guid clientId, Guid vendorId, SettlementFilter? filter, CancellationToken ct = default)
     {
         IReadOnlyList<Bill> vendorBills = await bills.GetByVendorAsync(clientId, vendorId, ct);
-        IReadOnlyList<BillPayment> ps = await payments.GetPaymentsByVendorAsync(clientId, vendorId, ct);
-        IReadOnlyList<VendorCreditApplication> cs = await payments.GetCreditApplicationsByVendorAsync(clientId, vendorId, ct);
 
-        Dictionary<Guid, decimal> applied = new();
-        foreach (Allocation a in ps.Where(p => !p.Voided).SelectMany(p => p.Allocations)
-                     .Concat(cs.Where(c => !c.Voided).SelectMany(c => c.Allocations)))
-            applied[a.TargetId] = applied.GetValueOrDefault(a.TargetId) + a.Amount;
+        BillPaymentPostingAccounts posting = await accounts.GetPaymentAccountsAsync(clientId, ct);
+        IReadOnlyList<SubledgerLineResponse> apByBill =
+            await ledger.GetSubledgerAsync(clientId, posting.PayableAccountId, "Bill", null, ct);
+        Dictionary<Guid, decimal> openByBill = apByBill.ToDictionary(l => l.DimensionValue, l => -l.Balance);
+        Dictionary<Guid, decimal> applied = vendorBills.ToDictionary(
+            b => b.Id, b => b.Total - openByBill.GetValueOrDefault(b.Id, b.Total));
 
         IEnumerable<BillView> views = vendorBills
             .Where(bill => bill.Status == BillStatus.Entered)
@@ -127,6 +132,7 @@ public sealed class BillPaymentService(
         return views.ToList();
     }
 
+    /// <summary>Each allocation must target a live bill of this vendor and not exceed its current open balance.</summary>
     private async Task ValidateAllocationsAsync(Guid clientId, Guid vendorId, IReadOnlyList<Allocation> allocations, CancellationToken ct)
     {
         foreach (Allocation a in allocations)
@@ -138,18 +144,44 @@ public sealed class BillPaymentService(
             if (bill.VendorId != vendorId)
                 throw new InvalidOperationException($"Bill {a.TargetId} belongs to a different vendor.");
 
-            decimal alreadyApplied = await AppliedToBillAsync(clientId, vendorId, a.TargetId, ct);
+            decimal alreadyApplied = await ReservedAgainstBillAsync(clientId, bill, ct);
             if (alreadyApplied + a.Amount > bill.Total)
                 throw new InvalidOperationException($"Allocation to bill {a.TargetId} exceeds its open balance.");
         }
     }
 
-    private async Task<decimal> AppliedToBillAsync(Guid clientId, Guid vendorId, Guid billId, CancellationToken ct)
+    /// <summary>
+    /// Total amount applied to one bill — the READ path. Folded Posted-only from the ledger's Bill-axis A/P
+    /// subledger (reads reflect only what is actually on the books): applied = bill.Total − open, where
+    /// open = −fold (A/P is credit-normal — the debit-positive fold reads the outstanding payable
+    /// NEGATIVE). When the bill carries no on-the-books A/P line yet (its own enter entry is still
+    /// PendingApproval), <c>open</c> defaults to <c>bill.Total</c> — i.e. applied = 0 — so a freshly
+    /// entered but unapproved bill reads as fully open (not Paid). This mirrors how
+    /// <see cref="ListBillViewsAsync"/> already defaults an absent fold entry to Total.
+    /// </summary>
+    private async Task<decimal> AppliedToBillAsync(Guid clientId, Bill bill, CancellationToken ct)
     {
-        IReadOnlyList<BillPayment> ps = await payments.GetPaymentsByVendorAsync(clientId, vendorId, ct);
-        IReadOnlyList<VendorCreditApplication> cs = await payments.GetCreditApplicationsByVendorAsync(clientId, vendorId, ct);
-        decimal fromPayments = ps.Where(p => !p.Voided).SelectMany(p => p.Allocations).Where(x => x.TargetId == billId).Sum(x => x.Amount);
-        decimal fromCredits = cs.Where(c => !c.Voided).SelectMany(c => c.Allocations).Where(x => x.TargetId == billId).Sum(x => x.Amount);
-        return fromPayments + fromCredits;
+        BillPaymentPostingAccounts posting = await accounts.GetPaymentAccountsAsync(clientId, ct);
+        IReadOnlyList<SubledgerLineResponse> fold =
+            await ledger.GetSubledgerAsync(clientId, posting.PayableAccountId, "Bill", null, ct);
+        decimal open = -(fold.FirstOrDefault(l => l.DimensionValue == bill.Id)?.Balance ?? -bill.Total);
+        return bill.Total - open;
+    }
+
+    /// <summary>
+    /// Total amount reserved against one bill — the WRITE-PATH validation computation used by
+    /// <see cref="ValidateAllocationsAsync"/>. Folded PENDING-INCLUSIVE (Posted + PendingApproval,
+    /// non-void) so an unapproved relief (payment allocation, credit application) already recorded against
+    /// the bill reserves against it: a second, also-unapproved relief then fails this check instead of both
+    /// passing and over-relieving the bill once approved. Deliberately NOT used by any read path — reads
+    /// must stay Posted-only (see <see cref="AppliedToBillAsync"/>).
+    /// </summary>
+    private async Task<decimal> ReservedAgainstBillAsync(Guid clientId, Bill bill, CancellationToken ct)
+    {
+        BillPaymentPostingAccounts posting = await accounts.GetPaymentAccountsAsync(clientId, ct);
+        IReadOnlyList<SubledgerLineResponse> fold = await ledger.GetSubledgerAsync(
+            clientId, posting.PayableAccountId, "Bill", null, ct, includePending: true);
+        decimal open = -(fold.FirstOrDefault(l => l.DimensionValue == bill.Id)?.Balance ?? -bill.Total);
+        return bill.Total - open;
     }
 }

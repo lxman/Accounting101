@@ -10,7 +10,28 @@ public sealed class BillPaymentServiceTests
         PayableAccountId = Guid.NewGuid(), CashAccountId = Guid.NewGuid(), VendorCreditsAccountId = Guid.NewGuid(),
     };
 
+    private static readonly Guid DummyExpenseAccountId = Guid.NewGuid();
+
     private sealed record Harness(BillPaymentService Payments, FakeLedgerClient Ledger, InMemoryBillStore BillStore, InMemoryBillPaymentStore PaymentStore);
+
+    /// <summary>
+    /// BillPaymentService now derives every open balance/applied/credit figure by folding the ledger
+    /// (<c>ILedgerClient.GetSubledgerAsync</c>), not the module's stored <c>Allocation[]</c>. This harness's
+    /// bills are created directly through <see cref="InMemoryBillStore"/> — bypassing BillService, which is
+    /// what posts a bill's own A/P-credit line in production — so the fold would see only the relief-side
+    /// debit lines BillPaymentService posts, never the bill's own credit. Seed that credit here so the fold
+    /// starts from the correct open balance, mirroring what BillService's enter recipe posts.
+    /// </summary>
+    private static void PostBillApCredit(FakeLedgerClient ledger, Guid vendorId, Bill bill) =>
+        ledger.SeedEntry(new PostEntryRequest(
+            Id: null, EffectiveDate: bill.BillDate, Reference: bill.Number, Memo: null,
+            Lines:
+            [
+                new PostLineRequest(DummyExpenseAccountId, "Debit", bill.Total),
+                new PostLineRequest(PayAccounts.PayableAccountId, "Credit", bill.Total,
+                    Dimensions: new Dictionary<string, Guid> { ["Vendor"] = vendorId, ["Bill"] = bill.Id }),
+            ],
+            SourceRef: bill.Id, SourceType: "Bill"));
 
     private static async Task<(Harness h, Guid clientId, Guid vendorId, Bill bill)> SetupWithEnteredBillAsync(decimal total)
     {
@@ -23,6 +44,7 @@ public sealed class BillPaymentServiceTests
         Bill entered = await billStore.PromoteDraftAsync(clientId, draft.Id);
 
         FakeLedgerClient ledger = new();
+        PostBillApCredit(ledger, vendorId, entered);
         InMemoryBillPaymentStore paymentStore = new();
         BillPaymentService service = new(paymentStore, billStore, new FixedBillAccountsProvider(new BillPostingAccounts { PayableAccountId = PayAccounts.PayableAccountId }, PayAccounts), ledger);
         return (new Harness(service, ledger, billStore, paymentStore), clientId, vendorId, entered);
@@ -96,6 +118,7 @@ public sealed class BillPaymentServiceTests
         // A second entered bill to apply credit against.
         Bill draft2 = await h.BillStore.CreateDraftAsync(clientId, new BillBody(vendorId, new DateOnly(2026, 4, 1), null, null, null, [new BillLineBody("More", 100m, Guid.NewGuid())]));
         Bill second = await h.BillStore.PromoteDraftAsync(clientId, draft2.Id);
+        PostBillApCredit(h.Ledger, vendorId, second);
 
         VendorCreditApplication applied = await h.Payments.RecordCreditApplicationAsync(clientId,
             new VendorCreditApplicationBody(vendorId, new DateOnly(2026, 4, 2), [new Allocation(second.Id, 50m)]));
@@ -137,6 +160,7 @@ public sealed class BillPaymentServiceTests
         // A second, unpaid bill -> Open.
         Bill d2 = await h.BillStore.CreateDraftAsync(clientId, new BillBody(vendorId, new DateOnly(2026, 4, 1), null, null, null, [new BillLineBody("More", 100m, Guid.NewGuid())]));
         Bill second = await h.BillStore.PromoteDraftAsync(clientId, d2.Id);
+        PostBillApCredit(h.Ledger, vendorId, second);
 
         IReadOnlyList<BillView> open = await h.Payments.ListBillViewsAsync(clientId, vendorId, SettlementFilter.Open);
         IReadOnlyList<BillView> paid = await h.Payments.ListBillViewsAsync(clientId, vendorId, SettlementFilter.Paid);
@@ -248,7 +272,9 @@ public sealed class BillPaymentServiceTests
     {
         Bill draft = await h.BillStore.CreateDraftAsync(clientId, new BillBody(
             vendorId, new DateOnly(2026, 3, 1), null, null, null, [new BillLineBody("Rent", total, Guid.NewGuid())]));
-        return await h.BillStore.PromoteDraftAsync(clientId, draft.Id);
+        Bill entered = await h.BillStore.PromoteDraftAsync(clientId, draft.Id);
+        PostBillApCredit(h.Ledger, vendorId, entered);
+        return entered;
     }
 
     [Fact]

@@ -61,8 +61,11 @@ public sealed class VendorAccountBuilderTests
     {
         Guid bill = Guid.NewGuid();
         var bills = new List<Bill> { EnteredBill(bill, 100m, new DateOnly(2026, 3, 1), null) };
-        var lines = VendorAccountBuilder.Statement(
-            bills, [Payment(bill, 30m, 30m, new DateOnly(2026, 3, 1))], []);
+        BillPayment payment = Payment(bill, 30m, 30m, new DateOnly(2026, 3, 1));
+        // reliefByDocument is fold-sourced in production (VendorAccountService); a plain dictionary
+        // stands in for it here — the builder itself never touches Allocations.
+        var relief = new Dictionary<Guid, decimal> { [payment.Id] = 30m };
+        var lines = VendorAccountBuilder.Statement(bills, [payment], [], relief);
         Assert.Equal("Bill", lines[0].Type);     // charge first
         Assert.Equal(100m, lines[0].Balance);
         Assert.Equal("Payment", lines[1].Type);  // settlement second (same date)
@@ -73,10 +76,11 @@ public sealed class VendorAccountBuilderTests
     public void CreditActivity_overpayment_plus_application_minus_running_balance()
     {
         Guid bill = Guid.NewGuid();
-        // payment of 150 allocating 100 → 50 overpayment; later credit application of 20.
-        var lines = VendorAccountBuilder.CreditActivity(
-            [Payment(bill, 150m, 100m, new DateOnly(2026, 3, 1))],
-            [CreditApp(bill, 20m, new DateOnly(2026, 3, 5))]);
+        // payment of 150 relieving 100 → 50 overpayment; later credit application relieving 20.
+        BillPayment payment = Payment(bill, 150m, 100m, new DateOnly(2026, 3, 1));
+        VendorCreditApplication creditApp = CreditApp(bill, 20m, new DateOnly(2026, 3, 5));
+        var relief = new Dictionary<Guid, decimal> { [payment.Id] = 100m, [creditApp.Id] = 20m };
+        var lines = VendorAccountBuilder.CreditActivity([payment], [creditApp], relief);
         Assert.Equal("Overpayment", lines[0].Type);
         Assert.Equal(50m, lines[0].Amount);
         Assert.Equal(50m, lines[0].CreditBalance);
@@ -101,15 +105,17 @@ public sealed class VendorAccountBuilderTests
         Guid pA = new("00000000-0000-0000-0000-000000000001");
         Guid pB = new("00000000-0000-0000-0000-000000000002");
         // Two same-date overpayments fed high-Id first + a same-date vendor-credit application.
+        Guid appId = Guid.NewGuid();
         List<BillPayment> payments =
         [
-            new() { Id = pB, VendorId = Guid.NewGuid(), Date = d, Amount = 20m, Method = null, Allocations = [] }, // unapplied 20
-            new() { Id = pA, VendorId = Guid.NewGuid(), Date = d, Amount = 10m, Method = null, Allocations = [] }, // unapplied 10
+            new() { Id = pB, VendorId = Guid.NewGuid(), Date = d, Amount = 20m, Method = null, Allocations = [] }, // unapplied 20 (no relief)
+            new() { Id = pA, VendorId = Guid.NewGuid(), Date = d, Amount = 10m, Method = null, Allocations = [] }, // unapplied 10 (no relief)
         ];
         List<VendorCreditApplication> apps =
-            [new() { Id = Guid.NewGuid(), VendorId = Guid.NewGuid(), Date = d, Allocations = [new Allocation(Guid.NewGuid(), 5m)] }];
+            [new() { Id = appId, VendorId = Guid.NewGuid(), Date = d, Allocations = [] }];
+        Dictionary<Guid, decimal> relief = new() { [appId] = 5m };
 
-        var lines = VendorAccountBuilder.CreditActivity(payments, apps);
+        var lines = VendorAccountBuilder.CreditActivity(payments, apps, relief);
 
         Assert.Equal([10m, 20m, -5m], lines.Select(l => l.Amount));
         Assert.Equal(["Overpayment", "Overpayment", "Credit applied"], lines.Select(l => l.Type));
