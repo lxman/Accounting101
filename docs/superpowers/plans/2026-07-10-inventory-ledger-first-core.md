@@ -195,12 +195,13 @@ internal sealed class FakeLedgerClient : ILedgerClient
         ReversedOrWithdrawn = true;
         EntryResponse original = _entries[entryId];
         var id = Guid.NewGuid();
-        // Negated lines, posted immediately so the pair nets to zero under a posted-only fold; the original
-        // stays Active (still counted) exactly like the real engine.
+        // Negated lines; the reversal is PendingApproval until approved (exactly like the real engine —
+        // LedgerService.ReverseAsync) and the original stays Active. The reversal nets the original to zero
+        // only once it is Posted, so a posted-only fold does NOT roll back until the reversal is approved.
         IReadOnlyList<PostLineRequest> reversedLines = _linesById.TryGetValue(entryId, out IReadOnlyList<PostLineRequest>? originalLines)
             ? originalLines.Select(l => l with { Direction = Flip(l.Direction) }).ToList()
             : [];
-        EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "Posted", reversalOf: entryId, lines: reversedLines);
+        EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "PendingApproval", reversalOf: entryId, lines: reversedLines);
         _entries[id] = reversal;
         _linesById[id] = reversedLines;
         return Task.FromResult(reversal);
@@ -649,16 +650,19 @@ public sealed class ItemValuationService(
         return onHand;
     }
 
-    /// <summary>A movement counts iff its spawned primary entry is on the books: Active, not itself a
-    /// reversal, not reversed by another, and — unless pending-inclusive — Posted. Mirrors the cross-module
-    /// void resolver; the value fold nets a reversal to zero the same way, so the two axes agree.</summary>
+    /// <summary>A movement counts iff its spawned primary entry is on the books under THIS gate, and no
+    /// reversal of it is on the books under the SAME gate. The reversal check is gated on posting exactly
+    /// like the primary — because the value fold nets a reversal's lines under the same posting rule, so
+    /// gating both axes identically keeps value and quantity coherent in the void→reversal-approval window
+    /// (a merely-pending reversal must not drop the quantity while the posted-only value fold still counts it).</summary>
     private static bool OnBooks(IEnumerable<EntryResponse> forSource, bool includePending)
     {
         List<EntryResponse> list = forSource.ToList();
-        EntryResponse? primary = list.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null });
-        if (primary is null) return false;                                 // stranded post / no entry
-        if (list.Any(e => e.ReversalOf == primary.Id)) return false;       // reversed → off the books
-        return includePending || primary.Posting == "Posted";             // reads: posted-only
+        EntryResponse? primary = list.FirstOrDefault(e =>
+            e is { Status: "Active", ReversalOf: null } && (includePending || e.Posting == "Posted"));
+        if (primary is null) return false;                                            // no on-books primary
+        bool reversed = list.Any(e => e.ReversalOf == primary.Id && (includePending || e.Posting == "Posted"));
+        return !reversed;                                                             // reversed under the same gate → off the books
     }
 }
 ```
