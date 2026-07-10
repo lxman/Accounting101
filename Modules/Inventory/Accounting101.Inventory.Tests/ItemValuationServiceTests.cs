@@ -56,6 +56,60 @@ public class ItemValuationServiceTests
         Assert.Equal(100m, write.TotalValue);
     }
 
+    /// <summary>Pins the reversal/void coherence invariant that ItemValuationService.OnBooks exists to
+    /// enforce — the property the whole ledger-first redesign turns on, and one that was already gotten
+    /// wrong once (an earlier, ungated "Any(e => e.ReversalOf == primary.Id)" reversal check would drop the
+    /// quantity as soon as ANY reversal exists, regardless of whether that reversal is itself on the books
+    /// under the same gate — decoupling value and quantity). Value and quantity must always move together.</summary>
+    [Fact]
+    public async Task Reversal_gates_on_posting_keeping_value_and_quantity_coherent()
+    {
+        (ItemValuationService svc, InMemoryStockMovementStore movements, FakeLedgerClient ledger, FixedInventoryAccountsProvider acct) = Build();
+        Guid item = Guid.NewGuid();
+
+        // Post inline (rather than via the Post() helper) so we capture the entry id needed for ReverseAsync.
+        StockMovement m = await movements.RecordAsync(Client, new StockMovementBody(
+            item, MovementType.Receipt, new DateOnly(2026, 1, 1), null, 10m, 10m, 100m, 0m, 0m));
+        PostEntryResponse posted = await ledger.PostAsync(Client, InventoryPosting.Compose(
+            MovementType.Receipt, 10m, m.Id, item, 100m, new DateOnly(2026, 1, 1), null,
+            new InventoryPostingAccounts
+            {
+                InventoryAssetAccountId = acct.InventoryAssetAccountId, CogsAccountId = acct.CogsAccountId,
+                GrniClearingAccountId = acct.GrniClearingAccountId, InventoryAdjustmentAccountId = acct.InventoryAdjustmentAccountId,
+            }));
+        ledger.ApproveAll();   // primary entry is now Posted — on the books under BOTH gates
+
+        // 1. Before reversal: posted-only read sees the receipt.
+        ItemValuation before = await svc.GetAsync(Client, item, includePending: false);
+        Assert.Equal(10m, before.OnHand);
+        Assert.Equal(100m, before.TotalValue);
+
+        await ledger.ReverseAsync(Client, posted.Id, new ReverseRequest(new DateOnly(2026, 1, 2), "test"));
+        // The reversal is created PendingApproval — NOT yet on the books under the posted-only gate.
+
+        // 2a. Posted-only gate: the pending reversal must NOT count, so the original movement is still on
+        // the books. THIS is the guard against reintroducing an ungated reversal check — an ungated
+        // "Any(e => e.ReversalOf == primary.Id)" would drop OnHand to 0 here while the posted-only value
+        // fold (which also does not count the pending reversal's lines) still reads 100 — decoupling value
+        // and quantity. The gated check keeps both at their pre-reversal values.
+        ItemValuation postedOnlyAfterReversal = await svc.GetAsync(Client, item, includePending: false);
+        Assert.Equal(10m, postedOnlyAfterReversal.OnHand);
+        Assert.Equal(100m, postedOnlyAfterReversal.TotalValue);
+
+        // 2b. Pending-inclusive gate: the reversal DOES count under this gate, so it folds away the
+        // movement — value and quantity drop TOGETHER.
+        ItemValuation pendingInclusiveAfterReversal = await svc.GetAsync(Client, item, includePending: true);
+        Assert.Equal(0m, pendingInclusiveAfterReversal.OnHand);
+        Assert.Equal(0m, pendingInclusiveAfterReversal.TotalValue);
+
+        ledger.ApproveAll();   // reversal is now Posted too — on the books under the posted-only gate
+
+        // 3. Posted-only gate: now the reversal counts, so the movement is fully rolled back — both zero.
+        ItemValuation postedOnlyAfterApprove = await svc.GetAsync(Client, item, includePending: false);
+        Assert.Equal(0m, postedOnlyAfterApprove.OnHand);
+        Assert.Equal(0m, postedOnlyAfterApprove.TotalValue);
+    }
+
     [Fact]
     public async Task Empty_item_folds_to_zero()
     {
