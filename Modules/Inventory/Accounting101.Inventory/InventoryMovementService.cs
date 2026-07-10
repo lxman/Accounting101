@@ -13,7 +13,8 @@ public sealed record RecordMovement(
 /// valuation to the item, and posts one balanced PendingApproval entry via <see cref="InventoryPosting"/>.
 /// This is the module's first GL-posting service.</summary>
 public sealed class InventoryMovementService(
-    IItemStore items, IStockMovementStore movements, IInventoryAccountsProvider accounts, ILedgerClient ledger)
+    IItemStore items, IStockMovementStore movements, IInventoryAccountsProvider accounts, ILedgerClient ledger,
+    ItemValuationService valuation)
 {
     public async Task<StockMovement> RecordAsync(Guid clientId, RecordMovement request, CancellationToken ct = default)
     {
@@ -29,7 +30,9 @@ public sealed class InventoryMovementService(
             throw new InvalidOperationException("Item is inactive; reactivate it before recording movements.");
 
         // 3. Compute the effect (may throw InvalidOperationException for block-negative → 409).
-        Valuation current = new(item.OnHandQuantity, item.TotalValue);
+        // Current valuation is the pending-inclusive fold (writes see pending claims), NOT the stored item.
+        ItemValuation folded = await valuation.GetAsync(clientId, request.ItemId, includePending: true, ct);
+        Valuation current = new(folded.OnHand, folded.TotalValue);
         MovementEffect effect = request.Type switch
         {
             MovementType.Receipt    => InventoryValuation.Receipt(current, request.Quantity, request.UnitCost!.Value),

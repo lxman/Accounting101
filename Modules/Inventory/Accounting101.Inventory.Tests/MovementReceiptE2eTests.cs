@@ -29,6 +29,16 @@ public sealed class MovementReceiptE2eTests(InventoryHostFixture fixture) : ICla
         (await (await http.PostAsJsonAsync($"/clients/{clientId}/items", req)).EnsureSuccessStatusCode()
             .Content.ReadFromJsonAsync<ItemView>())!;
 
+    /// <summary>Approves every PendingApproval entry spawned for the given sourceRef. Mirrors
+    /// MovementVoidE2eTests.ApproveBySourceRefAsync / SettlementScenario.ApproveBySourceRefAsync.</summary>
+    private static async Task ApproveBySourceRefAsync(HttpClient reader, HttpClient approver, Guid clientId, Guid sourceRef)
+    {
+        EntryResponse[] entries = (await reader.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={sourceRef}"))!;
+        foreach (EntryResponse e in entries.Where(e => e.Posting == "PendingApproval"))
+            (await approver.PostAsync($"/clients/{clientId}/entries/{e.Id}/approve", null)).EnsureSuccessStatusCode();
+    }
+
     [Fact]
     public async Task Receipt_posts_one_pending_entry_via_inventory_and_updates_the_item()
     {
@@ -43,11 +53,6 @@ public sealed class MovementReceiptE2eTests(InventoryHostFixture fixture) : ICla
         StockMovementView movement = (await created.Content.ReadFromJsonAsync<StockMovementView>())!;
         Assert.NotNull(movement.Movement.Number);
 
-        ItemView after = (await http.GetFromJsonAsync<ItemView>($"/clients/{clientId}/items/{item.Item.Id}"))!;
-        Assert.Equal(10m, after.Item.OnHandQuantity);
-        Assert.Equal(20m, after.Item.TotalValue);
-        Assert.Equal(2m, after.AverageUnitCost);
-
         EntryResponse[] entries = (await http.GetFromJsonAsync<EntryResponse[]>(
             $"/clients/{clientId}/entries?sourceRef={movement.Movement.Id}"))!;
         EntryResponse entry = Assert.Single(entries);
@@ -56,6 +61,18 @@ public sealed class MovementReceiptE2eTests(InventoryHostFixture fixture) : ICla
         Assert.Equal(2, entry.Lines.Count);
         Assert.Equal(20m, entry.Lines.Single(l => l.AccountId == fixture.InventoryAssetAccountId && l.Direction == "Debit").Amount);
         Assert.Equal(20m, entry.Lines.Single(l => l.AccountId == fixture.GrniClearingAccountId && l.Direction == "Credit").Amount);
+
+        // The item read is the POSTED-ONLY fold: the movement's own effect is only visible via GET once its
+        // spawned entry is approved (a pending receipt does not yet move the read-side valuation).
+        Guid approverUserId = Guid.NewGuid();
+        await fixture.Control().AddMembershipAsync(approverUserId, clientId, LedgerRole.Approver);
+        HttpClient approver = fixture.ClientFor(approverUserId, "Acme Approver", LedgerRole.Approver);
+        await ApproveBySourceRefAsync(http, approver, clientId, movement.Movement.Id);
+
+        ItemView after = (await http.GetFromJsonAsync<ItemView>($"/clients/{clientId}/items/{item.Item.Id}"))!;
+        Assert.Equal(10m, after.Item.OnHandQuantity);
+        Assert.Equal(20m, after.Item.TotalValue);
+        Assert.Equal(2m, after.AverageUnitCost);
     }
 
     /// <summary>Capability denial (not a wrong-client denial): the Auditor is seeded on the SAME client

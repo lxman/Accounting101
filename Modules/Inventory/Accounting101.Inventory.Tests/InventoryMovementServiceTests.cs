@@ -17,8 +17,29 @@ public sealed class InventoryMovementServiceTests
         InMemoryStockMovementStore movements = new();
         FakeLedgerClient ledger = new();
         FixedInventoryAccountsProvider accounts = new();
-        InventoryMovementService service = new(items, movements, accounts, ledger);
+        ItemValuationService valuation = new(movements, accounts, ledger);
+        InventoryMovementService service = new(items, movements, accounts, ledger, valuation);
         return (service, items, movements, ledger, accounts);
+    }
+
+    /// <summary>Pins the T5 cut-over: the record path computes the effect from the pending-inclusive fold
+    /// (ItemValuationService), NOT the stored item's OnHandQuantity/TotalValue. Both receipts are posted
+    /// (left PendingApproval, never approved) so a fold that only counted posted entries would see zero —
+    /// the fake counts pending entries under includePending:true, proving the write path uses that gate.</summary>
+    [Fact]
+    public async Task Issue_costs_at_the_folded_weighted_average()
+    {
+        (InventoryMovementService svc, InMemoryItemStore items, InMemoryStockMovementStore movements, FakeLedgerClient ledger, _) = Build();
+        Guid clientId = Guid.NewGuid();
+        Item item = await items.CreateAsync(clientId, new ItemBody("SKU1", "Widget", null, "ea"));
+
+        await svc.RecordAsync(clientId, new RecordMovement(item.Id, MovementType.Receipt, 10m, 10m, new DateOnly(2026, 1, 1), null));
+        await svc.RecordAsync(clientId, new RecordMovement(item.Id, MovementType.Receipt, 10m, 20m, new DateOnly(2026, 1, 2), null));
+        // On-hand 20 @ avg 15. Issue 4 → COGS 60.
+        StockMovement issue = await svc.RecordAsync(clientId, new RecordMovement(item.Id, MovementType.Issue, 4m, null, new DateOnly(2026, 1, 3), null));
+
+        Assert.Equal(60m, issue.ExtendedCost);
+        Assert.Equal(15m, issue.AppliedUnitCost);
     }
 
     [Fact]

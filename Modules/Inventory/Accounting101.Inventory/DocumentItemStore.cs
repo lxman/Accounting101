@@ -46,7 +46,8 @@ public sealed class DocumentItemStore(IDocumentStore documents) : IItemStore
         DocumentResult<ItemDocument>? existing = await documents.GetAsync<ItemDocument>(clientId, Collection, itemId, ct);
         if (existing is null) return DeactivateResult.NotFound;
         if (existing.State == DocumentLifecycle.Inactive) return DeactivateResult.AlreadyInactive;
-        if (existing.Body.OnHandQuantity != 0m) return DeactivateResult.HasStock;
+        // Has-stock guard moved up to InventoryService.DeactivateAsync, which reads the posted-only ledger
+        // projection instead of this document's (now write-only) OnHandQuantity field.
         await documents.DeactivateAsync(clientId, Collection, itemId, ct);
         return DeactivateResult.Deactivated;
     }

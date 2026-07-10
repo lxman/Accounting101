@@ -93,12 +93,16 @@ public sealed class ItemDocumentStoreTests(ItemDocumentStoreFixture fixture) : I
         Assert.Equal(DeactivateResult.AlreadyInactive, await Store().DeactivateAsync(fixture.ClientId, created.Id));
     }
 
+    /// <summary>T5 cut-over: the has-stock guard moved UP to InventoryService.DeactivateAsync, which reads
+    /// the posted-only ledger fold (see InventoryServiceTests) instead of this document's stored
+    /// OnHandQuantity. The store's own OnHandQuantity field is now write-only — DeactivateAsync no longer
+    /// reads it, so the store deactivates unconditionally regardless of a stale nonzero stored valuation.</summary>
     [Fact]
-    public async Task Deactivate_is_blocked_while_stock_on_hand()
+    public async Task Deactivate_no_longer_guards_on_the_stored_valuation_field()
     {
         Item item = await Store().CreateAsync(fixture.ClientId, Body(sku: "STOCKED"));
         await Store().SetValuationAsync(fixture.ClientId, item.Id, 5m, 50m);
-        Assert.Equal(DeactivateResult.HasStock, await Store().DeactivateAsync(fixture.ClientId, item.Id));
+        Assert.Equal(DeactivateResult.Deactivated, await Store().DeactivateAsync(fixture.ClientId, item.Id));
     }
 
     [Fact]

@@ -10,10 +10,37 @@ public sealed class InventoryEndpointsTests(InventoryHostFixture fixture) : ICla
 {
     private static SaveItemRequest Widget(string sku = "SKU1") => new(sku, "Widget", "A widget", "each");
 
+    // Reads now fold through the ledger (ItemValuationService), so any test that reads/deactivates an item
+    // needs the Inventory posting accounts to actually exist in the client's chart — otherwise the
+    // subledger query 500s on the unconfigured account (a known, already-accepted staging-era gap; see the
+    // Fixed Assets ledger-first conversion, which hit the same "fold-on-read 500 on unconfigured chart").
+    private async Task SetUpChartAsync(HttpClient http, Guid clientId)
+    {
+        await PutAccountAsync(http, clientId, fixture.InventoryAssetAccountId, "1400", "Inventory Asset", "Asset", ["Item"]);
+        await PutAccountAsync(http, clientId, fixture.CogsAccountId, "5000", "Cost of Goods Sold", "Expense");
+        await PutAccountAsync(http, clientId, fixture.GrniClearingAccountId, "2100", "GRNI Clearing", "Liability");
+        await PutAccountAsync(http, clientId, fixture.InventoryAdjustmentAccountId, "5100", "Inventory Adjustment", "Expense");
+    }
+
+    private static async Task PutAccountAsync(HttpClient http, Guid clientId, Guid accountId, string number, string name,
+        string type, IReadOnlyList<string>? requiredDimensions = null) =>
+        (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{accountId}",
+            new { Number = number, Name = name, Type = type, RequiredDimensions = requiredDimensions }))
+            .EnsureSuccessStatusCode();
+
+    private static async Task ApproveBySourceRefAsync(HttpClient reader, HttpClient approver, Guid clientId, Guid sourceRef)
+    {
+        EntryResponse[] entries = (await reader.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={sourceRef}"))!;
+        foreach (EntryResponse e in entries.Where(e => e.Posting == "PendingApproval"))
+            (await approver.PostAsync($"/clients/{clientId}/entries/{e.Id}/approve", null)).EnsureSuccessStatusCode();
+    }
+
     [Fact]
     public async Task Create_list_get_update_deactivate_lifecycle()
     {
         (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
+        await SetUpChartAsync(http, clientId);
 
         HttpResponseMessage created = await http.PostAsJsonAsync($"/clients/{clientId}/items", Widget());
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
@@ -64,6 +91,7 @@ public sealed class InventoryEndpointsTests(InventoryHostFixture fixture) : ICla
     public async Task Deactivating_a_missing_item_is_404_and_repeat_is_409()
     {
         (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
+        await SetUpChartAsync(http, clientId);
         Assert.Equal(HttpStatusCode.NotFound,
             (await http.PostAsync($"/clients/{clientId}/items/{Guid.NewGuid()}/deactivate", null)).StatusCode);
 
@@ -72,9 +100,48 @@ public sealed class InventoryEndpointsTests(InventoryHostFixture fixture) : ICla
         Assert.Equal(HttpStatusCode.Conflict, (await http.PostAsync($"/clients/{clientId}/items/{created.Item.Id}/deactivate", null)).StatusCode);
     }
 
-    // The HasStock deactivate guard is exercised at the store level (ItemDocumentStoreTests) — reaching
-    // IItemStore directly here would bypass FirmResolutionMiddleware (no HTTP request in scope) and throw.
-    // A future movement-posting endpoint will give stock through HTTP once movements land.
+    /// <summary>T5 cut-over: the has-stock deactivate guard now lives in InventoryService.DeactivateAsync,
+    /// reading the posted-only ledger fold — proven here end-to-end through HTTP now that the movements
+    /// endpoint exists (superseding the old store-level-only coverage noted in ItemDocumentStoreTests).
+    /// A receipt's stock blocks deactivation only once its entry is approved (posted-only visible); issuing
+    /// the stock back to zero (and approving that entry too) clears the guard.</summary>
+    [Fact]
+    public async Task Deactivate_is_blocked_while_posted_stock_on_hand_then_succeeds_once_cleared()
+    {
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync(); // Controller (inventory.write + gl.approve)
+        await SetUpChartAsync(http, clientId);
+        Guid approverUserId = Guid.NewGuid();
+        await fixture.Control().AddMembershipAsync(approverUserId, clientId, LedgerRole.Approver);
+        HttpClient approver = fixture.ClientFor(approverUserId, "Acme Approver", LedgerRole.Approver);
+
+        ItemView item = (await (await http.PostAsJsonAsync($"/clients/{clientId}/items", Widget("STOCKED")))
+            .Content.ReadFromJsonAsync<ItemView>())!;
+
+        HttpResponseMessage receiptResponse = await http.PostAsJsonAsync($"/clients/{clientId}/movements",
+            new RecordMovementRequest(item.Item.Id, MovementType.Receipt, 5m, 10m, new DateOnly(2026, 1, 1), null));
+        receiptResponse.EnsureSuccessStatusCode();
+        StockMovementView receipt = (await receiptResponse.Content.ReadFromJsonAsync<StockMovementView>())!;
+
+        // Not yet approved — the posted-only guard does not yet see the stock, so deactivation succeeds
+        // immediately (a pending receipt does not block deactivation). Reactivate it back to exercise the
+        // real guard once the receipt is posted.
+        (await http.PostAsync($"/clients/{clientId}/items/{item.Item.Id}/deactivate", null)).EnsureSuccessStatusCode();
+        (await http.PostAsync($"/clients/{clientId}/items/{item.Item.Id}/reactivate", null)).EnsureSuccessStatusCode();
+
+        await ApproveBySourceRefAsync(http, approver, clientId, receipt.Movement.Id);
+
+        HttpResponseMessage blocked = await http.PostAsync($"/clients/{clientId}/items/{item.Item.Id}/deactivate", null);
+        Assert.Equal(HttpStatusCode.Conflict, blocked.StatusCode);
+
+        HttpResponseMessage issueResponse = await http.PostAsJsonAsync($"/clients/{clientId}/movements",
+            new RecordMovementRequest(item.Item.Id, MovementType.Issue, 5m, null, new DateOnly(2026, 1, 2), null));
+        issueResponse.EnsureSuccessStatusCode();
+        StockMovementView issue = (await issueResponse.Content.ReadFromJsonAsync<StockMovementView>())!;
+        await ApproveBySourceRefAsync(http, approver, clientId, issue.Movement.Id);
+
+        HttpResponseMessage deactivated = await http.PostAsync($"/clients/{clientId}/items/{item.Item.Id}/deactivate", null);
+        Assert.Equal(HttpStatusCode.NoContent, deactivated.StatusCode);
+    }
 
     [Fact]
     public async Task A_member_without_inventory_write_cannot_create_but_can_read()
@@ -101,6 +168,7 @@ public sealed class InventoryEndpointsTests(InventoryHostFixture fixture) : ICla
     public async Task Editing_a_deactivated_item_returns_409_until_reactivated()
     {
         (Guid clientId, HttpClient http) = await fixture.SeedClientAsync(); // Controller by default
+        await SetUpChartAsync(http, clientId);
 
         ItemView created = (await (await http.PostAsJsonAsync($"/clients/{clientId}/items", Widget()))
             .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<ItemView>())!;

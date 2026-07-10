@@ -165,12 +165,12 @@ public static class InventoryEndpoints
 
     private static async Task<IResult> ListItems(
         Guid clientId, int? skip, int? limit, string? order, bool? includeInactive,
-        IItemStore store, CancellationToken cancellationToken)
+        InventoryService service, CancellationToken cancellationToken)
     {
         if (!TryOrder(order, out bool descending))
             return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
 
-        PagedResponse<Item> page = await store.GetByClientPagedAsync(
+        PagedResponse<Item> page = await service.GetPagedAsync(
             clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeInactive ?? false, cancellationToken);
 
         return Results.Ok(new PagedResponse<ItemView>(
