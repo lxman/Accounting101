@@ -104,6 +104,39 @@ public sealed class DepreciationRunE2eTests(FixedAssetsHostFixture fixture) : IC
         Assert.Equal(1000m, listed.Items.Single(a => a.Asset.Id == db.Asset.Id).Asset.AccumulatedDepreciation);
     }
 
+    /// <summary>Regression for the Task 5 review finding: PUT /assets/{id} must return the FOLDED
+    /// accumulated depreciation, not the store's default of 0 (the stored field is gone). Runs and approves
+    /// one month of depreciation, then edits a benign field (Description) and asserts the PUT response body
+    /// itself carries the folded, non-zero accum — this fails if the handler echoes the store result instead
+    /// of refetching via FixedAssetsService.GetAsync (mirrors ReactivateAsset's pattern).</summary>
+    [Fact]
+    public async Task Put_asset_response_folds_accumulated_depreciation_after_a_posted_run()
+    {
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
+        await SetUpChartAsync(http, clientId);
+
+        AssetView sl = await CreateAssetAsync(http, clientId,
+            new SaveAssetRequest("SL Van", 12000m, new DateOnly(2026, 1, 1), 24, 0m, DepreciationMethod.StraightLine, null)); // 500/mo
+
+        DepreciationRunView run = (await (await http.PostAsJsonAsync($"/clients/{clientId}/depreciation-runs",
+            new RunDepreciationRequest(2026, 1, null, "January depreciation"))).EnsureSuccessStatusCode()
+            .Content.ReadFromJsonAsync<DepreciationRunView>())!;
+        EntryResponse entry = Assert.Single((await http.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={run.Run.Id}"))!);
+        (await http.PostAsync($"/clients/{clientId}/entries/{entry.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        // Sanity: the fold is non-zero on the books before we touch the PUT path.
+        AssetView before = (await http.GetFromJsonAsync<AssetView>($"/clients/{clientId}/assets/{sl.Asset.Id}"))!;
+        Assert.Equal(500m, before.Asset.AccumulatedDepreciation);
+
+        HttpResponseMessage put = await http.PutAsJsonAsync($"/clients/{clientId}/assets/{sl.Asset.Id}",
+            new SaveAssetRequest("SL Van (edited)", 12000m, new DateOnly(2026, 1, 1), 24, 0m, DepreciationMethod.StraightLine, null));
+        put.EnsureSuccessStatusCode();
+        AssetView updated = (await put.Content.ReadFromJsonAsync<AssetView>())!;
+        Assert.Equal("SL Van (edited)", updated.Asset.Description);
+        Assert.Equal(500m, updated.Asset.AccumulatedDepreciation); // NOT 0 — must be the folded value
+    }
+
     [Fact]
     public async Task Second_run_for_the_same_period_returns_409()
     {

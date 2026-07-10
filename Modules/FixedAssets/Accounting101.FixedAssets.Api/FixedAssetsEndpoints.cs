@@ -49,9 +49,15 @@ public static class FixedAssetsEndpoints
         try
         {
             UpdateResult result = await service.UpdateAsync(clientId, assetId, request.ToBody(), cancellationToken);
+            if (result.Outcome == UpdateOutcome.Updated)
+            {
+                // Refetch through the service so the response folds AccumulatedDepreciation from the ledger
+                // rather than echoing the store's default of 0 (the stored field is gone) — mirrors ReactivateAsset.
+                Asset? folded = await service.GetAsync(clientId, assetId, cancellationToken);
+                return folded is null ? Results.NotFound() : Results.Ok(new AssetView(folded));
+            }
             return result.Outcome switch
             {
-                UpdateOutcome.Updated => Results.Ok(new AssetView(result.Asset!)),
                 UpdateOutcome.NotFound => Results.NotFound(),
                 UpdateOutcome.Inactive => Results.Problem(
                     "Asset is inactive; reactivate it before editing.", statusCode: StatusCodes.Status409Conflict),
