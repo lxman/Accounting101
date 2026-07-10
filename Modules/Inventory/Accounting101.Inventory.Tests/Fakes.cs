@@ -2,31 +2,40 @@ using Accounting101.Ledger.Contracts;
 
 namespace Accounting101.Inventory.Tests;
 
-/// <summary>
-/// An in-memory stand-in for the engine: records what was posted, models approve/reverse, and resolves
-/// entries by their source back-link — enough to drive and assert the module's lifecycle without HTTP.
-/// Copied verbatim from Accounting101.FixedAssets.Tests.Fakes.FakeLedgerClient.
-/// </summary>
+/// <summary>In-memory stand-in for the engine: records posts, tracks each entry's lines for a real
+/// per-dimension fold, models approve/reverse/void, and resolves entries by source back-link. The fold
+/// gates on posting state (Active + Posted, or +PendingApproval when includePending) so the value fold and
+/// the quantity projection see a consistent posted/pending world; ApproveAll() flips pending → posted.</summary>
 internal sealed class FakeLedgerClient : ILedgerClient
 {
     private readonly Dictionary<Guid, EntryResponse> _entries = new();
+    private readonly Dictionary<Guid, IReadOnlyList<PostLineRequest>> _linesById = new();
     private readonly List<PostEntryRequest> _posted = [];
 
     public IReadOnlyList<PostEntryRequest> Posted => _posted;
-
-    /// <summary>Flips true the moment either <see cref="ReverseAsync"/> or <see cref="VoidAsync"/> is called.</summary>
     public bool ReversedOrWithdrawn { get; private set; }
-
-    /// <summary>When true, <see cref="GetEntriesBySourceRefAsync"/> returns an empty list — simulates a run
-    /// stranded by a post that never landed.</summary>
     public bool ReturnNoEntries { get; set; }
+
+    /// <summary>Call counters — test-only, for asserting a batch read is a CONSTANT number of ledger
+    /// calls (not per-item). Do not affect behavior.</summary>
+    public int GetSubledgerCallCount;
+    public int GetEntriesBySourceRefsCallCount;
 
     public Task<PostEntryResponse> PostAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
     {
         _posted.Add(entry);
         var id = Guid.NewGuid();
-        _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "PendingApproval", reversalOf: null);
+        _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "PendingApproval", reversalOf: null, lines: entry.Lines);
+        _linesById[id] = entry.Lines;
         return Task.FromResult(new PostEntryResponse(id, "Active", "PendingApproval"));
+    }
+
+    /// <summary>Test helper: approve every pending entry so posted-only reads see them.</summary>
+    public void ApproveAll()
+    {
+        foreach (Guid id in _entries.Keys.ToList())
+            if (_entries[id].Posting == "PendingApproval")
+                _entries[id] = _entries[id] with { Posting = "Posted" };
     }
 
     public Task<EntryResponse> ReverseAsync(Guid clientId, Guid entryId, ReverseRequest request, CancellationToken cancellationToken = default)
@@ -34,8 +43,15 @@ internal sealed class FakeLedgerClient : ILedgerClient
         ReversedOrWithdrawn = true;
         EntryResponse original = _entries[entryId];
         var id = Guid.NewGuid();
-        EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "PendingApproval", reversalOf: entryId);
+        // Negated lines; the reversal is PendingApproval until approved (exactly like the real engine —
+        // LedgerService.ReverseAsync) and the original stays Active. A posted-only fold does NOT roll back
+        // until the reversal is approved (call ApproveAll to model that).
+        IReadOnlyList<PostLineRequest> reversedLines = _linesById.TryGetValue(entryId, out IReadOnlyList<PostLineRequest>? originalLines)
+            ? originalLines.Select(l => l with { Direction = Flip(l.Direction) }).ToList()
+            : [];
+        EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "PendingApproval", reversalOf: entryId, lines: reversedLines);
         _entries[id] = reversal;
+        _linesById[id] = reversedLines;
         return Task.FromResult(reversal);
     }
 
@@ -52,8 +68,47 @@ internal sealed class FakeLedgerClient : ILedgerClient
             ? []
             : _entries.Values.Where(e => e.SourceRef == sourceRef).ToList());
 
-    private static EntryResponse Entry(Guid id, Guid? sourceRef, string? sourceType, string posting, Guid? reversalOf) =>
-        new(id, 0, default, "Standard", "Active", posting, 0, null, null, reversalOf, null, [], sourceRef, sourceType);
+    public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefsAsync(Guid clientId, IReadOnlyList<Guid> sourceRefs, CancellationToken cancellationToken = default)
+    {
+        GetEntriesBySourceRefsCallCount++;
+        return Task.FromResult<IReadOnlyList<EntryResponse>>(ReturnNoEntries
+            ? []
+            : _entries.Values.Where(e => e.SourceRef is { } s && sourceRefs.Contains(s)).ToList());
+    }
+
+    public Task<IReadOnlyList<SubledgerLineResponse>> GetSubledgerAsync(
+        Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default,
+        bool includePending = false)
+    {
+        GetSubledgerCallCount++;
+        Dictionary<Guid, decimal> totals = new();
+        foreach ((Guid id, EntryResponse response) in _entries)
+        {
+            if (response.Status != "Active") continue;
+            if (!includePending && response.Posting != "Posted") continue;
+            if (!_linesById.TryGetValue(id, out IReadOnlyList<PostLineRequest>? lines)) continue;
+            foreach (PostLineRequest line in lines)
+            {
+                if (line.AccountId != account) continue;
+                if (line.Dimensions is null || !line.Dimensions.TryGetValue(dimension, out Guid dimValue)) continue;
+                decimal signed = line.Direction == "Debit" ? line.Amount : -line.Amount;
+                totals[dimValue] = totals.GetValueOrDefault(dimValue) + signed;
+            }
+        }
+        return Task.FromResult<IReadOnlyList<SubledgerLineResponse>>(
+            totals.Select(kv => new SubledgerLineResponse(account, kv.Key, kv.Value)).ToList());
+    }
+
+    private static string Flip(string direction) => direction == "Debit" ? "Credit" : "Debit";
+
+    private static EntryResponse Entry(
+        Guid id, Guid? sourceRef, string? sourceType, string posting, Guid? reversalOf,
+        IReadOnlyList<PostLineRequest>? lines = null)
+    {
+        IReadOnlyList<EntryLineResponse> mapped = (lines ?? []).Select(l =>
+            new EntryLineResponse(l.AccountId, l.Direction, l.Amount, l.Dimensions ?? new Dictionary<string, Guid>(), null)).ToList();
+        return new(id, 0, default, "Standard", "Active", posting, mapped.Count, null, null, reversalOf, null, mapped, sourceRef, sourceType);
+    }
 }
 
 /// <summary>An in-memory item register: a dictionary of items keyed by id, enough to drive the movement
@@ -66,6 +121,7 @@ internal sealed class InMemoryItemStore : IItemStore
     public Task<Item> CreateAsync(Guid clientId, ItemBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
+        // Valuation is derived on read (the service overlays the ledger fold); the store defaults it to 0.
         Item item = new()
         {
             Id = Guid.NewGuid(),
@@ -118,13 +174,6 @@ internal sealed class InMemoryItemStore : IItemStore
         if (_items.TryGetValue(itemId, out Item? item))
             _items[itemId] = item with { Status = ItemStatus.Inactive };
     }
-
-    public Task SetValuationAsync(Guid clientId, Guid itemId, decimal onHand, decimal totalValue, CancellationToken ct = default)
-    {
-        if (_items.TryGetValue(itemId, out Item? item))
-            _items[itemId] = item with { OnHandQuantity = onHand, TotalValue = totalValue };
-        return Task.CompletedTask;
-    }
 }
 
 /// <summary>An in-memory stock-movement store: assigns incrementing MV-##### numbers and filters voided
@@ -148,8 +197,6 @@ internal sealed class InMemoryStockMovementStore : IStockMovementStore
             Quantity = body.Quantity,
             AppliedUnitCost = body.AppliedUnitCost,
             ExtendedCost = body.ExtendedCost,
-            ResultingOnHand = body.ResultingOnHand,
-            ResultingTotalValue = body.ResultingTotalValue,
             Status = MovementStatus.Posted,
         };
         _movements.Add(movement);
@@ -181,6 +228,15 @@ internal sealed class InMemoryStockMovementStore : IStockMovementStore
             .Where(m => m.ItemId == itemId && m.Status != MovementStatus.Void)
             .OrderByDescending(m => m.Number)
             .FirstOrDefault());
+
+    public Task<IReadOnlyList<StockMovement>> GetAllByItemAsync(Guid clientId, Guid itemId, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyList<StockMovement>>(_movements.Where(m => m.ItemId == itemId).ToList());
+
+    public Task<IReadOnlyList<StockMovement>> GetAllByItemsAsync(Guid clientId, IReadOnlyList<Guid> itemIds, CancellationToken ct = default)
+    {
+        HashSet<Guid> ids = itemIds.ToHashSet();
+        return Task.FromResult<IReadOnlyList<StockMovement>>(_movements.Where(m => ids.Contains(m.ItemId)).ToList());
+    }
 }
 
 /// <summary>Fixed set of posting accounts, exposed as public properties for test assertions.</summary>

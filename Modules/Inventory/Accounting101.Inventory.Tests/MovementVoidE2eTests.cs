@@ -13,15 +13,16 @@ public sealed class MovementVoidE2eTests(InventoryHostFixture fixture) : IClassF
 {
     private async Task SetUpChartAsync(HttpClient http, Guid clientId)
     {
-        await PutAccountAsync(http, clientId, fixture.InventoryAssetAccountId, "1400", "Inventory Asset", "Asset");
+        await PutAccountAsync(http, clientId, fixture.InventoryAssetAccountId, "1400", "Inventory Asset", "Asset", ["Item"]);
         await PutAccountAsync(http, clientId, fixture.CogsAccountId, "5000", "Cost of Goods Sold", "Expense");
         await PutAccountAsync(http, clientId, fixture.GrniClearingAccountId, "2100", "GRNI Clearing", "Liability");
         await PutAccountAsync(http, clientId, fixture.InventoryAdjustmentAccountId, "5100", "Inventory Adjustment", "Expense");
     }
 
-    private static async Task PutAccountAsync(HttpClient http, Guid clientId, Guid accountId, string number, string name, string type) =>
+    private static async Task PutAccountAsync(HttpClient http, Guid clientId, Guid accountId, string number, string name,
+        string type, IReadOnlyList<string>? requiredDimensions = null) =>
         (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{accountId}",
-            new { Number = number, Name = name, Type = type, RequiredDimension = (string?)null }))
+            new { Number = number, Name = name, Type = type, RequiredDimensions = requiredDimensions }))
             .EnsureSuccessStatusCode();
 
     private static async Task<ItemView> CreateItemAsync(HttpClient http, Guid clientId, SaveItemRequest req) =>
@@ -39,10 +40,17 @@ public sealed class MovementVoidE2eTests(InventoryHostFixture fixture) : IClassF
     }
 
     /// <summary>Every OTHER void test in this file leaves the spawned entry PendingApproval, so
-    /// <c>InventoryMovementService.VoidAsync</c> always takes its WITHDRAW branch (<c>ledger.VoidAsync</c>).
-    /// This test approves the receipt's spawned entry first — flipping it to Posted — so voiding the
-    /// movement instead takes the REVERSE branch (<c>ledger.ReverseAsync</c>). The discriminator is that
-    /// reversal creates a NEW entry with <c>ReversalOf</c> set on the original, whereas withdraw does not.</summary>
+    /// <c>InventoryMovementService.VoidAsync</c> always takes its WITHDRAW branch (<c>ledger.VoidAsync</c>) —
+    /// that branch's valuation-restore is proven at the unit level by
+    /// <c>InventoryMovementServiceTests.Void_latest_restores_valuation_and_reverses_entry</c> (which reads
+    /// the item straight from its in-memory store, not through a posted-only fold). This test approves the
+    /// receipt's spawned entry first — flipping it to Posted — so voiding the movement instead takes the
+    /// REVERSE branch (<c>ledger.ReverseAsync</c>), AND approves the resulting reversal entry too, since the
+    /// item read here is now the POSTED-ONLY ledger fold: a reversal that is itself still PendingApproval
+    /// does not yet roll the value back for a posted-only reader (see
+    /// ItemValuationServiceTests.Reversal_gates_on_posting_keeping_value_and_quantity_coherent). The
+    /// discriminator vs. withdraw is that reversal creates a NEW entry with <c>ReversalOf</c> set on the
+    /// original, whereas withdraw does not.</summary>
     [Fact]
     public async Task Void_of_movement_with_an_approved_entry_reverses_it_and_restores_valuation()
     {
@@ -68,6 +76,10 @@ public sealed class MovementVoidE2eTests(InventoryHostFixture fixture) : IClassF
             $"/clients/{clientId}/movements/{receipt.Movement.Id}/void", new VoidReasonRequest("year-end correction"));
         Assert.Equal(HttpStatusCode.OK, voidResponse.StatusCode);
 
+        // The void's reversal entry is itself PendingApproval until approved — approve it so the
+        // posted-only item read reflects the full roll-back.
+        await ApproveBySourceRefAsync(controller, approver, clientId, receipt.Movement.Id);
+
         ItemView afterVoid = (await controller.GetFromJsonAsync<ItemView>($"/clients/{clientId}/items/{item.Item.Id}"))!;
         Assert.Equal(0m, afterVoid.Item.OnHandQuantity);
         Assert.Equal(0m, afterVoid.Item.TotalValue);
@@ -81,11 +93,20 @@ public sealed class MovementVoidE2eTests(InventoryHostFixture fixture) : IClassF
         Assert.Contains(afterEntries, e => e.ReversalOf is not null);
     }
 
+    /// <summary>Proves LIFO unwind of valuation across TWO sequential voids via the posted-only item read:
+    /// every entry along the way (receipt, issue, and both voids' reversals) is approved so the fold is
+    /// meaningful at each checkpoint — an unapproved entry is invisible to GET, so leaving anything pending
+    /// would make every intermediate assertion trivially (and meaninglessly) zero. The WITHDRAW branch is
+    /// covered separately (see the class doc-comment on the sibling REVERSE-branch test above).</summary>
     [Fact]
     public async Task Void_of_latest_movement_reverses_entry_and_restores_valuation_then_LIFO_unwinds_to_zero()
     {
         (Guid clientId, HttpClient http) = await fixture.SeedClientAsync(); // Controller (holds inventory.write)
         await SetUpChartAsync(http, clientId);
+
+        Guid approverUserId = Guid.NewGuid();
+        await fixture.Control().AddMembershipAsync(approverUserId, clientId, LedgerRole.Approver);
+        HttpClient approver = fixture.ClientFor(approverUserId, "Acme Approver", LedgerRole.Approver);
 
         ItemView item = await CreateItemAsync(http, clientId, new SaveItemRequest("SKU1", "Widget", null, "each"));
 
@@ -93,16 +114,24 @@ public sealed class MovementVoidE2eTests(InventoryHostFixture fixture) : IClassF
             new RecordMovementRequest(item.Item.Id, MovementType.Receipt, 10m, 2m, new DateOnly(2026, 1, 10), "Initial receipt"));
         receiptResponse.EnsureSuccessStatusCode();
         StockMovementView receipt = (await receiptResponse.Content.ReadFromJsonAsync<StockMovementView>())!;
+        await ApproveBySourceRefAsync(http, approver, clientId, receipt.Movement.Id);
 
         HttpResponseMessage issueResponse = await http.PostAsJsonAsync($"/clients/{clientId}/movements",
             new RecordMovementRequest(item.Item.Id, MovementType.Issue, 4m, null, new DateOnly(2026, 1, 20), "Issue to production"));
         issueResponse.EnsureSuccessStatusCode();
         StockMovementView issue = (await issueResponse.Content.ReadFromJsonAsync<StockMovementView>())!;
+        await ApproveBySourceRefAsync(http, approver, clientId, issue.Movement.Id);
 
-        // item now (6, 12). Void the issue (latest) → back to (10, 20).
+        ItemView afterIssue = (await http.GetFromJsonAsync<ItemView>($"/clients/{clientId}/items/{item.Item.Id}"))!;
+        Assert.Equal(6m, afterIssue.Item.OnHandQuantity);
+        Assert.Equal(12m, afterIssue.Item.TotalValue);
+
+        // item now (6, 12). Void the issue (latest) → back to (10, 20) — both entries are Posted, so this
+        // takes the REVERSE branch; approve the reversal too so the posted-only read sees the roll-back.
         HttpResponseMessage voidIssueResponse = await http.PostAsJsonAsync(
             $"/clients/{clientId}/movements/{issue.Movement.Id}/void", new VoidReasonRequest("oops"));
         Assert.Equal(HttpStatusCode.OK, voidIssueResponse.StatusCode);
+        await ApproveBySourceRefAsync(http, approver, clientId, issue.Movement.Id);
 
         ItemView afterVoidIssue = (await http.GetFromJsonAsync<ItemView>($"/clients/{clientId}/items/{item.Item.Id}"))!;
         Assert.Equal(10m, afterVoidIssue.Item.OnHandQuantity);
@@ -116,6 +145,7 @@ public sealed class MovementVoidE2eTests(InventoryHostFixture fixture) : IClassF
         HttpResponseMessage voidReceiptResponse = await http.PostAsJsonAsync(
             $"/clients/{clientId}/movements/{receipt.Movement.Id}/void", new VoidReasonRequest("oops"));
         Assert.Equal(HttpStatusCode.OK, voidReceiptResponse.StatusCode);
+        await ApproveBySourceRefAsync(http, approver, clientId, receipt.Movement.Id);
 
         ItemView afterVoidReceipt = (await http.GetFromJsonAsync<ItemView>($"/clients/{clientId}/items/{item.Item.Id}"))!;
         Assert.Equal(0m, afterVoidReceipt.Item.OnHandQuantity);

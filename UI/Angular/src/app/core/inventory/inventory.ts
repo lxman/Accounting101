@@ -10,8 +10,7 @@ export interface ItemView { item: Item; averageUnitCost: number; }
 export interface StockMovement {
   id: string; number: string | null; itemId: string; type: MovementType;
   effectiveDate: string; memo: string | null; quantity: number;
-  appliedUnitCost: number; extendedCost: number;
-  resultingOnHand: number; resultingTotalValue: number; status: MovementStatus;
+  appliedUnitCost: number; extendedCost: number; status: MovementStatus;
 }
 export interface StockMovementView { movement: StockMovement; }
 export interface SaveItemRequest { sku: string; name: string; description: string | null; unitOfMeasure: string; }

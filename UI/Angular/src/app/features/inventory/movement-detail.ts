@@ -32,8 +32,6 @@ import { CanDirective } from '../../core/capabilities/can.directive';
             <tr><td class="py-1 text-muted-foreground">Quantity</td><td class="text-right tabular-nums">{{ m.quantity }}</td></tr>
             <tr><td class="py-1 text-muted-foreground">Applied unit cost</td><td class="text-right tabular-nums">{{ money(m.appliedUnitCost) }}</td></tr>
             <tr class="font-semibold border-t border-border"><td class="py-1">Extended cost</td><td class="text-right tabular-nums">{{ money(m.extendedCost) }}</td></tr>
-            <tr><td class="py-1 text-muted-foreground">Resulting on hand</td><td class="text-right tabular-nums">{{ m.resultingOnHand }}</td></tr>
-            <tr><td class="py-1 text-muted-foreground">Resulting total value</td><td class="text-right tabular-nums">{{ money(m.resultingTotalValue) }}</td></tr>
             @if (m.memo) { <tr><td class="py-1 text-muted-foreground">Memo</td><td class="text-right">{{ m.memo }}</td></tr> }
           </tbody>
         </table>

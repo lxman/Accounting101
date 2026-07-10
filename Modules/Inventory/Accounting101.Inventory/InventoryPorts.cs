@@ -14,9 +14,6 @@ public interface IItemStore
     Task<Item?> GetBySkuAsync(Guid clientId, string sku, CancellationToken ct = default);
     Task<PagedResponse<Item>> GetByClientPagedAsync(
         Guid clientId, int skip, int limit, bool descending, bool includeInactive, CancellationToken ct = default);
-
-    /// <summary>Overwrite the item's server-owned valuation (on-hand + total value). Used by movements.</summary>
-    Task SetValuationAsync(Guid clientId, Guid itemId, decimal onHand, decimal totalValue, CancellationToken ct = default);
 }
 
 /// <summary>Outcome of an item update: not found, refused because inactive (reactivate first), duplicate
@@ -51,4 +48,13 @@ public interface IStockMovementStore
     /// <summary>The most-recent non-voided movement for the given item (not any other item) — the LIFO
     /// void's target.</summary>
     Task<StockMovement?> GetLatestForItemAsync(Guid clientId, Guid itemId, CancellationToken ct = default);
+
+    /// <summary>Every movement for the item, all statuses, unbounded — the quantity projection's input
+    /// (it gates on each movement's ENTRY state, not the document state).</summary>
+    Task<IReadOnlyList<StockMovement>> GetAllByItemAsync(Guid clientId, Guid itemId, CancellationToken ct = default);
+
+    /// <summary>Every movement for ANY of the given items, all statuses, unbounded, in ONE pass — the
+    /// batch quantity projection's input (a page's worth of items in a single scan instead of one scan
+    /// per item). Returns an empty list without scanning when <paramref name="itemIds"/> is empty.</summary>
+    Task<IReadOnlyList<StockMovement>> GetAllByItemsAsync(Guid clientId, IReadOnlyList<Guid> itemIds, CancellationToken ct = default);
 }

@@ -62,6 +62,25 @@ public sealed class DocumentStockMovementStore(IDocumentStore documents) : IStoc
         return latest is null ? null : Map(latest);
     }
 
+    public async Task<IReadOnlyList<StockMovement>> GetAllByItemAsync(Guid clientId, Guid itemId, CancellationToken ct = default)
+    {
+        // Unbounded scan (the store already relies on this pattern): all statuses for the item.
+        IReadOnlyList<DocumentResult<StockMovementBody>> all =
+            await documents.QueryAsync<StockMovementBody>(clientId, Collection, Tags(), includeVoided: true, cancellationToken: ct);
+        return all.Where(r => r.Body.ItemId == itemId).Select(Map).ToList();
+    }
+
+    public async Task<IReadOnlyList<StockMovement>> GetAllByItemsAsync(
+        Guid clientId, IReadOnlyList<Guid> itemIds, CancellationToken ct = default)
+    {
+        if (itemIds.Count == 0) return [];
+        // ONE unbounded scan for the whole set of items (a ListItems page), not one scan per item.
+        HashSet<Guid> ids = itemIds.ToHashSet();
+        IReadOnlyList<DocumentResult<StockMovementBody>> all =
+            await documents.QueryAsync<StockMovementBody>(clientId, Collection, Tags(), includeVoided: true, cancellationToken: ct);
+        return all.Where(r => ids.Contains(r.Body.ItemId)).Select(Map).ToList();
+    }
+
     private static Dictionary<string, string> Tags() => new();
 
     private static StockMovement Map(DocumentResult<StockMovementBody> r) => new()
@@ -75,8 +94,6 @@ public sealed class DocumentStockMovementStore(IDocumentStore documents) : IStoc
         Quantity = r.Body.Quantity,
         AppliedUnitCost = r.Body.AppliedUnitCost,
         ExtendedCost = r.Body.ExtendedCost,
-        ResultingOnHand = r.Body.ResultingOnHand,
-        ResultingTotalValue = r.Body.ResultingTotalValue,
         Status = r.State switch
         {
             DocumentLifecycle.Voided or DocumentLifecycle.Superseded => MovementStatus.Void,

@@ -39,10 +39,9 @@ public sealed class ItemDocumentStoreTests(ItemDocumentStoreFixture fixture) : I
     }
 
     [Fact]
-    public async Task Update_changes_editable_params_and_preserves_valuation()
+    public async Task Update_changes_editable_params()
     {
         Item created = await Store().CreateAsync(fixture.ClientId, Body(name: "Old"));
-        await Store().SetValuationAsync(fixture.ClientId, created.Id, 5m, 50m);
 
         UpdateResult result = await Store().UpdateAsync(fixture.ClientId, created.Id, Body(name: "New"));
         Assert.Equal(UpdateOutcome.Updated, result.Outcome);
@@ -50,8 +49,10 @@ public sealed class ItemDocumentStoreTests(ItemDocumentStoreFixture fixture) : I
         Assert.NotNull(updated);
         Assert.Equal("New", updated!.Name);
         Assert.Equal(ItemStatus.Active, updated.Status);
-        Assert.Equal(5m, updated.OnHandQuantity);
-        Assert.Equal(50m, updated.TotalValue);
+        // Valuation is no longer stored on the document — the store returns it as 0 (the service overlays
+        // the ledger fold on read), so the store-level Item carries the default 0/0.
+        Assert.Equal(0m, updated.OnHandQuantity);
+        Assert.Equal(0m, updated.TotalValue);
     }
 
     [Fact]
@@ -93,26 +94,13 @@ public sealed class ItemDocumentStoreTests(ItemDocumentStoreFixture fixture) : I
         Assert.Equal(DeactivateResult.AlreadyInactive, await Store().DeactivateAsync(fixture.ClientId, created.Id));
     }
 
+    /// <summary>The has-stock guard lives in InventoryService.DeactivateAsync, which reads the posted-only
+    /// ledger fold (see InventoryServiceTests). The store carries no on-hand field at all now, so it
+    /// deactivates unconditionally — no stored-valuation guard exists at this layer.</summary>
     [Fact]
-    public async Task Deactivate_is_blocked_while_stock_on_hand()
+    public async Task Deactivate_does_not_guard_on_any_stored_valuation()
     {
         Item item = await Store().CreateAsync(fixture.ClientId, Body(sku: "STOCKED"));
-        await Store().SetValuationAsync(fixture.ClientId, item.Id, 5m, 50m);
-        Assert.Equal(DeactivateResult.HasStock, await Store().DeactivateAsync(fixture.ClientId, item.Id));
-    }
-
-    [Fact]
-    public async Task SetValuation_overwrites_on_hand_and_total_value()
-    {
-        Item item = await Store().CreateAsync(fixture.ClientId, Body(sku: "VAL"));
-        await Store().SetValuationAsync(fixture.ClientId, item.Id, 10m, 100m);
-        Item? got = await Store().GetAsync(fixture.ClientId, item.Id);
-        Assert.Equal(10m, got!.OnHandQuantity);
-        Assert.Equal(100m, got.TotalValue);
-
-        await Store().SetValuationAsync(fixture.ClientId, item.Id, 3m, 30m);
-        got = await Store().GetAsync(fixture.ClientId, item.Id);
-        Assert.Equal(3m, got!.OnHandQuantity);
-        Assert.Equal(30m, got.TotalValue);
+        Assert.Equal(DeactivateResult.Deactivated, await Store().DeactivateAsync(fixture.ClientId, item.Id));
     }
 }
