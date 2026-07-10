@@ -74,13 +74,20 @@ public static class BillPosting
         ArgumentNullException.ThrowIfNull(accounts);
 
         decimal applied = body.Allocations.Sum(a => a.Amount);
-        Dictionary<string, Guid> dim = new() { [VendorDimension] = body.VendorId };
 
-        List<PostLineRequest> lines =
-        [
-            new(accounts.PayableAccountId, "Debit", applied, Dimensions: dim),
-            new(accounts.VendorCreditsAccountId, "Credit", applied, Dimensions: dim),
-        ];
+        List<PostLineRequest> lines = [];
+        foreach (Allocation a in body.Allocations)
+        {
+            if (a.Amount == 0m) continue;
+            lines.Add(new(accounts.PayableAccountId, "Debit", a.Amount,
+                Dimensions: new Dictionary<string, Guid>
+                {
+                    [VendorDimension] = body.VendorId,
+                    [BillDimension] = a.TargetId,
+                }));
+        }
+        lines.Add(new(accounts.VendorCreditsAccountId, "Credit", applied,
+            Dimensions: new Dictionary<string, Guid> { [VendorDimension] = body.VendorId }));
 
         return new PostEntryRequest(
             Id: EntryIdentity.ForSource(VendorCreditApplicationSourceType, id), EffectiveDate: body.Date, Reference: null, Memo: null,
