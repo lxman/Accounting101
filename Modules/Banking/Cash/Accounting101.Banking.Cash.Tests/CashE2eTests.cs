@@ -267,6 +267,48 @@ public sealed class CashE2eTests(CashHostFixture fixture) : IClassFixture<CashHo
         Assert.Equal("cash", Assert.Single(cashEntries).ViaModule);
     }
 
+    [Fact]
+    public async Task Deposit_list_reflects_module_void_across_the_page()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        await SetUpCashChartAsync(controller, clientId);
+
+        RecordCashDepositRequest r1 = new([new CashLineRequest(fixture.MembersCapitalAccountId, 10_000m)], new DateOnly(2026, 1, 2), null, null);
+        RecordCashDepositRequest r2 = new([new CashLineRequest(fixture.MembersCapitalAccountId, 20_000m)], new DateOnly(2026, 1, 3), null, null);
+
+        CashDeposit d1 = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/cash-deposits", r1)).Content.ReadFromJsonAsync<CashDeposit>())!;
+        CashDeposit d2 = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/cash-deposits", r2)).Content.ReadFromJsonAsync<CashDeposit>())!;
+
+        // Void the second via the module (Controller holds cash.write + gl.void under SoD).
+        (await controller.PostAsJsonAsync($"/clients/{clientId}/cash-deposits/{d2.Id}/void", new Api.VoidReasonRequest("error"))).EnsureSuccessStatusCode();
+
+        PagedResponse<CashDepositView> page = (await clerk.GetFromJsonAsync<PagedResponse<CashDepositView>>(
+            $"/clients/{clientId}/cash-deposits?includeVoided=true&order=asc"))!;
+
+        Assert.Equal(CashDepositStatus.Posted, page.Items.Single(v => v.Deposit.Id == d1.Id).Deposit.Status);
+        Assert.Equal(CashDepositStatus.Void, page.Items.Single(v => v.Deposit.Id == d2.Id).Deposit.Status);
+    }
+
+    [Fact]
+    public async Task Raw_gl_reverse_of_a_cash_entry_is_refused_by_the_guard()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpCashChartAsync(controller, clientId);
+
+        RecordCashDepositRequest request = new([new CashLineRequest(fixture.MembersCapitalAccountId, 5_000m)], new DateOnly(2026, 1, 2), null, null);
+        CashDeposit deposit = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/cash-deposits", request)).Content.ReadFromJsonAsync<CashDeposit>())!;
+
+        // Find and approve the spawned entry, so a reversal (not a withdrawal) is what a raw caller would attempt.
+        EntryResponse entry = Assert.Single((await clerk.GetFromJsonAsync<EntryResponse[]>($"/clients/{clientId}/entries?sourceRef={deposit.Id}"))!);
+        (await approver.PostAsync($"/clients/{clientId}/entries/{entry.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        // Raw reverse — a plain user request carrying no module credential — is refused: correct it through the module.
+        HttpResponseMessage rawReverse = await controller.PostAsJsonAsync(
+            $"/clients/{clientId}/entries/{entry.Id}/reverse",
+            new ReverseRequest(new DateOnly(2026, 1, 3), "raw reversal attempt"));
+        Assert.Equal(HttpStatusCode.Conflict, rawReverse.StatusCode);
+    }
+
     private static void AssertLine(EntryResponse entry, Guid accountId, string direction, decimal amount)
     {
         EntryLineResponse line = Assert.Single(entry.Lines, l => l.AccountId == accountId);
