@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Claims;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Contracts;
@@ -482,7 +483,7 @@ public static class LedgerEndpoints
     /// whitespace value is a valid empty list. Any non-empty element that is not a Guid yields a 400 in
     /// <paramref name="error"/> and a null list.
     /// </summary>
-    private static bool TryParseGuidCsv(string raw, out List<Guid>? parsed, out IResult? error)
+    private static bool TryParseGuidCsv(string raw, out List<Guid>? parsed, [NotNullWhen(false)] out IResult? error)
     {
         parsed = [];
         error = null;
