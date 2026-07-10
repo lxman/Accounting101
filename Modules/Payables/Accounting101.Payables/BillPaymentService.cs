@@ -6,45 +6,47 @@ namespace Accounting101.Payables;
 /// <summary>The cash-disbursement lifecycle: record a bill payment (allocate across bills, hold over-payment
 /// as vendor credit), apply existing vendor credit, and void. Each document posts one balanced entry that
 /// lands PendingApproval — approval is the client's normal maker-checker flow. Open balances and vendor
-/// credit are derived from stored allocations, never stored.</summary>
+/// credit are folded from the ledger's Bill/Vendor-axis subledgers on every read.</summary>
 public sealed class BillPaymentService(
     IBillPaymentStore payments, IBillStore bills, IBillAccountsProvider accounts, ILedgerClient ledger)
 {
-    public async Task<BillPayment> RecordPaymentAsync(Guid clientId, BillPaymentBody body, CancellationToken ct = default)
+    public async Task<BillPayment> RecordPaymentAsync(Guid clientId, BillPaymentCommand command, CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(body);
-        if (body.Amount <= 0m)
+        ArgumentNullException.ThrowIfNull(command);
+        if (command.Amount <= 0m)
             throw new InvalidOperationException("A payment amount must be greater than zero.");
-        if (body.Allocations.Any(a => a.Amount <= 0m))
+        if (command.Allocations.Any(a => a.Amount <= 0m))
             throw new InvalidOperationException("Every allocation amount must be greater than zero.");
-        if (body.Allocations.Sum(a => a.Amount) > body.Amount)
+        if (command.Allocations.Sum(a => a.Amount) > command.Amount)
             throw new InvalidOperationException("Allocations cannot exceed the payment amount.");
 
-        await ValidateAllocationsAsync(clientId, body.VendorId, body.Allocations, ct);
+        await ValidateAllocationsAsync(clientId, command.VendorId, command.Allocations, ct);
 
+        BillPaymentBody body = new(command.VendorId, command.Date, command.Amount, command.Method);
         BillPayment recorded = await payments.RecordPaymentAsync(clientId, body, ct);
         BillPaymentPostingAccounts posting = await accounts.GetPaymentAccountsAsync(clientId, ct);
-        PostEntryRequest entry = BillPosting.ComposeBillPayment(recorded.Id, body, posting);
+        PostEntryRequest entry = BillPosting.ComposeBillPayment(recorded.Id, body, command.Allocations, posting);
         await ledger.PostAsync(clientId, entry, ct);
         return recorded;
     }
 
-    public async Task<VendorCreditApplication> RecordCreditApplicationAsync(Guid clientId, VendorCreditApplicationBody body, CancellationToken ct = default)
+    public async Task<VendorCreditApplication> RecordCreditApplicationAsync(Guid clientId, VendorCreditApplicationCommand command, CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(body);
-        if (body.Allocations.Count == 0 || body.Allocations.Any(a => a.Amount <= 0m))
+        ArgumentNullException.ThrowIfNull(command);
+        if (command.Allocations.Count == 0 || command.Allocations.Any(a => a.Amount <= 0m))
             throw new InvalidOperationException("A credit application needs positive allocations.");
 
-        decimal applying = body.Allocations.Sum(a => a.Amount);
-        decimal available = await GetVendorCreditBalanceAsync(clientId, body.VendorId, ct);
+        decimal applying = command.Allocations.Sum(a => a.Amount);
+        decimal available = await GetVendorCreditBalanceAsync(clientId, command.VendorId, ct);
         if (applying > available)
             throw new InvalidOperationException($"Credit application of {applying} exceeds available credit {available}.");
 
-        await ValidateAllocationsAsync(clientId, body.VendorId, body.Allocations, ct);
+        await ValidateAllocationsAsync(clientId, command.VendorId, command.Allocations, ct);
 
+        VendorCreditApplicationBody body = new(command.VendorId, command.Date);
         VendorCreditApplication recorded = await payments.RecordCreditApplicationAsync(clientId, body, ct);
         BillPaymentPostingAccounts posting = await accounts.GetPaymentAccountsAsync(clientId, ct);
-        PostEntryRequest entry = BillPosting.ComposeVendorCreditApplication(recorded.Id, body, posting);
+        PostEntryRequest entry = BillPosting.ComposeVendorCreditApplication(recorded.Id, body, command.Allocations, posting);
         await ledger.PostAsync(clientId, entry, ct);
         return recorded;
     }
@@ -58,13 +60,20 @@ public sealed class BillPaymentService(
 
         // A void reverses the whole payment, including the overpayment that landed as vendor credit. If that
         // credit has since been applied, removing it would drive the credit balance negative (a credit balance
-        // on the Vendor Credits asset) — a corrupt state. Refuse; the consuming application must be reversed first.
-        if (payment.Unapplied > 0m)
+        // on the Vendor Credits asset) — a corrupt state. Refuse; the consuming application must be reversed
+        // first. Unapplied is folded from the payment's own entry (the module stores no allocation array to
+        // compute it from directly); postedOnly: false gives the immediacy this guard needs — a pending
+        // payment being voided must still see its own overpayment.
+        BillPaymentPostingAccounts postingForVoid = await accounts.GetPaymentAccountsAsync(clientId, ct);
+        decimal allocated = await SettlementRelief.ForSourceAsync(
+            ledger, clientId, paymentId, postingForVoid.PayableAccountId, ct, postedOnly: false);
+        decimal unapplied = payment.Amount - allocated;
+        if (unapplied > 0m)
         {
             decimal creditBalance = await GetVendorCreditBalanceAsync(clientId, payment.VendorId, ct);
-            if (creditBalance - payment.Unapplied < 0m)
+            if (creditBalance - unapplied < 0m)
                 throw new InvalidOperationException(
-                    $"Cannot void payment {paymentId}: its overpayment credit ({payment.Unapplied:C}) has already " +
+                    $"Cannot void payment {paymentId}: its overpayment credit ({unapplied:C}) has already " +
                     $"been applied (available credit is only {creditBalance:C}). Reverse the vendor credit " +
                     $"application(s) first, then void this payment.");
         }
@@ -86,29 +95,30 @@ public sealed class BillPaymentService(
     {
         Bill? bill = await bills.GetAsync(clientId, billId, ct);
         if (bill is null) return null;
-        decimal applied = await AppliedToBillAsync(clientId, bill.VendorId, billId, ct);
+        decimal applied = await AppliedToBillAsync(clientId, bill, ct);
         return new BillView(bill, Accounting101.Settlement.Settlement.OpenBalance(bill.Total, applied), Accounting101.Settlement.Settlement.Status(bill.Total, applied));
     }
 
+    /// <summary>Unapplied vendor credit, folded from the ledger's Vendor-axis Vendor Credits subledger.
+    /// Vendor Credits is an ASSET (debit-normal); the fold reads available credit directly POSITIVE — NO
+    /// negation (the mirror of AR's Customer Credits, a liability, which negates).</summary>
     public async Task<decimal> GetVendorCreditBalanceAsync(Guid clientId, Guid vendorId, CancellationToken ct = default)
     {
-        IReadOnlyList<BillPayment> ps = await payments.GetPaymentsByVendorAsync(clientId, vendorId, ct);
-        IReadOnlyList<VendorCreditApplication> cs = await payments.GetCreditApplicationsByVendorAsync(clientId, vendorId, ct);
-        decimal created = ps.Where(p => !p.Voided).Sum(p => p.Unapplied);
-        decimal spent = cs.Where(c => !c.Voided).Sum(c => c.Applied);
-        return created - spent;
+        BillPaymentPostingAccounts posting = await accounts.GetPaymentAccountsAsync(clientId, ct);
+        return (await ledger.GetSubledgerAsync(clientId, posting.VendorCreditsAccountId, "Vendor", null, ct))
+            .Where(l => l.DimensionValue == vendorId).Sum(l => l.Balance);
     }
 
     public async Task<IReadOnlyList<BillView>> ListBillViewsAsync(Guid clientId, Guid vendorId, SettlementFilter? filter, CancellationToken ct = default)
     {
         IReadOnlyList<Bill> vendorBills = await bills.GetByVendorAsync(clientId, vendorId, ct);
-        IReadOnlyList<BillPayment> ps = await payments.GetPaymentsByVendorAsync(clientId, vendorId, ct);
-        IReadOnlyList<VendorCreditApplication> cs = await payments.GetCreditApplicationsByVendorAsync(clientId, vendorId, ct);
 
-        Dictionary<Guid, decimal> applied = new();
-        foreach (Allocation a in ps.Where(p => !p.Voided).SelectMany(p => p.Allocations)
-                     .Concat(cs.Where(c => !c.Voided).SelectMany(c => c.Allocations)))
-            applied[a.TargetId] = applied.GetValueOrDefault(a.TargetId) + a.Amount;
+        BillPaymentPostingAccounts posting = await accounts.GetPaymentAccountsAsync(clientId, ct);
+        IReadOnlyList<SubledgerLineResponse> apByBill =
+            await ledger.GetSubledgerAsync(clientId, posting.PayableAccountId, "Bill", null, ct);
+        Dictionary<Guid, decimal> openByBill = apByBill.ToDictionary(l => l.DimensionValue, l => -l.Balance);
+        Dictionary<Guid, decimal> applied = vendorBills.ToDictionary(
+            b => b.Id, b => b.Total - openByBill.GetValueOrDefault(b.Id, b.Total));
 
         IEnumerable<BillView> views = vendorBills
             .Where(bill => bill.Status == BillStatus.Entered)
@@ -127,6 +137,7 @@ public sealed class BillPaymentService(
         return views.ToList();
     }
 
+    /// <summary>Each allocation must target a live bill of this vendor and not exceed its current open balance.</summary>
     private async Task ValidateAllocationsAsync(Guid clientId, Guid vendorId, IReadOnlyList<Allocation> allocations, CancellationToken ct)
     {
         foreach (Allocation a in allocations)
@@ -138,18 +149,44 @@ public sealed class BillPaymentService(
             if (bill.VendorId != vendorId)
                 throw new InvalidOperationException($"Bill {a.TargetId} belongs to a different vendor.");
 
-            decimal alreadyApplied = await AppliedToBillAsync(clientId, vendorId, a.TargetId, ct);
+            decimal alreadyApplied = await ReservedAgainstBillAsync(clientId, bill, ct);
             if (alreadyApplied + a.Amount > bill.Total)
                 throw new InvalidOperationException($"Allocation to bill {a.TargetId} exceeds its open balance.");
         }
     }
 
-    private async Task<decimal> AppliedToBillAsync(Guid clientId, Guid vendorId, Guid billId, CancellationToken ct)
+    /// <summary>
+    /// Total amount applied to one bill — the READ path. Folded Posted-only from the ledger's Bill-axis A/P
+    /// subledger (reads reflect only what is actually on the books): applied = bill.Total − open, where
+    /// open = −fold (A/P is credit-normal — the debit-positive fold reads the outstanding payable
+    /// NEGATIVE). When the bill carries no on-the-books A/P line yet (its own enter entry is still
+    /// PendingApproval), <c>open</c> defaults to <c>bill.Total</c> — i.e. applied = 0 — so a freshly
+    /// entered but unapproved bill reads as fully open (not Paid). This mirrors how
+    /// <see cref="ListBillViewsAsync"/> already defaults an absent fold entry to Total.
+    /// </summary>
+    private async Task<decimal> AppliedToBillAsync(Guid clientId, Bill bill, CancellationToken ct)
     {
-        IReadOnlyList<BillPayment> ps = await payments.GetPaymentsByVendorAsync(clientId, vendorId, ct);
-        IReadOnlyList<VendorCreditApplication> cs = await payments.GetCreditApplicationsByVendorAsync(clientId, vendorId, ct);
-        decimal fromPayments = ps.Where(p => !p.Voided).SelectMany(p => p.Allocations).Where(x => x.TargetId == billId).Sum(x => x.Amount);
-        decimal fromCredits = cs.Where(c => !c.Voided).SelectMany(c => c.Allocations).Where(x => x.TargetId == billId).Sum(x => x.Amount);
-        return fromPayments + fromCredits;
+        BillPaymentPostingAccounts posting = await accounts.GetPaymentAccountsAsync(clientId, ct);
+        IReadOnlyList<SubledgerLineResponse> fold =
+            await ledger.GetSubledgerAsync(clientId, posting.PayableAccountId, "Bill", null, ct);
+        decimal open = -(fold.FirstOrDefault(l => l.DimensionValue == bill.Id)?.Balance ?? -bill.Total);
+        return bill.Total - open;
+    }
+
+    /// <summary>
+    /// Total amount reserved against one bill — the WRITE-PATH validation computation used by
+    /// <see cref="ValidateAllocationsAsync"/>. Folded PENDING-INCLUSIVE (Posted + PendingApproval,
+    /// non-void) so an unapproved relief (payment allocation, credit application) already recorded against
+    /// the bill reserves against it: a second, also-unapproved relief then fails this check instead of both
+    /// passing and over-relieving the bill once approved. Deliberately NOT used by any read path — reads
+    /// must stay Posted-only (see <see cref="AppliedToBillAsync"/>).
+    /// </summary>
+    private async Task<decimal> ReservedAgainstBillAsync(Guid clientId, Bill bill, CancellationToken ct)
+    {
+        BillPaymentPostingAccounts posting = await accounts.GetPaymentAccountsAsync(clientId, ct);
+        IReadOnlyList<SubledgerLineResponse> fold = await ledger.GetSubledgerAsync(
+            clientId, posting.PayableAccountId, "Bill", null, ct, includePending: true);
+        decimal open = -(fold.FirstOrDefault(l => l.DimensionValue == bill.Id)?.Balance ?? -bill.Total);
+        return bill.Total - open;
     }
 }

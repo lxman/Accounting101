@@ -11,7 +11,7 @@ internal static class BillSettlementScenario
 {
     internal static async Task SetUpChartAsync(HttpClient controller, Guid clientId, PayablesHostFixture f)
     {
-        await PutAccountAsync(controller, clientId, f.PayableAccountId,          "2000", "Accounts Payable",  "Liability", "Vendor");
+        await PutAccountAsync(controller, clientId, f.PayableAccountId,          "2000", "Accounts Payable",  "Liability", null, ["Vendor", "Bill"]);
         await PutAccountAsync(controller, clientId, f.CashAccountId,             "1000", "Cash",              "Asset",     null);
         await PutAccountAsync(controller, clientId, f.VendorCreditsAccountId,    "1300", "Vendor Credits",    "Asset",     "Vendor");
         await PutAccountAsync(controller, clientId, f.RentExpenseAccountId,      "5200", "Rent Expense",      "Expense",   null);
@@ -19,10 +19,14 @@ internal static class BillSettlementScenario
     }
 
     private static async Task PutAccountAsync(HttpClient http, Guid clientId, Guid accountId,
-        string number, string name, string type, string? requiredDimension)
+        string number, string name, string type, string? requiredDimension, string[]? requiredDimensions = null)
     {
         (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{accountId}",
-            new AccountRequest { Number = number, Name = name, Type = type, RequiredDimension = requiredDimension }))
+            new AccountRequest
+            {
+                Number = number, Name = name, Type = type,
+                RequiredDimension = requiredDimension, RequiredDimensions = requiredDimensions,
+            }))
             .EnsureSuccessStatusCode();
     }
 

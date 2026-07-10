@@ -13,16 +13,20 @@ public sealed class VendorCreditApplicationListEndpointTests(PayablesHostFixture
 {
     private async Task SetUpChartAsync(HttpClient controller, Guid clientId)
     {
-        await PutAccountAsync(controller, clientId, fixture.PayableAccountId,        "2000", "Accounts Payable", "Liability", "Vendor");
+        await PutAccountAsync(controller, clientId, fixture.PayableAccountId,        "2000", "Accounts Payable", "Liability", null, ["Vendor", "Bill"]);
         await PutAccountAsync(controller, clientId, fixture.CashAccountId,           "1000", "Cash",             "Asset",     null);
         await PutAccountAsync(controller, clientId, fixture.VendorCreditsAccountId,  "1300", "Vendor Credits",   "Asset",     "Vendor");
         await PutAccountAsync(controller, clientId, fixture.RentExpenseAccountId,    "5200", "Rent Expense",     "Expense",   null);
     }
 
     private static async Task PutAccountAsync(HttpClient http, Guid clientId, Guid accountId,
-        string number, string name, string type, string? requiredDimension) =>
+        string number, string name, string type, string? requiredDimension, string[]? requiredDimensions = null) =>
         (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{accountId}",
-            new AccountRequest { Number = number, Name = name, Type = type, RequiredDimension = requiredDimension }))
+            new AccountRequest
+            {
+                Number = number, Name = name, Type = type,
+                RequiredDimension = requiredDimension, RequiredDimensions = requiredDimensions,
+            }))
             .EnsureSuccessStatusCode();
 
     private static async Task ApproveBySourceRefAsync(HttpClient reader, HttpClient approver, Guid clientId, Guid sourceRef)
@@ -69,8 +73,14 @@ public sealed class VendorCreditApplicationListEndpointTests(PayablesHostFixture
         VendorCreditApplication[] apps = (await clerk.GetFromJsonAsync<VendorCreditApplication[]>(
             $"/clients/{clientId}/vendor-credit-applications?vendorId={vendor.Id}"))!;
         Assert.Single(apps);
-        Assert.Equal(40m, apps[0].Allocations.Sum(a => a.Amount));
         Assert.Equal(vendor.Id, apps[0].VendorId);
+
+        // VendorCreditApplication carries no allocation array — prove the 40 applied by folding it from the
+        // document's own posted entry instead.
+        EntryResponse[] appEntries = (await clerk.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={apps[0].Id}"))!;
+        EntryResponse appEntry = appEntries.Single(e => e.ReversalOf is null);
+        Assert.Equal(40m, appEntry.Lines.Where(l => l.AccountId == fixture.PayableAccountId).Sum(l => l.Amount));
     }
 
     [Fact]

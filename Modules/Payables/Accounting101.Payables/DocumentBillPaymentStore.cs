@@ -59,12 +59,11 @@ public sealed class DocumentBillPaymentStore(IDocumentStore documents) : IBillPa
     private static BillPayment MapPayment(DocumentResult<BillPaymentBody> r) => new()
     {
         Id = r.Id, VendorId = r.Body.VendorId, Date = r.Body.Date, Amount = r.Body.Amount,
-        Method = r.Body.Method, Allocations = r.Body.Allocations, Voided = IsVoided(r.State),
+        Method = r.Body.Method, Voided = IsVoided(r.State),
     };
 
     private static VendorCreditApplication MapCredit(DocumentResult<VendorCreditApplicationBody> r) => new()
     {
-        Id = r.Id, VendorId = r.Body.VendorId, Date = r.Body.Date,
-        Allocations = r.Body.Allocations, Voided = IsVoided(r.State),
+        Id = r.Id, VendorId = r.Body.VendorId, Date = r.Body.Date, Voided = IsVoided(r.State),
     };
 }

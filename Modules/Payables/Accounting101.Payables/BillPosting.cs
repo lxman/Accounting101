@@ -1,4 +1,5 @@
 using Accounting101.Ledger.Contracts;
+using Accounting101.Settlement;
 
 namespace Accounting101.Payables;
 
@@ -11,6 +12,7 @@ public static class BillPosting
     public const string BillPaymentSourceType = "BillPayment";
     public const string VendorCreditApplicationSourceType = "VendorCreditApplication";
     public const string VendorDimension = "Vendor";
+    public const string BillDimension = "Bill";
 
     public static PostEntryRequest ComposeBill(Bill bill, BillPostingAccounts accounts)
     {
@@ -26,27 +28,41 @@ public static class BillPosting
             .ToList();
 
         lines.Add(new(accounts.PayableAccountId, "Credit", bill.Total,
-            Dimensions: new Dictionary<string, Guid> { [VendorDimension] = bill.VendorId }));
+            Dimensions: new Dictionary<string, Guid>
+            {
+                [VendorDimension] = bill.VendorId,
+                [BillDimension] = bill.Id,
+            }));
 
         return new PostEntryRequest(
             Id: EntryIdentity.ForSource(BillSourceType, bill.Id), EffectiveDate: bill.BillDate, Reference: bill.Number, Memo: bill.Memo,
             Lines: lines, SourceRef: bill.Id, SourceType: BillSourceType);
     }
 
-    public static PostEntryRequest ComposeBillPayment(Guid paymentId, BillPaymentBody body, BillPaymentPostingAccounts accounts)
+    public static PostEntryRequest ComposeBillPayment(
+        Guid paymentId, BillPaymentBody body, IReadOnlyList<Allocation> allocations, BillPaymentPostingAccounts accounts)
     {
         ArgumentNullException.ThrowIfNull(body);
+        ArgumentNullException.ThrowIfNull(allocations);
         ArgumentNullException.ThrowIfNull(accounts);
 
-        decimal allocated = body.Allocations.Sum(a => a.Amount);
+        decimal allocated = allocations.Sum(a => a.Amount);
         decimal remainder = body.Amount - allocated;
-        Dictionary<string, Guid> dim = new() { [VendorDimension] = body.VendorId };
 
         List<PostLineRequest> lines = [];
-        if (allocated != 0m)
-            lines.Add(new(accounts.PayableAccountId, "Debit", allocated, Dimensions: dim));
+        foreach (Allocation a in allocations)
+        {
+            if (a.Amount == 0m) continue;
+            lines.Add(new(accounts.PayableAccountId, "Debit", a.Amount,
+                Dimensions: new Dictionary<string, Guid>
+                {
+                    [VendorDimension] = body.VendorId,
+                    [BillDimension] = a.TargetId,
+                }));
+        }
         if (remainder != 0m)
-            lines.Add(new(accounts.VendorCreditsAccountId, "Debit", remainder, Dimensions: dim));
+            lines.Add(new(accounts.VendorCreditsAccountId, "Debit", remainder,
+                Dimensions: new Dictionary<string, Guid> { [VendorDimension] = body.VendorId }));
         lines.Add(new(accounts.CashAccountId, "Credit", body.Amount));
 
         return new PostEntryRequest(
@@ -54,19 +70,28 @@ public static class BillPosting
             Lines: lines, SourceRef: paymentId, SourceType: BillPaymentSourceType);
     }
 
-    public static PostEntryRequest ComposeVendorCreditApplication(Guid id, VendorCreditApplicationBody body, BillPaymentPostingAccounts accounts)
+    public static PostEntryRequest ComposeVendorCreditApplication(
+        Guid id, VendorCreditApplicationBody body, IReadOnlyList<Allocation> allocations, BillPaymentPostingAccounts accounts)
     {
         ArgumentNullException.ThrowIfNull(body);
+        ArgumentNullException.ThrowIfNull(allocations);
         ArgumentNullException.ThrowIfNull(accounts);
 
-        decimal applied = body.Allocations.Sum(a => a.Amount);
-        Dictionary<string, Guid> dim = new() { [VendorDimension] = body.VendorId };
+        decimal applied = allocations.Sum(a => a.Amount);
 
-        List<PostLineRequest> lines =
-        [
-            new(accounts.PayableAccountId, "Debit", applied, Dimensions: dim),
-            new(accounts.VendorCreditsAccountId, "Credit", applied, Dimensions: dim),
-        ];
+        List<PostLineRequest> lines = [];
+        foreach (Allocation a in allocations)
+        {
+            if (a.Amount == 0m) continue;
+            lines.Add(new(accounts.PayableAccountId, "Debit", a.Amount,
+                Dimensions: new Dictionary<string, Guid>
+                {
+                    [VendorDimension] = body.VendorId,
+                    [BillDimension] = a.TargetId,
+                }));
+        }
+        lines.Add(new(accounts.VendorCreditsAccountId, "Credit", applied,
+            Dimensions: new Dictionary<string, Guid> { [VendorDimension] = body.VendorId }));
 
         return new PostEntryRequest(
             Id: EntryIdentity.ForSource(VendorCreditApplicationSourceType, id), EffectiveDate: body.Date, Reference: null, Memo: null,

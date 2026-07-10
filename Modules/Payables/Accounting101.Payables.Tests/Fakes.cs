@@ -10,6 +10,7 @@ namespace Accounting101.Payables.Tests;
 internal sealed class FakeLedgerClient : ILedgerClient
 {
     private readonly Dictionary<Guid, EntryResponse> _entries = new();
+    private readonly Dictionary<Guid, IReadOnlyList<PostLineRequest>> _linesById = new();
     private readonly List<PostEntryRequest> _posted = [];
 
     public IReadOnlyList<PostEntryRequest> Posted => _posted;
@@ -18,8 +19,22 @@ internal sealed class FakeLedgerClient : ILedgerClient
     {
         _posted.Add(entry);
         var id = Guid.NewGuid();
-        _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "PendingApproval", reversalOf: null);
+        _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "PendingApproval", reversalOf: null, lines: entry.Lines);
+        _linesById[id] = entry.Lines;
         return Task.FromResult(new PostEntryResponse(id, "Active", "PendingApproval"));
+    }
+
+    /// <summary>
+    /// Seed a Posted (on-the-books) entry directly into the fold WITHOUT recording it in <see cref="Posted"/>.
+    /// For tests to establish pre-existing ledger state — e.g. a bill's own A/P-credit line, which
+    /// BillService posts in production but is out of scope for a BillPaymentService-only unit-test harness —
+    /// without polluting assertions against what the code under test itself posted.
+    /// </summary>
+    public void SeedEntry(PostEntryRequest entry)
+    {
+        var id = Guid.NewGuid();
+        _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "Posted", reversalOf: null, lines: entry.Lines);
+        _linesById[id] = entry.Lines;
     }
 
     /// <summary>
@@ -46,8 +61,14 @@ internal sealed class FakeLedgerClient : ILedgerClient
     {
         EntryResponse original = _entries[entryId];
         var id = Guid.NewGuid();
-        EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "PendingApproval", reversalOf: entryId);
+        // A reversal's fold effect is the original entry's lines with direction flipped — the original
+        // entry stays Active (and still counted) so the pair nets to zero, exactly like the real engine.
+        IReadOnlyList<PostLineRequest> reversedLines = _linesById.TryGetValue(entryId, out IReadOnlyList<PostLineRequest>? originalLines)
+            ? originalLines.Select(l => l with { Direction = Flip(l.Direction) }).ToList()
+            : [];
+        EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "PendingApproval", reversalOf: entryId, lines: reversedLines);
         _entries[id] = reversal;
+        _linesById[id] = reversedLines;
         return Task.FromResult(reversal);
     }
 
@@ -61,8 +82,49 @@ internal sealed class FakeLedgerClient : ILedgerClient
     public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default) =>
         Task.FromResult<IReadOnlyList<EntryResponse>>(_entries.Values.Where(e => e.SourceRef == sourceRef).ToList());
 
-    private static EntryResponse Entry(Guid id, Guid? sourceRef, string? sourceType, string posting, Guid? reversalOf) =>
-        new(id, 0, default, "Standard", "Active", posting, 0, null, null, reversalOf, null, [], sourceRef, sourceType);
+    /// <summary>
+    /// A real per-dimension fold over every posted entry's lines, mirroring the real engine's subledger
+    /// (debit-positive, grouped by dimension value) closely enough to drive BillPaymentService/BillService
+    /// under unit tests. Unlike the real engine, this fold does NOT gate on approval (Posting == "Posted") —
+    /// it counts every Active entry regardless of approval state, matching this fake's long-standing
+    /// "immediate effect" semantics (these unit tests never approve most entries). The approval-gated fold
+    /// behavior is proven separately by the real HTTP-backed engine tests (SubledgerReadTests, PayablesE2eTests).
+    /// Voided entries are excluded; a reversed entry stays Active and its reversal's negated lines net it to
+    /// zero, same as production. <paramref name="includePending"/> is accepted so this fake compiles against
+    /// the <see cref="ILedgerClient"/> contract, but is a no-op here — the fold already counts every Active
+    /// entry regardless of Posting, in either mode.
+    /// </summary>
+    public Task<IReadOnlyList<SubledgerLineResponse>> GetSubledgerAsync(
+        Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default,
+        bool includePending = false)
+    {
+        Dictionary<Guid, decimal> totals = new();
+        foreach ((Guid id, EntryResponse response) in _entries)
+        {
+            if (response.Status != "Active") continue;
+            if (!_linesById.TryGetValue(id, out IReadOnlyList<PostLineRequest>? lines)) continue;
+            foreach (PostLineRequest line in lines)
+            {
+                if (line.AccountId != account) continue;
+                if (line.Dimensions is null || !line.Dimensions.TryGetValue(dimension, out Guid dimValue)) continue;
+                decimal signed = line.Direction == "Debit" ? line.Amount : -line.Amount;
+                totals[dimValue] = totals.GetValueOrDefault(dimValue) + signed;
+            }
+        }
+        return Task.FromResult<IReadOnlyList<SubledgerLineResponse>>(
+            totals.Select(kv => new SubledgerLineResponse(account, kv.Key, kv.Value)).ToList());
+    }
+
+    private static string Flip(string direction) => direction == "Debit" ? "Credit" : "Debit";
+
+    private static EntryResponse Entry(
+        Guid id, Guid? sourceRef, string? sourceType, string posting, Guid? reversalOf,
+        IReadOnlyList<PostLineRequest>? lines = null)
+    {
+        IReadOnlyList<EntryLineResponse> mapped = (lines ?? []).Select(l =>
+            new EntryLineResponse(l.AccountId, l.Direction, l.Amount, l.Dimensions ?? new Dictionary<string, Guid>(), null)).ToList();
+        return new(id, 0, default, "Standard", "Active", posting, mapped.Count, null, null, reversalOf, null, mapped, sourceRef, sourceType);
+    }
 }
 
 internal sealed class InMemoryVendorStore : IVendorStore
@@ -172,7 +234,7 @@ internal sealed class InMemoryBillPaymentStore : IBillPaymentStore
         BillPayment p = new()
         {
             Id = Guid.NewGuid(), VendorId = body.VendorId, Date = body.Date, Amount = body.Amount,
-            Method = body.Method, Allocations = body.Allocations, Voided = false,
+            Method = body.Method, Voided = false,
         };
         _payments[(clientId, p.Id)] = p;
         return Task.FromResult(p);
@@ -183,8 +245,7 @@ internal sealed class InMemoryBillPaymentStore : IBillPaymentStore
         ArgumentNullException.ThrowIfNull(body);
         VendorCreditApplication c = new()
         {
-            Id = Guid.NewGuid(), VendorId = body.VendorId, Date = body.Date,
-            Allocations = body.Allocations, Voided = false,
+            Id = Guid.NewGuid(), VendorId = body.VendorId, Date = body.Date, Voided = false,
         };
         _credits[(clientId, c.Id)] = c;
         return Task.FromResult(c);

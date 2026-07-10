@@ -183,7 +183,7 @@ public static class PayablesEndpoints
         try
         {
             BillPayment recorded = await service.RecordPaymentAsync(clientId,
-                new BillPaymentBody(request.VendorId, request.Date, request.Amount, request.Method, request.Allocations),
+                new BillPaymentCommand(request.VendorId, request.Date, request.Amount, request.Method, request.Allocations),
                 cancellationToken);
             return Results.Created($"/clients/{clientId}/bill-payments/{recorded.Id}", recorded);
         }
@@ -221,7 +221,7 @@ public static class PayablesEndpoints
         try
         {
             VendorCreditApplication applied = await service.RecordCreditApplicationAsync(clientId,
-                new VendorCreditApplicationBody(request.VendorId, request.Date, request.Allocations), cancellationToken);
+                new VendorCreditApplicationCommand(request.VendorId, request.Date, request.Allocations), cancellationToken);
             return Results.Created($"/clients/{clientId}/vendor-credit-applications/{applied.Id}", applied);
         }
         catch (InvalidOperationException ex)
