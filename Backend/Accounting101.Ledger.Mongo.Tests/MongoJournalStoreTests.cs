@@ -115,6 +115,45 @@ public sealed class MongoJournalStoreTests(MongoFixture fixture) : IClassFixture
     }
 
     [Fact]
+    public async Task GetBySourceRefs_returns_the_union_across_refs_and_excludes_others()
+    {
+        MongoJournalStore store = fixture.NewStore();
+        var clientId = Guid.NewGuid();
+        var ar = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
+        var invoiceA = Guid.NewGuid();
+        var invoiceB = Guid.NewGuid();
+        var unrelated = Guid.NewGuid();
+
+        JournalEntryBuilder a = Builder(clientId, 1);
+        a.SourceRef = invoiceA; a.SourceType = "Invoice";
+        await store.AppendAsync(a.Debit(ar, 100m).Credit(revenue, 100m).Build());
+
+        JournalEntryBuilder b = Builder(clientId, 2);
+        b.SourceRef = invoiceB; b.SourceType = "Invoice";
+        await store.AppendAsync(b.Debit(ar, 50m).Credit(revenue, 50m).Build());
+
+        JournalEntryBuilder u = Builder(clientId, 3);
+        u.SourceRef = unrelated; u.SourceType = "Invoice";
+        await store.AppendAsync(u.Debit(ar, 25m).Credit(revenue, 25m).Build());
+
+        IReadOnlyList<JournalEntry> union = await store.GetBySourceRefsAsync(clientId, [invoiceA, invoiceB]);
+
+        Assert.Equal(2, union.Count);
+        Assert.Contains(union, e => e.SourceRef == invoiceA);
+        Assert.Contains(union, e => e.SourceRef == invoiceB);
+        Assert.DoesNotContain(union, e => e.SourceRef == unrelated);
+    }
+
+    [Fact]
+    public async Task GetBySourceRefs_with_empty_input_returns_empty()
+    {
+        MongoJournalStore store = fixture.NewStore();
+        IReadOnlyList<JournalEntry> union = await store.GetBySourceRefsAsync(Guid.NewGuid(), []);
+        Assert.Empty(union);
+    }
+
+    [Fact]
     public async Task Subledger_breaks_a_control_account_out_by_customer_and_ties_to_its_balance()
     {
         MongoJournalStore store = fixture.NewStore();

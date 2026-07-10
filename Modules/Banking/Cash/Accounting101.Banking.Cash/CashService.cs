@@ -45,8 +45,15 @@ public sealed class CashService(
         return await RequireDisbursementAsync(clientId, id, ct);
     }
 
-    public Task<CashDisbursement?> GetDisbursementAsync(Guid clientId, Guid id, CancellationToken ct = default) =>
-        disbursements.GetAsync(clientId, id, ct);
+    public async Task<CashDisbursement?> GetDisbursementAsync(Guid clientId, Guid id, CancellationToken ct = default)
+    {
+        CashDisbursement? doc = await disbursements.GetAsync(clientId, id, ct);
+        if (doc is null) return null;
+        IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, id, ct);
+        return doc.Status == CashDisbursementStatus.Void || CashLedgerStatus.ShowsVoided(entries)
+            ? doc with { Status = CashDisbursementStatus.Void }
+            : doc;
+    }
 
     // ── Cash Deposits ────────────────────────────────────────────────────────
 
@@ -82,8 +89,52 @@ public sealed class CashService(
         return await RequireDepositAsync(clientId, id, ct);
     }
 
-    public Task<CashDeposit?> GetDepositAsync(Guid clientId, Guid id, CancellationToken ct = default) =>
-        deposits.GetAsync(clientId, id, ct);
+    public async Task<CashDeposit?> GetDepositAsync(Guid clientId, Guid id, CancellationToken ct = default)
+    {
+        CashDeposit? doc = await deposits.GetAsync(clientId, id, ct);
+        if (doc is null) return null;
+        IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, id, ct);
+        return doc.Status == CashDepositStatus.Void || CashLedgerStatus.ShowsVoided(entries)
+            ? doc with { Status = CashDepositStatus.Void }
+            : doc;
+    }
+
+    // ── List reads (ledger-truth status, one batched ledger call per page) ─────
+
+    public async Task<PagedResponse<CashDeposit>> ListDepositsAsync(
+        Guid clientId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default)
+    {
+        PagedResponse<CashDeposit> page = await deposits.GetByClientPagedAsync(clientId, skip, limit, descending, includeVoided, ct);
+        ILookup<Guid, EntryResponse> byRef = await EntriesByRefAsync(clientId, page.Items.Select(d => d.Id), ct);
+        List<CashDeposit> overlaid = page.Items
+            .Select(d => d.Status == CashDepositStatus.Void || CashLedgerStatus.ShowsVoided(byRef[d.Id].ToList())
+                ? d with { Status = CashDepositStatus.Void }
+                : d)
+            .ToList();
+        return new PagedResponse<CashDeposit>(overlaid, page.Total, page.Skip, page.Limit);
+    }
+
+    public async Task<PagedResponse<CashDisbursement>> ListDisbursementsAsync(
+        Guid clientId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default)
+    {
+        PagedResponse<CashDisbursement> page = await disbursements.GetByClientPagedAsync(clientId, skip, limit, descending, includeVoided, ct);
+        ILookup<Guid, EntryResponse> byRef = await EntriesByRefAsync(clientId, page.Items.Select(d => d.Id), ct);
+        List<CashDisbursement> overlaid = page.Items
+            .Select(d => d.Status == CashDisbursementStatus.Void || CashLedgerStatus.ShowsVoided(byRef[d.Id].ToList())
+                ? d with { Status = CashDisbursementStatus.Void }
+                : d)
+            .ToList();
+        return new PagedResponse<CashDisbursement>(overlaid, page.Total, page.Skip, page.Limit);
+    }
+
+    private async Task<ILookup<Guid, EntryResponse>> EntriesByRefAsync(Guid clientId, IEnumerable<Guid> ids, CancellationToken ct)
+    {
+        List<Guid> refs = ids.ToList();
+        IReadOnlyList<EntryResponse> entries = refs.Count == 0
+            ? []
+            : await ledger.GetEntriesBySourceRefsAsync(clientId, refs, ct);
+        return entries.Where(e => e.SourceRef is not null).ToLookup(e => e.SourceRef!.Value);
+    }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
