@@ -73,8 +73,14 @@ public sealed class VendorCreditApplicationListEndpointTests(PayablesHostFixture
         VendorCreditApplication[] apps = (await clerk.GetFromJsonAsync<VendorCreditApplication[]>(
             $"/clients/{clientId}/vendor-credit-applications?vendorId={vendor.Id}"))!;
         Assert.Single(apps);
-        Assert.Equal(40m, apps[0].Allocations.Sum(a => a.Amount));
         Assert.Equal(vendor.Id, apps[0].VendorId);
+
+        // VendorCreditApplication carries no allocation array — prove the 40 applied by folding it from the
+        // document's own posted entry instead.
+        EntryResponse[] appEntries = (await clerk.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={apps[0].Id}"))!;
+        EntryResponse appEntry = appEntries.Single(e => e.ReversalOf is null);
+        Assert.Equal(40m, appEntry.Lines.Where(l => l.AccountId == fixture.PayableAccountId).Sum(l => l.Amount));
     }
 
     [Fact]

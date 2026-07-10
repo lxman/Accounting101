@@ -66,9 +66,10 @@ public sealed class BillPostingTests
         {
             PayableAccountId = Guid.NewGuid(), CashAccountId = Guid.NewGuid(), VendorCreditsAccountId = Guid.NewGuid(),
         };
-        BillPaymentBody body = new(vendor, new DateOnly(2026, 3, 31), 500m, "check", [new Allocation(Guid.NewGuid(), 300m)]);
+        BillPaymentBody body = new(vendor, new DateOnly(2026, 3, 31), 500m, "check");
+        Allocation[] allocations = [new Allocation(Guid.NewGuid(), 300m)];
 
-        PostEntryRequest entry = BillPosting.ComposeBillPayment(Guid.NewGuid(), body, accounts);
+        PostEntryRequest entry = BillPosting.ComposeBillPayment(Guid.NewGuid(), body, allocations, accounts);
 
         Assert.Equal(0m, entry.Lines.Sum(Signed));
         Assert.Equal(500m, entry.Lines.Single(l => l.AccountId == accounts.CashAccountId).Amount); // Cr Cash total
@@ -92,9 +93,10 @@ public sealed class BillPostingTests
         {
             PayableAccountId = Guid.NewGuid(), CashAccountId = Guid.NewGuid(), VendorCreditsAccountId = Guid.NewGuid(),
         };
-        VendorCreditApplicationBody body = new(vendor, new DateOnly(2026, 4, 2), [new Allocation(Guid.NewGuid(), 150m)]);
+        VendorCreditApplicationBody body = new(vendor, new DateOnly(2026, 4, 2));
+        Allocation[] allocations = [new Allocation(Guid.NewGuid(), 150m)];
 
-        PostEntryRequest entry = BillPosting.ComposeVendorCreditApplication(Guid.NewGuid(), body, accounts);
+        PostEntryRequest entry = BillPosting.ComposeVendorCreditApplication(Guid.NewGuid(), body, allocations, accounts);
 
         Assert.Equal(0m, entry.Lines.Sum(Signed));
         PostLineRequest ap = entry.Lines.Single(l => l.AccountId == accounts.PayableAccountId);
@@ -136,10 +138,11 @@ public sealed class BillPostingTests
         {
             PayableAccountId = Guid.NewGuid(), CashAccountId = Guid.NewGuid(), VendorCreditsAccountId = Guid.NewGuid(),
         };
-        BillPaymentBody body = new(vendor, new DateOnly(2026, 6, 1), 200m, "check", [new Allocation(Guid.NewGuid(), 200m)]);
+        BillPaymentBody body = new(vendor, new DateOnly(2026, 6, 1), 200m, "check");
+        Allocation[] allocations = [new Allocation(Guid.NewGuid(), 200m)];
 
-        PostEntryRequest a = BillPosting.ComposeBillPayment(paymentId, body, accounts);
-        PostEntryRequest b = BillPosting.ComposeBillPayment(paymentId, body, accounts);
+        PostEntryRequest a = BillPosting.ComposeBillPayment(paymentId, body, allocations, accounts);
+        PostEntryRequest b = BillPosting.ComposeBillPayment(paymentId, body, allocations, accounts);
 
         Assert.Equal(EntryIdentity.ForSource(BillPosting.BillPaymentSourceType, paymentId), a.Id);
         Assert.Equal(a.Id, b.Id);
@@ -154,10 +157,11 @@ public sealed class BillPostingTests
         {
             PayableAccountId = Guid.NewGuid(), CashAccountId = Guid.NewGuid(), VendorCreditsAccountId = Guid.NewGuid(),
         };
-        VendorCreditApplicationBody body = new(vendor, new DateOnly(2026, 6, 1), [new Allocation(Guid.NewGuid(), 75m)]);
+        VendorCreditApplicationBody body = new(vendor, new DateOnly(2026, 6, 1));
+        Allocation[] allocations = [new Allocation(Guid.NewGuid(), 75m)];
 
-        PostEntryRequest a = BillPosting.ComposeVendorCreditApplication(id, body, accounts);
-        PostEntryRequest b = BillPosting.ComposeVendorCreditApplication(id, body, accounts);
+        PostEntryRequest a = BillPosting.ComposeVendorCreditApplication(id, body, allocations, accounts);
+        PostEntryRequest b = BillPosting.ComposeVendorCreditApplication(id, body, allocations, accounts);
 
         Assert.Equal(EntryIdentity.ForSource(BillPosting.VendorCreditApplicationSourceType, id), a.Id);
         Assert.Equal(a.Id, b.Id);

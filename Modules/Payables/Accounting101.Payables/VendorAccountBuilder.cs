@@ -7,19 +7,6 @@ namespace Accounting101.Payables;
 /// Mirror of the receivables CustomerAccountBuilder, minus AR-only document types.</summary>
 public static class VendorAccountBuilder
 {
-    public static Dictionary<Guid, decimal> AppliedByBill(
-        IReadOnlyList<BillPayment> payments, IReadOnlyList<VendorCreditApplication> creditApps)
-    {
-        Dictionary<Guid, decimal> applied = new();
-        void Add(IEnumerable<Allocation> allocs)
-        {
-            foreach (Allocation a in allocs) applied[a.TargetId] = applied.GetValueOrDefault(a.TargetId) + a.Amount;
-        }
-        Add(payments.Where(p => !p.Voided).SelectMany(p => p.Allocations));
-        Add(creditApps.Where(c => !c.Voided).SelectMany(c => c.Allocations));
-        return applied;
-    }
-
     public static IReadOnlyList<OpenBillLine> OpenBills(
         IReadOnlyList<Bill> bills, IReadOnlyDictionary<Guid, decimal> applied, DateOnly asOf) =>
         bills.Where(b => b.Status == BillStatus.Entered)

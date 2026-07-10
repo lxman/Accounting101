@@ -39,16 +39,18 @@ public static class BillPosting
             Lines: lines, SourceRef: bill.Id, SourceType: BillSourceType);
     }
 
-    public static PostEntryRequest ComposeBillPayment(Guid paymentId, BillPaymentBody body, BillPaymentPostingAccounts accounts)
+    public static PostEntryRequest ComposeBillPayment(
+        Guid paymentId, BillPaymentBody body, IReadOnlyList<Allocation> allocations, BillPaymentPostingAccounts accounts)
     {
         ArgumentNullException.ThrowIfNull(body);
+        ArgumentNullException.ThrowIfNull(allocations);
         ArgumentNullException.ThrowIfNull(accounts);
 
-        decimal allocated = body.Allocations.Sum(a => a.Amount);
+        decimal allocated = allocations.Sum(a => a.Amount);
         decimal remainder = body.Amount - allocated;
 
         List<PostLineRequest> lines = [];
-        foreach (Allocation a in body.Allocations)
+        foreach (Allocation a in allocations)
         {
             if (a.Amount == 0m) continue;
             lines.Add(new(accounts.PayableAccountId, "Debit", a.Amount,
@@ -68,15 +70,17 @@ public static class BillPosting
             Lines: lines, SourceRef: paymentId, SourceType: BillPaymentSourceType);
     }
 
-    public static PostEntryRequest ComposeVendorCreditApplication(Guid id, VendorCreditApplicationBody body, BillPaymentPostingAccounts accounts)
+    public static PostEntryRequest ComposeVendorCreditApplication(
+        Guid id, VendorCreditApplicationBody body, IReadOnlyList<Allocation> allocations, BillPaymentPostingAccounts accounts)
     {
         ArgumentNullException.ThrowIfNull(body);
+        ArgumentNullException.ThrowIfNull(allocations);
         ArgumentNullException.ThrowIfNull(accounts);
 
-        decimal applied = body.Allocations.Sum(a => a.Amount);
+        decimal applied = allocations.Sum(a => a.Amount);
 
         List<PostLineRequest> lines = [];
-        foreach (Allocation a in body.Allocations)
+        foreach (Allocation a in allocations)
         {
             if (a.Amount == 0m) continue;
             lines.Add(new(accounts.PayableAccountId, "Debit", a.Amount,

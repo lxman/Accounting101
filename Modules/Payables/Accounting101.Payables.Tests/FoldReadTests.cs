@@ -163,6 +163,37 @@ public sealed class FoldReadTests(PayablesHostFixture fixture) : IClassFixture<P
     }
 
     [Fact]
+    public async Task Payment_persists_no_allocation_array_and_bill_fold_still_reads_open_balance()
+    {
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
+        await SetUpChartAsync(http, clientId);
+        Guid vendorId = await CreateVendorAsync(http, clientId);
+
+        Bill entered = await EnterBillAsync(http, clientId, vendorId, 100m);
+        await ApproveSourceEntryAsync(http, clientId, entered.Id);
+
+        HttpResponseMessage payResp = await http.PostAsJsonAsync($"/clients/{clientId}/bill-payments",
+            new RecordBillPaymentRequest(vendorId, new DateOnly(2026, 3, 31), 30m, "check", [new Allocation(entered.Id, 30m)]));
+        payResp.EnsureSuccessStatusCode();
+        BillPayment payment = (await payResp.Content.ReadFromJsonAsync<BillPayment>())!;
+        await ApproveSourceEntryAsync(http, clientId, payment.Id);
+
+        // The persisted BillPayment carries no allocation array at all — a compile-time guarantee: the type
+        // has no Allocations property to read. Proven here via reflection so this test fails loudly (not
+        // silently) if the property is ever reintroduced.
+        Assert.Null(typeof(BillPayment).GetProperty("Allocations"));
+
+        BillPayment[] byVendor = (await http.GetFromJsonAsync<BillPayment[]>(
+            $"/clients/{clientId}/bill-payments?vendorId={vendorId}"))!;
+        Assert.Contains(byVendor, p => p.Id == payment.Id);
+
+        // The bill's open balance is folded from the ledger, not from any stored allocation array — it
+        // still reads 70 (100 − 30) purely from the fold.
+        BillView view = (await http.GetFromJsonAsync<BillView>($"/clients/{clientId}/bills/{entered.Id}"))!;
+        Assert.Equal(70m, view.OpenBalance);
+    }
+
+    [Fact]
     public async Task Second_unapproved_overlapping_payment_is_rejected_pending_inclusive()
     {
         (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();

@@ -10,41 +10,43 @@ namespace Accounting101.Payables;
 public sealed class BillPaymentService(
     IBillPaymentStore payments, IBillStore bills, IBillAccountsProvider accounts, ILedgerClient ledger)
 {
-    public async Task<BillPayment> RecordPaymentAsync(Guid clientId, BillPaymentBody body, CancellationToken ct = default)
+    public async Task<BillPayment> RecordPaymentAsync(Guid clientId, BillPaymentCommand command, CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(body);
-        if (body.Amount <= 0m)
+        ArgumentNullException.ThrowIfNull(command);
+        if (command.Amount <= 0m)
             throw new InvalidOperationException("A payment amount must be greater than zero.");
-        if (body.Allocations.Any(a => a.Amount <= 0m))
+        if (command.Allocations.Any(a => a.Amount <= 0m))
             throw new InvalidOperationException("Every allocation amount must be greater than zero.");
-        if (body.Allocations.Sum(a => a.Amount) > body.Amount)
+        if (command.Allocations.Sum(a => a.Amount) > command.Amount)
             throw new InvalidOperationException("Allocations cannot exceed the payment amount.");
 
-        await ValidateAllocationsAsync(clientId, body.VendorId, body.Allocations, ct);
+        await ValidateAllocationsAsync(clientId, command.VendorId, command.Allocations, ct);
 
+        BillPaymentBody body = new(command.VendorId, command.Date, command.Amount, command.Method);
         BillPayment recorded = await payments.RecordPaymentAsync(clientId, body, ct);
         BillPaymentPostingAccounts posting = await accounts.GetPaymentAccountsAsync(clientId, ct);
-        PostEntryRequest entry = BillPosting.ComposeBillPayment(recorded.Id, body, posting);
+        PostEntryRequest entry = BillPosting.ComposeBillPayment(recorded.Id, body, command.Allocations, posting);
         await ledger.PostAsync(clientId, entry, ct);
         return recorded;
     }
 
-    public async Task<VendorCreditApplication> RecordCreditApplicationAsync(Guid clientId, VendorCreditApplicationBody body, CancellationToken ct = default)
+    public async Task<VendorCreditApplication> RecordCreditApplicationAsync(Guid clientId, VendorCreditApplicationCommand command, CancellationToken ct = default)
     {
-        ArgumentNullException.ThrowIfNull(body);
-        if (body.Allocations.Count == 0 || body.Allocations.Any(a => a.Amount <= 0m))
+        ArgumentNullException.ThrowIfNull(command);
+        if (command.Allocations.Count == 0 || command.Allocations.Any(a => a.Amount <= 0m))
             throw new InvalidOperationException("A credit application needs positive allocations.");
 
-        decimal applying = body.Allocations.Sum(a => a.Amount);
-        decimal available = await GetVendorCreditBalanceAsync(clientId, body.VendorId, ct);
+        decimal applying = command.Allocations.Sum(a => a.Amount);
+        decimal available = await GetVendorCreditBalanceAsync(clientId, command.VendorId, ct);
         if (applying > available)
             throw new InvalidOperationException($"Credit application of {applying} exceeds available credit {available}.");
 
-        await ValidateAllocationsAsync(clientId, body.VendorId, body.Allocations, ct);
+        await ValidateAllocationsAsync(clientId, command.VendorId, command.Allocations, ct);
 
+        VendorCreditApplicationBody body = new(command.VendorId, command.Date);
         VendorCreditApplication recorded = await payments.RecordCreditApplicationAsync(clientId, body, ct);
         BillPaymentPostingAccounts posting = await accounts.GetPaymentAccountsAsync(clientId, ct);
-        PostEntryRequest entry = BillPosting.ComposeVendorCreditApplication(recorded.Id, body, posting);
+        PostEntryRequest entry = BillPosting.ComposeVendorCreditApplication(recorded.Id, body, command.Allocations, posting);
         await ledger.PostAsync(clientId, entry, ct);
         return recorded;
     }
@@ -58,17 +60,20 @@ public sealed class BillPaymentService(
 
         // A void reverses the whole payment, including the overpayment that landed as vendor credit. If that
         // credit has since been applied, removing it would drive the credit balance negative (a credit balance
-        // on the Vendor Credits asset) — a corrupt state. Refuse; the consuming application must be reversed first.
-        // TODO(Task 7): once the module stops storing Allocation[], payment.Unapplied moves to
-        // SettlementRelief.ForSourceAsync(..., postedOnly: false) for the same immediacy this guard needs
-        // (the payment being voided may itself still be pending). Until then Allocation[] is still stored,
-        // so payment.Unapplied is already immediate — this guard is unchanged.
-        if (payment.Unapplied > 0m)
+        // on the Vendor Credits asset) — a corrupt state. Refuse; the consuming application must be reversed
+        // first. Unapplied is folded from the payment's own entry (the module stores no allocation array to
+        // compute it from directly); postedOnly: false gives the immediacy this guard needs — a pending
+        // payment being voided must still see its own overpayment.
+        BillPaymentPostingAccounts postingForVoid = await accounts.GetPaymentAccountsAsync(clientId, ct);
+        decimal allocated = await SettlementRelief.ForSourceAsync(
+            ledger, clientId, paymentId, postingForVoid.PayableAccountId, ct, postedOnly: false);
+        decimal unapplied = payment.Amount - allocated;
+        if (unapplied > 0m)
         {
             decimal creditBalance = await GetVendorCreditBalanceAsync(clientId, payment.VendorId, ct);
-            if (creditBalance - payment.Unapplied < 0m)
+            if (creditBalance - unapplied < 0m)
                 throw new InvalidOperationException(
-                    $"Cannot void payment {paymentId}: its overpayment credit ({payment.Unapplied:C}) has already " +
+                    $"Cannot void payment {paymentId}: its overpayment credit ({unapplied:C}) has already " +
                     $"been applied (available credit is only {creditBalance:C}). Reverse the vendor credit " +
                     $"application(s) first, then void this payment.");
         }

@@ -11,22 +11,13 @@ public sealed class VendorAccountBuilderTests
             Status = BillStatus.Entered, Lines = [new BillLine { Description = "x", Amount = amount, ExpenseAccountId = Guid.NewGuid() }],
         };
 
-    private static BillPayment Payment(Guid billId, decimal amount, decimal alloc, DateOnly date, bool voided = false) =>
-        new() { Id = Guid.NewGuid(), VendorId = Guid.NewGuid(), Date = date, Amount = amount, Method = null,
-                Allocations = [new Allocation(billId, alloc)], Voided = voided };
+    // BillPayment/VendorCreditApplication no longer store an allocation array — Statement/CreditActivity
+    // key relief off a document's Id via the separately fold-sourced reliefByDocument dictionary instead.
+    private static BillPayment Payment(decimal amount, DateOnly date, bool voided = false) =>
+        new() { Id = Guid.NewGuid(), VendorId = Guid.NewGuid(), Date = date, Amount = amount, Method = null, Voided = voided };
 
-    private static VendorCreditApplication CreditApp(Guid billId, decimal alloc, DateOnly date, bool voided = false) =>
-        new() { Id = Guid.NewGuid(), VendorId = Guid.NewGuid(), Date = date, Allocations = [new Allocation(billId, alloc)], Voided = voided };
-
-    [Fact]
-    public void AppliedByBill_sums_nonvoided_payment_and_credit_allocations()
-    {
-        Guid bill = Guid.NewGuid();
-        var applied = VendorAccountBuilder.AppliedByBill(
-            [Payment(bill, 100m, 80m, new DateOnly(2026, 3, 1)), Payment(bill, 50m, 50m, new DateOnly(2026, 3, 2), voided: true)],
-            [CreditApp(bill, 20m, new DateOnly(2026, 3, 3))]);
-        Assert.Equal(100m, applied[bill]); // 80 + 20; the voided 50 excluded
-    }
+    private static VendorCreditApplication CreditApp(DateOnly date, bool voided = false) =>
+        new() { Id = Guid.NewGuid(), VendorId = Guid.NewGuid(), Date = date, Voided = voided };
 
     [Fact]
     public void OpenBills_keeps_only_entered_with_positive_open_oldest_first_with_overdue()
@@ -61,7 +52,7 @@ public sealed class VendorAccountBuilderTests
     {
         Guid bill = Guid.NewGuid();
         var bills = new List<Bill> { EnteredBill(bill, 100m, new DateOnly(2026, 3, 1), null) };
-        BillPayment payment = Payment(bill, 30m, 30m, new DateOnly(2026, 3, 1));
+        BillPayment payment = Payment(30m, new DateOnly(2026, 3, 1));
         // reliefByDocument is fold-sourced in production (VendorAccountService); a plain dictionary
         // stands in for it here — the builder itself never touches Allocations.
         var relief = new Dictionary<Guid, decimal> { [payment.Id] = 30m };
@@ -75,10 +66,9 @@ public sealed class VendorAccountBuilderTests
     [Fact]
     public void CreditActivity_overpayment_plus_application_minus_running_balance()
     {
-        Guid bill = Guid.NewGuid();
         // payment of 150 relieving 100 → 50 overpayment; later credit application relieving 20.
-        BillPayment payment = Payment(bill, 150m, 100m, new DateOnly(2026, 3, 1));
-        VendorCreditApplication creditApp = CreditApp(bill, 20m, new DateOnly(2026, 3, 5));
+        BillPayment payment = Payment(150m, new DateOnly(2026, 3, 1));
+        VendorCreditApplication creditApp = CreditApp(new DateOnly(2026, 3, 5));
         var relief = new Dictionary<Guid, decimal> { [payment.Id] = 100m, [creditApp.Id] = 20m };
         var lines = VendorAccountBuilder.CreditActivity([payment], [creditApp], relief);
         Assert.Equal("Overpayment", lines[0].Type);
@@ -108,11 +98,11 @@ public sealed class VendorAccountBuilderTests
         Guid appId = Guid.NewGuid();
         List<BillPayment> payments =
         [
-            new() { Id = pB, VendorId = Guid.NewGuid(), Date = d, Amount = 20m, Method = null, Allocations = [] }, // unapplied 20 (no relief)
-            new() { Id = pA, VendorId = Guid.NewGuid(), Date = d, Amount = 10m, Method = null, Allocations = [] }, // unapplied 10 (no relief)
+            new() { Id = pB, VendorId = Guid.NewGuid(), Date = d, Amount = 20m, Method = null }, // unapplied 20 (no relief)
+            new() { Id = pA, VendorId = Guid.NewGuid(), Date = d, Amount = 10m, Method = null }, // unapplied 10 (no relief)
         ];
         List<VendorCreditApplication> apps =
-            [new() { Id = appId, VendorId = Guid.NewGuid(), Date = d, Allocations = [] }];
+            [new() { Id = appId, VendorId = Guid.NewGuid(), Date = d }];
         Dictionary<Guid, decimal> relief = new() { [appId] = 5m };
 
         var lines = VendorAccountBuilder.CreditActivity(payments, apps, relief);

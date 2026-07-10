@@ -234,7 +234,7 @@ internal sealed class InMemoryBillPaymentStore : IBillPaymentStore
         BillPayment p = new()
         {
             Id = Guid.NewGuid(), VendorId = body.VendorId, Date = body.Date, Amount = body.Amount,
-            Method = body.Method, Allocations = body.Allocations, Voided = false,
+            Method = body.Method, Voided = false,
         };
         _payments[(clientId, p.Id)] = p;
         return Task.FromResult(p);
@@ -245,8 +245,7 @@ internal sealed class InMemoryBillPaymentStore : IBillPaymentStore
         ArgumentNullException.ThrowIfNull(body);
         VendorCreditApplication c = new()
         {
-            Id = Guid.NewGuid(), VendorId = body.VendorId, Date = body.Date,
-            Allocations = body.Allocations, Voided = false,
+            Id = Guid.NewGuid(), VendorId = body.VendorId, Date = body.Date, Voided = false,
         };
         _credits[(clientId, c.Id)] = c;
         return Task.FromResult(c);
