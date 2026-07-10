@@ -391,7 +391,7 @@ public static class LedgerEndpoints
     // ---- Queries ----------------------------------------------------------------------------
 
     private static async Task<IResult> ListEntries(
-        Guid clientId, Guid? account, Guid? sourceRef, string? dimension, Guid? value,
+        Guid clientId, Guid? account, Guid? sourceRef, string? sourceRefs, string? dimension, Guid? value,
         string? posting, string? reference,
         int? skip, int? limit,
         LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
@@ -403,10 +403,15 @@ public static class LedgerEndpoints
         PostingState? postingState = ParsePosting(posting, out IResult? badPosting);
         if (badPosting is not null) return badPosting;
 
-        // Base-query precedence: reference → sourceRef → dimension → account → posting-only → unfiltered.
+        // Validate the batch sourceRefs CSV up front (present-but-empty is a valid empty list).
+        List<Guid>? sourceRefList = null;
+        if (sourceRefs is not null && !TryParseGuidCsv(sourceRefs, out sourceRefList, out IResult? badRefs))
+            return badRefs;
+
+        // Base-query precedence: reference → sourceRef → sourceRefs → dimension → account → posting-only → unfiltered.
         // The unfiltered and posting-only branches are pageable display paths (they may return an envelope).
-        // The filtered branches (reference/sourceRef/dimension/account) always return a bare array — they are
-        // internal aggregation reads that module ledger clients consume directly.
+        // The filtered branches (reference/sourceRef/sourceRefs/dimension/account) always return a bare array — they
+        // are internal aggregation reads that module ledger clients consume directly.
         IReadOnlyList<JournalEntry> entries;
         bool postingHandledByQuery = false;
         bool pageable = false;
@@ -415,6 +420,8 @@ public static class LedgerEndpoints
             entries = await ctx.Ledger.Journal.GetByReferenceAsync(clientId, reference, cancellationToken);
         else if (sourceRef is { } source)
             entries = await ctx.Ledger.Journal.GetBySourceRefAsync(clientId, source, cancellationToken);
+        else if (sourceRefList is not null)
+            entries = await ctx.Ledger.Journal.GetBySourceRefsAsync(clientId, sourceRefList, cancellationToken);
         else if (!string.IsNullOrWhiteSpace(dimension) && value is { } dimValue)
             entries = await ctx.Ledger.Journal.GetTouchingDimensionAsync(clientId, dimension, dimValue, cancellationToken);
         else if (account is { } accountId)
@@ -468,6 +475,28 @@ public static class LedgerEndpoints
         }
         error = Results.Problem("posting must be 'PendingApproval' or 'Posted'.", statusCode: 400);
         return null;
+    }
+
+    /// <summary>
+    /// Parses a comma-separated Guid list (the <c>sourceRefs</c> batch filter). A present-but-empty or
+    /// whitespace value is a valid empty list. Any non-empty element that is not a Guid yields a 400 in
+    /// <paramref name="error"/> and a null list.
+    /// </summary>
+    private static bool TryParseGuidCsv(string raw, out List<Guid>? parsed, out IResult? error)
+    {
+        parsed = [];
+        error = null;
+        foreach (string part in raw.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (!Guid.TryParse(part, out Guid id))
+            {
+                parsed = null;
+                error = Results.Problem($"'{part}' is not a valid Guid in sourceRefs.", statusCode: StatusCodes.Status400BadRequest);
+                return false;
+            }
+            parsed.Add(id);
+        }
+        return true;
     }
 
     /// <summary>Page offset, never negative.</summary>
