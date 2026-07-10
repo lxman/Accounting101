@@ -69,6 +69,21 @@ public sealed class HttpLedgerClient(
         return (await response.Content.ReadFromJsonAsync<List<EntryResponse>>(cancellationToken))!;
     }
 
+    public async Task<IReadOnlyList<SubledgerLineResponse>> GetSubledgerAsync(
+        Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default,
+        bool includePending = false)
+    {
+        string url = $"clients/{clientId}/subledger?account={account}&dimension={Uri.EscapeDataString(dimension)}";
+        if (asOf is { } d) url += $"&asOf={d:yyyy-MM-dd}";
+        if (includePending) url += "&includePending=true";
+        // A plain member read — like GetEntriesBySourceRefAsync, no module credential is attached.
+        using HttpRequestMessage request = Forwarded(HttpMethod.Get, url);
+        using HttpResponseMessage response = await http.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        SubledgerResponse body = (await response.Content.ReadFromJsonAsync<SubledgerResponse>(cancellationToken))!;
+        return body.Lines;
+    }
+
     /// <summary>Build a request carrying the caller's bearer token, so the engine acts as that user.</summary>
     private HttpRequestMessage Forwarded(HttpMethod method, string uri)
     {
