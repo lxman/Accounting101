@@ -16,6 +16,8 @@ namespace Accounting101.FixedAssets.Tests;
 /// the in-memory test server (no real socket).</summary>
 public sealed class FixedAssetsHostFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    private static readonly IReadOnlyList<string> DefaultModules = ["fixedassets"];
+
     private string _connectionString = "";
 
     public IMongoClient Mongo { get; private set; } = null!;
@@ -86,5 +88,34 @@ public sealed class FixedAssetsHostFixture : WebApplicationFactory<Program>, IAs
         });
         await control.AddMembershipAsync(userId, clientId, role);
         return (clientId, ClientFor(userId, $"Acme {role}", role));
+    }
+
+    /// <summary>
+    /// Register a SoD-ON client with three members: a Controller (chart setup, module document voids,
+    /// raw GL authority), a Clerk (records depreciation runs / disposals — holds fixedassets.write), and
+    /// an Approver (approves GL entries, including reversals). Returns the client id and authed
+    /// HttpClients for all three roles. Mirrors PayrollHostFixture/CashHostFixture's SoD seed.
+    /// </summary>
+    public async Task<(Guid ClientId, HttpClient ControllerHttp, HttpClient ClerkHttp, HttpClient ApproverHttp)>
+        SeedSodClientAsync()
+    {
+        Guid clientId = Guid.NewGuid();
+        Guid controllerUserId = Guid.NewGuid();
+        Guid clerkUserId = Guid.NewGuid();
+        Guid approverUserId = Guid.NewGuid();
+        ControlStore control = Control();
+        await control.RegisterClientAsync(new ClientRegistration
+        {
+            Id = clientId, Name = "Acme SoD", DatabaseName = "client_" + clientId.ToString("N"),
+            RequireSegregationOfDuties = true,
+            EnabledModules = DefaultModules,
+        });
+        await control.AddMembershipAsync(controllerUserId, clientId, LedgerRole.Controller);
+        await control.AddMembershipAsync(clerkUserId, clientId, LedgerRole.Clerk);
+        await control.AddMembershipAsync(approverUserId, clientId, LedgerRole.Approver);
+        return (clientId,
+            ClientFor(controllerUserId, "Acme Controller", LedgerRole.Controller),
+            ClientFor(clerkUserId, "Acme Clerk", LedgerRole.Clerk),
+            ClientFor(approverUserId, "Acme Approver", LedgerRole.Approver));
     }
 }

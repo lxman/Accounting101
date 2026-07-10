@@ -4,9 +4,9 @@ namespace Accounting101.FixedAssets;
 
 /// <summary>Orchestrates a disposal: validate, resolve accounts, catch depreciation up to the disposal
 /// month, compute gain/loss vs net book value, persist the evidentiary disposal, stamp the asset
-/// Disposed, and post one PendingApproval GL entry. Void reverses the entry (tolerating a missing one),
-/// reinstates the asset to its pre-disposal accumulated depreciation, and voids the doc. The module never
-/// self-approves.</summary>
+/// Disposed, and post one PendingApproval GL entry. Void reverses the entry (tolerating a missing one) —
+/// which restores the ledger accum fold automatically — reinstates the asset to Active, and voids the doc.
+/// The module never self-approves.</summary>
 public sealed class FixedAssetsDisposalService(
     IAssetStore assets,
     IDisposalStore disposals,
@@ -37,7 +37,11 @@ public sealed class FixedAssetsDisposalService(
         IDepreciationMethod method = methods.For(asset.Method);
         int targetMonths = DepreciationSchedule.TargetMonths(asset, request.DisposalDate);
         decimal targetAccumulated = DepreciationSchedule.AccumulatedAfter(method, asset, targetMonths);
-        decimal currentAccumulated = asset.AccumulatedDepreciation;
+        // Current accumulated depreciation folded from the ledger (pending-inclusive: a not-yet-approved
+        // run's accum must be included so catch-up is measured against the real prior basis), negated
+        // (contra-asset: the debit-positive fold reads the credit balance NEGATIVE, so accum = −Balance).
+        decimal currentAccumulated = (await ledger.GetSubledgerAsync(clientId, postingAccounts.AccumulatedDepreciationAccountId, "Asset", null, ct, includePending: true))
+            .Where(l => l.DimensionValue == assetId).Sum(l => -l.Balance);
         decimal catchUp = Math.Max(0m, targetAccumulated - currentAccumulated);
         decimal finalAccumulated = currentAccumulated + catchUp;
         decimal nbv = asset.AcquisitionCost - finalAccumulated;
@@ -47,14 +51,14 @@ public sealed class FixedAssetsDisposalService(
         Disposal disposal = await disposals.RecordAsync(clientId, new DisposalBody(
             assetId, request.DisposalDate, request.Proceeds, catchUp, currentAccumulated, finalAccumulated, nbv, gainLoss, request.Memo), ct);
 
-        // 5. Stamp the asset Disposed with its final accumulated depreciation.
-        DisposeStamp stamp = await assets.MarkDisposedAsync(clientId, assetId, finalAccumulated, ct);
+        // 5. Stamp the asset Disposed (accumulated depreciation lives in the ledger fold, not a stored field).
+        DisposeStamp stamp = await assets.MarkDisposedAsync(clientId, assetId, ct);
         if (stamp.Outcome != DisposeOutcome.Disposed)
             throw new InvalidOperationException($"Asset {assetId} could not be disposed ({stamp.Outcome}).");
 
         // 6. Compose + post one PendingApproval entry.
         PostEntryRequest entry = FixedAssetsDisposalPosting.ComposeDisposal(
-            disposal.Id, request.DisposalDate, asset.AcquisitionCost, currentAccumulated, catchUp, request.Proceeds, gainLoss, request.Memo, postingAccounts);
+            disposal.Id, request.DisposalDate, assetId, asset.AcquisitionCost, currentAccumulated, catchUp, request.Proceeds, gainLoss, request.Memo, postingAccounts);
         await ledger.PostAsync(clientId, entry, ct);
 
         return disposal;
@@ -78,8 +82,9 @@ public sealed class FixedAssetsDisposalService(
                 await ledger.VoidAsync(clientId, entry.Id, new VoidRequest(reason ?? $"Voided disposal {disposalId}"), ct);
         }
 
-        // Reinstate the asset to its pre-disposal accumulated depreciation, then void the doc.
-        await assets.ReinstateAsync(clientId, disposal.AssetId, disposal.AccumulatedBeforeDisposal, ct);
+        // Reinstate the asset to Active, then void the doc — the entry reversal above restores the ledger
+        // fold (the accum source) automatically; there is no stored field to roll back.
+        await assets.ReinstateAsync(clientId, disposal.AssetId, ct);
         await disposals.VoidAsync(clientId, disposalId, ct);
         return (await disposals.GetAsync(clientId, disposalId, ct))!;
     }

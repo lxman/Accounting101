@@ -19,6 +19,13 @@ public sealed class FixedAssetsRunServiceTests
     private static AssetBody Sl(decimal cost, int life, DateOnly inService) =>
         new("SL asset", cost, inService, life, 0m, DepreciationMethod.StraightLine, null);
 
+    // Accumulated depreciation is no longer stored — read it from the ledger fold (negated contra-asset),
+    // exactly as FixedAssetsService does.
+    private static async Task<decimal> AccumAsync(
+        FakeLedgerClient ledger, FixedAccountsProvider accounts, Guid clientId, Guid assetId) =>
+        (await ledger.GetSubledgerAsync(clientId, accounts.AccumulatedDepreciationAccountId, "Asset", null, default, includePending: true))
+            .Where(l => l.DimensionValue == assetId).Sum(l => -l.Balance);
+
     [Fact]
     public async Task Run_computes_lines_advances_assets_and_posts_one_aggregate_entry()
     {
@@ -31,8 +38,8 @@ public sealed class FixedAssetsRunServiceTests
 
         Assert.Equal(750m, run.Total);
         Assert.Equal(2, run.Lines.Count);
-        Assert.Equal(500m, (await assets.GetAsync(clientId, a.Id, default))!.AccumulatedDepreciation);
-        Assert.Equal(250m, (await assets.GetAsync(clientId, b.Id, default))!.AccumulatedDepreciation);
+        Assert.Equal(500m, await AccumAsync(ledger, accounts, clientId, a.Id));
+        Assert.Equal(250m, await AccumAsync(ledger, accounts, clientId, b.Id));
 
         PostEntryRequest posted = Assert.Single(ledger.Posted);
         Assert.Equal("DepreciationRun", posted.SourceType);
@@ -76,16 +83,16 @@ public sealed class FixedAssetsRunServiceTests
     [Fact]
     public async Task Void_latest_run_reverses_entry_and_rolls_back_accumulated()
     {
-        (FixedAssetsRunService svc, InMemoryAssetStore assets, _, FakeLedgerClient ledger, _) = Build();
+        (FixedAssetsRunService svc, InMemoryAssetStore assets, _, FakeLedgerClient ledger, FixedAccountsProvider accounts) = Build();
         Guid clientId = Guid.NewGuid();
         Asset a = await assets.CreateAsync(clientId, Sl(12000m, 24, new DateOnly(2026, 1, 1)), default);
         DepreciationRun run = await svc.RunDepreciationAsync(clientId, new DepreciationRunRequest(2026, 1, null, null), default);
-        Assert.Equal(500m, (await assets.GetAsync(clientId, a.Id, default))!.AccumulatedDepreciation);
+        Assert.Equal(500m, await AccumAsync(ledger, accounts, clientId, a.Id));
 
         DepreciationRun voided = await svc.VoidRunAsync(clientId, run.Id, "oops", default);
         Assert.Equal(DepreciationRunStatus.Voided, voided.Status);
         Assert.True(ledger.ReversedOrWithdrawn);
-        Assert.Equal(0m, (await assets.GetAsync(clientId, a.Id, default))!.AccumulatedDepreciation);
+        Assert.Equal(0m, await AccumAsync(ledger, accounts, clientId, a.Id)); // entry reversal rolled the fold back
     }
 
     [Fact]

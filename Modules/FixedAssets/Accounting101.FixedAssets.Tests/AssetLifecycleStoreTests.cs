@@ -80,23 +80,4 @@ public sealed class AssetLifecycleStoreTests(AssetDocumentStoreFixture fixture)
         Guid clientId = fixture.ClientId;
         Assert.Equal(ReactivateResult.NotFound, await store.ReactivateAsync(clientId, Guid.NewGuid(), default));
     }
-
-    [Fact]
-    public async Task ApplyDepreciation_then_reverse_round_trips_accumulated()
-    {
-        DocumentAssetStore store = Store();
-        Guid clientId = fixture.ClientId;
-        Asset a = await store.CreateAsync(clientId, Body(), default);
-        Asset b = await store.CreateAsync(clientId, Body(), default);
-
-        await store.ApplyDepreciationAsync(clientId,
-            [new DepreciationRunLine(a.Id, 500m), new DepreciationRunLine(b.Id, 400m)], default);
-        Assert.Equal(500m, (await store.GetAsync(clientId, a.Id, default))!.AccumulatedDepreciation);
-        Assert.Equal(400m, (await store.GetAsync(clientId, b.Id, default))!.AccumulatedDepreciation);
-
-        await store.ReverseDepreciationAsync(clientId,
-            [new DepreciationRunLine(a.Id, 500m), new DepreciationRunLine(b.Id, 400m)], default);
-        Assert.Equal(0m, (await store.GetAsync(clientId, a.Id, default))!.AccumulatedDepreciation);
-        Assert.Equal(0m, (await store.GetAsync(clientId, b.Id, default))!.AccumulatedDepreciation);
-    }
 }

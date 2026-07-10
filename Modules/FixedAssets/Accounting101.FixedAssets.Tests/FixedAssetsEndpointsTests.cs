@@ -11,10 +11,19 @@ public sealed class FixedAssetsEndpointsTests(FixedAssetsHostFixture fixture) : 
     private static SaveAssetRequest Van() => new(
         "Delivery van", 30000m, new DateOnly(2026, 1, 1), 60, 3000m, DepreciationMethod.StraightLine, null);
 
+    /// <summary>Reads of an asset fold the Accumulated Depreciation subledger, so that account must exist as
+    /// a control account requiring the Asset dimension before any single-asset GET / reactivate view. An
+    /// asset with no depreciation folds to 0 — the account just has to be foldable.</summary>
+    private async Task EnsureAccumAccountAsync(HttpClient http, Guid clientId) =>
+        (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.AccumulatedDepreciationAccountId}",
+            new AccountRequest { Number = "1590", Name = "Accumulated Depreciation", Type = "Asset", RequiredDimensions = ["Asset"] }))
+            .EnsureSuccessStatusCode();
+
     [Fact]
     public async Task Create_list_get_update_deactivate_lifecycle()
     {
         (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
+        await EnsureAccumAccountAsync(http, clientId);
 
         HttpResponseMessage created = await http.PostAsJsonAsync($"/clients/{clientId}/assets", Van());
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
@@ -89,6 +98,7 @@ public sealed class FixedAssetsEndpointsTests(FixedAssetsHostFixture fixture) : 
     public async Task Editing_a_deactivated_asset_returns_409_until_reactivated()
     {
         (Guid clientId, HttpClient http) = await fixture.SeedClientAsync(); // Controller by default
+        await EnsureAccumAccountAsync(http, clientId);
 
         // Create + deactivate.
         AssetView created = (await (await http.PostAsJsonAsync($"/clients/{clientId}/assets",

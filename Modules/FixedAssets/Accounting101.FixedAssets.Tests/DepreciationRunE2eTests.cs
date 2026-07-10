@@ -15,12 +15,14 @@ public sealed class DepreciationRunE2eTests(FixedAssetsHostFixture fixture) : IC
     private async Task SetUpChartAsync(HttpClient http, Guid clientId)
     {
         await PutAccountAsync(http, clientId, fixture.DepreciationExpenseAccountId,     "6200", "Depreciation Expense",     "Expense");
-        await PutAccountAsync(http, clientId, fixture.AccumulatedDepreciationAccountId, "1590", "Accumulated Depreciation", "Asset");
+        await PutAccountAsync(http, clientId, fixture.AccumulatedDepreciationAccountId, "1590", "Accumulated Depreciation", "Asset",
+            requiredDimensions: ["Asset"]);
     }
 
-    private static async Task PutAccountAsync(HttpClient http, Guid clientId, Guid accountId, string number, string name, string type) =>
+    private static async Task PutAccountAsync(HttpClient http, Guid clientId, Guid accountId, string number, string name, string type,
+        IReadOnlyList<string>? requiredDimensions = null) =>
         (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{accountId}",
-            new { Number = number, Name = name, Type = type, RequiredDimension = (string?)null }))
+            new AccountRequest { Number = number, Name = name, Type = type, RequiredDimensions = requiredDimensions }))
             .EnsureSuccessStatusCode();
 
     private static async Task<AssetView> CreateAssetAsync(HttpClient http, Guid clientId, SaveAssetRequest req) =>
@@ -44,21 +46,95 @@ public sealed class DepreciationRunE2eTests(FixedAssetsHostFixture fixture) : IC
         DepreciationRunView run = (await created.Content.ReadFromJsonAsync<DepreciationRunView>())!;
         Assert.Equal(1500m, run.Run.Total); // 500 + 1000
 
-        // Assets advanced.
-        AssetView slAfter = (await http.GetFromJsonAsync<AssetView>($"/clients/{clientId}/assets/{sl.Asset.Id}"))!;
-        AssetView dbAfter = (await http.GetFromJsonAsync<AssetView>($"/clients/{clientId}/assets/{db.Asset.Id}"))!;
-        Assert.Equal(500m, slAfter.Asset.AccumulatedDepreciation);
-        Assert.Equal(1000m, dbAfter.Asset.AccumulatedDepreciation);
-
         // One balanced PendingApproval entry via fixedassets.
         EntryResponse[] entries = (await http.GetFromJsonAsync<EntryResponse[]>(
             $"/clients/{clientId}/entries?sourceRef={run.Run.Id}"))!;
         EntryResponse entry = Assert.Single(entries);
         Assert.Equal("fixedassets", entry.ViaModule);
         Assert.Equal("PendingApproval", entry.Posting);
-        Assert.Equal(2, entry.Lines.Count);
+        Assert.Equal(3, entry.Lines.Count); // 1 aggregate expense debit + 2 per-asset accum credits
         Assert.Equal(1500m, entry.Lines.Single(l => l.AccountId == fixture.DepreciationExpenseAccountId && l.Direction == "Debit").Amount);
-        Assert.Equal(1500m, entry.Lines.Single(l => l.AccountId == fixture.AccumulatedDepreciationAccountId && l.Direction == "Credit").Amount);
+        Assert.Equal(500m, entry.Lines.Single(l =>
+            l.AccountId == fixture.AccumulatedDepreciationAccountId && l.Direction == "Credit" && l.Dimensions["Asset"] == sl.Asset.Id).Amount);
+        Assert.Equal(1000m, entry.Lines.Single(l =>
+            l.AccountId == fixture.AccumulatedDepreciationAccountId && l.Direction == "Credit" && l.Dimensions["Asset"] == db.Asset.Id).Amount);
+
+        // Reported accumulated depreciation folds the ledger Posted-only, so it reflects the run only once
+        // the entry is approved (single-client seed: SoD not required, so the same Controller may approve).
+        // Before approval the fold is 0; after approval it equals each asset's per-{Asset} accum credit.
+        AssetView slPending = (await http.GetFromJsonAsync<AssetView>($"/clients/{clientId}/assets/{sl.Asset.Id}"))!;
+        Assert.Equal(0m, slPending.Asset.AccumulatedDepreciation); // pending run not yet on the books
+
+        (await http.PostAsync($"/clients/{clientId}/entries/{entry.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        AssetView slAfter = (await http.GetFromJsonAsync<AssetView>($"/clients/{clientId}/assets/{sl.Asset.Id}"))!;
+        AssetView dbAfter = (await http.GetFromJsonAsync<AssetView>($"/clients/{clientId}/assets/{db.Asset.Id}"))!;
+        Assert.Equal(500m, slAfter.Asset.AccumulatedDepreciation);
+        Assert.Equal(1000m, dbAfter.Asset.AccumulatedDepreciation);
+    }
+
+    [Fact]
+    public async Task List_endpoint_folds_accumulated_depreciation_per_asset_after_approval()
+    {
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
+        await SetUpChartAsync(http, clientId);
+
+        AssetView sl = await CreateAssetAsync(http, clientId,
+            new SaveAssetRequest("SL Van", 12000m, new DateOnly(2026, 1, 1), 24, 0m, DepreciationMethod.StraightLine, null)); // 500/mo
+        AssetView db = await CreateAssetAsync(http, clientId,
+            new SaveAssetRequest("DB Rig", 12000m, new DateOnly(2026, 1, 1), 24, 0m, DepreciationMethod.DecliningBalance, 2.0m)); // 1000 first mo
+
+        DepreciationRunView run = (await (await http.PostAsJsonAsync($"/clients/{clientId}/depreciation-runs",
+            new RunDepreciationRequest(2026, 1, null, "January depreciation"))).EnsureSuccessStatusCode()
+            .Content.ReadFromJsonAsync<DepreciationRunView>())!;
+
+        EntryResponse entry = Assert.Single((await http.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={run.Run.Id}"))!);
+
+        // Before approval the Posted-only fold reads 0 on the LIST endpoint too (proves it goes through the fold,
+        // not a stored default of 0 that would look identical here — the post-approval assertion is the real proof).
+        PagedResponse<AssetView> pending = (await http.GetFromJsonAsync<PagedResponse<AssetView>>($"/clients/{clientId}/assets"))!;
+        Assert.All(pending.Items, a => Assert.Equal(0m, a.Asset.AccumulatedDepreciation));
+
+        (await http.PostAsync($"/clients/{clientId}/entries/{entry.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        // The stored field is gone; the LIST endpoint must overlay each asset's per-{Asset} accum from the ledger fold.
+        PagedResponse<AssetView> listed = (await http.GetFromJsonAsync<PagedResponse<AssetView>>($"/clients/{clientId}/assets"))!;
+        Assert.Equal(500m, listed.Items.Single(a => a.Asset.Id == sl.Asset.Id).Asset.AccumulatedDepreciation);
+        Assert.Equal(1000m, listed.Items.Single(a => a.Asset.Id == db.Asset.Id).Asset.AccumulatedDepreciation);
+    }
+
+    /// <summary>Regression for the Task 5 review finding: PUT /assets/{id} must return the FOLDED
+    /// accumulated depreciation, not the store's default of 0 (the stored field is gone). Runs and approves
+    /// one month of depreciation, then edits a benign field (Description) and asserts the PUT response body
+    /// itself carries the folded, non-zero accum — this fails if the handler echoes the store result instead
+    /// of refetching via FixedAssetsService.GetAsync (mirrors ReactivateAsset's pattern).</summary>
+    [Fact]
+    public async Task Put_asset_response_folds_accumulated_depreciation_after_a_posted_run()
+    {
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
+        await SetUpChartAsync(http, clientId);
+
+        AssetView sl = await CreateAssetAsync(http, clientId,
+            new SaveAssetRequest("SL Van", 12000m, new DateOnly(2026, 1, 1), 24, 0m, DepreciationMethod.StraightLine, null)); // 500/mo
+
+        DepreciationRunView run = (await (await http.PostAsJsonAsync($"/clients/{clientId}/depreciation-runs",
+            new RunDepreciationRequest(2026, 1, null, "January depreciation"))).EnsureSuccessStatusCode()
+            .Content.ReadFromJsonAsync<DepreciationRunView>())!;
+        EntryResponse entry = Assert.Single((await http.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={run.Run.Id}"))!);
+        (await http.PostAsync($"/clients/{clientId}/entries/{entry.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        // Sanity: the fold is non-zero on the books before we touch the PUT path.
+        AssetView before = (await http.GetFromJsonAsync<AssetView>($"/clients/{clientId}/assets/{sl.Asset.Id}"))!;
+        Assert.Equal(500m, before.Asset.AccumulatedDepreciation);
+
+        HttpResponseMessage put = await http.PutAsJsonAsync($"/clients/{clientId}/assets/{sl.Asset.Id}",
+            new SaveAssetRequest("SL Van (edited)", 12000m, new DateOnly(2026, 1, 1), 24, 0m, DepreciationMethod.StraightLine, null));
+        put.EnsureSuccessStatusCode();
+        AssetView updated = (await put.Content.ReadFromJsonAsync<AssetView>())!;
+        Assert.Equal("SL Van (edited)", updated.Asset.Description);
+        Assert.Equal(500m, updated.Asset.AccumulatedDepreciation); // NOT 0 — must be the folded value
     }
 
     [Fact]
@@ -164,5 +240,55 @@ public sealed class DepreciationRunE2eTests(FixedAssetsHostFixture fixture) : IC
         HttpResponseMessage run = await http.PostAsJsonAsync(
             $"/clients/{clientId}/depreciation-runs", new RunDepreciationRequest(2026, 1, null, null));
         Assert.Equal(HttpStatusCode.Forbidden, run.StatusCode);
+    }
+
+    /// <summary>FA-scoped guard proof (mirrors Payroll/Cash's <c>Raw_gl_reverse_of_a_..._entry_is_refused_by_the_guard</c>):
+    /// under SoD, the Clerk records a depreciation run and the Approver approves its entry, then the
+    /// Controller — who holds raw <c>gl.reverse</c> — attempts a raw <c>POST /entries/{id}/reverse</c>
+    /// directly against the journal, carrying no module credential. The module-entry guard refuses it:
+    /// an entry stamped <c>ViaModule="fixedassets"</c> may only be reversed through that module (its own
+    /// void surface), never the raw journal, regardless of the caller's GL permissions.</summary>
+    [Fact]
+    public async Task Raw_gl_reverse_of_a_depreciation_entry_is_refused_by_the_guard()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId);
+        await CreateAssetAsync(clerk, clientId,
+            new SaveAssetRequest("Van", 12000m, new DateOnly(2026, 1, 1), 24, 0m, DepreciationMethod.StraightLine, null));
+
+        DepreciationRunView run = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/depreciation-runs",
+            new RunDepreciationRequest(2026, 1, null, null))).EnsureSuccessStatusCode()
+            .Content.ReadFromJsonAsync<DepreciationRunView>())!;
+
+        EntryResponse entry = Assert.Single((await clerk.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={run.Run.Id}"))!);
+        (await approver.PostAsync($"/clients/{clientId}/entries/{entry.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        // Raw reverse — a plain user request carrying no module credential — is refused: correct it through the module.
+        HttpResponseMessage rawReverse = await controller.PostAsJsonAsync(
+            $"/clients/{clientId}/entries/{entry.Id}/reverse",
+            new ReverseRequest(new DateOnly(2026, 2, 1), "raw reversal attempt"));
+        Assert.Equal(HttpStatusCode.Conflict, rawReverse.StatusCode);
+    }
+
+    /// <summary>Proves the Task 3 enforcement flip: once Accumulated Depreciation requires the Asset
+    /// dimension, an untagged (unfoldable) accum line becomes structurally impossible — the engine
+    /// rejects it at post, 422, naming the missing dimension. This bypasses the depreciation-run recipe
+    /// entirely and posts a hand-built entry directly, so it proves the engine-level guarantee independent
+    /// of the recipe's own (already-correct, per Task 2) dimensioning.</summary>
+    [Fact]
+    public async Task Accumulated_depreciation_account_rejects_an_untagged_line()
+    {
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
+        await SetUpChartAsync(http, clientId); // sets RequiredDimensions=["Asset"] on the accum account
+
+        PostEntryRequest e = new(null, new DateOnly(2026, 6, 30), "R", "m",
+        [
+            new PostLineRequest(fixture.DepreciationExpenseAccountId, "Debit", 100m),
+            new PostLineRequest(fixture.AccumulatedDepreciationAccountId, "Credit", 100m), // no Asset
+        ]);
+        HttpResponseMessage r = await http.PostAsJsonAsync($"/clients/{clientId}/entries", e);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, r.StatusCode);
+        Assert.Contains("Asset", await r.Content.ReadAsStringAsync());
     }
 }

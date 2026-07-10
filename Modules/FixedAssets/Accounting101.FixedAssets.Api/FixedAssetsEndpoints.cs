@@ -49,9 +49,15 @@ public static class FixedAssetsEndpoints
         try
         {
             UpdateResult result = await service.UpdateAsync(clientId, assetId, request.ToBody(), cancellationToken);
+            if (result.Outcome == UpdateOutcome.Updated)
+            {
+                // Refetch through the service so the response folds AccumulatedDepreciation from the ledger
+                // rather than echoing the store's default of 0 (the stored field is gone) — mirrors ReactivateAsset.
+                Asset? folded = await service.GetAsync(clientId, assetId, cancellationToken);
+                return folded is null ? Results.NotFound() : Results.Ok(new AssetView(folded));
+            }
             return result.Outcome switch
             {
-                UpdateOutcome.Updated => Results.Ok(new AssetView(result.Asset!)),
                 UpdateOutcome.NotFound => Results.NotFound(),
                 UpdateOutcome.Inactive => Results.Problem(
                     "Asset is inactive; reactivate it before editing.", statusCode: StatusCodes.Status409Conflict),
@@ -104,12 +110,14 @@ public static class FixedAssetsEndpoints
 
     private static async Task<IResult> ListAssets(
         Guid clientId, int? skip, int? limit, string? order, bool? includeInactive,
-        IAssetStore store, CancellationToken cancellationToken)
+        FixedAssetsService service, CancellationToken cancellationToken)
     {
         if (!TryOrder(order, out bool descending))
             return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
 
-        PagedResponse<Asset> page = await store.GetByClientPagedAsync(
+        // Route through the service so accumulated depreciation is folded from the ledger, not read from a
+        // store default of 0 (the stored field is gone). Mirrors the Cash/Payroll list reroutes.
+        PagedResponse<Asset> page = await service.GetByClientPagedAsync(
             clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeInactive ?? false, cancellationToken);
 
         return Results.Ok(new PagedResponse<AssetView>(
