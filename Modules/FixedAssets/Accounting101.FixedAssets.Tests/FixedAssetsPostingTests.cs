@@ -22,24 +22,29 @@ public sealed class FixedAssetsPostingTests
     }
 
     [Fact]
-    public void Compose_debits_expense_and_credits_accumulated_balanced()
+    public void Depreciation_run_posts_aggregate_expense_debit_and_per_asset_accum_credits()
     {
-        Guid runId = Guid.NewGuid();
-        FixedAssetsPostingAccounts accounts = MakeAccounts(out Guid expense, out Guid accumulated);
+        var accounts = MakeAccounts(out Guid expense, out Guid accumulated);
+        Guid a1 = Guid.NewGuid(), a2 = Guid.NewGuid();
+        var lines = new List<DepreciationRunLine> { new(a1, 200m), new(a2, 100m) };
 
         PostEntryRequest entry = FixedAssetsPosting.ComposeDepreciationRun(
-            runId, total: 1416.67m, effectiveDate: new DateOnly(2026, 1, 31), memo: "Jan depreciation", accounts);
+            Guid.NewGuid(), lines, 300m, new DateOnly(2026, 6, 30), null, accounts);
 
-        Assert.Equal(2, entry.Lines.Count);
-        PostLineRequest expLine = entry.Lines.Single(l => l.AccountId == expense);
-        Assert.Equal("Debit", expLine.Direction);
-        Assert.Equal(1416.67m, expLine.Amount);
-        PostLineRequest accLine = entry.Lines.Single(l => l.AccountId == accumulated);
-        Assert.Equal("Credit", accLine.Direction);
-        Assert.Equal(1416.67m, accLine.Amount);
+        Assert.Equal(3, entry.Lines.Count); // 1 expense debit + 2 asset credits
+        PostLineRequest expenseLine = Assert.Single(entry.Lines, l => l.AccountId == expense);
+        Assert.Equal("Debit", expenseLine.Direction);
+        Assert.Equal(300m, expenseLine.Amount);
+        Assert.Null(expenseLine.Dimensions); // expense is aggregate, not per-asset
+
+        PostLineRequest c1 = Assert.Single(entry.Lines, l => l.AccountId == accumulated && l.Dimensions!["Asset"] == a1);
+        Assert.Equal("Credit", c1.Direction);
+        Assert.Equal(200m, c1.Amount);
+        PostLineRequest c2 = Assert.Single(entry.Lines, l => l.AccountId == accumulated && l.Dimensions!["Asset"] == a2);
+        Assert.Equal(100m, c2.Amount);
+
         Assert.Equal(0m, entry.Lines.Sum(Signed)); // balanced
-        Assert.Equal(new DateOnly(2026, 1, 31), entry.EffectiveDate);
-        Assert.Equal("Jan depreciation", entry.Memo);
+        Assert.Equal(new DateOnly(2026, 6, 30), entry.EffectiveDate);
     }
 
     [Fact]
@@ -47,9 +52,10 @@ public sealed class FixedAssetsPostingTests
     {
         Guid runId = Guid.NewGuid();
         FixedAssetsPostingAccounts accounts = MakeAccounts(out _, out _);
+        var lines = new List<DepreciationRunLine> { new(Guid.NewGuid(), 500m) };
 
-        PostEntryRequest a = FixedAssetsPosting.ComposeDepreciationRun(runId, 500m, new DateOnly(2026, 1, 31), null, accounts);
-        PostEntryRequest b = FixedAssetsPosting.ComposeDepreciationRun(runId, 500m, new DateOnly(2026, 1, 31), null, accounts);
+        PostEntryRequest a = FixedAssetsPosting.ComposeDepreciationRun(runId, lines, 500m, new DateOnly(2026, 1, 31), null, accounts);
+        PostEntryRequest b = FixedAssetsPosting.ComposeDepreciationRun(runId, lines, 500m, new DateOnly(2026, 1, 31), null, accounts);
 
         Assert.Equal("DepreciationRun", a.SourceType);
         Assert.Equal(runId, a.SourceRef);
@@ -63,8 +69,9 @@ public sealed class FixedAssetsPostingTests
     public void Compose_throws_when_total_not_positive(int total)
     {
         FixedAssetsPostingAccounts accounts = MakeAccounts(out _, out _);
+        var lines = new List<DepreciationRunLine> { new(Guid.NewGuid(), 500m) };
         Assert.Throws<ArgumentException>(() =>
-            FixedAssetsPosting.ComposeDepreciationRun(Guid.NewGuid(), total, new DateOnly(2026, 1, 31), null, accounts));
+            FixedAssetsPosting.ComposeDepreciationRun(Guid.NewGuid(), lines, total, new DateOnly(2026, 1, 31), null, accounts));
     }
 
     [Fact]

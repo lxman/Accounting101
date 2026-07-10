@@ -52,7 +52,7 @@ public sealed class FixedAssetsRunService(
         await assets.ApplyDepreciationAsync(clientId, lines, ct);
 
         // 7. Compose + post one PendingApproval aggregate entry.
-        PostEntryRequest entry = FixedAssetsPosting.ComposeDepreciationRun(run.Id, total, effectiveDate, request.Memo, postingAccounts);
+        PostEntryRequest entry = FixedAssetsPosting.ComposeDepreciationRun(run.Id, lines, total, effectiveDate, request.Memo, postingAccounts);
         await ledger.PostAsync(clientId, entry, ct);
 
         return run;

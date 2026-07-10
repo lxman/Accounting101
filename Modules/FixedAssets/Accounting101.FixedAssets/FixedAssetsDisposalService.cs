@@ -54,7 +54,7 @@ public sealed class FixedAssetsDisposalService(
 
         // 6. Compose + post one PendingApproval entry.
         PostEntryRequest entry = FixedAssetsDisposalPosting.ComposeDisposal(
-            disposal.Id, request.DisposalDate, asset.AcquisitionCost, currentAccumulated, catchUp, request.Proceeds, gainLoss, request.Memo, postingAccounts);
+            disposal.Id, request.DisposalDate, assetId, asset.AcquisitionCost, currentAccumulated, catchUp, request.Proceeds, gainLoss, request.Memo, postingAccounts);
         await ledger.PostAsync(clientId, entry, ct);
 
         return disposal;

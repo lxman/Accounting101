@@ -56,9 +56,12 @@ public sealed class DepreciationRunE2eTests(FixedAssetsHostFixture fixture) : IC
         EntryResponse entry = Assert.Single(entries);
         Assert.Equal("fixedassets", entry.ViaModule);
         Assert.Equal("PendingApproval", entry.Posting);
-        Assert.Equal(2, entry.Lines.Count);
+        Assert.Equal(3, entry.Lines.Count); // 1 aggregate expense debit + 2 per-asset accum credits
         Assert.Equal(1500m, entry.Lines.Single(l => l.AccountId == fixture.DepreciationExpenseAccountId && l.Direction == "Debit").Amount);
-        Assert.Equal(1500m, entry.Lines.Single(l => l.AccountId == fixture.AccumulatedDepreciationAccountId && l.Direction == "Credit").Amount);
+        Assert.Equal(500m, entry.Lines.Single(l =>
+            l.AccountId == fixture.AccumulatedDepreciationAccountId && l.Direction == "Credit" && l.Dimensions["Asset"] == sl.Asset.Id).Amount);
+        Assert.Equal(1000m, entry.Lines.Single(l =>
+            l.AccountId == fixture.AccumulatedDepreciationAccountId && l.Direction == "Credit" && l.Dimensions["Asset"] == db.Asset.Id).Amount);
     }
 
     [Fact]
