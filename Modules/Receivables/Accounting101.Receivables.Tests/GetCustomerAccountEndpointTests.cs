@@ -13,7 +13,7 @@ public sealed class GetCustomerAccountEndpointTests(ReceivablesHostFixture fixtu
 {
     private async Task SetUpChartAsync(HttpClient controller, Guid clientId)
     {
-        await PutAccountAsync(controller, clientId, fixture.ReceivableAccountId, "1100", "Accounts Receivable", "Asset", "Customer");
+        await PutAccountAsync(controller, clientId, fixture.ReceivableAccountId, "1100", "Accounts Receivable", "Asset", null, ["Customer", "Invoice"]);
         await PutAccountAsync(controller, clientId, fixture.RevenueAccountId, "4000", "Revenue", "Revenue", null);
         await PutAccountAsync(controller, clientId, fixture.SalesTaxPayableAccountId, "2200", "Sales Tax Payable", "Liability", null);
         await PutAccountAsync(controller, clientId, fixture.CashAccountId, "1000", "Cash", "Asset", null);
@@ -22,12 +22,17 @@ public sealed class GetCustomerAccountEndpointTests(ReceivablesHostFixture fixtu
     }
 
     private static async Task PutAccountAsync(HttpClient http, Guid clientId, Guid accountId,
-        string number, string name, string type, string? requiredDimension) =>
+        string number, string name, string type, string? requiredDimension, string[]? requiredDimensions = null) =>
         (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{accountId}",
-            new AccountRequest { Number = number, Name = name, Type = type, RequiredDimension = requiredDimension }))
+            new AccountRequest
+            {
+                Number = number, Name = name, Type = type,
+                RequiredDimension = requiredDimension, RequiredDimensions = requiredDimensions,
+            }))
             .EnsureSuccessStatusCode();
 
-    private static async Task<Guid> IssueInvoiceAsync(HttpClient clerk, Guid clientId, Guid customerId, decimal amount, DateOnly due)
+    private static async Task<Guid> IssueInvoiceAsync(
+        HttpClient clerk, HttpClient approver, Guid clientId, Guid customerId, decimal amount, DateOnly due)
     {
         DraftInvoiceRequest draftRequest = new(customerId,
             [new InvoiceLine { Description = "Services", Quantity = 1m, UnitPrice = amount, Taxable = false }],
@@ -36,34 +41,55 @@ public sealed class GetCustomerAccountEndpointTests(ReceivablesHostFixture fixtu
             .Content.ReadFromJsonAsync<Invoice>())!;
         Invoice issued = (await (await clerk.PostAsync($"/clients/{clientId}/invoices/{draft.Id}/issue", null))
             .Content.ReadFromJsonAsync<Invoice>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, issued.Id);
         return issued.Id;
+    }
+
+    /// <summary>Approve every PendingApproval entry sourced from the given document — the account view now
+    /// folds the ledger, which only reflects Posted (approved) entries.</summary>
+    private static async Task ApproveBySourceRefAsync(HttpClient reader, HttpClient approver, Guid clientId, Guid sourceRef)
+    {
+        EntryResponse[] entries = (await reader.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={sourceRef}"))!;
+        foreach (EntryResponse e in entries.Where(e => e.Posting == "PendingApproval"))
+            (await approver.PostAsync($"/clients/{clientId}/entries/{e.Id}/approve", null)).EnsureSuccessStatusCode();
     }
 
     [Fact]
     public async Task GET_account_reconciles_balances_aging_statement_and_credit()
     {
-        (Guid clientId, HttpClient controller, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
         await SetUpChartAsync(controller, clientId);
         Customer customer = (await (await clerk.PostAsJsonAsync(
             $"/clients/{clientId}/customers", new CreateCustomerRequest("Stark", "stark@x.com")))
             .Content.ReadFromJsonAsync<Customer>())!;
 
-        Guid inv1 = await IssueInvoiceAsync(clerk, clientId, customer.Id, 1000m, new DateOnly(2026, 3, 31));
-        Guid inv2 = await IssueInvoiceAsync(clerk, clientId, customer.Id, 1500m, new DateOnly(2026, 4, 30));
+        Guid inv1 = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 1000m, new DateOnly(2026, 3, 31));
+        Guid inv2 = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 1500m, new DateOnly(2026, 4, 30));
 
         // partial payment 400 on inv1; credit note 200 on inv1 → inv1 open 400, inv2 open 1500. AR = 1900.
-        (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
-            new RecordPaymentRequest(customer.Id, new DateOnly(2026, 3, 15), 400m, "check", [new Allocation(inv1, 400m)]))).EnsureSuccessStatusCode();
-        (await clerk.PostAsJsonAsync($"/clients/{clientId}/credit-notes",
-            new CreditNoteRequest(customer.Id, new DateOnly(2026, 3, 20), [new Allocation(inv1, 200m)], "goodwill"))).EnsureSuccessStatusCode();
+        Payment pay1 = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
+                new RecordPaymentRequest(customer.Id, new DateOnly(2026, 3, 15), 400m, "check", [new Allocation(inv1, 400m)])))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Payment>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, pay1.Id);
+        CreditNote creditNote = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/credit-notes",
+                new CreditNoteRequest(customer.Id, new DateOnly(2026, 3, 20), [new Allocation(inv1, 200m)], "goodwill")))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<CreditNote>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, creditNote.Id);
 
         // overpay inv2-unrelated to create credit, then apply 30 and refund 20 → credit balance 50.
-        (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
-            new RecordPaymentRequest(customer.Id, new DateOnly(2026, 3, 18), 100m, "check", []))).EnsureSuccessStatusCode();  // 100 unapplied → credit
-        (await clerk.PostAsJsonAsync($"/clients/{clientId}/credit-applications",
-            new CreditApplicationRequest(customer.Id, new DateOnly(2026, 3, 22), [new Allocation(inv2, 30m)]))).EnsureSuccessStatusCode();
-        (await clerk.PostAsJsonAsync($"/clients/{clientId}/refunds",
-            new RefundRequest(customer.Id, new DateOnly(2026, 3, 25), 20m, "back"))).EnsureSuccessStatusCode();
+        Payment pay2 = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
+                new RecordPaymentRequest(customer.Id, new DateOnly(2026, 3, 18), 100m, "check", [])))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Payment>())!;  // 100 unapplied → credit
+        await ApproveBySourceRefAsync(clerk, approver, clientId, pay2.Id);
+        CreditApplication creditApp = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/credit-applications",
+                new CreditApplicationRequest(customer.Id, new DateOnly(2026, 3, 22), [new Allocation(inv2, 30m)])))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<CreditApplication>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, creditApp.Id);
+        Refund refund = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/refunds",
+                new RefundRequest(customer.Id, new DateOnly(2026, 3, 25), 20m, "back")))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Refund>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, refund.Id);
 
         CustomerAccountView view = (await clerk.GetFromJsonAsync<CustomerAccountView>(
             $"/clients/{clientId}/customers/{customer.Id}/account?asOf=2026-05-15"))!;
@@ -78,6 +104,34 @@ public sealed class GetCustomerAccountEndpointTests(ReceivablesHostFixture fixtu
         Assert.All(view.OpenInvoices, l => Assert.True(l.OpenBalance > 0m));
     }
 
+    /// <summary>An unapproved payment's relief must not leak into the statement — the statement's running
+    /// balance must stay consistent with the Posted-only ArBalance until the payment is approved. Guards
+    /// against SettlementRelief.ForSourceAsync (which deliberately does not gate on Posted, for the
+    /// payment-void negative-credit guard) leaking pending relief into this read surface.</summary>
+    [Fact]
+    public async Task GET_account_statement_excludes_unapproved_payment_relief()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId);
+        Customer customer = (await (await clerk.PostAsJsonAsync(
+            $"/clients/{clientId}/customers", new CreateCustomerRequest("Stark", "stark@x.com")))
+            .Content.ReadFromJsonAsync<Customer>())!;
+
+        Guid inv1 = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m, new DateOnly(2026, 3, 31));
+
+        // Record a 30 payment against the invoice but deliberately leave it PendingApproval.
+        (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
+                new RecordPaymentRequest(customer.Id, new DateOnly(2026, 3, 15), 30m, "check", [new Allocation(inv1, 30m)])))
+            .EnsureSuccessStatusCode();
+
+        CustomerAccountView view = (await clerk.GetFromJsonAsync<CustomerAccountView>(
+            $"/clients/{clientId}/customers/{customer.Id}/account?asOf=2026-05-15"))!;
+
+        // The unapproved payment must not relieve AR: open balance stays 100, not 70.
+        Assert.Equal(100m, view.ArBalance);
+        Assert.Equal(view.ArBalance, view.StatementLines[^1].Balance);
+    }
+
     [Fact]
     public async Task GET_account_for_unknown_customer_is_404()
     {
@@ -89,7 +143,10 @@ public sealed class GetCustomerAccountEndpointTests(ReceivablesHostFixture fixtu
     [Fact]
     public async Task GET_account_rejects_non_iso_asOf_and_accepts_iso()
     {
-        (Guid clientId, _, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        (Guid clientId, HttpClient controller, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        // The account view now folds the ledger's AR/Customer-Credits accounts, so they must exist even
+        // though this test never posts a financial document.
+        await SetUpChartAsync(controller, clientId);
         Customer customer = (await (await clerk.PostAsJsonAsync(
             $"/clients/{clientId}/customers", new CreateCustomerRequest("Stark", null)))
             .Content.ReadFromJsonAsync<Customer>())!;

@@ -505,7 +505,8 @@ public static class LedgerEndpoints
 
     private static async Task<IResult> GetSubledger(
         Guid clientId, string? dimension, Guid? account, DateOnly? asOf,
-        LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+        LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken,
+        bool includePending = false)
     {
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
@@ -520,16 +521,16 @@ public static class LedgerEndpoints
             Account? namedAccount = await ctx.Ledger.Accounts.GetAsync(namedAccountId, cancellationToken);
             if (namedAccount is null || namedAccount.ClientId != clientId)
                 return Results.NotFound();
-            if (string.IsNullOrWhiteSpace(namedAccount.RequiredDimension))
+            if (namedAccount.RequiredDimensions.Count == 0)
                 return Unprocessable(
                     $"Account {namedAccountId} is not a control account requiring a dimension; subledger reconciliation does not apply. Use the account balance or journal instead.");
-            if (!string.Equals(namedAccount.RequiredDimension, dimension, StringComparison.Ordinal))
+            if (!namedAccount.RequiredDimensions.Contains(dimension))
                 return Unprocessable(
-                    $"Account {namedAccountId} requires the '{namedAccount.RequiredDimension}' dimension, not '{dimension}'.");
+                    $"Account {namedAccountId} requires the '{string.Join(", ", namedAccount.RequiredDimensions)}' dimension(s), not '{dimension}'.");
         }
 
-        IReadOnlyList<SubledgerBalance> balances =
-            await ctx.Ledger.Journal.AggregateSubledgerAsync(clientId, dimension, account, asOf, cancellationToken);
+        IReadOnlyList<SubledgerBalance> balances = await ctx.Ledger.Journal.AggregateSubledgerAsync(
+            clientId, dimension, account, asOf, includePending, cancellationToken);
 
         return Results.Ok(new SubledgerResponse(
             dimension,
@@ -555,12 +556,12 @@ public static class LedgerEndpoints
         Account? controlAccount = await ctx.Ledger.Accounts.GetAsync(accountId, cancellationToken);
         if (controlAccount is null || controlAccount.ClientId != clientId)
             return Results.NotFound();
-        if (string.IsNullOrWhiteSpace(controlAccount.RequiredDimension))
+        if (controlAccount.RequiredDimensions.Count == 0)
             return Unprocessable(
                 $"Account {accountId} is not a control account requiring a dimension; subledger reconciliation does not apply. Use the account balance or journal instead.");
-        if (!string.Equals(controlAccount.RequiredDimension, dimension, StringComparison.Ordinal))
+        if (!controlAccount.RequiredDimensions.Contains(dimension))
             return Unprocessable(
-                $"Account {accountId} requires the '{controlAccount.RequiredDimension}' dimension, not '{dimension}'.");
+                $"Account {accountId} requires the '{string.Join(", ", controlAccount.RequiredDimensions)}' dimension(s), not '{dimension}'.");
 
         // Both sides folded the same way: the control balance includes every line on the account; the
         // subledger only the lines carrying the dimension. Their difference is the untagged remainder.
@@ -569,7 +570,7 @@ public static class LedgerEndpoints
         decimal control = balances.GetValueOrDefault(accountId);
 
         IReadOnlyList<SubledgerBalance> subledger =
-            await ctx.Ledger.Journal.AggregateSubledgerAsync(clientId, dimension, accountId, asOf, cancellationToken);
+            await ctx.Ledger.Journal.AggregateSubledgerAsync(clientId, dimension, accountId, asOf, cancellationToken: cancellationToken);
         decimal subledgerTotal = subledger.Sum(s => s.Balance);
 
         decimal variance = control - subledgerTotal;
@@ -788,7 +789,7 @@ public static class LedgerEndpoints
 
     private static AccountResponse ToAccountResponse(Account a) => new(
         a.Id, a.Number, a.Name, a.Type.ToString(), a.ParentId, a.Postable,
-        a.RequiredDimension, a.CashFlowActivity?.ToString(),
+        a.RequiredDimension, a.RequiredDimensions.ToArray(), a.CashFlowActivity?.ToString(),
         a.IsRetainedEarnings, a.Active, a.NormalSide.ToString(), a.IsTemporary);
 
     private static Account MapAccount(Guid clientId, Guid accountId, AccountRequest request) => new()
@@ -800,7 +801,9 @@ public static class LedgerEndpoints
         Type = Enum.Parse<AccountType>(request.Type, ignoreCase: true),
         ParentId = request.ParentId,
         Postable = request.Postable,
-        RequiredDimension = request.RequiredDimension,
+        RequiredDimensions = request.RequiredDimensions is { Count: > 0 } set
+            ? set.Distinct().ToArray()
+            : request.RequiredDimension is { } single ? [single] : [],
         CashFlowActivity = request.CashFlowActivity is null
             ? null
             : Enum.Parse<CashFlowActivity>(request.CashFlowActivity, ignoreCase: true),
@@ -1054,8 +1057,9 @@ public static class LedgerEndpoints
             else if (!account.Postable)
                 errors.Add($"Account {account.Number} \"{account.Name}\" is a summary account and cannot be posted to.");
 
-            if (account.RequiredDimension is { } dimension && !line.Dimensions.ContainsKey(dimension))
-                errors.Add($"Account {account.Number} \"{account.Name}\" requires a {dimension} on the posting line.");
+            foreach (string dimension in account.RequiredDimensions)
+                if (!line.Dimensions.ContainsKey(dimension))
+                    errors.Add($"Account {account.Number} \"{account.Name}\" requires a {dimension} on the posting line.");
         }
 
         return errors.Count == 0 ? null : Unprocessable(string.Join(" ", errors));
@@ -1093,8 +1097,9 @@ public static class LedgerEndpoints
                 else if (!account.Postable)
                     lineErrors.Add($"Account {account.Number} \"{account.Name}\" is a summary account and cannot be posted to.");
 
-                if (account.RequiredDimension is { } dimension && !line.Dimensions.ContainsKey(dimension))
-                    lineErrors.Add($"Account {account.Number} \"{account.Name}\" requires a {dimension} on the posting line.");
+                foreach (string dimension in account.RequiredDimensions)
+                    if (!line.Dimensions.ContainsKey(dimension))
+                        lineErrors.Add($"Account {account.Number} \"{account.Name}\" requires a {dimension} on the posting line.");
             }
 
             if (lineErrors.Count > 0)

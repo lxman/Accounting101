@@ -17,6 +17,9 @@ public static class InvoicePosting
     /// <summary>The dimension type the A/R control account requires, and the recipe tags.</summary>
     public const string CustomerDimension = "Customer";
 
+    /// <summary>The per-invoice dimension the recipe tags on the A/R line (additive; not yet required).</summary>
+    private const string InvoiceDimension = "Invoice";
+
     public static PostEntryRequest Compose(Invoice invoice, InvoicePostingAccounts accounts)
     {
         ArgumentNullException.ThrowIfNull(invoice);
@@ -25,7 +28,11 @@ public static class InvoicePosting
         List<PostLineRequest> lines =
         [
             new(accounts.ReceivableAccountId, "Debit", invoice.Total,
-                Dimensions: new Dictionary<string, Guid> { [CustomerDimension] = invoice.CustomerId }),
+                Dimensions: new Dictionary<string, Guid>
+                {
+                    [CustomerDimension] = invoice.CustomerId,
+                    [InvoiceDimension] = invoice.Id,
+                }),
         ];
 
         // Credit revenue per resolved account: each line's category maps to an account (a null or

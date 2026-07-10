@@ -134,25 +134,24 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
     private static Payment MapPayment(DocumentResult<PaymentBody> r) => new()
     {
         Id = r.Id, CustomerId = r.Body.CustomerId, Date = r.Body.Date, Amount = r.Body.Amount,
-        Method = r.Body.Method, Allocations = r.Body.Allocations, Voided = IsVoided(r.State),
+        Method = r.Body.Method, Voided = IsVoided(r.State),
     };
 
     private static CreditApplication MapCredit(DocumentResult<CreditApplicationBody> r) => new()
     {
-        Id = r.Id, CustomerId = r.Body.CustomerId, Date = r.Body.Date,
-        Allocations = r.Body.Allocations, Voided = IsVoided(r.State),
+        Id = r.Id, CustomerId = r.Body.CustomerId, Date = r.Body.Date, Voided = IsVoided(r.State),
     };
 
     private static WriteOff MapWriteOff(DocumentResult<WriteOffBody> r) => new()
     {
         Id = r.Id, CustomerId = r.Body.CustomerId, Date = r.Body.Date,
-        Allocations = r.Body.Allocations, Memo = r.Body.Memo, Voided = IsVoided(r.State),
+        Memo = r.Body.Memo, Voided = IsVoided(r.State),
     };
 
     private static CreditNote MapCreditNote(DocumentResult<CreditNoteBody> r) => new()
     {
         Id = r.Id, CustomerId = r.Body.CustomerId, Date = r.Body.Date,
-        Allocations = r.Body.Allocations, Memo = r.Body.Memo, Voided = IsVoided(r.State),
+        Memo = r.Body.Memo, Voided = IsVoided(r.State),
     };
 
     private static Refund MapRefund(DocumentResult<RefundBody> r) => new()

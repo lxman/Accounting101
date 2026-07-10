@@ -42,15 +42,29 @@ public sealed class AggregationGuardTests
     }
 
     /// <summary>
-    /// Issues an invoice directly via the store (bypasses posting so the fake ledger
-    /// doesn't need a live entry) and returns the issued invoice.
+    /// Issues an invoice directly via the store (bypassing InvoiceService), then seeds its AR-debit line
+    /// into the fake ledger directly — PaymentService now derives applied/open/credit figures by folding
+    /// the ledger, so without this the fold would only ever see the relief-side credit lines PaymentService
+    /// posts, never the invoice's own debit (InvoiceService, which posts it in production, is bypassed
+    /// here). Mirrors what InvoiceService's issue recipe posts. Uses <see cref="FakeLedgerClient.SeedEntry"/>
+    /// (not <c>PostAsync</c>) so this bookkeeping doesn't show up as something PaymentService itself posted.
     /// </summary>
-    private static async Task<Invoice> IssueDirectAsync(InMemoryInvoiceStore store, Guid clientId, Guid customerId, decimal amount)
+    private static async Task<Invoice> IssueDirectAsync(InMemoryInvoiceStore store, FakeLedgerClient ledger, Guid clientId, Guid customerId, decimal amount)
     {
         Invoice draft = await store.CreateDraftAsync(clientId, new InvoiceBody(
             customerId, new DateOnly(2026, 3, 1), null, 0m, null,
             [new LineBody("Services", 1m, amount, false)]));
-        return await store.PromoteDraftAsync(clientId, draft.Id);
+        Invoice issued = await store.PromoteDraftAsync(clientId, draft.Id);
+        ledger.SeedEntry(new PostEntryRequest(
+            Id: null, EffectiveDate: issued.IssueDate, Reference: issued.Number, Memo: null,
+            Lines:
+            [
+                new PostLineRequest(InvAccounts.ReceivableAccountId, "Debit", issued.Total,
+                    Dimensions: new Dictionary<string, Guid> { ["Customer"] = customerId, ["Invoice"] = issued.Id }),
+                new PostLineRequest(InvAccounts.DefaultRevenueAccountId, "Credit", issued.Total),
+            ],
+            SourceRef: issued.Id, SourceType: "Invoice"));
+        return issued;
     }
 
     [Fact]
@@ -64,9 +78,9 @@ public sealed class AggregationGuardTests
 
         // Issue 3 invoices (>1 page with default limit=2 used by the guard).
         InMemoryInvoiceStore invoiceStore = new();
-        Invoice inv1 = await IssueDirectAsync(invoiceStore, clientId, customer.Id, 100m);
-        Invoice inv2 = await IssueDirectAsync(invoiceStore, clientId, customer.Id, 100m);
-        Invoice inv3 = await IssueDirectAsync(invoiceStore, clientId, customer.Id, 100m);
+        Invoice inv1 = await IssueDirectAsync(invoiceStore, h.Ledger, clientId, customer.Id, 100m);
+        Invoice inv2 = await IssueDirectAsync(invoiceStore, h.Ledger, clientId, customer.Id, 100m);
+        Invoice inv3 = await IssueDirectAsync(invoiceStore, h.Ledger, clientId, customer.Id, 100m);
 
         // Re-wire the payment service to see the seeded store.
         InMemoryPaymentStore paymentStore = new();
@@ -74,9 +88,9 @@ public sealed class AggregationGuardTests
 
         // Record 3 payments each with $50 unapplied credit (amount 150, allocated 100).
         DateOnly date = new(2026, 3, 31);
-        await paymentSvc.RecordPaymentAsync(clientId, new PaymentBody(customer.Id, date, 150m, null, [new Allocation(inv1.Id, 100m)]));
-        await paymentSvc.RecordPaymentAsync(clientId, new PaymentBody(customer.Id, date, 150m, null, [new Allocation(inv2.Id, 100m)]));
-        await paymentSvc.RecordPaymentAsync(clientId, new PaymentBody(customer.Id, date, 150m, null, [new Allocation(inv3.Id, 100m)]));
+        await paymentSvc.RecordPaymentAsync(clientId, new PaymentCommand(customer.Id, date, 150m, null, [new Allocation(inv1.Id, 100m)]));
+        await paymentSvc.RecordPaymentAsync(clientId, new PaymentCommand(customer.Id, date, 150m, null, [new Allocation(inv2.Id, 100m)]));
+        await paymentSvc.RecordPaymentAsync(clientId, new PaymentCommand(customer.Id, date, 150m, null, [new Allocation(inv3.Id, 100m)]));
 
         // Act: credit balance aggregation (unbounded store read — GetPaymentsByCustomerAsync).
         decimal credit = await paymentSvc.GetCustomerCreditBalanceAsync(clientId, customer.Id);

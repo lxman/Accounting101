@@ -16,7 +16,7 @@ public sealed class ReceivablesDraftLifecycleTests(ReceivablesHostFixture fixtur
     private async Task SetUpChartAsync(HttpClient controller, Guid clientId)
     {
         (await controller.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.ReceivableAccountId}",
-            new AccountRequest { Number = "1200", Name = "Accounts Receivable", Type = "Asset", RequiredDimension = "Customer" }))
+            new AccountRequest { Number = "1200", Name = "Accounts Receivable", Type = "Asset", RequiredDimensions = ["Customer", "Invoice"] }))
             .EnsureSuccessStatusCode();
         (await controller.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.RevenueAccountId}",
             new AccountRequest { Number = "4000", Name = "Revenue", Type = "Revenue" }))

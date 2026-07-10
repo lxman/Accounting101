@@ -46,7 +46,7 @@ public sealed class ChartService
 
     private static string Describe(Account a) =>
         $"Created {a.Number} \"{a.Name}\" ({a.Type})"
-        + (a.RequiredDimension is { } d ? $", requires {d}" : "")
+        + (a.RequiredDimensions.Count > 0 ? $", requires {string.Join(", ", a.RequiredDimensions)}" : "")
         + (a.IsRetainedEarnings ? ", retained-earnings" : "")
         + (a.Postable ? "" : ", summary")
         + (a.Active ? "" : ", inactive");
@@ -60,12 +60,25 @@ public sealed class ChartService
         Compare(changes, "Type", before.Type, after.Type);
         Compare(changes, "ParentId", before.ParentId, after.ParentId);
         Compare(changes, "Postable", before.Postable, after.Postable);
-        Compare(changes, "RequiredDimension", before.RequiredDimension, after.RequiredDimension);
+        CompareDimensions(changes, "RequiredDimensions", before.RequiredDimensions, after.RequiredDimensions);
         Compare(changes, "CashFlowActivity", before.CashFlowActivity, after.CashFlowActivity);
         Compare(changes, "IsRetainedEarnings", before.IsRetainedEarnings, after.IsRetainedEarnings);
         Compare(changes, "Active", before.Active, after.Active);
         return changes.Count == 0 ? "No field changes." : string.Join("; ", changes);
     }
+
+    /// <summary>Compares the full required-dimension set (order-insensitive — it's a set of dimension types,
+    /// not a sequence), not just the legacy first-or-null value, so an added/removed/reordered dimension on
+    /// a multi-dimension control account is never silently dropped from the audit trail.</summary>
+    private static void CompareDimensions(List<string> changes, string field, IReadOnlyCollection<string> before, IReadOnlyCollection<string> after)
+    {
+        if (before.ToHashSet().SetEquals(after))
+            return;
+        changes.Add($"{field}: {ShowSet(before)} → {ShowSet(after)}");
+    }
+
+    private static string ShowSet(IReadOnlyCollection<string> values) =>
+        values.Count == 0 ? "none" : string.Join(", ", values);
 
     private static void Compare<T>(List<string> changes, string field, T before, T after)
     {

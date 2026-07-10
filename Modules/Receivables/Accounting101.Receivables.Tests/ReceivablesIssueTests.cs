@@ -15,9 +15,9 @@ public sealed class ReceivablesIssueTests(ReceivablesHostFixture fixture) : ICla
     /// <summary>Chart setup requires ManageAccounts — only the Controller holds that permission.</summary>
     private async Task SetUpChartAsync(HttpClient controllerHttp, Guid clientId)
     {
-        // A/R is a control account requiring the Customer dimension; Revenue and Sales Tax Payable are plain.
+        // A/R is a control account requiring {Customer, Invoice}; Revenue and Sales Tax Payable are plain.
         (await controllerHttp.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.ReceivableAccountId}",
-            new AccountRequest { Number = "1200", Name = "Accounts Receivable", Type = "Asset", RequiredDimension = "Customer" }))
+            new AccountRequest { Number = "1200", Name = "Accounts Receivable", Type = "Asset", RequiredDimensions = ["Customer", "Invoice"] }))
             .EnsureSuccessStatusCode();
         (await controllerHttp.PutAsJsonAsync($"/clients/{clientId}/accounts/{fixture.RevenueAccountId}",
             new AccountRequest { Number = "4000", Name = "Revenue", Type = "Revenue" }))

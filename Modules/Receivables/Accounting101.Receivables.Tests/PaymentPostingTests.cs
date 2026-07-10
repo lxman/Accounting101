@@ -21,17 +21,29 @@ public sealed class PaymentPostingTests
     {
         PaymentPostingAccounts acc = Accounts();
         Guid customer = Guid.NewGuid();
-        PaymentBody body = new(customer, new DateOnly(2026, 3, 31), 500m, null,
-            [new Allocation(Guid.NewGuid(), 200m), new Allocation(Guid.NewGuid(), 300m)]);
+        Guid invoiceA = Guid.NewGuid();
+        Guid invoiceB = Guid.NewGuid();
+        PaymentBody body = new(customer, new DateOnly(2026, 3, 31), 500m, null);
+        Allocation[] allocations = [new Allocation(invoiceA, 200m), new Allocation(invoiceB, 300m)];
 
-        PostEntryRequest entry = PaymentPosting.ComposePayment(Guid.NewGuid(), body, acc);
+        PostEntryRequest entry = PaymentPosting.ComposePayment(Guid.NewGuid(), body, allocations, acc);
 
         Assert.Equal(0m, entry.Lines.Sum(Signed));
         Assert.Equal(500m, entry.Lines.Single(l => l.AccountId == acc.CashAccountId).Amount);
-        PostLineRequest ar = entry.Lines.Single(l => l.AccountId == acc.ReceivableAccountId);
-        Assert.Equal(500m, ar.Amount);
-        Assert.Equal("Credit", ar.Direction);
-        Assert.Equal(customer, ar.Dimensions!["Customer"]);
+
+        // One dimensioned A/R credit line per allocation — not a single aggregate line — and the
+        // per-line amounts still sum to the fully allocated total.
+        List<PostLineRequest> arLines = entry.Lines.Where(l => l.AccountId == acc.ReceivableAccountId).ToList();
+        Assert.Equal(2, arLines.Count);
+        Assert.All(arLines, l => Assert.Equal("Credit", l.Direction));
+        Assert.Equal(500m, arLines.Sum(l => l.Amount));
+        PostLineRequest arA = arLines.Single(l => l.Dimensions!["Invoice"] == invoiceA);
+        Assert.Equal(200m, arA.Amount);
+        Assert.Equal(customer, arA.Dimensions!["Customer"]);
+        PostLineRequest arB = arLines.Single(l => l.Dimensions!["Invoice"] == invoiceB);
+        Assert.Equal(300m, arB.Amount);
+        Assert.Equal(customer, arB.Dimensions!["Customer"]);
+
         Assert.DoesNotContain(entry.Lines, l => l.AccountId == acc.CustomerCreditsAccountId);
         Assert.Equal("Payment", entry.SourceType);
     }
@@ -41,10 +53,10 @@ public sealed class PaymentPostingTests
     {
         PaymentPostingAccounts acc = Accounts();
         Guid customer = Guid.NewGuid();
-        PaymentBody body = new(customer, new DateOnly(2026, 3, 31), 500m, null,
-            [new Allocation(Guid.NewGuid(), 300m)]);
+        PaymentBody body = new(customer, new DateOnly(2026, 3, 31), 500m, null);
+        Allocation[] allocations = [new Allocation(Guid.NewGuid(), 300m)];
 
-        PostEntryRequest entry = PaymentPosting.ComposePayment(Guid.NewGuid(), body, acc);
+        PostEntryRequest entry = PaymentPosting.ComposePayment(Guid.NewGuid(), body, allocations, acc);
 
         Assert.Equal(0m, entry.Lines.Sum(Signed));
         Assert.Equal(300m, entry.Lines.Single(l => l.AccountId == acc.ReceivableAccountId).Amount);
@@ -57,9 +69,9 @@ public sealed class PaymentPostingTests
     public void Pure_deposit_posts_cash_and_credit_only()
     {
         PaymentPostingAccounts acc = Accounts();
-        PaymentBody body = new(Guid.NewGuid(), new DateOnly(2026, 3, 31), 500m, null, []);
+        PaymentBody body = new(Guid.NewGuid(), new DateOnly(2026, 3, 31), 500m, null);
 
-        PostEntryRequest entry = PaymentPosting.ComposePayment(Guid.NewGuid(), body, acc);
+        PostEntryRequest entry = PaymentPosting.ComposePayment(Guid.NewGuid(), body, [], acc);
 
         Assert.Equal(0m, entry.Lines.Sum(Signed));
         Assert.Equal(2, entry.Lines.Count);
@@ -72,20 +84,32 @@ public sealed class PaymentPostingTests
     {
         PaymentPostingAccounts acc = Accounts();
         Guid customer = Guid.NewGuid();
-        CreditApplicationBody body = new(customer, new DateOnly(2026, 4, 1),
-            [new Allocation(Guid.NewGuid(), 120m), new Allocation(Guid.NewGuid(), 80m)]);
+        Guid invoiceA = Guid.NewGuid();
+        Guid invoiceB = Guid.NewGuid();
+        CreditApplicationBody body = new(customer, new DateOnly(2026, 4, 1));
+        Allocation[] allocations = [new Allocation(invoiceA, 120m), new Allocation(invoiceB, 80m)];
 
-        PostEntryRequest entry = PaymentPosting.ComposeCreditApplication(Guid.NewGuid(), body, acc);
+        PostEntryRequest entry = PaymentPosting.ComposeCreditApplication(Guid.NewGuid(), body, allocations, acc);
 
         Assert.Equal(0m, entry.Lines.Sum(Signed));
         PostLineRequest debit = entry.Lines.Single(l => l.AccountId == acc.CustomerCreditsAccountId);
-        PostLineRequest credit = entry.Lines.Single(l => l.AccountId == acc.ReceivableAccountId);
         Assert.Equal("Debit", debit.Direction);
         Assert.Equal(200m, debit.Amount);
-        Assert.Equal("Credit", credit.Direction);
-        Assert.Equal(200m, credit.Amount);
         Assert.Equal(customer, debit.Dimensions!["Customer"]);
-        Assert.Equal(customer, credit.Dimensions!["Customer"]);
+
+        // One dimensioned A/R credit line per allocation — not a single aggregate line — and the
+        // per-line amounts still sum to the fully applied total.
+        List<PostLineRequest> arLines = entry.Lines.Where(l => l.AccountId == acc.ReceivableAccountId).ToList();
+        Assert.Equal(2, arLines.Count);
+        Assert.All(arLines, l => Assert.Equal("Credit", l.Direction));
+        Assert.Equal(200m, arLines.Sum(l => l.Amount));
+        PostLineRequest arA = arLines.Single(l => l.Dimensions!["Invoice"] == invoiceA);
+        Assert.Equal(120m, arA.Amount);
+        Assert.Equal(customer, arA.Dimensions!["Customer"]);
+        PostLineRequest arB = arLines.Single(l => l.Dimensions!["Invoice"] == invoiceB);
+        Assert.Equal(80m, arB.Amount);
+        Assert.Equal(customer, arB.Dimensions!["Customer"]);
+
         Assert.Equal("CreditApplication", entry.SourceType);
     }
 
@@ -95,9 +119,10 @@ public sealed class PaymentPostingTests
         PaymentPostingAccounts acc = Accounts();
         Guid customer = Guid.NewGuid();
         Guid invoice = Guid.NewGuid();
-        WriteOffBody body = new(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 250m)], "uncollectible");
+        WriteOffBody body = new(customer, new DateOnly(2026, 3, 1), "uncollectible");
+        Allocation[] allocations = [new Allocation(invoice, 250m)];
 
-        PostEntryRequest entry = PaymentPosting.ComposeWriteOff(Guid.NewGuid(), body, acc);
+        PostEntryRequest entry = PaymentPosting.ComposeWriteOff(Guid.NewGuid(), body, allocations, acc);
 
         Assert.Equal("WriteOff", entry.SourceType);
         PostLineRequest debit = entry.Lines.Single(l => l.Direction == "Debit");
@@ -117,9 +142,10 @@ public sealed class PaymentPostingTests
     {
         PaymentPostingAccounts acc = Accounts();
         Guid customer = Guid.NewGuid();
-        CreditNoteBody body = new(customer, new DateOnly(2026, 3, 1), [new Allocation(Guid.NewGuid(), 40m)], "return");
+        CreditNoteBody body = new(customer, new DateOnly(2026, 3, 1), "return");
+        Allocation[] allocations = [new Allocation(Guid.NewGuid(), 40m)];
 
-        PostEntryRequest entry = PaymentPosting.ComposeCreditNote(Guid.NewGuid(), body, acc);
+        PostEntryRequest entry = PaymentPosting.ComposeCreditNote(Guid.NewGuid(), body, allocations, acc);
 
         Assert.Equal("CreditNote", entry.SourceType);
         PostLineRequest debit = entry.Lines.Single(l => l.Direction == "Debit");
@@ -160,10 +186,10 @@ public sealed class PaymentPostingTests
         Guid customer = Guid.NewGuid();
         DateOnly d = new(2026, 3, 1);
 
-        Guid? payment = PaymentPosting.ComposePayment(docId, new PaymentBody(customer, d, 10m, null, []), acc).Id;
-        Guid? credit  = PaymentPosting.ComposeCreditApplication(docId, new CreditApplicationBody(customer, d, [new Allocation(Guid.NewGuid(), 10m)]), acc).Id;
-        Guid? wo      = PaymentPosting.ComposeWriteOff(docId, new WriteOffBody(customer, d, [new Allocation(Guid.NewGuid(), 10m)], null), acc).Id;
-        Guid? note    = PaymentPosting.ComposeCreditNote(docId, new CreditNoteBody(customer, d, [new Allocation(Guid.NewGuid(), 10m)], null), acc).Id;
+        Guid? payment = PaymentPosting.ComposePayment(docId, new PaymentBody(customer, d, 10m, null), [], acc).Id;
+        Guid? credit  = PaymentPosting.ComposeCreditApplication(docId, new CreditApplicationBody(customer, d), [new Allocation(Guid.NewGuid(), 10m)], acc).Id;
+        Guid? wo      = PaymentPosting.ComposeWriteOff(docId, new WriteOffBody(customer, d, null), [new Allocation(Guid.NewGuid(), 10m)], acc).Id;
+        Guid? note    = PaymentPosting.ComposeCreditNote(docId, new CreditNoteBody(customer, d, null), [new Allocation(Guid.NewGuid(), 10m)], acc).Id;
         Guid? refund  = PaymentPosting.ComposeRefund(docId, new RefundBody(customer, d, 10m, null), acc).Id;
 
         Guid?[] ids = [payment, credit, wo, note, refund];

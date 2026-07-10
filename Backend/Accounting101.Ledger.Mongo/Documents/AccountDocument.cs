@@ -4,7 +4,10 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace Accounting101.Ledger.Mongo.Documents;
 
-/// <summary>Mongo storage shape for a chart-of-accounts <see cref="Account"/>. Enums stored as strings.</summary>
+/// <summary>Mongo storage shape for a chart-of-accounts <see cref="Account"/>. Enums stored as strings.
+/// Tolerates unknown/legacy elements (matches the sibling Control docs) so a chart written before a field
+/// rename remains readable.</summary>
+[BsonIgnoreExtraElements]
 public sealed class AccountDocument
 {
     [BsonId]
@@ -20,7 +23,14 @@ public sealed class AccountDocument
     public Guid? ParentId { get; set; }
     public bool Postable { get; set; } = true;
 
-    public string? RequiredDimension { get; set; }
+    public List<string> RequiredDimensions { get; set; } = [];
+
+    /// <summary>Legacy single-dimension element from before the RequiredDimension → RequiredDimensions
+    /// rename. Mapped read-only migration input — <see cref="ToDomain"/> seeds
+    /// <see cref="RequiredDimensions"/> from it when a document predates the set. Never written back out
+    /// (<see cref="FromDomain"/> leaves it null; new/updated docs carry only <see cref="RequiredDimensions"/>).</summary>
+    [BsonElement("RequiredDimension")]
+    public string? LegacyRequiredDimension { get; set; }
 
     [BsonRepresentation(BsonType.String)]
     public CashFlowActivity? CashFlowActivity { get; set; }
@@ -37,7 +47,7 @@ public sealed class AccountDocument
         Type = a.Type,
         ParentId = a.ParentId,
         Postable = a.Postable,
-        RequiredDimension = a.RequiredDimension,
+        RequiredDimensions = a.RequiredDimensions.ToList(),
         CashFlowActivity = a.CashFlowActivity,
         IsRetainedEarnings = a.IsRetainedEarnings,
         Active = a.Active,
@@ -52,7 +62,9 @@ public sealed class AccountDocument
         Type = Type,
         ParentId = ParentId,
         Postable = Postable,
-        RequiredDimension = RequiredDimension,
+        RequiredDimensions = RequiredDimensions is { Count: > 0 }
+            ? RequiredDimensions
+            : LegacyRequiredDimension is { } legacy ? [legacy] : [],
         CashFlowActivity = CashFlowActivity,
         IsRetainedEarnings = IsRetainedEarnings,
         Active = Active,

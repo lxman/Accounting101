@@ -1,10 +1,12 @@
 using Accounting101.Receivables;
-using Accounting101.Settlement;
 
 namespace Accounting101.Receivables.Tests;
 
-/// <summary>Pure-function tests for the customer-account folds: applied-per-invoice, open invoices + age,
-/// aging buckets, the AR statement running balance, and the credit-activity ledger. No host needed.</summary>
+/// <summary>Pure-function tests for the customer-account folds: open invoices + age, aging buckets, the AR
+/// statement running balance, and the credit-activity ledger. No host needed. Statement/CreditActivity take
+/// a fold-sourced <c>reliefByDocument</c> dictionary (document Id → AR relief) in place of reading an
+/// allocation array off each document — the module stores no allocation array; the real caller
+/// (CustomerAccountService) sources that dictionary from the ledger.</summary>
 public sealed class CustomerAccountBuilderTests
 {
     private static Invoice IssuedInvoice(Guid id, string number, DateOnly issue, DateOnly? due, decimal amount) => new()
@@ -13,22 +15,6 @@ public sealed class CustomerAccountBuilderTests
         Status = InvoiceStatus.Issued, TaxRate = 0m,
         Lines = [new InvoiceLine { Description = "x", Quantity = 1m, UnitPrice = amount, Taxable = false }],
     };
-
-    [Fact]
-    public void AppliedByInvoice_sums_nonvoided_allocations_across_doc_types()
-    {
-        Guid inv = Guid.NewGuid();
-        List<Payment> payments =
-        [
-            new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 2), Amount = 40m, Allocations = [new Allocation(inv, 40m)] },
-            new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 3), Amount = 10m, Allocations = [new Allocation(inv, 10m)], Voided = true },
-        ];
-        List<CreditNote> notes = [new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 4), Allocations = [new Allocation(inv, 25m)] }];
-
-        Dictionary<Guid, decimal> applied = CustomerAccountBuilder.AppliedByInvoice(payments, [], [], notes);
-
-        Assert.Equal(65m, applied[inv]);   // 40 (payment) + 25 (note); voided 10 excluded
-    }
 
     [Fact]
     public void OpenInvoices_computes_open_balance_and_days_overdue()
@@ -87,10 +73,12 @@ public sealed class CustomerAccountBuilderTests
         Guid i1 = Guid.NewGuid(), i2 = Guid.NewGuid();
         Invoice inv1 = IssuedInvoice(i1, "1001", new(2026, 3, 1), null, 1000m);
         Invoice inv2 = IssuedInvoice(i2, "1002", new(2026, 3, 25), null, 1500m);
-        List<Payment> payments = [new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 15), Amount = 400m, Allocations = [new Allocation(i1, 400m)] }];
-        List<CreditNote> notes = [new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 20), Allocations = [new Allocation(i1, 200m)] }];
+        Guid paymentId = Guid.NewGuid(), noteId = Guid.NewGuid();
+        List<Payment> payments = [new() { Id = paymentId, CustomerId = Guid.NewGuid(), Date = new(2026, 3, 15), Amount = 400m }];
+        List<CreditNote> notes = [new() { Id = noteId, CustomerId = Guid.NewGuid(), Date = new(2026, 3, 20) }];
+        Dictionary<Guid, decimal> relief = new() { [paymentId] = 400m, [noteId] = 200m };
 
-        IReadOnlyList<StatementLine> lines = CustomerAccountBuilder.Statement([inv1, inv2], payments, notes, [], []);
+        IReadOnlyList<StatementLine> lines = CustomerAccountBuilder.Statement([inv1, inv2], payments, notes, [], [], relief);
 
         Assert.Equal(4, lines.Count);
         Assert.Equal(1000m, lines[0].Charge); Assert.Equal(1000m, lines[0].Balance);   // 3/1 invoice
@@ -102,14 +90,16 @@ public sealed class CustomerAccountBuilderTests
     [Fact]
     public void CreditActivity_signs_and_runs_to_final_balance()
     {
-        List<Payment> payments = [new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 2), Amount = 150m, Allocations = [new Allocation(Guid.NewGuid(), 50m)] }]; // 100 unapplied
-        List<CreditApplication> apps = [new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 10), Allocations = [new Allocation(Guid.NewGuid(), 30m)] }];
+        Guid paymentId = Guid.NewGuid(), appId = Guid.NewGuid();
+        List<Payment> payments = [new() { Id = paymentId, CustomerId = Guid.NewGuid(), Date = new(2026, 3, 2), Amount = 150m }]; // 100 unapplied
+        List<CreditApplication> apps = [new() { Id = appId, CustomerId = Guid.NewGuid(), Date = new(2026, 3, 10) }];
         List<Refund> refunds = [new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 20), Amount = 20m }];
+        Dictionary<Guid, decimal> relief = new() { [paymentId] = 50m, [appId] = 30m };
 
-        IReadOnlyList<CreditActivityLine> lines = CustomerAccountBuilder.CreditActivity(payments, apps, refunds);
+        IReadOnlyList<CreditActivityLine> lines = CustomerAccountBuilder.CreditActivity(payments, apps, refunds, relief);
 
         Assert.Equal(3, lines.Count);
-        Assert.Equal(100m, lines[0].Amount); Assert.Equal(100m, lines[0].CreditBalance);   // overpayment +100
+        Assert.Equal(100m, lines[0].Amount); Assert.Equal(100m, lines[0].CreditBalance);   // overpayment +100 (150 - 50)
         Assert.Equal(-30m, lines[1].Amount); Assert.Equal(70m, lines[1].CreditBalance);    // applied -30
         Assert.Equal(-20m, lines[2].Amount); Assert.Equal(50m, lines[2].CreditBalance);    // refund -20
     }
@@ -119,9 +109,11 @@ public sealed class CustomerAccountBuilderTests
     {
         Guid inv = Guid.NewGuid();
         Invoice invoice = IssuedInvoice(inv, "1001", new(2026, 3, 1), null, 1000m);
-        List<Payment> payments = [new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 1), Amount = 400m, Allocations = [new Allocation(inv, 400m)] }];
+        Guid paymentId = Guid.NewGuid();
+        List<Payment> payments = [new() { Id = paymentId, CustomerId = Guid.NewGuid(), Date = new(2026, 3, 1), Amount = 400m }];
+        Dictionary<Guid, decimal> relief = new() { [paymentId] = 400m };
 
-        IReadOnlyList<StatementLine> lines = CustomerAccountBuilder.Statement([invoice], payments, [], [], []);
+        IReadOnlyList<StatementLine> lines = CustomerAccountBuilder.Statement([invoice], payments, [], [], [], relief);
 
         Assert.Equal(2, lines.Count);
         Assert.Equal(1000m, lines[0].Charge);    // Charge comes first on 3/1
@@ -154,26 +146,6 @@ public sealed class CustomerAccountBuilderTests
     }
 
     [Fact]
-    public void AppliedByInvoice_excludes_voided_credit_applications_and_write_offs()
-    {
-        Guid inv = Guid.NewGuid();
-        List<CreditApplication> creditApps =
-        [
-            new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 1), Allocations = [new Allocation(inv, 50m)] },
-            new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 2), Allocations = [new Allocation(inv, 30m)], Voided = true },
-        ];
-        List<WriteOff> writeOffs =
-        [
-            new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 3), Allocations = [new Allocation(inv, 25m)] },
-            new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = new(2026, 3, 4), Allocations = [new Allocation(inv, 15m)], Voided = true },
-        ];
-
-        Dictionary<Guid, decimal> applied = CustomerAccountBuilder.AppliedByInvoice([], creditApps, writeOffs, []);
-
-        Assert.Equal(75m, applied[inv]);  // 50 (credit app) + 25 (write-off); voided 30 + 15 excluded
-    }
-
-    [Fact]
     public void OpenInvoices_orders_same_date_by_number()
     {
         Invoice inv1002 = IssuedInvoice(Guid.NewGuid(), "1002", new(2026, 3, 1), null, 100m);
@@ -191,16 +163,17 @@ public sealed class CustomerAccountBuilderTests
         DateOnly d = new(2026, 3, 5);
         Guid pA = new("00000000-0000-0000-0000-000000000001");
         Guid pB = new("00000000-0000-0000-0000-000000000002");
+        Guid appId = Guid.NewGuid();
         // Two same-date overpayments fed high-Id first (Id tiebreak) + a same-date credit application (type Order after overpayments).
         List<Payment> payments =
         [
-            new() { Id = pB, CustomerId = Guid.NewGuid(), Date = d, Amount = 20m, Allocations = [] }, // unapplied 20
-            new() { Id = pA, CustomerId = Guid.NewGuid(), Date = d, Amount = 10m, Allocations = [] }, // unapplied 10
+            new() { Id = pB, CustomerId = Guid.NewGuid(), Date = d, Amount = 20m }, // unapplied 20 (no relief)
+            new() { Id = pA, CustomerId = Guid.NewGuid(), Date = d, Amount = 10m }, // unapplied 10 (no relief)
         ];
-        List<CreditApplication> apps =
-            [new() { Id = Guid.NewGuid(), CustomerId = Guid.NewGuid(), Date = d, Allocations = [new Allocation(Guid.NewGuid(), 5m)] }];
+        List<CreditApplication> apps = [new() { Id = appId, CustomerId = Guid.NewGuid(), Date = d }];
+        Dictionary<Guid, decimal> relief = new() { [appId] = 5m };
 
-        IReadOnlyList<CreditActivityLine> lines = CustomerAccountBuilder.CreditActivity(payments, apps, []);
+        IReadOnlyList<CreditActivityLine> lines = CustomerAccountBuilder.CreditActivity(payments, apps, [], relief);
 
         // Overpayments first (Order 0), ordered by Id (pA=…01 before pB=…02) → 10 then 20; then Credit applied (Order 1) → -5.
         Assert.Equal([10m, 20m, -5m], lines.Select(l => l.Amount));

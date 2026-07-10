@@ -1,29 +1,9 @@
-using Accounting101.Settlement;
-
 namespace Accounting101.Receivables;
 
 /// <summary>Pure folds that turn a customer's stored documents into the account view's parts. Every fold
 /// ignores voided documents and is deterministic given its inputs (aging takes an explicit asOf).</summary>
 public static class CustomerAccountBuilder
 {
-    /// <summary>Total non-voided amount applied to each invoice across payments, credit-applications,
-    /// write-offs, and credit-notes (their allocations).</summary>
-    public static Dictionary<Guid, decimal> AppliedByInvoice(
-        IReadOnlyList<Payment> payments, IReadOnlyList<CreditApplication> creditApps,
-        IReadOnlyList<WriteOff> writeOffs, IReadOnlyList<CreditNote> creditNotes)
-    {
-        Dictionary<Guid, decimal> applied = new();
-        void Add(IEnumerable<Allocation> allocs)
-        {
-            foreach (Allocation a in allocs) applied[a.TargetId] = applied.GetValueOrDefault(a.TargetId) + a.Amount;
-        }
-        Add(payments.Where(p => !p.Voided).SelectMany(p => p.Allocations));
-        Add(creditApps.Where(c => !c.Voided).SelectMany(c => c.Allocations));
-        Add(writeOffs.Where(w => !w.Voided).SelectMany(w => w.Allocations));
-        Add(creditNotes.Where(n => !n.Voided).SelectMany(n => n.Allocations));
-        return applied;
-    }
-
     /// <summary>Issued invoices with a positive open balance, each with days overdue (0 when not yet due
     /// or no due date), oldest issue first.</summary>
     public static IReadOnlyList<OpenInvoiceLine> OpenInvoices(
@@ -55,28 +35,30 @@ public static class CustomerAccountBuilder
     public static decimal ArBalance(IReadOnlyList<OpenInvoiceLine> openInvoices) => openInvoices.Sum(l => l.OpenBalance);
 
     /// <summary>The AR statement: a charge per issued invoice, a settlement line per non-voided payment /
-    /// credit-note / write-off / credit-application (amount = its allocations), oldest first with charges
-    /// before settlements on the same date, carrying a running AR balance.</summary>
+    /// credit-note / write-off / credit-application (amount = its AR relief), oldest first with charges
+    /// before settlements on the same date, carrying a running AR balance. <paramref name="reliefByDocument"/>
+    /// maps each settlement document's Id to its total AR relief, folded from the ledger (the module stores
+    /// no allocation array to sum directly).</summary>
     public static IReadOnlyList<StatementLine> Statement(
         IReadOnlyList<Invoice> invoices, IReadOnlyList<Payment> payments,
         IReadOnlyList<CreditNote> creditNotes, IReadOnlyList<WriteOff> writeOffs,
-        IReadOnlyList<CreditApplication> creditApps)
+        IReadOnlyList<CreditApplication> creditApps, IReadOnlyDictionary<Guid, decimal> reliefByDocument)
     {
         List<(DateOnly Date, int Order, string Type, string? Reference, decimal Charge, decimal Payment)> raw = [];
         foreach (Invoice i in invoices.Where(i => i.Status == InvoiceStatus.Issued))
             raw.Add((i.IssueDate, 0, "Invoice", i.Number, i.Total, 0m));
-        // Settlement.Payment column = sum of a payment's allocations (total cash applied to invoices).
-        // The running balance subtracts each settlement allocation in full, while ArBalance floors each
+        // Settlement.Payment column = the document's AR relief (total cash/credit applied to invoices).
+        // The running balance subtracts each settlement's relief in full, while ArBalance floors each
         // invoice's open balance at 0 via Settlement.OpenBalance; these agree as long as allocations never
         // over-apply an invoice (enforced upstream by allocation validation).
         foreach (Payment p in payments.Where(p => !p.Voided))
-            raw.Add((p.Date, 1, "Payment", null, 0m, p.Allocations.Sum(a => a.Amount)));
+            raw.Add((p.Date, 1, "Payment", null, 0m, reliefByDocument.GetValueOrDefault(p.Id)));
         foreach (CreditNote n in creditNotes.Where(n => !n.Voided))
-            raw.Add((n.Date, 1, "Credit note", n.Memo, 0m, n.Allocations.Sum(a => a.Amount)));
+            raw.Add((n.Date, 1, "Credit note", n.Memo, 0m, reliefByDocument.GetValueOrDefault(n.Id)));
         foreach (WriteOff w in writeOffs.Where(w => !w.Voided))
-            raw.Add((w.Date, 1, "Write-off", w.Memo, 0m, w.Allocations.Sum(a => a.Amount)));
+            raw.Add((w.Date, 1, "Write-off", w.Memo, 0m, reliefByDocument.GetValueOrDefault(w.Id)));
         foreach (CreditApplication c in creditApps.Where(c => !c.Voided))
-            raw.Add((c.Date, 1, "Credit applied", null, 0m, c.Allocations.Sum(a => a.Amount)));
+            raw.Add((c.Date, 1, "Credit applied", null, 0m, reliefByDocument.GetValueOrDefault(c.Id)));
 
         decimal balance = 0m;
         return raw.OrderBy(r => r.Date).ThenBy(r => r.Order)
@@ -88,15 +70,22 @@ public static class CustomerAccountBuilder
     }
 
     /// <summary>The credit ledger: overpayment remainders (+), credit-applications (−), refunds (−), oldest
-    /// first, with a running credit balance that ends at the customer's unapplied credit.</summary>
+    /// first, with a running credit balance that ends at the customer's unapplied credit.
+    /// <paramref name="reliefByDocument"/> maps each payment/credit-application's Id to its total AR relief,
+    /// folded from the ledger — a payment's unapplied remainder is its Amount minus that relief, and a
+    /// credit-application's applied amount IS that relief.</summary>
     public static IReadOnlyList<CreditActivityLine> CreditActivity(
-        IReadOnlyList<Payment> payments, IReadOnlyList<CreditApplication> creditApps, IReadOnlyList<Refund> refunds)
+        IReadOnlyList<Payment> payments, IReadOnlyList<CreditApplication> creditApps, IReadOnlyList<Refund> refunds,
+        IReadOnlyDictionary<Guid, decimal> reliefByDocument)
     {
         List<(DateOnly Date, int Order, Guid Id, string Type, string? Reference, decimal Amount)> raw = [];
-        foreach (Payment p in payments.Where(p => !p.Voided && p.Unapplied > 0m))
-            raw.Add((p.Date, 0, p.Id, "Overpayment", null, p.Unapplied));
+        foreach (Payment p in payments.Where(p => !p.Voided))
+        {
+            decimal unapplied = p.Amount - reliefByDocument.GetValueOrDefault(p.Id);
+            if (unapplied > 0m) raw.Add((p.Date, 0, p.Id, "Overpayment", null, unapplied));
+        }
         foreach (CreditApplication c in creditApps.Where(c => !c.Voided))
-            raw.Add((c.Date, 1, c.Id, "Credit applied", null, -c.Applied));
+            raw.Add((c.Date, 1, c.Id, "Credit applied", null, -reliefByDocument.GetValueOrDefault(c.Id)));
         foreach (Refund r in refunds.Where(r => !r.Voided))
             raw.Add((r.Date, 2, r.Id, "Refund", r.Memo, -r.Amount));
 
