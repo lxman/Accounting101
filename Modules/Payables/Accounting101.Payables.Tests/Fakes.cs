@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using Accounting101.Ledger.Contracts;
-using Accounting101.ModuleKit;
 
 namespace Accounting101.Payables.Tests;
 
@@ -40,7 +39,7 @@ internal sealed class FakeLedgerClient : ILedgerClient
 
     /// <summary>
     /// Optional hook: tests set this to drive the validation outcome. When null (the default), validation
-    /// succeeds silently. Set to a delegate that throws <see cref="LedgerClientException"/> to simulate a
+    /// succeeds silently. Set to a delegate that throws <c>LedgerClientException</c> to simulate a
     /// rejection (e.g. a closed-period 409) without HTTP.
     /// </summary>
     public Func<PostEntryRequest, Task>? OnValidate { get; set; }

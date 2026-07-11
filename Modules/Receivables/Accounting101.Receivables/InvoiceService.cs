@@ -47,7 +47,7 @@ public sealed class InvoiceService(
     /// <summary>
     /// Issue a draft: validate the would-be A/R post first (pre-flight), then finalize (assigns the number),
     /// recompose with the assigned number, and post. Pre-flighting means a rejected date or chart violation
-    /// throws <see cref="LedgerClientException"/> BEFORE finalize, so the document stays Draft — no orphan.
+    /// throws <c>LedgerClientException</c> BEFORE finalize, so the document stays Draft — no orphan.
     /// The entry lands PendingApproval — approval is the client's normal maker-checker flow (SoD).
     /// </summary>
     public async Task<Invoice> IssueAsync(Guid clientId, Guid invoiceId, CancellationToken cancellationToken = default)

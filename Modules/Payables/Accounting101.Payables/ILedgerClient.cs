@@ -25,7 +25,7 @@ public interface ILedgerClient
 
     /// <summary>
     /// Dry-run the would-be post without writing anything. Returns on a clean validation; throws
-    /// <see cref="LedgerClientException"/> with the engine's status and reason on any rejection (closed
+    /// <c>LedgerClientException</c> with the engine's status and reason on any rejection (closed
     /// period, chart violation, unbalanced entry). Lets callers catch a bad date or account before
     /// committing the document, so the document is never entered against an entry the engine would refuse.
     /// </summary>
