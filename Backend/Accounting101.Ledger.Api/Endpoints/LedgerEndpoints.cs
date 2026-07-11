@@ -530,7 +530,8 @@ public static class LedgerEndpoints
             ? await ctx.Ledger.Journal.AggregateBalancesAsync(clientId, asOfDate, cancellationToken)
             : await ctx.Ledger.Projection.GetTrialBalanceAsync(clientId, cancellationToken);
 
-        return Results.Ok(new TrialBalanceResponse(asOf, ToAccountBalances(balances)));
+        ChartOfAccounts chart = await ctx.Ledger.Accounts.GetChartAsync(clientId, cancellationToken);
+        return Results.Ok(new TrialBalanceResponse(asOf, ToLabeledBalances(balances, chart)));
     }
 
     private static async Task<IResult> GetSubledger(
@@ -562,10 +563,15 @@ public static class LedgerEndpoints
         IReadOnlyList<SubledgerBalance> balances = await ctx.Ledger.Journal.AggregateSubledgerAsync(
             clientId, dimension, account, asOf, includePending, cancellationToken);
 
+        ChartOfAccounts chart = await ctx.Ledger.Accounts.GetChartAsync(clientId, cancellationToken);
         return Results.Ok(new SubledgerResponse(
             dimension,
             asOf,
-            balances.Select(b => new SubledgerLineResponse(b.AccountId, b.DimensionValue, b.Balance)).ToList()));
+            balances.Select(b =>
+            {
+                Account? a = chart.Find(b.AccountId);
+                return new SubledgerLineResponse(b.AccountId, b.DimensionValue, b.Balance, a?.Number, a?.Name);
+            }).ToList()));
     }
 
     private static async Task<IResult> GetSubledgerReconciliation(
@@ -664,7 +670,8 @@ public static class LedgerEndpoints
             ? (await ctx.Ledger.Journal.AggregateBalancesAsync(clientId, asOfDate, cancellationToken)).GetValueOrDefault(accountId)
             : await ctx.Ledger.Projection.GetBalanceAsync(clientId, accountId, cancellationToken);
 
-        return Results.Ok(new AccountBalanceResponse(accountId, balance));
+        Account? account = (await ctx.Ledger.Accounts.GetChartAsync(clientId, cancellationToken)).Find(accountId);
+        return Results.Ok(new AccountBalanceResponse(accountId, balance, account?.Number, account?.Name));
     }
 
     private static async Task<IResult> GetClientAudit(
@@ -848,6 +855,15 @@ public static class LedgerEndpoints
 
     private static List<AccountBalanceResponse> ToAccountBalances(IReadOnlyDictionary<Guid, decimal> balances) =>
         balances.Select(kv => new AccountBalanceResponse(kv.Key, kv.Value)).ToList();
+
+    /// <summary>Same as <see cref="ToAccountBalances"/> but labeled with each account's number/name from the chart.</summary>
+    private static List<AccountBalanceResponse> ToLabeledBalances(
+        IReadOnlyDictionary<Guid, decimal> balances, ChartOfAccounts chart) =>
+        balances.Select(kv =>
+        {
+            Account? a = chart.Find(kv.Key);
+            return new AccountBalanceResponse(kv.Key, kv.Value, a?.Number, a?.Name);
+        }).ToList();
 
     private static BalanceSheetResponse ToBalanceSheetResponse(BalanceSheet sheet) => new(
         sheet.AsOf,
