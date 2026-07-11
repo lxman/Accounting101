@@ -88,15 +88,6 @@ public sealed class ReceivablesHostFixture : WebApplicationFactory<Program>, IAs
         return http;
     }
 
-    /// <summary>Like <see cref="ClientFor"/>, but the token also carries the deployment-admin claim (admin=true).</summary>
-    public HttpClient AdminClientFor(Guid userId, string name)
-    {
-        HttpClient http = CreateClient();
-        string token = DevToken.Encode(new DevTokenPayload(userId, name, [new DevClaim("admin", "true")]));
-        http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(DevTokenDefaults.Scheme, token);
-        return http;
-    }
-
     /// <summary>Register a client + a Controller member, returning an HttpClient authed as that member.</summary>
     public async Task<(Guid ClientId, HttpClient Http)> SeedClientAsync(IReadOnlyList<string>? enabledModules = null)
     {

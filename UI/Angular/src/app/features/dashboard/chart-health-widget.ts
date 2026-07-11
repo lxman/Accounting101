@@ -73,8 +73,10 @@ export class ChartHealthWidget {
   constructor() {
     effect((onCleanup) => {
       const id = this.client.clientId();
-      const modules = this.visibleModules();
       if (!id) { this.modules.set([]); this.loading.set(false); return; }
+      if (!this.caps.loaded()) { this.loading.set(true); return; } // wait for caps before deciding visibility (avoids empty flicker)
+      const modules = this.visibleModules();
+      if (modules.length === 0) { this.modules.set([]); this.loading.set(false); return; } // zero visible → empty, not a spinner
       this.loading.set(true);
       const sub = this.health.readiness(modules).subscribe(m => { this.modules.set(m); this.loading.set(false); });
       onCleanup(() => sub.unsubscribe());

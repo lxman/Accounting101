@@ -1,10 +1,10 @@
 # Chart-Readiness Capability Gating — Design
 
-*2026-07-11. Closes the deferred parity fast-follow (#7) from the chart-readiness epic: the 6 advisory readiness endpoints enforce client membership but skip the per-module authorization every other module call applies. This gates them on the caller's per-module **read capability** (with an admin bypass) — deliberately NOT on `EnabledModules`, so previewing a not-yet-enabled module during onboarding still works.*
+*2026-07-11. Closes the deferred fast-follow (#7) from the chart-readiness epic: the 6 advisory readiness endpoints enforce client membership but skip the per-module authorization every other module call applies. This adds the capability gate that other module calls apply, with a deliberate admin bypass and no entitlement gate — the caller's per-module **read capability** (or admin) is required, but `EnabledModules` is deliberately NOT checked, so previewing a not-yet-enabled module during onboarding still works.*
 
 ## Goal
 
-A user may retrieve module *M*'s `GET /clients/{id}/{M}/chart-readiness` **iff** they are a deployment admin, OR a client admin, OR they hold *M*'s read capability. This closes the info-parity gap (a member with no payroll access can currently read payroll's chart config) without breaking readiness's onboarding purpose.
+A user may retrieve module *M*'s `GET /clients/{id}/{M}/chart-readiness` **iff** they are a deployment admin, OR a client admin, OR they hold *M*'s read capability. This is a deliberately looser, admin-friendly superset of `ModuleAccess`'s authorization (which has no admin bypass and also gates on `EnabledModules`) — it closes the gap where a member with no payroll access could read payroll's chart config, without breaking readiness's onboarding purpose.
 
 ## The rule (single source of truth)
 

@@ -67,6 +67,19 @@ describe('ChartHealthWidget', () => {
     ctrl.verify(); // proves NO request was made for the other four modules
   });
 
+  it('a user with zero visible modules shows an empty widget, never a stuck spinner', () => {
+    // Caps: gl.read only — no module read caps, not admin.client, not deployment admin.
+    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection(), provideRouter([]),
+      provideHttpClient(), provideHttpClientTesting(), provideCapabilities('gl.read')] });
+    const ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    const f = TestBed.createComponent(ChartHealthWidget); f.detectChanges();
+    expect(f.componentInstance.loading()).toBe(false);
+    expect(f.componentInstance.total()).toBe(0);
+    expect((f.nativeElement as HTMLElement).textContent).not.toContain('Checking');
+    ctrl.verify(); // no chart-readiness request was made for any module
+  });
+
   it('an admin sees all six modules', () => {
     // Deployment admin: no per-module caps needed.
     const stub = provideCapabilities(); // empty caps
