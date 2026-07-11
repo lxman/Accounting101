@@ -1,4 +1,4 @@
-export interface NavLink { label: string; path: string; area?: string; deploymentAdmin?: boolean; children?: NavLink[]; }
+export interface NavLink { label: string; path: string; area?: string; moduleKey?: string; deploymentAdmin?: boolean; children?: NavLink[]; }
 export interface NavSection { label: string; items: NavLink[]; }
 
 export const NAV: NavSection[] = [
@@ -14,14 +14,14 @@ export const NAV: NavSection[] = [
     { label: 'Period Close', path: '/periods', area: 'gl' },
   ] },
   { label: 'Subledgers', items: [
-    { label: 'Receivables', path: '/receivables', area: 'ar' },
-    { label: 'Payables', path: '/payables', area: 'ap' },
-    { label: 'Payroll', path: '/payroll', area: 'payroll' },
-    { label: 'Cash & Banking', path: '/cash', area: 'cash', children: [
-      { label: 'Bank Reconciliation', path: '/cash/reconciliation', area: 'bankrec' },
+    { label: 'Receivables', path: '/receivables', area: 'ar', moduleKey: 'receivables' },
+    { label: 'Payables', path: '/payables', area: 'ap', moduleKey: 'payables' },
+    { label: 'Payroll', path: '/payroll', area: 'payroll', moduleKey: 'payroll' },
+    { label: 'Cash & Banking', path: '/cash', area: 'cash', moduleKey: 'cash', children: [
+      { label: 'Bank Reconciliation', path: '/cash/reconciliation', area: 'bankrec', moduleKey: 'reconciliation' },
     ] },
-    { label: 'Fixed Assets', path: '/fixed-assets', area: 'fixedassets' },
-    { label: 'Inventory', path: '/inventory', area: 'inventory' },
+    { label: 'Fixed Assets', path: '/fixed-assets', area: 'fixedassets', moduleKey: 'fixedassets' },
+    { label: 'Inventory', path: '/inventory', area: 'inventory', moduleKey: 'inventory' },
   ] },
   { label: 'Assurance', items: [
     { label: 'Audit', path: '/audit', area: 'audit', children: [

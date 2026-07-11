@@ -81,6 +81,15 @@ describe('visibleSections', () => {
     expect(admin?.items.some((i) => i.path === '/admin/access/sets')).toBe(true);
   });
 
+  it('gates subledger links by moduleKey enablement even when the area is held', () => {
+    // hasArea is true for everything, but only 'receivables' is module-enabled.
+    const enabledModules = new Set(['receivables']);
+    const v = visibleSections(NAV, (link) =>
+      (!link.area || true) && (!link.moduleKey || enabledModules.has(link.moduleKey)));
+    const subledgers = v.find((s) => s.label === 'Subledgers')!;
+    expect(subledgers.items.map((i) => i.path)).toEqual(['/receivables']);
+  });
+
   it('shows Capability Sets to a pure deployment admin (no admin.* capability)', () => {
     // Models Dev Approver: deployment admin (admin=true) but no admin.* capability, so hasArea('admin') is false.
     const isDeploymentAdmin = true;

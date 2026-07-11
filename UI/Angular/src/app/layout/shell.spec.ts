@@ -7,18 +7,25 @@ import { CapabilityService } from '../core/capabilities/capability.service';
 
 class StubCaps {
   areas = new Set<string>();
+  modules = new Set<string>();
   hasArea(a: string) { return this.areas.has(a); }
   has() { return false; }
   capabilities() { return new Set<string>(); }
   roles() { return []; }
   deploymentAdmin() { return false; }
+  enabledModules() { return this.modules; }
+  moduleEnabled(key: string) { return this.modules.has(key); }
 }
 
 describe('Shell', () => {
-  async function make(areas: string[] = ['gl','ar','ap','payroll','cash','bankrec','fixedassets','audit','reports','admin']) {
+  async function make(
+    areas: string[] = ['gl','ar','ap','payroll','cash','bankrec','fixedassets','audit','reports','admin'],
+    modules: string[] = ['receivables','payables','payroll','cash','reconciliation','fixedassets','inventory'],
+  ) {
     TestBed.resetTestingModule();
     const stub = new StubCaps();
     areas.forEach(a => stub.areas.add(a));
+    modules.forEach(m => stub.modules.add(m));
     await TestBed.configureTestingModule({
       imports: [Shell],
       providers: [provideRouter([]), { provide: CapabilityService, useValue: stub }],
@@ -100,6 +107,7 @@ describe('Shell', () => {
   it('auto-opens the section and submenu holding the active route', async () => {
     const stub = new StubCaps();
     ['gl','ar','ap','payroll','cash','bankrec','fixedassets','audit','reports','admin'].forEach(a => stub.areas.add(a));
+    ['receivables','payables','payroll','cash','reconciliation','fixedassets','inventory'].forEach(m => stub.modules.add(m));
     await TestBed.configureTestingModule({
       imports: [Shell],
       providers: [provideRouter([{ path: 'cash/reconciliation', children: [] }]), { provide: CapabilityService, useValue: stub }],
@@ -153,5 +161,21 @@ describe('Shell', () => {
     expect(withAdmin.textContent).toContain('Administration');
     const without = (await make(['gl'])).nativeElement as HTMLElement;
     expect(without.textContent).not.toContain('Administration');
+  });
+
+  it('gates subledger links on module enablement even when every area is held', async () => {
+    const allAreas = ['gl','ar','ap','payroll','cash','bankrec','fixedassets','audit','reports','admin'];
+    const fixture = await make(allAreas, ['cash']);
+    const el = fixture.nativeElement as HTMLElement;
+
+    sectionHeader(el, 'Subledgers').click();
+    fixture.detectChanges();
+    const after = fixture.nativeElement as HTMLElement;
+    expect(after.textContent).toContain('Cash & Banking');
+    expect(after.textContent).not.toContain('Receivables');
+    expect(after.textContent).not.toContain('Payables');
+    expect(after.textContent).not.toContain('Payroll');
+    expect(after.textContent).not.toContain('Fixed Assets');
+    expect(after.textContent).not.toContain('Inventory');
   });
 });
