@@ -75,6 +75,18 @@ public sealed class CapabilitiesTests(ApiFixture fixture) : IClassFixture<ApiFix
     }
 
     [Fact]
+    public async Task Capabilities_includes_the_clients_enabled_modules()
+    {
+        SeededClient c = await fixture.SeedClientAsync(role: LedgerRole.Admin);
+        await fixture.Control().SetClientModulesAsync(c.ClientId, new[] { "cash", "reconciliation" });
+
+        CapabilitiesResponse caps = (await c.Http.GetFromJsonAsync<CapabilitiesResponse>(
+            $"/clients/{c.ClientId}/me/capabilities"))!;
+
+        Assert.Equal(new[] { "cash", "reconciliation" }, caps.EnabledModules);
+    }
+
+    [Fact]
     public async Task A_non_member_is_forbidden()
     {
         SeededClient c = await fixture.SeedClientAsync();
