@@ -12,7 +12,7 @@ import { provideCapabilities } from '../../core/capabilities/capability.testing'
 
 function seed(): AccountResponse[] {
   const a = (id: string, number: string, type: AccountResponse['type'], parentId: string | null = null, active = true): AccountResponse =>
-    ({ id, number, name: 'n' + number, type, parentId, postable: true, requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active, normalSide: 'Debit', isTemporary: false });
+    ({ id, number, name: 'n' + number, type, parentId, postable: true, requiredDimension: null, requiredDimensions: [], cashFlowActivity: null, isRetainedEarnings: false, active, normalSide: 'Debit', isTemporary: false });
   return [a('cash', '1000', 'Asset'), a('ar', '1200', 'Asset'), a('rev', '4000', 'Revenue'), a('old', '1900', 'Asset', null, false)];
 }
 

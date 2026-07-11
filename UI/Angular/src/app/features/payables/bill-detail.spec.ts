@@ -25,7 +25,7 @@ describe('BillDetail', () => {
     ctrl.expectOne('http://localhost:5000/clients/C1/vendors').flush([{ id: 'v1', name: 'Acme Parts', email: null }]);
     ctrl.expectOne('http://localhost:5000/clients/C1/accounts').flush([
       { id: 'a1', number: '6100', name: 'Rent Expense', type: 'Expense', parentId: null, postable: true,
-        requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active: true,
+        requiredDimension: null, requiredDimensions: [], cashFlowActivity: null, isRetainedEarnings: false, active: true,
         normalSide: 'Debit', isTemporary: true }]);
     ctrl.expectOne(`http://localhost:5000/clients/C1/bills/${id}`).flush({ bill: { id, vendorId: 'v1',
       number: status === 'Draft' ? null : 'B-1', billDate: '2026-06-30', dueDate: null, vendorReference: 'INV-9',

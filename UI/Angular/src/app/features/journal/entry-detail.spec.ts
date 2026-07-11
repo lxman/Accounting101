@@ -23,8 +23,8 @@ describe('EntryDetail', () => {
     TestBed.inject(ClientContextService).select('C1');
   }
   const seedAccounts = [
-    { id: 'A', number: '1000', name: 'Cash', type: 'Asset', parentId: null, postable: true, requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active: true, normalSide: 'Debit', isTemporary: false },
-    { id: 'B', number: '4000', name: 'Revenue', type: 'Revenue', parentId: null, postable: true, requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active: true, normalSide: 'Credit', isTemporary: true },
+    { id: 'A', number: '1000', name: 'Cash', type: 'Asset', parentId: null, postable: true, requiredDimension: null, requiredDimensions: [], cashFlowActivity: null, isRetainedEarnings: false, active: true, normalSide: 'Debit', isTemporary: false },
+    { id: 'B', number: '4000', name: 'Revenue', type: 'Revenue', parentId: null, postable: true, requiredDimension: null, requiredDimensions: [], cashFlowActivity: null, isRetainedEarnings: false, active: true, normalSide: 'Credit', isTemporary: true },
   ];
   function flushEntryAndAudit(authorSub: string) {
     ctrl.expectOne('http://localhost:5000/clients/C1/accounts').flush(seedAccounts);

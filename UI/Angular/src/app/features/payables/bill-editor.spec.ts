@@ -27,16 +27,16 @@ describe('BillEditor', () => {
     ctrl.expectOne('http://localhost:5000/clients/C1/vendors').flush([{ id: 'v1', name: 'Acme Parts', email: null }]);
     ctrl.expectOne('http://localhost:5000/clients/C1/accounts').flush([
       { id: 'a1', number: '6100', name: 'Rent Expense', type: 'Expense', parentId: null, postable: true,
-        requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active: true,
+        requiredDimension: null, requiredDimensions: [], cashFlowActivity: null, isRetainedEarnings: false, active: true,
         normalSide: 'Debit', isTemporary: true },
       { id: 'a2', number: '6200', name: 'Utilities Expense', type: 'Expense', parentId: null, postable: false,
-        requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active: true,
+        requiredDimension: null, requiredDimensions: [], cashFlowActivity: null, isRetainedEarnings: false, active: true,
         normalSide: 'Debit', isTemporary: true },
       { id: 'a3', number: '6300', name: 'Meals Expense', type: 'Expense', parentId: null, postable: true,
-        requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active: false,
+        requiredDimension: null, requiredDimensions: [], cashFlowActivity: null, isRetainedEarnings: false, active: false,
         normalSide: 'Debit', isTemporary: true },
       { id: 'c1', number: '1000', name: 'Cash', type: 'Asset', parentId: null, postable: true,
-        requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active: true,
+        requiredDimension: null, requiredDimensions: [], cashFlowActivity: null, isRetainedEarnings: false, active: true,
         normalSide: 'Debit', isTemporary: false },
     ]);
   }

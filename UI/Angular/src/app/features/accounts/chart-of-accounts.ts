@@ -112,7 +112,7 @@ export class ChartOfAccounts {
     this.error.set(null);
     this.accountsSvc.upsert({
       id: a.id, number: a.number, name: a.name, type: a.type, parentId: newParentId,
-      postable: a.postable, requiredDimension: a.requiredDimension, cashFlowActivity: a.cashFlowActivity,
+      postable: a.postable, requiredDimension: a.requiredDimension, requiredDimensions: a.requiredDimensions, cashFlowActivity: a.cashFlowActivity,
       isRetainedEarnings: a.isRetainedEarnings, active: a.active,
     }).subscribe({ error: (e) => this.error.set(extractProblem(e).detail) });
   }
