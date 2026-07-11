@@ -297,7 +297,7 @@ public static class LedgerEndpoints
     private static async Task<JournalEntry> FinalizeAsync(
         bool autoApprove, JournalEntry entry, LedgerContext ctx, CancellationToken ct) =>
         autoApprove && entry.Posting == PostingState.PendingApproval
-            ? await ctx.Ledger.Service.ApproveAsync(entry.Id, ctx.Actor!, ct)
+            ? await ctx.Ledger!.Service.ApproveAsync(entry.Id, ctx.Actor!, ct)
             : entry;
 
     private static async Task<IResult> ApproveEntry(
@@ -357,7 +357,7 @@ public static class LedgerEndpoints
 
     private static async Task<IResult> ReviseEntry(
         Guid clientId, Guid originalId, ReviseRequest request, LedgerGateway gateway, IModuleAuthenticator moduleAuth,
-        ClaimsPrincipal user, CancellationToken cancellationToken)
+        ControlStore control, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         LedgerContext ctx = await gateway.ResolveMemberAsync(user, clientId, cancellationToken);
         if (ctx.Failed) return ctx.Error;
@@ -385,7 +385,9 @@ public static class LedgerEndpoints
         try
         {
             JournalEntry result = await ctx.Ledger.Service.ReviseAsync(originalId, replacement, ctx.Actor, request.Reason, cancellationToken);
-            return Results.Created($"/clients/{clientId}/entries/{result.Id}", ToEntryResponse(result));
+            bool autoApprove = await AutoApproveAsync(clientId, control, cancellationToken);
+            JournalEntry finalized = await FinalizeAsync(autoApprove, result, ctx, cancellationToken);
+            return Results.Created($"/clients/{clientId}/entries/{finalized.Id}", ToEntryResponse(finalized));
         }
         catch (InvalidOperationException ex) // closed-period freeze, or original no longer active
         {
@@ -399,7 +401,7 @@ public static class LedgerEndpoints
 
     private static async Task<IResult> ReverseEntry(
         Guid clientId, Guid originalId, ReverseRequest request, LedgerGateway gateway, IModuleAuthenticator moduleAuth,
-        ClaimsPrincipal user, CancellationToken cancellationToken)
+        ControlStore control, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         LedgerContext ctx = await gateway.ResolveMemberAsync(user, clientId, cancellationToken);
         if (ctx.Failed) return ctx.Error;
@@ -416,7 +418,9 @@ public static class LedgerEndpoints
             JournalEntry reversal = await ctx.Ledger.Service.ReverseAsync(
                 originalId, request.ReversalDate, ctx.Actor, request.Reason,
                 request.SourceRef, request.SourceType, cancellationToken);
-            return Results.Created($"/clients/{clientId}/entries/{reversal.Id}", ToEntryResponse(reversal));
+            bool autoApprove = await AutoApproveAsync(clientId, control, cancellationToken);
+            JournalEntry finalized = await FinalizeAsync(autoApprove, reversal, ctx, cancellationToken);
+            return Results.Created($"/clients/{clientId}/entries/{finalized.Id}", ToEntryResponse(finalized));
         }
         catch (InvalidOperationException ex) // not reversible, or reversal date in a closed period
         {

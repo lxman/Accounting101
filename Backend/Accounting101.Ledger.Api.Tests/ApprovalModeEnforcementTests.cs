@@ -74,4 +74,20 @@ public sealed class ApprovalModeEnforcementTests(ApiFixture fixture) : IClassFix
         HttpResponseMessage approve = await approver.PostAsync($"/clients/{c.ClientId}/entries/{posted.Id}/approve", null);
         Assert.Equal(HttpStatusCode.OK, approve.StatusCode);
     }
+
+    [Fact]
+    public async Task Auto_approve_lands_a_reversal_as_posted()
+    {
+        SeededClient c = await fixture.SeedClientAsync("AutoReverse", approvalMode: ApprovalMode.AutoApprove);
+        Guid debit = Guid.NewGuid(), credit = Guid.NewGuid();
+        PostEntryResponse original = await PostAsync(c.Http, c.ClientId, Balanced(Guid.NewGuid(), "2026-03-31", debit, credit));
+        Assert.Equal("Posted", original.Posting); // auto-approved, so it is reversible
+
+        HttpResponseMessage resp = await c.Http.PostAsJsonAsync(
+            $"/clients/{c.ClientId}/entries/{original.Id}/reverse",
+            new { ReversalDate = "2026-03-31", Reason = "correct", SourceRef = (string?)null, SourceType = (string?)null });
+        resp.EnsureSuccessStatusCode();
+        using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+        Assert.Equal("Posted", doc.RootElement.GetProperty("posting").GetString());
+    }
 }
