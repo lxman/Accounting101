@@ -122,10 +122,6 @@ public static class ReconciliationEndpoints
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
         }
-        catch (LedgerClientException ex) // engine rejected the post (closed period, unknown account)
-        {
-            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
-        }
         catch (InvalidOperationException ex) // reconciliation not found / completed
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
@@ -167,10 +163,6 @@ public static class ReconciliationEndpoints
         {
             BankAdjustment voided = await service.VoidAdjustmentAsync(clientId, adjId, request?.Reason, ct);
             return Results.Ok(voided);
-        }
-        catch (LedgerClientException ex)
-        {
-            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
         }
         catch (InvalidOperationException ex) // not found, already void, or no entry
         {
