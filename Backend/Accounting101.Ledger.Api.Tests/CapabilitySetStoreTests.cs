@@ -78,22 +78,26 @@ public sealed class CapabilitySetStoreTests(ApiFixture fixture) : IClassFixture<
     }
 
     [Fact]
-    public async Task Seeding_is_idempotent_and_never_overwrites_an_edited_builtin()
+    public async Task Reseeding_restores_missing_preset_caps_but_preserves_owner_additions()
     {
         ControlStore control = new(fixture.Mongo.GetDatabase("ctl_seed_" + Guid.NewGuid().ToString("N")));
         await control.SeedBuiltinCapabilitySetsAsync();
 
-        // Owner edits a built-in in place.
+        // Simulate a deployment seeded before a cap was added to the preset: strip a preset cap from a
+        // built-in set (as if it never had it) and add an owner-custom extra that is not in the preset.
         CapabilitySet clerk = (await control.GetCapabilitySetByNameAsync("Clerk"))!;
-        clerk.Capabilities = [Capabilities.GlRead];
+        Assert.Contains(Capabilities.ArWrite, clerk.Capabilities); // precondition: ar.write is in the Clerk preset
+        clerk.Capabilities = [.. clerk.Capabilities.Where(c => c != Capabilities.ArWrite), Capabilities.AdminUsers];
         await control.UpdateCapabilitySetAsync(clerk);
 
-        // Re-seed (e.g. next startup) must NOT restore the preset.
+        // Re-seed (next startup) tops the built-in set back up to a superset of its preset — new/removed
+        // preset caps are restored — while preserving the owner's extra cap.
         await control.SeedBuiltinCapabilitySetsAsync();
 
         CapabilitySet after = (await control.GetCapabilitySetByNameAsync("Clerk"))!;
-        Assert.Equal(clerk.Id, after.Id);
-        Assert.True(new HashSet<string> { Capabilities.GlRead }.SetEquals(after.Capabilities));
+        Assert.Equal(clerk.Id, after.Id);                                            // same set, reconciled in place
+        Assert.True(RolePresets.For(LedgerRole.Clerk).IsSubsetOf(after.Capabilities)); // preset restored (superset)
+        Assert.Contains(Capabilities.AdminUsers, after.Capabilities);                  // owner addition survived
     }
 
     [Fact]

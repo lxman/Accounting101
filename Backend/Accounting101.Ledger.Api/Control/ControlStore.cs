@@ -294,8 +294,10 @@ public sealed class ControlStore
         _capabilitySets.DeleteOneAsync(s => s.Id == id, cancellationToken);
 
     /// <summary>Seed one built-in capability set per <see cref="LedgerRole"/> preset, idempotently.
-    /// Persist-in-place: a set whose name already exists is left untouched (an owner's edits survive
-    /// restarts); only missing names are inserted. Also ensures a unique index on <c>Name</c>.</summary>
+    /// Superset reconcile: a set whose name already exists is topped up to a superset of its preset —
+    /// preset caps added after this deployment was seeded (or removed by an owner) are restored — while
+    /// owner-added extra caps survive. Writes only when a cap is actually missing, so a settled
+    /// deployment re-seeds as a no-op. Also ensures a unique index on <c>Name</c>.</summary>
     public async Task SeedBuiltinCapabilitySetsAsync(CancellationToken cancellationToken = default)
     {
         await _capabilitySets.Indexes.CreateOneAsync(
@@ -308,7 +310,11 @@ public sealed class ControlStore
         {
             string name = role.ToString();
             CapabilitySet? existing = await GetCapabilitySetByNameAsync(name, cancellationToken);
-            if (existing is not null) continue;
+            if (existing is not null)
+            {
+                await ReconcileBuiltinCapabilitiesAsync(existing, RolePresets.For(role), cancellationToken);
+                continue;
+            }
 
             await _capabilitySets.InsertOneAsync(
                 new CapabilitySet
@@ -334,7 +340,11 @@ public sealed class ControlStore
         ];
         foreach ((string name, string[] capabilities) in narrowAdmins)
         {
-            if (await GetCapabilitySetByNameAsync(name, cancellationToken) is not null) continue;
+            if (await GetCapabilitySetByNameAsync(name, cancellationToken) is { } existingNarrow)
+            {
+                await ReconcileBuiltinCapabilitiesAsync(existingNarrow, capabilities, cancellationToken);
+                continue;
+            }
             await _capabilitySets.InsertOneAsync(
                 new CapabilitySet
                 {
@@ -357,5 +367,18 @@ public sealed class ControlStore
             adminSet.Restricted = true;
             await UpdateCapabilitySetAsync(adminSet, cancellationToken);
         }
+    }
+
+    /// <summary>Top an existing built-in set up to a superset of <paramref name="preset"/>: append any
+    /// preset caps it is missing (so a cap added to the preset after this deployment was seeded reaches
+    /// existing installs) while leaving owner-added extra caps in place. No-op — no write — when the set
+    /// already contains every preset cap.</summary>
+    private async Task ReconcileBuiltinCapabilitiesAsync(
+        CapabilitySet existing, IEnumerable<string> preset, CancellationToken cancellationToken)
+    {
+        string[] missing = preset.Where(c => !existing.Capabilities.Contains(c)).ToArray();
+        if (missing.Length == 0) return;
+        existing.Capabilities = [.. existing.Capabilities, .. missing];
+        await UpdateCapabilitySetAsync(existing, cancellationToken);
     }
 }
