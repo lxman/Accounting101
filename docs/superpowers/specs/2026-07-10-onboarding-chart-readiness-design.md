@@ -69,10 +69,17 @@ and — for folded ones — carry the required dimensions. This catches both rea
 failure modes seen in dev (missing dimension *and* absent account), for barely more
 work since the module already resolves all its account ids via its `AccountsProvider`.
 
-**All 7 modules.** The four with dimensioned folds (AR/AP/FA/Inventory) carry the
-load-bearing checks; Cash/Payroll/Reconciliation get existence+type only (catching
-the "Cash account not configured" class). The shared checker makes each module's
-addition tiny, so full coverage is cheap and gives a complete answer.
+**Six modules (Reconciliation excluded).** The four with dimensioned folds
+(AR/AP/FA/Inventory) carry the load-bearing checks; Cash/Payroll get existence+type
+only (catching the "Cash account not configured" class). The shared checker makes
+each module's addition tiny, so full coverage is cheap and gives a complete answer.
+**Reconciliation is deliberately excluded:** it has no config-fixed account
+contract — the bank/cash account it reconciles is carried on each statement record
+at runtime and the adjustment offset account is caller-supplied per adjustment, and
+it does no dimensioned folds. There is nothing static a readiness endpoint could
+check; the only account it touches (the bank/cash account) is already covered by the
+**Cash** module's endpoint. Adding a Reconciliation endpoint would duplicate Cash's
+check with no new signal.
 
 ## Architecture
 
@@ -139,20 +146,43 @@ GET /clients/{id}/inventory/chart-readiness
 
 ## Module coverage
 
-| Module | Dimensioned requirement (load-bearing) | Exist + type only |
-|---|---|---|
-| Receivables | A/R → `["Customer","Invoice"]`; Customer Credits → `["Customer"]` | Revenue, Tax, Cash |
-| Payables | A/P → `["Vendor","Bill"]`; Vendor Credits → `["Vendor"]` | Expense/COGS, Cash |
-| Fixed Assets | Accumulated Depreciation → `["Asset"]` | Depr Expense, Asset Cost, Proceeds, Gain, Loss |
-| Inventory | Inventory Asset (1400) → `["Item"]` | COGS, GRNI Clearing, Adjustment |
-| Cash | — | Cash account(s) |
-| Payroll | — | Wages, Withholdings Payable, Taxes Payable, Cash |
-| Reconciliation | — | Cash account, adjustment account(s) |
+Exact config keys + types (ground-truth from each `AccountsProvider`, posting recipe,
+and the fixtures that set `RequiredDimensions`):
 
-Each module's exact account set + expected types are enumerated in the plan from its
-`AccountsProvider` and its posting recipes. The declared `RequiredDimensions` mirror
-exactly what each fold call site passes to `GetSubledgerAsync` (the source of truth
-for the requirement).
+| Module (key) | Account (config key) | Type | Required dims |
+|---|---|---|---|
+| **Receivables** (`receivables`) | `Receivables:Accounts:Receivable` | Asset | `["Customer","Invoice"]` |
+| | `Receivables:Accounts:CustomerCredits` | Liability | `["Customer"]` |
+| | `Receivables:Accounts:Revenue` | Revenue | — |
+| | `Receivables:Accounts:SalesTaxPayable` | Liability | — |
+| | `Receivables:Accounts:Cash` | Asset | — |
+| | `Receivables:Accounts:BadDebtExpense` | Expense | — |
+| | `Receivables:Accounts:SalesReturns` | Revenue | — |
+| **Payables** (`payables`) | `Payables:Accounts:Payable` | Liability | `["Vendor","Bill"]` |
+| | `Payables:Accounts:VendorCredits` | **Asset** (debit-normal — deliberate, not symmetric with Customer Credits) | `["Vendor"]` |
+| | `Payables:Accounts:Cash` | Asset | — |
+| **Fixed Assets** (`fixedassets`) | `FixedAssets:Accounts:AccumulatedDepreciation` | Asset | `["Asset"]` |
+| | `FixedAssets:Accounts:DepreciationExpense` | Expense | — |
+| | `FixedAssets:Accounts:AssetCost` | Asset | — |
+| | `FixedAssets:Accounts:DisposalProceeds` | Asset | — |
+| | `FixedAssets:Accounts:GainOnDisposal` | Revenue | — |
+| | `FixedAssets:Accounts:LossOnDisposal` | Expense | — |
+| **Inventory** (`inventory`) | `Inventory:Accounts:InventoryAsset` | Asset | `["Item"]` |
+| | `Inventory:Accounts:Cogs` | Expense | — |
+| | `Inventory:Accounts:GrniClearing` | Liability | — |
+| | `Inventory:Accounts:InventoryAdjustment` | Expense | — |
+| **Cash** (`cash`) | `Cash:Accounts:Cash` | Asset | — |
+| **Payroll** (`payroll`) | `Payroll:Accounts:SalariesExpense` | Expense | — |
+| | `Payroll:Accounts:PayrollTaxExpense` | Expense | — |
+| | `Payroll:Accounts:WithholdingsPayable` | Liability | — |
+| | `Payroll:Accounts:PayrollTaxesPayable` | Liability | — |
+| | `Payroll:Accounts:Cash` | Asset | — |
+
+The declared `RequiredDimensions` mirror exactly what each fold call site passes to
+`GetSubledgerAsync`. **Not covered** (caller-supplied per transaction, not a
+config-fixed account): AR's `RevenueByCategory` map (per-category revenue accounts,
+only the default `Revenue` is a fixed target), AP's per-bill-line expense accounts,
+Reconciliation's per-adjustment offset accounts.
 
 ## Report contract (example)
 
@@ -193,8 +223,9 @@ GET /clients/{id}/inventory/chart-readiness  →  200
   and misconfigured charts, as the `LedgerErrorRelayE2eTests` fixtures do). For each
   of the 4 dimensioned modules: correct chart → `200 ready:true`; folded account
   missing its dimension → `ready:false` with `MissingDimensions`; a required account
-  absent → `ready:false` with `Missing`. For Cash/Payroll/Reconciliation: correct →
-  ready; a posting account absent → `Missing`.
+  absent → `ready:false` with `Missing`. For Cash/Payroll: correct →
+  ready; a posting account absent → `Missing`. (Reconciliation excluded — no static
+  contract.)
 
 ## Success criteria
 
