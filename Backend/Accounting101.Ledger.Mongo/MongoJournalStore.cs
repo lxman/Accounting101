@@ -243,14 +243,19 @@ public sealed class MongoJournalStore
     }
 
     /// <summary>Creates the indexes the prototype's read paths rely on. Idempotent.</summary>
-    public Task EnsureIndexesAsync(CancellationToken cancellationToken = default)
+    public async Task EnsureIndexesAsync(CancellationToken cancellationToken = default)
     {
         IndexKeysDefinitionBuilder<JournalEntryDocument> keys = Builders<JournalEntryDocument>.IndexKeys;
 
+        // The 3-key client_status_posting was superseded by the 4-key covering index below; drop it so the
+        // windowed folds stop residual-scanning on EffectiveDate. Ignore "not found" on a fresh database.
+        try { await _entries.Indexes.DropOneAsync("client_status_posting", cancellationToken); }
+        catch (MongoCommandException ex) when (ex.CodeName == "IndexNotFound") { }
+
         CreateIndexModel<JournalEntryDocument>[] models =
         [
-            new(keys.Ascending(e => e.ClientId).Ascending(e => e.Status).Ascending(e => e.Posting),
-                new CreateIndexOptions { Name = "client_status_posting" }),
+            new(keys.Ascending(e => e.ClientId).Ascending(e => e.Status).Ascending(e => e.Posting).Ascending(e => e.EffectiveDate),
+                new CreateIndexOptions { Name = "client_status_posting_effdate" }),
             new(keys.Ascending(e => e.ClientId).Ascending("Lines.AccountId"),
                 new CreateIndexOptions { Name = "client_lineAccount" }),
             new(keys.Ascending(e => e.ClientId).Ascending(e => e.EffectiveDate),
@@ -263,7 +268,7 @@ public sealed class MongoJournalStore
                 new CreateIndexOptions { Name = "client_lineDimension" }),
         ];
 
-        return _entries.Indexes.CreateManyAsync(models, cancellationToken);
+        await _entries.Indexes.CreateManyAsync(models, cancellationToken);
     }
 
     /// <summary>
