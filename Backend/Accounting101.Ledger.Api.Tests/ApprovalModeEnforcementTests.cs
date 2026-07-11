@@ -90,4 +90,41 @@ public sealed class ApprovalModeEnforcementTests(ApiFixture fixture) : IClassFix
         using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
         Assert.Equal("Posted", doc.RootElement.GetProperty("posting").GetString());
     }
+
+    [Fact]
+    public async Task Auto_approve_lands_a_revision_as_posted()
+    {
+        SeededClient c = await fixture.SeedClientAsync("AutoRevise", approvalMode: ApprovalMode.AutoApprove);
+        Guid debit = Guid.NewGuid(), credit = Guid.NewGuid();
+        PostEntryResponse original = await PostAsync(c.Http, c.ClientId, Balanced(Guid.NewGuid(), "2026-03-31", debit, credit));
+        Assert.Equal("Posted", original.Posting); // auto-approved at post, so the original is Active+Posted and revisable
+
+        // A revision supersedes the original and is created PendingApproval; under AutoApprove it approves
+        // inline (the supersede swap runs through the same engine ApproveAsync), landing Posted.
+        HttpResponseMessage resp = await c.Http.PostAsJsonAsync(
+            $"/clients/{c.ClientId}/entries/{original.Id}/revise",
+            new ReviseRequest(null, new DateOnly(2026, 3, 31), null, null, "corrected amount",
+                [new PostLineRequest(debit, "Debit", 150m), new PostLineRequest(credit, "Credit", 150m)]));
+        resp.EnsureSuccessStatusCode();
+        using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+        Assert.Equal("Posted", doc.RootElement.GetProperty("posting").GetString());
+    }
+
+    [Fact]
+    public async Task Auto_approve_writes_both_created_and_approved_audit_events_with_the_creating_actor()
+    {
+        SeededClient c = await fixture.SeedClientAsync("AutoAudit", approvalMode: ApprovalMode.AutoApprove);
+        PostEntryResponse posted = await PostAsync(c.Http, c.ClientId, Balanced(Guid.NewGuid(), "2026-03-31", Guid.NewGuid(), Guid.NewGuid()));
+        Assert.Equal("Posted", posted.Posting);
+
+        AuditRecordResponse[] timeline = (await c.Http.GetFromJsonAsync<AuditRecordResponse[]>(
+            $"/clients/{c.ClientId}/audit/{posted.Id}"))!;
+
+        // AutoApprove must leave the full evidentiary chain: both the post and the inline approval are recorded.
+        Assert.Contains(timeline, a => a.Action == "Created");
+        Assert.Contains(timeline, a => a.Action == "Approved");
+        // Both events are stamped with the same acting user — the one who posted (AutoApprove approves inline).
+        Assert.Equal(c.UserId, timeline.Single(a => a.Action == "Created").Actor.UserId);
+        Assert.Equal(c.UserId, timeline.Single(a => a.Action == "Approved").Actor.UserId);
+    }
 }
