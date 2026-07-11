@@ -104,15 +104,8 @@ public static class FixedAssetsEndpoints
     private static async Task<IResult> GetAsset(
         Guid clientId, Guid assetId, FixedAssetsService service, CancellationToken cancellationToken)
     {
-        try
-        {
-            Asset? asset = await service.GetAsync(clientId, assetId, cancellationToken);
-            return asset is null ? Results.NotFound() : Results.Ok(new AssetView(asset));
-        }
-        catch (LedgerClientException ex) // the engine refused the fold read (e.g. folded control account lacks its required dimension) — relay its real status + reason, not a 500
-        {
-            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
-        }
+        Asset? asset = await service.GetAsync(clientId, assetId, cancellationToken);
+        return asset is null ? Results.NotFound() : Results.Ok(new AssetView(asset));
     }
 
     private static async Task<IResult> ListAssets(
@@ -122,20 +115,11 @@ public static class FixedAssetsEndpoints
         if (!TryOrder(order, out bool descending))
             return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
 
-        try
-        {
-            // Route through the service so accumulated depreciation is folded from the ledger, not read from a
-            // store default of 0 (the stored field is gone). Mirrors the Cash/Payroll list reroutes.
-            PagedResponse<Asset> page = await service.GetByClientPagedAsync(
-                clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeInactive ?? false, cancellationToken);
+        PagedResponse<Asset> page = await service.GetByClientPagedAsync(
+            clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeInactive ?? false, cancellationToken);
 
-            return Results.Ok(new PagedResponse<AssetView>(
-                page.Items.Select(a => new AssetView(a)).ToList(), page.Total, page.Skip, page.Limit));
-        }
-        catch (LedgerClientException ex) // the engine refused the fold read (e.g. folded control account lacks its required dimension) — relay its real status + reason, not a 500
-        {
-            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
-        }
+        return Results.Ok(new PagedResponse<AssetView>(
+            page.Items.Select(a => new AssetView(a)).ToList(), page.Total, page.Skip, page.Limit));
     }
 
     // ── Depreciation Runs ───────────────────────────────────────────────────

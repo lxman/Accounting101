@@ -1,6 +1,7 @@
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Hosting;
 using Accounting101.Ledger.Contracts;
+using Accounting101.ModuleKit.Api;
 
 namespace Accounting101.Banking.Cash.Api;
 
@@ -27,9 +28,7 @@ public static class CashServiceExtensions
         // Use an explicit name to avoid a short-name collision with the other modules' ILedgerClient
         // (Cash, Payroll, Payables, and Invoicing all declare a type named "ILedgerClient"; the type-only
         // overload would key the HttpClient by that short name and last-wins-clobber the others).
-        services.AddHttpClient("CashLedgerClient", client =>
-                client.BaseAddress = new Uri(configuration["Engine:BaseAddress"] ?? "http://localhost"))
-            .AddTypedClient<ILedgerClient, HttpLedgerClient>();
+        services.AddModuleLedgerClient<ILedgerClient, HttpLedgerClient>("CashLedgerClient", configuration);
 
         return services;
     }

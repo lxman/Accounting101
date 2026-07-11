@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\Backend\Accounting101.Ledger.Contracts\Accounting101.Ledger.Contracts.csproj" />
+    <ProjectReference Include="..\..\..\Shared\Accounting101.ModuleKit\Accounting101.ModuleKit.csproj" />
   </ItemGroup>
 
 </Project>

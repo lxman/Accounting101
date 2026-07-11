@@ -2,14 +2,17 @@ using System.Net;
 using System.Net.Http.Json;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.ModuleKit;
-using Accounting101.Receivables.Api;
+using Accounting101.ModuleKit.Api;
 using Accounting101.Ledger.Contracts;
 using Microsoft.AspNetCore.Http;
 
-namespace Accounting101.Receivables.Tests;
+namespace Accounting101.ModuleKit.Tests;
 
-public sealed class HttpLedgerClientTests
+public sealed class ModuleLedgerClientTests
 {
+    private sealed class TestLedgerClient(HttpClient http, IHttpContextAccessor context, ModuleCredential credential)
+        : ModuleLedgerClient(http, context, credential);
+
     private sealed class CapturingHandler : HttpMessageHandler
     {
         public HttpRequestMessage? Last;
@@ -46,7 +49,7 @@ public sealed class HttpLedgerClientTests
             },
         };
         HttpClient http = new(handler) { BaseAddress = new Uri("http://engine.local") };
-        HttpLedgerClient client = new(http, ContextWith("DevToken abc"), DummyCredential());
+        TestLedgerClient client = new(http, ContextWith("DevToken abc"), DummyCredential());
 
         Guid clientId = Guid.NewGuid();
         PostEntryRequest entry = new(
@@ -72,7 +75,7 @@ public sealed class HttpLedgerClientTests
             },
         };
         HttpClient http = new(handler) { BaseAddress = new Uri("http://engine.local") };
-        HttpLedgerClient client = new(http, ContextWith("DevToken abc"), DummyCredential());
+        TestLedgerClient client = new(http, ContextWith("DevToken abc"), DummyCredential());
 
         PostEntryRequest entry = new(
             Id: null, EffectiveDate: new DateOnly(2024, 3, 31), Reference: "INV-1", Memo: null,
@@ -93,7 +96,7 @@ public sealed class HttpLedgerClientTests
             Response = new HttpResponseMessage(HttpStatusCode.OK) { Content = JsonContent.Create(Array.Empty<EntryResponse>()) },
         };
         HttpClient http = new(handler) { BaseAddress = new Uri("http://engine.local") };
-        HttpLedgerClient client = new(http, ContextWith("DevToken abc"), DummyCredential());
+        TestLedgerClient client = new(http, ContextWith("DevToken abc"), DummyCredential());
 
         Guid clientId = Guid.NewGuid();
         Guid sourceRef = Guid.NewGuid();
@@ -115,7 +118,7 @@ public sealed class HttpLedgerClientTests
             },
         };
         HttpClient http = new(handler) { BaseAddress = new Uri("http://engine.local") };
-        HttpLedgerClient client = new(http, ContextWith("DevToken abc"), DummyCredential());
+        TestLedgerClient client = new(http, ContextWith("DevToken abc"), DummyCredential());
 
         Guid clientId = Guid.NewGuid();
         Guid entryId = Guid.NewGuid();
@@ -138,7 +141,7 @@ public sealed class HttpLedgerClientTests
             },
         };
         HttpClient http = new(handler) { BaseAddress = new Uri("http://engine.local") };
-        HttpLedgerClient client = new(http, ContextWith("DevToken abc"), DummyCredential());
+        TestLedgerClient client = new(http, ContextWith("DevToken abc"), DummyCredential());
 
         PostEntryRequest entry = new(
             Id: null, EffectiveDate: new DateOnly(2026, 3, 31), Reference: null, Memo: null,
@@ -161,7 +164,7 @@ public sealed class HttpLedgerClientTests
             },
         };
         HttpClient http = new(handler) { BaseAddress = new Uri("http://engine.local") };
-        HttpLedgerClient client = new(http, ContextWith("DevToken abc"), DummyCredential());
+        TestLedgerClient client = new(http, ContextWith("DevToken abc"), DummyCredential());
 
         PostEntryRequest entry = new(
             Id: null, EffectiveDate: new DateOnly(2024, 3, 31), Reference: null, Memo: null,
@@ -176,7 +179,7 @@ public sealed class HttpLedgerClientTests
 
     /// <summary>
     /// When the engine returns a ValidationProblemDetails 422 with an <c>errors</c> map (field-level
-    /// messages), <see cref="HttpLedgerClient"/> must surface the field text — not just the generic
+    /// messages), <see cref="ModuleLedgerClient"/> must surface the field text — not just the generic
     /// <c>detail</c> summary — so callers can relay the actual cause.
     /// </summary>
     [Fact]
@@ -200,7 +203,7 @@ public sealed class HttpLedgerClientTests
             Response = new HttpResponseMessage((HttpStatusCode)422) { Content = JsonContent.Create(body) },
         };
         HttpClient http = new(handler) { BaseAddress = new Uri("http://engine.local") };
-        HttpLedgerClient client = new(http, ContextWith("DevToken abc"), DummyCredential());
+        TestLedgerClient client = new(http, ContextWith("DevToken abc"), DummyCredential());
 
         PostEntryRequest entry = new(
             Id: null, EffectiveDate: new DateOnly(2026, 3, 31), Reference: null, Memo: null,
