@@ -1,4 +1,5 @@
 using Accounting101.Ledger.Contracts;
+using Accounting101.ModuleKit;
 using Accounting101.Settlement;
 using System.Globalization;
 
@@ -35,6 +36,8 @@ public static class ReceivablesEndpoints
         clients.MapPost("/refunds", RecordRefund);
         clients.MapGet("/refunds", ListRefunds);
         clients.MapPost("/refunds/{refundId:guid}/void", VoidRefund);
+
+        clients.MapGet("/receivables/chart-readiness", ChartReadiness);
     }
 
     private static async Task<IResult> CreateCustomer(
@@ -341,5 +344,15 @@ public static class ReceivablesEndpoints
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
         }
+    }
+
+    // ── Chart Readiness ─────────────────────────────────────────────────────
+
+    private static async Task<IResult> ChartReadiness(
+        Guid clientId, ReceivablesChartRequirements requirements, ILedgerClient ledger, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<AccountRequirement> reqs = await requirements.ForAsync(clientId, cancellationToken);
+        IReadOnlyList<AccountResponse> chart = await ledger.GetAccountsAsync(clientId, cancellationToken);
+        return Results.Ok(ChartReadinessChecker.Check(reqs, chart, "receivables"));
     }
 }

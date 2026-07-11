@@ -1,5 +1,6 @@
 using Accounting101.Inventory;
 using Accounting101.Ledger.Contracts;
+using Accounting101.ModuleKit;
 
 namespace Accounting101.Inventory.Api;
 
@@ -22,6 +23,8 @@ public static class InventoryEndpoints
         clients.MapPost("/movements/{id:guid}/void", VoidMovement);
         clients.MapGet("/movements/{id:guid}", GetMovement);
         clients.MapGet("/movements", ListMovements);
+
+        clients.MapGet("/inventory/chart-readiness", ChartReadiness);
     }
 
     private static async Task<IResult> RecordMovement(
@@ -184,5 +187,15 @@ public static class InventoryEndpoints
         if (string.Equals(order, "desc", StringComparison.OrdinalIgnoreCase)) { descending = true; return true; }
         if (string.Equals(order, "asc", StringComparison.OrdinalIgnoreCase)) { descending = false; return true; }
         return false;
+    }
+
+    // ── Chart Readiness ─────────────────────────────────────────────────────
+
+    private static async Task<IResult> ChartReadiness(
+        Guid clientId, InventoryChartRequirements requirements, ILedgerClient ledger, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<AccountRequirement> reqs = await requirements.ForAsync(clientId, cancellationToken);
+        IReadOnlyList<AccountResponse> chart = await ledger.GetAccountsAsync(clientId, cancellationToken);
+        return Results.Ok(ChartReadinessChecker.Check(reqs, chart, "inventory"));
     }
 }

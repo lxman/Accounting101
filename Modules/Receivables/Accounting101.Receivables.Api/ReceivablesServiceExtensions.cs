@@ -33,6 +33,7 @@ public static class ReceivablesServiceExtensions
         services.AddScoped<CustomerAccountService>();
         services.AddSingleton<IInvoiceAccountsProvider, ConfiguredInvoiceAccountsProvider>();
         services.AddSingleton<IPaymentAccountsProvider, ConfiguredPaymentAccountsProvider>();
+        services.AddScoped<ReceivablesChartRequirements>();
 
         services.AddHttpClient<ILedgerClient, HttpLedgerClient>(client =>
             client.BaseAddress = new Uri(configuration["Engine:BaseAddress"] ?? "http://localhost"));

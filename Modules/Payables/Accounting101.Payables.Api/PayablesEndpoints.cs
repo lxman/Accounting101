@@ -1,4 +1,5 @@
 using Accounting101.Ledger.Contracts;
+using Accounting101.ModuleKit;
 using Accounting101.Settlement;
 using System.Globalization;
 
@@ -28,6 +29,7 @@ public static class PayablesEndpoints
         clients.MapGet("/vendor-credit-applications", ListCreditApplications);
         clients.MapGet("/vendors/{vendorId:guid}/credit-balance", GetCreditBalance);
         clients.MapGet("/vendors/{vendorId:guid}/account", GetVendorAccount);
+        clients.MapGet("/payables/chart-readiness", ChartReadiness);
     }
 
     private static async Task<IResult> CreateVendor(
@@ -241,5 +243,15 @@ public static class PayablesEndpoints
 
         VendorAccountView? view = await service.GetAccountAsync(clientId, vendorId, date, cancellationToken);
         return view is null ? Results.NotFound() : Results.Ok(view);
+    }
+
+    // ── Chart Readiness ─────────────────────────────────────────────────────
+
+    private static async Task<IResult> ChartReadiness(
+        Guid clientId, PayablesChartRequirements requirements, ILedgerClient ledger, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<AccountRequirement> reqs = await requirements.ForAsync(clientId, cancellationToken);
+        IReadOnlyList<AccountResponse> chart = await ledger.GetAccountsAsync(clientId, cancellationToken);
+        return Results.Ok(ChartReadinessChecker.Check(reqs, chart, "payables"));
     }
 }

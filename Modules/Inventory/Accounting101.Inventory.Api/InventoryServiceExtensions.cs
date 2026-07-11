@@ -29,6 +29,7 @@ public static class InventoryServiceExtensions
         services.AddScoped<InventoryMovementService>();
         services.AddScoped<ItemValuationService>();
         services.AddSingleton<IInventoryAccountsProvider, ConfiguredInventoryAccountsProvider>();
+        services.AddScoped<InventoryChartRequirements>();
 
         // Explicit client name to avoid the ILedgerClient short-name collision across modules.
         services.AddModuleLedgerClient<ILedgerClient, HttpLedgerClient>("InventoryLedgerClient", configuration);

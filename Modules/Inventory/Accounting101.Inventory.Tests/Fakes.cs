@@ -99,6 +99,9 @@ internal sealed class FakeLedgerClient : ILedgerClient
             totals.Select(kv => new SubledgerLineResponse(account, kv.Key, kv.Value)).ToList());
     }
 
+    public Task<IReadOnlyList<AccountResponse>> GetAccountsAsync(Guid clientId, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Not needed by this fake's consumers; ChartReadinessE2eTests exercises the real HTTP-backed engine.");
+
     private static string Flip(string direction) => direction == "Debit" ? "Credit" : "Debit";
 
     private static EntryResponse Entry(

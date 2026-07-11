@@ -218,4 +218,25 @@ public sealed class ModuleLedgerClientTests
         Assert.Contains("1200", ex.Reason);
         Assert.DoesNotContain("One or more fields are invalid", ex.Reason);
     }
+
+    [Fact]
+    public async Task GetAccounts_forwards_auth_and_targets_the_accounts_endpoint()
+    {
+        CapturingHandler handler = new()
+        {
+            Response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = JsonContent.Create(Array.Empty<AccountResponse>()),
+            },
+        };
+        HttpClient http = new(handler) { BaseAddress = new Uri("http://engine.local") };
+        TestLedgerClient client = new(http, ContextWith("DevToken abc"), DummyCredential());
+
+        Guid clientId = Guid.NewGuid();
+        await client.GetAccountsAsync(clientId);
+
+        Assert.Equal(HttpMethod.Get, handler.Last!.Method);
+        Assert.Equal($"http://engine.local/clients/{clientId}/accounts", handler.Last.RequestUri!.ToString());
+        Assert.Equal("DevToken abc", handler.Last.Headers.GetValues("Authorization").Single());
+    }
 }

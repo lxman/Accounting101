@@ -24,6 +24,7 @@ public static class PayrollServiceExtensions
         services.AddScoped<ITaxRemittanceStore>(sp => new DocumentTaxRemittanceStore(sp.GetRequiredKeyedService<IDocumentStore>("payroll")));
         services.AddScoped<PayrollService>();
         services.AddSingleton<IPayrollAccountsProvider, ConfiguredPayrollAccountsProvider>();
+        services.AddScoped<PayrollChartRequirements>();
 
         // Use an explicit name to avoid a short-name collision with the other modules' ILedgerClient
         // (Payroll, Payables, and Invoicing all declare a type named "ILedgerClient"; the type-only

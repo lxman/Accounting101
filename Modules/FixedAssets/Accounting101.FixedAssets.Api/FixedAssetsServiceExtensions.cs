@@ -36,6 +36,7 @@ public static class FixedAssetsServiceExtensions
         services.AddSingleton<IDepreciationMethod, DecliningBalanceDepreciation>();
         services.AddSingleton(sp => new DepreciationMethodSelector(sp.GetServices<IDepreciationMethod>()));
         services.AddSingleton<IFixedAssetsAccountsProvider, ConfiguredFixedAssetsAccountsProvider>();
+        services.AddScoped<FixedAssetsChartRequirements>();
 
         // Explicit client name to avoid the ILedgerClient short-name collision across modules.
         services.AddModuleLedgerClient<ILedgerClient, HttpLedgerClient>("FixedAssetsLedgerClient", configuration);

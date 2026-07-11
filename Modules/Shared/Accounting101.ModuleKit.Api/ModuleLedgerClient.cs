@@ -84,6 +84,14 @@ public abstract class ModuleLedgerClient(HttpClient http, IHttpContextAccessor c
         return (await response.Content.ReadFromJsonAsync<List<EntryResponse>>(cancellationToken))!;
     }
 
+    public async Task<IReadOnlyList<AccountResponse>> GetAccountsAsync(Guid clientId, CancellationToken cancellationToken = default)
+    {
+        using HttpRequestMessage request = Forwarded(HttpMethod.Get, $"clients/{clientId}/accounts");
+        using HttpResponseMessage response = await http.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken);
+        return (await response.Content.ReadFromJsonAsync<List<AccountResponse>>(cancellationToken))!;
+    }
+
     public async Task<IReadOnlyList<SubledgerLineResponse>> GetSubledgerAsync(
         Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default,
         bool includePending = false)
