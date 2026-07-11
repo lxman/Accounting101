@@ -711,12 +711,30 @@ public static class LedgerEndpoints
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.ManageAccounts, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
+        // Parse the wire enums up front so a bad Type/CashFlowActivity value returns an actionable,
+        // structured 422 (field + bad value + valid values) instead of a raw Enum.Parse exception
+        // message — parity with the entry-post path's TryMapEntry errors.
+        Dictionary<string, string[]> parseErrors = [];
+        if (!TryParseEnum(request.Type, "type", out AccountType accountType, out KeyValuePair<string, string[]>? typeErr))
+            parseErrors.Add(typeErr!.Value.Key, typeErr.Value.Value);
+
+        CashFlowActivity? cashFlow = null;
+        if (request.CashFlowActivity is { } cfa)
+        {
+            if (TryParseEnum(cfa, "cashFlowActivity", out CashFlowActivity parsedCfa, out KeyValuePair<string, string[]>? cfaErr))
+                cashFlow = parsedCfa;
+            else
+                parseErrors.Add(cfaErr!.Value.Key, cfaErr.Value.Value);
+        }
+
+        if (parseErrors.Count > 0) return ValidationProblem(parseErrors);
+
         Account account;
         try
         {
-            account = MapAccount(clientId, accountId, request);
+            account = MapAccount(clientId, accountId, request, accountType, cashFlow);
         }
-        catch (ArgumentException ex) // unknown Type / RequiredDimension
+        catch (ArgumentException ex) // unknown RequiredDimension
         {
             return Unprocessable(ex.Message);
         }
@@ -821,6 +839,23 @@ public static class LedgerEndpoints
         Results.ValidationProblem(errors, detail: "One or more fields are invalid.",
             statusCode: StatusCodes.Status422UnprocessableEntity);
 
+    /// <summary>Parse an enum case-insensitively, or produce a structured field error listing the valid
+    /// values — so a bad wire value returns an actionable 422 instead of a raw Enum.Parse message.</summary>
+    private static bool TryParseEnum<TEnum>(
+        string? raw, string field, out TEnum value, out KeyValuePair<string, string[]>? error)
+        where TEnum : struct, Enum
+    {
+        if (Enum.TryParse(raw, ignoreCase: true, out value) && Enum.IsDefined(value))
+        {
+            error = null;
+            return true;
+        }
+        string valid = string.Join(", ", Enum.GetNames<TEnum>());
+        error = new KeyValuePair<string, string[]>(
+            field, [$"'{raw}' is not a valid {typeof(TEnum).Name}. Valid: {valid}."]);
+        return false;
+    }
+
     private static EntryResponse ToEntryResponse(JournalEntry e) => new(
         e.Id, e.SequenceNumber, e.EffectiveDate,
         e.Type.ToString(), e.Status.ToString(), e.Posting.ToString(),
@@ -834,21 +869,20 @@ public static class LedgerEndpoints
         a.RequiredDimension, a.RequiredDimensions.ToArray(), a.CashFlowActivity?.ToString(),
         a.IsRetainedEarnings, a.Active, a.NormalSide.ToString(), a.IsTemporary);
 
-    private static Account MapAccount(Guid clientId, Guid accountId, AccountRequest request) => new()
+    private static Account MapAccount(
+        Guid clientId, Guid accountId, AccountRequest request, AccountType type, CashFlowActivity? cashFlow) => new()
     {
         Id = accountId,
         ClientId = clientId,
         Number = request.Number,
         Name = request.Name,
-        Type = Enum.Parse<AccountType>(request.Type, ignoreCase: true),
+        Type = type,
         ParentId = request.ParentId,
         Postable = request.Postable,
         RequiredDimensions = request.RequiredDimensions is { Count: > 0 } set
             ? set.Distinct().ToArray()
             : request.RequiredDimension is { } single ? [single] : [],
-        CashFlowActivity = request.CashFlowActivity is null
-            ? null
-            : Enum.Parse<CashFlowActivity>(request.CashFlowActivity, ignoreCase: true),
+        CashFlowActivity = cashFlow,
         IsRetainedEarnings = request.IsRetainedEarnings,
         Active = request.Active,
     };
