@@ -10,12 +10,16 @@ export class ChartHealthService {
   private readonly http = inject(HttpClient);
   private readonly client = inject(ClientContextService);
 
-  /** Reads all six modules' chart readiness. A failing host becomes an errored entry, never a thrown stream. */
-  readiness(): Observable<ModuleHealth[]> {
+  /**
+   * Reads chart readiness for the given modules (default all six). A failing host becomes an
+   * errored entry, never a thrown stream. Callers pass the caller's visible subset so the widget
+   * never requests a module the user lacks read capability for.
+   */
+  readiness(modules: { key: string; label: string }[] = CHART_HEALTH_MODULES): Observable<ModuleHealth[]> {
     const id = this.client.clientId();
     if (!id) return EMPTY;
     return forkJoin(
-      CHART_HEALTH_MODULES.map(m =>
+      modules.map(m =>
         this.http.get<ChartReadinessReport>(`${environment.apiBaseUrl}/clients/${id}/${m.key}/chart-readiness`).pipe(
           map((report): ModuleHealth => ({ key: m.key, label: m.label, report, errored: false })),
           catchError(() => of<ModuleHealth>({ key: m.key, label: m.label, report: null, errored: true })),
