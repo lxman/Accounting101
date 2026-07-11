@@ -33,6 +33,38 @@ public sealed class ChartReadinessE2eTests(ReceivablesHostFixture fixture) : ICl
     }
 
     [Fact]
+    public async Task Readiness_includes_a_requirement_for_each_configured_revenue_category()
+    {
+        // The fixture maps category "License" -> LicenseRevenueAccountId. With that account present as
+        // Revenue, the readiness report must contain an Ok result labeled "Revenue: License".
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
+        await SetUpChartAsync(http, clientId, receivableDims: ["Customer", "Invoice"]);
+
+        ChartReadinessReport report = (await http.GetFromJsonAsync<ChartReadinessReport>(
+            $"/clients/{clientId}/receivables/chart-readiness"))!;
+
+        AccountReadinessResult licenseRevenue = Assert.Single(report.Accounts, a => a.Label == "Revenue: License");
+        Assert.Equal(fixture.LicenseRevenueAccountId, licenseRevenue.AccountId);
+        Assert.Equal(AccountReadinessStatus.Ok, licenseRevenue.Status);
+    }
+
+    [Fact]
+    public async Task Revenue_category_account_that_does_not_exist_surfaces_a_gap()
+    {
+        // Everything else present, but the configured License category account was never added to the
+        // chart — the report must flag it as Missing rather than silently ignoring it.
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
+        await SetUpChartAsync(http, clientId, receivableDims: ["Customer", "Invoice"], includeLicenseRevenue: false);
+
+        ChartReadinessReport report = (await http.GetFromJsonAsync<ChartReadinessReport>(
+            $"/clients/{clientId}/receivables/chart-readiness"))!;
+
+        Assert.False(report.Ready);
+        AccountReadinessResult licenseRevenue = Assert.Single(report.Accounts, a => a.Label == "Revenue: License");
+        Assert.Equal(AccountReadinessStatus.Missing, licenseRevenue.Status);
+    }
+
+    [Fact]
     public async Task Receivable_account_without_customer_and_invoice_dimensions_is_not_ready()
     {
         (Guid clientId, HttpClient http) = await fixture.SeedClientAsync();
@@ -50,7 +82,8 @@ public sealed class ChartReadinessE2eTests(ReceivablesHostFixture fixture) : ICl
 
     /// <summary>Mirrors the AR proof/relay chart-setup (<c>SettlementScenario.SetUpChartAsync</c>), except
     /// the Receivable account's dimensions are parameterized so the misconfigured case can drop them.</summary>
-    private async Task SetUpChartAsync(HttpClient http, Guid clientId, IReadOnlyList<string>? receivableDims)
+    private async Task SetUpChartAsync(HttpClient http, Guid clientId, IReadOnlyList<string>? receivableDims,
+        bool includeLicenseRevenue = true)
     {
         await Put(http, clientId, fixture.ReceivableAccountId,      "1100", "Accounts Receivable", "Asset",     receivableDims);
         await Put(http, clientId, fixture.CustomerCreditsAccountId, "2300", "Customer Credits",    "Liability", ["Customer"]);
@@ -59,6 +92,8 @@ public sealed class ChartReadinessE2eTests(ReceivablesHostFixture fixture) : ICl
         await Put(http, clientId, fixture.CashAccountId,            "1000", "Cash",                "Asset",     null);
         await Put(http, clientId, fixture.BadDebtExpenseAccountId,  "6000", "Bad Debt Expense",    "Expense",   null);
         await Put(http, clientId, fixture.SalesReturnsAccountId,    "4900", "Sales Returns",       "Revenue",   null);
+        if (includeLicenseRevenue)
+            await Put(http, clientId, fixture.LicenseRevenueAccountId, "4100", "License Revenue", "Revenue", null);
     }
 
     // fixture.SeedClientAsync() always registers a Controller member (holds every .read), so these two

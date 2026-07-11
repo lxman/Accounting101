@@ -12,7 +12,8 @@ public sealed class ReceivablesChartRequirements(
     {
         InvoicePostingAccounts inv = await invoiceAccounts.GetAsync(clientId, ct);
         PaymentPostingAccounts pay = await paymentAccounts.GetAsync(clientId, ct);
-        return
+
+        List<AccountRequirement> requirements =
         [
             new(inv.ReceivableAccountId,       "Accounts Receivable", "Asset",     ["Customer", "Invoice"]),
             new(pay.CustomerCreditsAccountId,  "Customer Credits",    "Liability", ["Customer"]),
@@ -22,5 +23,12 @@ public sealed class ReceivablesChartRequirements(
             new(pay.BadDebtExpenseAccountId,   "Bad Debt Expense",    "Expense",   []),
             new(pay.SalesReturnsAccountId,     "Sales Returns",       "Revenue",   []),
         ];
+
+        // Per-category revenue accounts an invoice line may post to (configured RevenueByCategory map). Each
+        // must be a real, correctly-typed Revenue account, or a line tagged with that category would fail to post.
+        foreach ((string category, Guid accountId) in inv.RevenueAccountsByCategory)
+            requirements.Add(new(accountId, $"Revenue: {category}", "Revenue", []));
+
+        return requirements;
     }
 }
