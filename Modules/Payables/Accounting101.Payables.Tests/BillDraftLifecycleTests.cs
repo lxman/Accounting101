@@ -1,4 +1,5 @@
 using Accounting101.Ledger.Contracts;
+using Accounting101.ModuleKit;
 
 namespace Accounting101.Payables.Tests;
 

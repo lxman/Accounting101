@@ -102,10 +102,6 @@ public static class PayablesEndpoints
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
         }
-        catch (LedgerClientException ex) // the engine refused — relay its real status + reason, not a 500
-        {
-            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
-        }
     }
 
     private static async Task<IResult> VoidBill(
@@ -119,10 +115,6 @@ public static class PayablesEndpoints
         catch (InvalidOperationException ex) // not entered, not found, or no posted entry
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
-        }
-        catch (LedgerClientException ex) // the engine refused — relay its real status + reason, not a 500
-        {
-            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
         }
     }
 
@@ -191,10 +183,6 @@ public static class PayablesEndpoints
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
         }
-        catch (LedgerClientException ex) // the engine refused — relay its real status + reason, not a 500
-        {
-            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
-        }
     }
 
     private static async Task<IResult> VoidPayment(
@@ -208,10 +196,6 @@ public static class PayablesEndpoints
         catch (InvalidOperationException ex)
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
-        }
-        catch (LedgerClientException ex) // the engine refused — relay its real status + reason, not a 500
-        {
-            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
         }
     }
 
@@ -227,10 +211,6 @@ public static class PayablesEndpoints
         catch (InvalidOperationException ex)
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
-        }
-        catch (LedgerClientException ex) // the engine refused — relay its real status + reason, not a 500
-        {
-            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
         }
     }
 

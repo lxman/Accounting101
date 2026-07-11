@@ -1,6 +1,7 @@
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Hosting;
 using Accounting101.Ledger.Contracts;
+using Accounting101.ModuleKit.Api;
 
 namespace Accounting101.Payables.Api;
 
@@ -30,9 +31,7 @@ public static class PayablesServiceExtensions
 
         // Use an explicit name to avoid a short-name collision with Accounting101.Invoicing.ILedgerClient
         // (both are named "ILedgerClient" by the factory when using the type-only overload).
-        services.AddHttpClient("PayablesLedgerClient", client =>
-                client.BaseAddress = new Uri(configuration["Engine:BaseAddress"] ?? "http://localhost"))
-            .AddTypedClient<ILedgerClient, HttpLedgerClient>();
+        services.AddModuleLedgerClient<ILedgerClient, HttpLedgerClient>("PayablesLedgerClient", configuration);
 
         return services;
     }
