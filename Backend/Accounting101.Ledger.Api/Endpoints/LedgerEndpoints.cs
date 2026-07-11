@@ -1185,6 +1185,16 @@ public static class LedgerEndpoints
                 foreach (string dimension in account.RequiredDimensions)
                     if (!line.Dimensions.ContainsKey(dimension))
                         lineErrors.Add($"Account {account.Number} \"{account.Name}\" requires a {dimension} on the posting line.");
+
+                // Typo guard: a control account (one that declares required dimensions) must not carry an UNDECLARED
+                // dimension key — a misspelled key ("Custommer") would otherwise be stored silently and the subledger
+                // fold, which keys on the declared dimension, would never see it. Non-control accounts are untouched.
+                if (account.RequiredDimensions.Count > 0)
+                    foreach (string key in line.Dimensions.Keys)
+                        if (!account.RequiredDimensions.Contains(key))
+                            lineErrors.Add(
+                                $"Account {account.Number} \"{account.Name}\" does not declare the dimension '{key}' "
+                                + $"(expected: {string.Join(", ", account.RequiredDimensions)}).");
             }
 
             if (lineErrors.Count > 0)
