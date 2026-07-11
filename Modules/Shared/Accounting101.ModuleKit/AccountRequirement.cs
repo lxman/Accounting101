@@ -1,6 +1,9 @@
+using System.Text.Json.Serialization;
+
 namespace Accounting101.ModuleKit;
 
 /// <summary>The status of one required account against a client's chart.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum AccountReadinessStatus { Ok, Missing, Inactive, WrongType, MissingDimensions }
 
 /// <summary>A module's declared expectation for one chart account it posts to or folds.
