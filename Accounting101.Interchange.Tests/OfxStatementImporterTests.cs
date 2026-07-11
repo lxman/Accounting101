@@ -176,4 +176,26 @@ public sealed class OfxStatementImporterTests
         Assert.Empty(result.Records);
         Assert.Contains(result.Warnings, w => w.Contains("2000"));
     }
+
+    [Fact]
+    public void Ofx_2x_xml_with_multiple_statements_yields_multiple_records_without_cross_contamination()
+    {
+        string multi =
+            "<?xml version=\"1.0\"?><OFX><BANKMSGSRSV1>" +
+            "<STMTTRNRS><STMTRS><BANKACCTFROM><ACCTID>ACCT-A</ACCTID><ACCTTYPE>CHECKING</ACCTTYPE></BANKACCTFROM>" +
+            "<BANKTRANLIST><STMTTRN><DTPOSTED>20260601</DTPOSTED><TRNAMT>10.00</TRNAMT><FITID>X1</FITID><NAME>A1</NAME></STMTTRN></BANKTRANLIST>" +
+            "<LEDGERBAL><BALAMT>10.00</BALAMT><DTASOF>20260630</DTASOF></LEDGERBAL></STMTRS></STMTTRNRS>" +
+            "<STMTTRNRS><STMTRS><BANKACCTFROM><ACCTID>ACCT-B</ACCTID><ACCTTYPE>SAVINGS</ACCTTYPE></BANKACCTFROM>" +
+            "<BANKTRANLIST><STMTTRN><DTPOSTED>20260602</DTPOSTED><TRNAMT>20.00</TRNAMT><FITID>Y1</FITID><NAME>B1</NAME></STMTTRN></BANKTRANLIST>" +
+            "<LEDGERBAL><BALAMT>20.00</BALAMT><DTASOF>20260630</DTASOF></LEDGERBAL></STMTRS></STMTTRNRS>" +
+            "</BANKMSGSRSV1></OFX>";
+        ImportResult<ImportedStatement> result = Import(multi);
+        Assert.Equal(2, result.Records.Count);
+        Assert.Equal("ACCT-A", result.Records[0].AccountHint);
+        Assert.Equal("ACCT-B", result.Records[1].AccountHint);
+        Assert.Equal("X1", Assert.Single(result.Records[0].Lines).Reference);   // no cross-contamination
+        Assert.Equal("Y1", Assert.Single(result.Records[1].Lines).Reference);
+        Assert.Equal(10.00m, result.Records[0].ClosingBalance);
+        Assert.Equal(20.00m, result.Records[1].ClosingBalance);
+    }
 }

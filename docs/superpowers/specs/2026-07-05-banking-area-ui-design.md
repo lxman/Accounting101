@@ -30,7 +30,7 @@ Non-goals: no backend changes; no new domain logic. If a backend gap is discover
 **Statements**
 - `POST /bank-statements` — `RecordBankStatementRequest(CashAccountId, StatementDate, OpeningBalance, ClosingBalance, Lines[])`; line `BankStatementLineRequest(Date, Amount, Description, ExternalRef?)`. Must **foot** (`opening + Σlines == closing`) or `422`.
 - `GET /bank-statements/{id}` · `GET /bank-statements?cashAccountId=…` (list; **cashAccountId required**, paged, `order=asc|desc`).
-- `POST /bank-statements/import` (multipart: `file`, `format`, `mapping?`) — parses to a **preview**, creates nothing. Returns `ImportPreviewResponse(Statements[], Warnings[])`, each `StatementPreview(Lines[], DetectedOpeningBalance?, DetectedClosingBalance?, StatementDate?, AccountHint?)`. Client reviews, fills gaps, then POSTs to `/bank-statements`. CSV requires a `mapping` (JSON `CsvMapping`); OFX 1.x supported; OFX 2.x XML → `422 NotSupported`.
+- `POST /bank-statements/import` (multipart: `file`, `format`, `mapping?`) — parses to a **preview**, creates nothing. Returns `ImportPreviewResponse(Statements[], Warnings[])`, each `StatementPreview(Lines[], DetectedOpeningBalance?, DetectedClosingBalance?, StatementDate?, AccountHint?)`. Client reviews, fills gaps, then POSTs to `/bank-statements`. CSV requires a `mapping` (JSON `CsvMapping`); OFX 1.x supported; OFX 2.x XML → `422 NotSupported`. *(Superseded 2026-07-11: OFX 2.x XML now imports to a preview like 1.x.)*
 - Statement read model: `BankStatement(Id, Number "BST-#####", CashAccountId, StatementDate, OpeningBalance, ClosingBalance, Lines[], Status Posted|Void)`; line amount signed from the bank's perspective (+ in, − out).
 
 **Reconciliation**
@@ -119,7 +119,7 @@ Each slice is an independent, shippable increment reviewed via subagent-driven d
 
 - Foot failure (`422`), unbalanced complete (`409`), adjustment guards (`422`/`409`), engine relays (closed period, unknown account) → surfaced inline via the existing `ReasonFrom`/problem-details flattening pattern, never swallowed.
 - `busy` signal cleared in **both** `next` and `error` observers on every mutate/reload (the known "stuck busy" trap).
-- Import warnings shown non-fatally; OFX 2.x XML `422` shown as "not yet supported."
+- Import warnings shown non-fatally. *(Superseded 2026-07-11: OFX 2.x XML now imports like 1.x — no "not yet supported" state.)*
 
 ## 7. Testing
 
