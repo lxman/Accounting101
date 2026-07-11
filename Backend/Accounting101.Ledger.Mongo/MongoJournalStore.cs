@@ -201,7 +201,7 @@ public sealed class MongoJournalStore
     /// <summary>
     /// Entries for <paramref name="clientId"/> whose posting state matches <paramref name="posting"/>,
     /// paged via <paramref name="skip"/>/<paramref name="limit"/>, in sequence order. Served by the
-    /// <c>client_status_posting</c> index. <paramref name="limit"/> &lt;= 0 means no limit.
+    /// <c>client_status_posting_effdate</c> index (its client+status+posting prefix). <paramref name="limit"/> &lt;= 0 means no limit.
     /// </summary>
     public async Task<IReadOnlyList<JournalEntry>> GetByPostingAsync(
         Guid clientId, PostingState posting, int skip, int limit,
