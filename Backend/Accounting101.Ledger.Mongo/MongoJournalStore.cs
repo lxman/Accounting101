@@ -242,6 +242,19 @@ public sealed class MongoJournalStore
         return _entries.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
     }
 
+    /// <summary>Distinct, non-empty SourceType values present in a client's journal — the discovery list a
+    /// module uses to offer source-type filters. Sorted for a stable response.</summary>
+    public async Task<IReadOnlyList<string>> DistinctSourceTypesAsync(
+        Guid clientId, CancellationToken cancellationToken = default)
+    {
+        FilterDefinition<JournalEntryDocument> filter = Builders<JournalEntryDocument>.Filter.And(
+            Builders<JournalEntryDocument>.Filter.Eq(e => e.ClientId, clientId),
+            Builders<JournalEntryDocument>.Filter.Ne(e => e.SourceType, null));
+        List<string> values = await (await _entries.DistinctAsync(e => e.SourceType!, filter, cancellationToken: cancellationToken))
+            .ToListAsync(cancellationToken);
+        return values.Where(v => !string.IsNullOrWhiteSpace(v)).OrderBy(v => v, StringComparer.Ordinal).ToList();
+    }
+
     /// <summary>Creates the indexes the prototype's read paths rely on. Idempotent.</summary>
     public async Task EnsureIndexesAsync(CancellationToken cancellationToken = default)
     {

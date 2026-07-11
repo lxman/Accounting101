@@ -51,6 +51,8 @@ public static class LedgerEndpoints
         clients.MapGet("/statements/cash-flow", GetCashFlow);
         clients.MapGet("/accounts", ListAccounts);
         clients.MapGet("/accounts/{accountId:guid}", GetAccount);
+        clients.MapGet("/dimensions", GetDimensions);
+        clients.MapGet("/source-types", GetSourceTypes);
         clients.MapGet("/accounts/{accountId:guid}/balance", GetAccountBalance);
         clients.MapGet("/audit", GetClientAudit);
         clients.MapGet("/audit/verify", VerifyAudit);
@@ -777,6 +779,41 @@ public static class LedgerEndpoints
         return account is null || account.ClientId != clientId
             ? Results.NotFound()
             : Results.Ok(ToAccountResponse(account));
+    }
+
+    /// <summary>
+    /// The distinct dimension keys declared across the client's chart (the union of every account's
+    /// <see cref="Account.RequiredDimensions"/>), sorted. A discovery list for a caller building a
+    /// dimension picker — no journal scan, since the vocabulary lives entirely in the chart.
+    /// </summary>
+    private static async Task<IResult> GetDimensions(
+        Guid clientId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        ChartOfAccounts chart = await ctx.Ledger.Accounts.GetChartAsync(clientId, cancellationToken);
+        List<string> dims = chart.Accounts
+            .SelectMany(a => a.RequiredDimensions)
+            .Distinct()
+            .OrderBy(d => d, StringComparer.Ordinal)
+            .ToList();
+        return Results.Ok(dims);
+    }
+
+    /// <summary>
+    /// The distinct <see cref="JournalEntry.SourceType"/> values actually present in the client's
+    /// journal, sorted — the discovery list a caller uses to offer source-type filters without
+    /// hardcoding a vocabulary.
+    /// </summary>
+    private static async Task<IResult> GetSourceTypes(
+        Guid clientId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        IReadOnlyList<string> types = await ctx.Ledger.Journal.DistinctSourceTypesAsync(clientId, cancellationToken);
+        return Results.Ok(types);
     }
 
     private static async Task<IResult> CloseYear(
