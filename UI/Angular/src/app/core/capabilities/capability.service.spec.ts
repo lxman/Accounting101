@@ -29,10 +29,10 @@ describe('CapabilityService', () => {
     TestBed.flushEffects?.();
   }
 
-  function flush(caps: string[], roles: string[] = [], deploymentAdmin = false) {
+  function flush(caps: string[], roles: string[] = [], deploymentAdmin = false, enabledModules: string[] = []) {
     const clientId = client.clientId();
     const req = http.expectOne(`${environment.apiBaseUrl}/clients/${clientId}/me/capabilities`);
-    req.flush({ capabilities: caps, roles, deploymentAdmin });
+    req.flush({ capabilities: caps, roles, deploymentAdmin, enabledModules });
   }
 
   it('starts empty with no client selected', () => {
@@ -81,6 +81,14 @@ describe('CapabilityService', () => {
     TestBed.flushEffects?.();
     expect(svc.loaded()).toBe(true);
     expect(svc.capabilities().size).toBe(0);
+  });
+
+  it('exposes moduleEnabled() from enabledModules', () => {
+    client.select('c1');
+    tick();
+    flush(['gl.read'], [], false, ['cash']);
+    expect(svc.moduleEnabled('cash')).toBe(true);
+    expect(svc.moduleEnabled('payables')).toBe(false);
   });
 
   it('reload() refetches /me/capabilities without a key change', () => {
