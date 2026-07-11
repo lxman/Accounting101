@@ -1,5 +1,6 @@
 using Accounting101.FixedAssets;
 using Accounting101.Ledger.Contracts;
+using Accounting101.ModuleKit;
 
 namespace Accounting101.FixedAssets.Api;
 
@@ -27,6 +28,8 @@ public static class FixedAssetsEndpoints
         clients.MapPost("/disposals/{disposalId:guid}/void", VoidDisposal);
         clients.MapGet("/disposals/{disposalId:guid}", GetDisposal);
         clients.MapGet("/disposals", ListDisposals);
+
+        clients.MapGet("/fixedassets/chart-readiness", ChartReadiness);
     }
 
     private static async Task<IResult> CreateAsset(
@@ -226,6 +229,16 @@ public static class FixedAssetsEndpoints
             clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeVoided ?? false, cancellationToken);
         return Results.Ok(new PagedResponse<DisposalView>(
             page.Items.Select(d => new DisposalView(d)).ToList(), page.Total, page.Skip, page.Limit));
+    }
+
+    // ── Chart Readiness ─────────────────────────────────────────────────────
+
+    private static async Task<IResult> ChartReadiness(
+        Guid clientId, FixedAssetsChartRequirements requirements, ILedgerClient ledger, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<AccountRequirement> reqs = await requirements.ForAsync(clientId, cancellationToken);
+        IReadOnlyList<AccountResponse> chart = await ledger.GetAccountsAsync(clientId, cancellationToken);
+        return Results.Ok(ChartReadinessChecker.Check(reqs, chart, "fixedassets"));
     }
 
     private static bool TryOrder(string? order, out bool descending)
