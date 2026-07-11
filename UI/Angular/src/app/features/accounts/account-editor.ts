@@ -14,6 +14,7 @@ import { CanDirective } from '../../core/capabilities/can.directive';
 interface EditorValue {
   number: string; name: string; type: AccountType; parentId: string | null;
   cashFlowActivity: string; postable: boolean; isRetainedEarnings: boolean; active: boolean;
+  requiredDimensions: string[];
 }
 const TYPES: AccountType[] = ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense'];
 const DEBIT_TYPES = new Set<AccountType>(['Asset', 'Expense']);
@@ -71,6 +72,12 @@ const DEBIT_TYPES = new Set<AccountType>(['Asset', 'Expense']);
           </hlm-select-content>
         </div>
       </div>
+      <div class="flex flex-col gap-1">
+        <label hlmLabel>Required dimensions (comma-separated)</label>
+        <input hlmInput type="text" [value]="dimsText()" (change)="setDims($any($event.target).value)"
+               placeholder="e.g. Customer, Invoice" />
+        <p class="text-muted-foreground text-xs">Control accounts require these dimension axes on every posting line.</p>
+      </div>
       <div class="flex flex-col gap-2 text-sm">
         <label class="flex items-center gap-2"><input type="checkbox" [checked]="accountForm.postable().value()" (change)="accountForm.postable().value.set($any($event.target).checked)" /> Postable (leaf account)</label>
         <label class="flex items-center gap-2"><input type="checkbox" [checked]="accountForm.isRetainedEarnings().value()" (change)="accountForm.isRetainedEarnings().value.set($any($event.target).checked)" /> Retained-earnings account</label>
@@ -93,6 +100,7 @@ export class AccountEditor {
 
   readonly types = TYPES;
   readonly editId = this.route.snapshot.paramMap.get('id'); // null on /accounts/new
+  readonly #prefillId = this.route.snapshot.queryParamMap.get('id'); // only used when creating
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
 
@@ -129,11 +137,26 @@ export class AccountEditor {
   };
   setParent(v: string): void { this.accountForm.parentId().value.set(v === '' ? null : v); }
 
+  readonly dimsText = computed(() => this.model().requiredDimensions.join(', '));
+  setDims(text: string): void {
+    this.accountForm.requiredDimensions().value.set(text.split(',').map(s => s.trim()).filter(Boolean));
+  }
+
   private initialValue(): EditorValue {
-    return { number: '', name: '', type: 'Asset', parentId: null, cashFlowActivity: '', postable: true, isRetainedEarnings: false, active: true };
+    const q = this.route.snapshot.queryParamMap;
+    const creating = !this.editId;
+    const qType = q.get('type') as AccountType | null;
+    const qDims = q.get('dims');
+    return {
+      number: '',
+      name: creating ? (q.get('name') ?? '') : '',
+      type: creating && qType && TYPES.includes(qType) ? qType : 'Asset',
+      parentId: null, cashFlowActivity: '', postable: true, isRetainedEarnings: false, active: true,
+      requiredDimensions: creating && qDims ? qDims.split(',').map(s => s.trim()).filter(Boolean) : [],
+    };
   }
   private fromAccount(a: AccountResponse): EditorValue {
-    return { number: a.number, name: a.name, type: a.type, parentId: a.parentId, cashFlowActivity: a.cashFlowActivity ?? '', postable: a.postable, isRetainedEarnings: a.isRetainedEarnings, active: a.active };
+    return { number: a.number, name: a.name, type: a.type, parentId: a.parentId, cashFlowActivity: a.cashFlowActivity ?? '', postable: a.postable, isRetainedEarnings: a.isRetainedEarnings, active: a.active, requiredDimensions: a.requiredDimensions ?? [] };
   }
 
   save(): void {
@@ -141,8 +164,8 @@ export class AccountEditor {
     const v = this.model();
     this.busy.set(true); this.message.set(null);
     this.accounts.upsert({
-      id: this.editId ?? this.accounts.newId(), number: v.number, name: v.name, type: v.type, parentId: v.parentId,
-      postable: v.postable, requiredDimension: null, cashFlowActivity: v.cashFlowActivity || null,
+      id: this.editId ?? this.#prefillId ?? this.accounts.newId(), number: v.number, name: v.name, type: v.type, parentId: v.parentId,
+      postable: v.postable, requiredDimension: null, requiredDimensions: v.requiredDimensions, cashFlowActivity: v.cashFlowActivity || null,
       isRetainedEarnings: v.isRetainedEarnings, active: v.active,
     }).subscribe({
       next: () => { this.busy.set(false); this.router.navigate(['/accounts']); },

@@ -2,7 +2,7 @@ import { buildTree, isDescendant, canDrop } from './account-tree';
 import { AccountResponse, AccountType } from './account';
 
 const acc = (id: string, number: string, type: AccountType, parentId: string | null = null, active = true): AccountResponse =>
-  ({ id, number, name: 'n' + number, type, parentId, postable: true, requiredDimension: null,
+  ({ id, number, name: 'n' + number, type, parentId, postable: true, requiredDimension: null, requiredDimensions: [],
      cashFlowActivity: null, isRetainedEarnings: false, active, normalSide: 'Debit', isTemporary: false });
 
 describe('buildTree', () => {

@@ -27,8 +27,8 @@ export class AccountsService {
     const id = this.client.clientId();
     if (!id) return EMPTY;
     const body = { number: a.number, name: a.name, type: a.type, parentId: a.parentId,
-      postable: a.postable, requiredDimension: a.requiredDimension, cashFlowActivity: a.cashFlowActivity,
-      isRetainedEarnings: a.isRetainedEarnings, active: a.active };
+      postable: a.postable, requiredDimension: a.requiredDimension, requiredDimensions: a.requiredDimensions,
+      cashFlowActivity: a.cashFlowActivity, isRetainedEarnings: a.isRetainedEarnings, active: a.active };
     return this.http.put<AccountResponse>(`${environment.apiBaseUrl}/clients/${id}/accounts/${a.id}`, body)
       .pipe(tap(saved => this._accounts.update(list => {
         const i = list.findIndex(x => x.id === saved.id);

@@ -11,12 +11,12 @@ const clientId = 'aaaaaaaa-0000-0000-0000-000000000001';
 const mockAccounts: AccountResponse[] = [
   {
     id: 'id-1001', number: '1001', name: 'Cash', type: 'Asset', parentId: null,
-    postable: true, requiredDimension: null, cashFlowActivity: null,
+    postable: true, requiredDimension: null, requiredDimensions: [], cashFlowActivity: null,
     isRetainedEarnings: false, active: true, normalSide: 'Debit', isTemporary: false,
   },
   {
     id: 'id-4000', number: '4000', name: 'Revenue', type: 'Revenue', parentId: null,
-    postable: true, requiredDimension: null, cashFlowActivity: null,
+    postable: true, requiredDimension: null, requiredDimensions: [], cashFlowActivity: null,
     isRetainedEarnings: false, active: true, normalSide: 'Credit', isTemporary: true,
   },
 ];
@@ -89,13 +89,13 @@ describe('AccountsService', () => {
     const ctrl = TestBed.inject(HttpTestingController);
     TestBed.inject(ClientContextService).select('C1');
     const a = { id: 'A1', number: '1000', name: 'Cash', type: 'Asset' as const, parentId: null,
-      postable: true, requiredDimension: null, cashFlowActivity: 'Operating', isRetainedEarnings: false, active: true };
+      postable: true, requiredDimension: null, requiredDimensions: [], cashFlowActivity: 'Operating', isRetainedEarnings: false, active: true };
     let saved: AccountResponse | undefined;
     svc.upsert(a).subscribe(r => (saved = r));
     const req = ctrl.expectOne('http://localhost:5000/clients/C1/accounts/A1');
     expect(req.request.method).toBe('PUT');
     expect(req.request.body).toEqual({ number: '1000', name: 'Cash', type: 'Asset', parentId: null,
-      postable: true, requiredDimension: null, cashFlowActivity: 'Operating', isRetainedEarnings: false, active: true });
+      postable: true, requiredDimension: null, requiredDimensions: [], cashFlowActivity: 'Operating', isRetainedEarnings: false, active: true });
     const resp = { ...a, normalSide: 'Debit', isRetainedEarnings: false, isTemporary: false } as AccountResponse;
     req.flush(resp);
     expect(saved).toEqual(resp);

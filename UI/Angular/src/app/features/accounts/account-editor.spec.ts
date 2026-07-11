@@ -9,12 +9,15 @@ import { ClientContextService } from '../../core/client/client-context.service';
 import { AccountResponse } from '../../core/accounts/account';
 import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
-function route(id: string | null) {
-  return { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => id } } } };
+function route(id: string | null, query: Record<string, string> = {}) {
+  return { provide: ActivatedRoute, useValue: { snapshot: {
+    paramMap: { get: () => id },
+    queryParamMap: { get: (k: string) => query[k] ?? null },
+  } } };
 }
 function seedAccounts(svc: AccountsService) {
   const a = (id: string, number: string, type: AccountResponse['type']): AccountResponse =>
-    ({ id, number, name: 'n' + number, type, parentId: null, postable: true, requiredDimension: null, cashFlowActivity: null, isRetainedEarnings: false, active: true, normalSide: 'Debit', isTemporary: false });
+    ({ id, number, name: 'n' + number, type, parentId: null, postable: true, requiredDimension: null, requiredDimensions: [], cashFlowActivity: null, isRetainedEarnings: false, active: true, normalSide: 'Debit', isTemporary: false });
   (svc as unknown as { _accounts: { set(v: AccountResponse[]): void } })._accounts.set([a('cash', '1000', 'Asset'), a('rev', '4000', 'Revenue')]);
 }
 
@@ -81,5 +84,54 @@ describe('AccountEditor', () => {
     ctrl.expectOne(r => r.method === 'PUT').flush({ detail: 'Account number 4000 already exists' }, { status: 422, statusText: 'Unprocessable' });
     f.detectChanges();
     expect(cmp.message()).toContain('already exists');
+  });
+
+  it('prefills id, type, name and dims from query params on a new account', () => {
+    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideCapabilities('gl.manageAccounts'),
+      route(null, { id: 'expected-guid', type: 'Liability', name: 'Withholdings Payable', dims: 'Employee, PayPeriod' })] });
+    ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    seedAccounts(TestBed.inject(AccountsService)); // avoid an unflushed cold-cache GET /accounts
+    const f = TestBed.createComponent(AccountEditor); f.detectChanges();
+    const cmp = f.componentInstance;
+    expect(cmp.accountForm.name().value()).toBe('Withholdings Payable');
+    expect(cmp.accountForm.type().value()).toBe('Liability');
+    expect(cmp.dimsText()).toBe('Employee, PayPeriod');
+
+    cmp.accountForm.number().value.set('2100');
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    f.detectChanges(); cmp.save();
+    const put = ctrl.expectOne('http://localhost:5000/clients/C1/accounts/expected-guid'); // prefilled id, not a random one
+    expect(put.request.body.requiredDimensions).toEqual(['Employee', 'PayPeriod']);
+    expect(put.request.body.type).toBe('Liability');
+    put.flush({ id: 'expected-guid', number: '2100', name: 'Withholdings Payable', type: 'Liability', parentId: null, postable: true, requiredDimension: null, requiredDimensions: ['Employee', 'PayPeriod'], cashFlowActivity: null, isRetainedEarnings: false, active: true, normalSide: 'Credit', isTemporary: false });
+    expect(nav).toHaveBeenCalledWith(['/accounts']);
+  });
+
+  it('setDims parses a comma-separated string into a trimmed, non-empty array', () => {
+    setup(null); const f = TestBed.createComponent(AccountEditor); f.detectChanges();
+    const cmp = f.componentInstance;
+    cmp.setDims('Customer,  Invoice ,,');
+    expect(cmp.accountForm.requiredDimensions().value()).toEqual(['Customer', 'Invoice']);
+    expect(cmp.dimsText()).toBe('Customer, Invoice');
+  });
+
+  it('edit preserves an existing account\'s dimensions through save', () => {
+    TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(), provideCapabilities('gl.manageAccounts'), route('ar')] });
+    ctrl = TestBed.inject(HttpTestingController);
+    TestBed.inject(ClientContextService).select('C1');
+    const svc = TestBed.inject(AccountsService);
+    (svc as unknown as { _accounts: { set(v: AccountResponse[]): void } })._accounts.set([
+      { id: 'ar', number: '1100', name: 'A/R', type: 'Asset', parentId: null, postable: true, requiredDimension: null, requiredDimensions: ['Customer', 'Invoice'], cashFlowActivity: null, isRetainedEarnings: false, active: true, normalSide: 'Debit', isTemporary: false },
+    ]);
+    const f = TestBed.createComponent(AccountEditor); f.detectChanges();
+    const cmp = f.componentInstance;
+    expect(cmp.dimsText()).toBe('Customer, Invoice');
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    cmp.save();
+    const put = ctrl.expectOne('http://localhost:5000/clients/C1/accounts/ar');
+    expect(put.request.body.requiredDimensions).toEqual(['Customer', 'Invoice']);
+    put.flush({ id: 'ar', number: '1100', name: 'A/R', type: 'Asset', parentId: null, postable: true, requiredDimension: null, requiredDimensions: ['Customer', 'Invoice'], cashFlowActivity: null, isRetainedEarnings: false, active: true, normalSide: 'Debit', isTemporary: false });
+    expect(nav).toHaveBeenCalledWith(['/accounts']);
   });
 });
