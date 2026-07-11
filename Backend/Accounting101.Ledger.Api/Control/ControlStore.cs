@@ -330,6 +330,7 @@ public sealed class ControlStore
             ("User Admin", [Capabilities.AdminUsers, Capabilities.GlRead]),
             ("Fiscal Admin", [Capabilities.AdminFiscal, Capabilities.GlRead]),
             ("Posting-Accounts Admin", [Capabilities.AdminPostingAccounts, Capabilities.GlRead]),
+            ("Approval Policy Admin", [Capabilities.AdminApprovalPolicy, Capabilities.GlRead]),
         ];
         foreach ((string name, string[] capabilities) in narrowAdmins)
         {
