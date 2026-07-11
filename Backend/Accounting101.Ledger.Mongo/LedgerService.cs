@@ -187,7 +187,8 @@ public sealed class LedgerService
     /// approved, like any entry. The original must be active and posted.
     /// </summary>
     public async Task<JournalEntry> ReverseAsync(
-        Guid originalId, DateOnly reversalDate, Actor actor, string? reason = null, CancellationToken cancellationToken = default)
+        Guid originalId, DateOnly reversalDate, Actor actor, string? reason = null,
+        Guid? sourceRef = null, string? sourceType = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(actor);
         JournalEntry original = await RequireAsync(originalId, cancellationToken);
@@ -224,8 +225,8 @@ public sealed class LedgerService
             audit: new AuditStamp { CreatedBy = actor.UserId, CreatedAt = DateTimeOffset.UtcNow },
             lines: reversedLines,
             reversalOf: originalId,
-            sourceRef: original.SourceRef,   // a reversal stays linked to the same source document...
-            sourceType: original.SourceType, // ...so drill-down from that document still finds it
+            sourceRef: sourceRef ?? original.SourceRef,     // caller override, else stay linked to the same document
+            sourceType: sourceType ?? original.SourceType,  // (a credit-memo module tags the reversal with its own doc)
             reference: original.Reference,
             memo: reason ?? $"Reversal of entry {originalId}");
 

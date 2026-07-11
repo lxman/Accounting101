@@ -282,7 +282,8 @@ public static class LedgerEndpoints
         try
         {
             JournalEntry reversal = await ctx.Ledger.Service.ReverseAsync(
-                originalId, request.ReversalDate, ctx.Actor, request.Reason, cancellationToken);
+                originalId, request.ReversalDate, ctx.Actor, request.Reason,
+                request.SourceRef, request.SourceType, cancellationToken);
             return Results.Created($"/clients/{clientId}/entries/{reversal.Id}", ToEntryResponse(reversal));
         }
         catch (InvalidOperationException ex) // not reversible, or reversal date in a closed period
