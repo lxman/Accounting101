@@ -59,4 +59,34 @@ describe('ChartHealthWidget', () => {
     expect(f.componentInstance.gapQuery(gap)).toBeUndefined();
     ctrl.verify();
   });
+
+  it('cancels an in-flight load when the client changes, so stale data cannot win', () => {
+    const { ctrl } = setup();
+    const client = TestBed.inject(ClientContextService);
+    const f = TestBed.createComponent(ChartHealthWidget); f.detectChanges();
+
+    // Six pending C1 requests are outstanding; capture them without answering.
+    const c1Reqs = KEYS.map(key => ctrl.expectOne(`http://localhost:5000/clients/C1/${key}/chart-readiness`));
+
+    // Switch client before C1 resolves — the effect re-runs and onCleanup unsubscribes C1's forkJoin.
+    client.select('C2'); f.detectChanges();
+
+    // C1's HTTP requests were cancelled by the unsubscribe.
+    expect(c1Reqs.every(r => r.cancelled)).toBe(true);
+
+    // Answer C2 with a distinguishable payload (payables NOT ready → readyCount 5).
+    for (const key of KEYS) {
+      const body = key === 'payables'
+        ? { moduleKey: 'payables', ready: false, accounts: [
+            { accountId: 'ap', label: 'A/P', expectedType: 'Liability', requiredDimensions: [], status: 'Missing', actualType: null, actualRequiredDimensions: null, detail: 'add a Liability account' } ] }
+        : { moduleKey: key, ready: true, accounts: [] };
+      ctrl.expectOne(`http://localhost:5000/clients/C2/${key}/chart-readiness`).flush(body);
+    }
+    f.detectChanges();
+
+    // Final state reflects C2, not C1.
+    expect(f.componentInstance.readyCount()).toBe(5);
+    expect(f.componentInstance.modules().find(m => m.key === 'payables')?.report?.ready).toBe(false);
+    ctrl.verify();
+  });
 });

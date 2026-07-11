@@ -63,11 +63,12 @@ export class ChartHealthWidget {
   readonly readyCount = computed(() => this.modules().filter(m => m.report?.ready).length);
 
   constructor() {
-    effect(() => {
+    effect((onCleanup) => {
       const id = this.client.clientId();
-      if (!id) { this.modules.set([]); return; }
+      if (!id) { this.modules.set([]); this.loading.set(false); return; }
       this.loading.set(true);
-      this.health.readiness().subscribe(m => { this.modules.set(m); this.loading.set(false); });
+      const sub = this.health.readiness().subscribe(m => { this.modules.set(m); this.loading.set(false); });
+      onCleanup(() => sub.unsubscribe());
     });
   }
 
