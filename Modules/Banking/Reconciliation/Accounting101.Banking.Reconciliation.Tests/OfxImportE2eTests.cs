@@ -9,7 +9,7 @@ namespace Accounting101.Banking.Reconciliation.Tests;
 
 /// <summary>End-to-end OFX 1.x import: upload a synthetic OFX/QFX file, get a parse-to-preview with the
 /// LEDGERBAL closing balance + account hint, then submit the previewed lines (opening computed so it foots)
-/// to the existing statement endpoint. Plus: an OFX 2.x XML upload is refused (422).</summary>
+/// to the existing statement endpoint. Plus: an OFX 2.x XML upload also imports to a preview.</summary>
 public sealed class OfxImportE2eTests(ReconciliationHostFixture fixture) : IClassFixture<ReconciliationHostFixture>
 {
     // Synthetic OFX 1.x SGML (no personal data): 2 txns, LEDGERBAL 900, account 1234567890.
@@ -23,9 +23,16 @@ public sealed class OfxImportE2eTests(ReconciliationHostFixture fixture) : IClas
         "</BANKTRANLIST><LEDGERBAL><BALAMT>900.00<DTASOF>20260630</LEDGERBAL>" +
         "</STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>";
 
-    private const string Ofx2xXml =
-        "<?xml version=\"1.0\"?><?OFX OFXHEADER=\"200\" VERSION=\"203\" SECURITY=\"NONE\"?>" +
-        "<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>";
+    // OFX 2.x XML twin of Ofx1x: same 2 txns, LEDGERBAL 900, account 1234567890.
+    private const string Ofx2xData =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><?OFX OFXHEADER=\"200\" VERSION=\"211\" SECURITY=\"NONE\"?>" +
+        "<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><CURDEF>USD</CURDEF>" +
+        "<BANKACCTFROM><BANKID>121000248</BANKID><ACCTID>1234567890</ACCTID><ACCTTYPE>CHECKING</ACCTTYPE></BANKACCTFROM>" +
+        "<BANKTRANLIST><DTSTART>20260601</DTSTART><DTEND>20260630</DTEND>" +
+        "<STMTTRN><TRNTYPE>CREDIT</TRNTYPE><DTPOSTED>20260628</DTPOSTED><TRNAMT>1200.00</TRNAMT><FITID>A1</FITID><NAME>PAYROLL</NAME></STMTTRN>" +
+        "<STMTTRN><TRNTYPE>DEBIT</TRNTYPE><DTPOSTED>20260627</DTPOSTED><TRNAMT>-300.00</TRNAMT><FITID>A2</FITID><NAME>CHECK 1021</NAME></STMTTRN>" +
+        "</BANKTRANLIST><LEDGERBAL><BALAMT>900.00</BALAMT><DTASOF>20260630</DTASOF></LEDGERBAL>" +
+        "</STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>";
 
     private static MultipartFormDataContent Multipart(string ofx, string filename)
     {
@@ -64,11 +71,17 @@ public sealed class OfxImportE2eTests(ReconciliationHostFixture fixture) : IClas
     }
 
     [Fact]
-    public async Task An_ofx_2x_xml_upload_is_refused_422()
+    public async Task Imports_an_ofx_2x_xml_file_to_a_preview()
     {
         (Guid clientId, _, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
         HttpResponseMessage resp = await clerk.PostAsync(
-            $"/clients/{clientId}/bank-statements/import", Multipart(Ofx2xXml, "Checking-v2.ofx"));
-        Assert.Equal(HttpStatusCode.UnprocessableEntity, resp.StatusCode);
+            $"/clients/{clientId}/bank-statements/import", Multipart(Ofx2xData, "Checking-v2.ofx"));
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        ImportPreviewResponse preview = (await resp.Content.ReadFromJsonAsync<ImportPreviewResponse>())!;
+        StatementPreview s = Assert.Single(preview.Statements);
+        Assert.Equal(2, s.Lines.Count);
+        Assert.Equal(900.00m, s.DetectedClosingBalance);
+        Assert.Equal("1234567890", s.AccountHint);
+        Assert.Empty(preview.Warnings);
     }
 }

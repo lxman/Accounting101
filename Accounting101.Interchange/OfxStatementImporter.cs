@@ -1,11 +1,14 @@
 using System.Text;
+using System.Xml;
+using System.Xml.Linq;
 
 namespace Accounting101.Interchange;
 
-/// <summary>Parses an OFX 1.x SGML bank-statement file (the Wells Fargo QFX dialect and friends) into one
-/// <see cref="ImportedStatement"/> per &lt;STMTRS&gt;. Tolerant: header optional, unclosed leaves, multiple
-/// statements, LEDGERBAL (not AVAILBAL) closing balance, bad transactions warned-and-skipped, malformed-but-
-/// readable files degrade to warnings. OFX 2.x XML is refused (slice 4c). No balances opening (OFX has none).</summary>
+/// <summary>Parses an OFX bank-statement file — either the OFX 1.x SGML dialect (the Wells Fargo QFX dialect
+/// and friends) or OFX 2.x XML — into one <see cref="ImportedStatement"/> per &lt;STMTRS&gt;. Tolerant: header
+/// optional, unclosed leaves (1.x), multiple statements, LEDGERBAL (not AVAILBAL) closing balance, bad
+/// transactions warned-and-skipped, malformed-but-readable files degrade to warnings. OFX 2.x XML is parsed
+/// via the same routine over an XML navigator. No balances opening (OFX has none).</summary>
 public sealed class OfxStatementImporter : IImporter<ImportedStatement>
 {
     public InterchangeFormat Format => InterchangeFormat.Ofx;
@@ -23,16 +26,30 @@ public sealed class OfxStatementImporter : IImporter<ImportedStatement>
         string text = encoding.GetString(bytes);
 
         string body = OfxScanner.StripHeaderAndDetectDialect(text, out bool isXml);
-        if (isXml)
-            throw new NotSupportedException("OFX 2.x XML import is not yet supported (slice 4c). Re-export as OFX/QFX 1.x, or import the CSV.");
 
-        List<ImportedStatement> statements = [];
         List<string> warnings = [];
+        IOfxNode root;
+        if (isXml)
+        {
+            try { root = new XmlOfxNode(XDocument.Parse(body).Root!); }
+            catch (XmlException ex)
+            {
+                return new ImportResult<ImportedStatement>([], [$"OFX 2.x XML could not be parsed: {ex.Message}"]);
+            }
+        }
+        else root = new SgmlOfxNode(body);
 
-        IReadOnlyList<string> stmtBlocks = OfxScanner.Blocks(body, "STMTRS");
+        return AssembleStatements(root, warnings);
+    }
+
+    private static ImportResult<ImportedStatement> AssembleStatements(IOfxNode root, List<string> warnings)
+    {
+        List<ImportedStatement> statements = [];
+
+        IReadOnlyList<IOfxNode> stmtBlocks = root.Blocks("STMTRS");
         if (stmtBlocks.Count == 0)
         {
-            string? code = OfxScanner.Leaf(body, "CODE");
+            string? code = root.Leaf("CODE");
             warnings.Add(code is not null && code != "0"
                 ? $"OFX response carried status code {code}; no bank statement (<STMTRS>) found."
                 : "No bank statement (<STMTRS>) found in the OFX file.");
@@ -41,38 +58,38 @@ public sealed class OfxStatementImporter : IImporter<ImportedStatement>
 
         for (int si = 0; si < stmtBlocks.Count; si++)
         {
-            string stmt = stmtBlocks[si];
-            string? acctId = Clean(OfxScanner.Leaf(stmt, "ACCTID"));
+            IOfxNode stmt = stmtBlocks[si];
+            string? acctId = Clean(stmt.Leaf("ACCTID"));
 
             decimal? closing = null;
             DateOnly? asOf = null;
-            IReadOnlyList<string> ledger = OfxScanner.Blocks(stmt, "LEDGERBAL");
+            IReadOnlyList<IOfxNode> ledger = stmt.Blocks("LEDGERBAL");
             if (ledger.Count > 0)
             {
-                if (OfxScanner.TryParseOfxAmount(OfxScanner.Leaf(ledger[0], "BALAMT"), out decimal bal)) closing = bal;
-                if (OfxScanner.TryParseOfxDate(OfxScanner.Leaf(ledger[0], "DTASOF"), out DateOnly d)) asOf = d;
+                if (OfxScanner.TryParseOfxAmount(ledger[0].Leaf("BALAMT"), out decimal bal)) closing = bal;
+                if (OfxScanner.TryParseOfxDate(ledger[0].Leaf("DTASOF"), out DateOnly d)) asOf = d;
             }
 
             List<ImportedLine> lines = [];
-            IReadOnlyList<string> txns = OfxScanner.Blocks(stmt, "STMTTRN");
+            IReadOnlyList<IOfxNode> txns = stmt.Blocks("STMTTRN");
             for (int ti = 0; ti < txns.Count; ti++)
             {
-                string tx = txns[ti];
-                string? fitid = Clean(OfxScanner.Leaf(tx, "FITID"));
+                IOfxNode tx = txns[ti];
+                string? fitid = Clean(tx.Leaf("FITID"));
                 string id = fitid ?? $"#{ti + 1}";
                 string acct = acctId ?? $"#{si + 1}";
 
-                if (!OfxScanner.TryParseOfxDate(OfxScanner.Leaf(tx, "DTPOSTED"), out DateOnly date))
+                if (!OfxScanner.TryParseOfxDate(tx.Leaf("DTPOSTED"), out DateOnly date))
                 {
                     warnings.Add($"Statement {acct}, transaction {id}: missing or unparseable DTPOSTED — skipped.");
                     continue;
                 }
-                if (!OfxScanner.TryParseOfxAmount(OfxScanner.Leaf(tx, "TRNAMT"), out decimal amount))
+                if (!OfxScanner.TryParseOfxAmount(tx.Leaf("TRNAMT"), out decimal amount))
                 {
                     warnings.Add($"Statement {acct}, transaction {id}: missing or unparseable TRNAMT — skipped.");
                     continue;
                 }
-                string description = Describe(OfxScanner.Leaf(tx, "NAME"), OfxScanner.Leaf(tx, "MEMO"));
+                string description = Describe(tx.Leaf("NAME"), tx.Leaf("MEMO"));
                 lines.Add(new ImportedLine(date, amount, description, fitid));
             }
 
