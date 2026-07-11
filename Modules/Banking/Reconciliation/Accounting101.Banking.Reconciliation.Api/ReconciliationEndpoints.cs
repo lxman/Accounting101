@@ -234,9 +234,5 @@ public static class ReconciliationEndpoints
         {
             return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
         }
-        catch (NotSupportedException ex) // e.g. OFX 2.x XML, not yet supported
-        {
-            return Results.Problem(ex.Message, statusCode: StatusCodes.Status422UnprocessableEntity);
-        }
     }
 }
