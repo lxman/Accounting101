@@ -29,6 +29,7 @@ public static class LedgerEndpoints
 
         // Commands
         clients.MapPost("/entries", PostEntry);
+        clients.MapPost("/entries/batch", PostBatch);
         clients.MapPost("/entries/validate", ValidateEntry);
         clients.MapPost("/entries/{entryId:guid}/approve", ApproveEntry);
         clients.MapPost("/entries/{entryId:guid}/void", VoidEntry);
@@ -84,8 +85,10 @@ public static class LedgerEndpoints
             return Unprocessable("An entry with this id already exists with different content.");
         }
 
-        (IResult? rejection, JournalEntry? entry) = await ValidateForPostAsync(clientId, request, ctx, cancellationToken);
-        if (rejection is not null) return rejection;
+        (Dictionary<string, string[]>? errs, IResult? conflict, JournalEntry? entry) =
+            await ValidateForPostAsync(clientId, request, ctx, cancellationToken);
+        if (errs is not null) return ValidationProblem(errs);
+        if (conflict is not null) return conflict;
 
         try
         {
@@ -132,30 +135,37 @@ public static class LedgerEndpoints
         LedgerContext ctx = await gateway.ResolveForPostAsync(user, clientId, moduleAuth, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
-        (IResult? rejection, _) = await ValidateForPostAsync(clientId, request, ctx, cancellationToken);
-        return rejection ?? Results.Ok(new EntryValidationResponse(true));
+        (Dictionary<string, string[]>? errs, IResult? conflict, _) =
+            await ValidateForPostAsync(clientId, request, ctx, cancellationToken);
+        if (errs is not null) return ValidationProblem(errs);
+        return conflict ?? Results.Ok(new EntryValidationResponse(true));
     }
 
     /// <summary>
-    /// The single pre-write validation routine shared by <see cref="PostEntry"/> and
-    /// <see cref="ValidateEntry"/>. Performs, in order:
+    /// The single pre-write validation routine shared by <see cref="PostEntry"/>, <see cref="ValidateEntry"/>,
+    /// and <see cref="PostBatch"/>. Performs, in order:
     /// <list type="number">
     ///   <item>Map + balance check (<see cref="TryMapEntry"/> → <see cref="UnbalancedEntryException"/> → 422).</item>
     ///   <item>Chart validity (<see cref="ChartFieldViolationsAsync"/> — account exists, postable, required dimension present).</item>
     ///   <item>Period freeze (<see cref="LedgerService.EnsureOpenForPostAsync"/> → 409 on a closed period).</item>
     /// </list>
-    /// Returns either a rejection result or the mapped entry ready to write. Never writes anything itself.
+    /// Returns the raw error dictionary (not a prebuilt <see cref="IResult"/>) so a batch caller can
+    /// re-key per-index field errors under an <c>entries[i].</c> prefix; a single-post caller wraps it
+    /// in <see cref="ValidationProblem(IDictionary{string,string[]})"/>. The freeze check is not a field
+    /// error — it surfaces as <c>Conflict</c>, a ready-made 409 <see cref="IResult"/>, since there is no
+    /// field to key it on. Exactly one of <c>Errors</c>/<c>Conflict</c>/<c>Entry</c> is non-null. Never
+    /// writes anything itself.
     /// </summary>
-    private static async Task<(IResult? Rejection, JournalEntry? Entry)> ValidateForPostAsync(
+    private static async Task<(Dictionary<string, string[]>? Errors, IResult? Conflict, JournalEntry? Entry)> ValidateForPostAsync(
         Guid clientId, PostEntryRequest request, LedgerContext ctx, CancellationToken ct)
     {
         // ctx.Failed was checked by the caller before dispatching here, so Actor and Ledger are non-null.
         if (!TryMapEntry(clientId, request, ctx.Actor!, ctx.ViaModule, out JournalEntry? entry, out Dictionary<string, string[]> parseErrors))
-            return (ValidationProblem(parseErrors), null);
+            return (parseErrors, null, null);
 
         Dictionary<string, string[]> chartErrors = await ChartFieldViolationsAsync(ctx.Ledger!.Accounts, clientId, entry!.Lines, ct);
         if (chartErrors.Count > 0)
-            return (ValidationProblem(chartErrors), null);
+            return (chartErrors, null, null);
 
         try
         {
@@ -163,10 +173,101 @@ public static class LedgerEndpoints
         }
         catch (InvalidOperationException ex) // closed-period freeze
         {
-            return (Conflict(ex.Message), null);
+            return (null, Conflict(ex.Message), null);
         }
 
-        return (null, entry);
+        return (null, null, entry);
+    }
+
+    private const int MaxBatchEntries = 500;
+
+    /// <summary>
+    /// Post many journal entries as one atomic business event (e.g. a payroll run). Mirrors
+    /// <see cref="PostEntry"/>'s structure over a list: size guard → per-entry idempotency
+    /// classification → validate-all → atomic write via <see cref="LedgerService.PostBatchAsync"/>.
+    /// Every entry validates and writes, or none do — a single bad entry rolls back the whole batch,
+    /// with the field errors keyed <c>entries[i].&lt;field&gt;</c> so the caller can locate it.
+    /// </summary>
+    private static async Task<IResult> PostBatch(
+        Guid clientId, PostBatchRequest request, LedgerGateway gateway, IModuleAuthenticator moduleAuth,
+        ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveForPostAsync(user, clientId, moduleAuth, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        IReadOnlyList<PostEntryRequest> reqs = request.Entries ?? [];
+        if (reqs.Count == 0) return Unprocessable("A batch must contain at least one entry.");
+        if (reqs.Count > MaxBatchEntries) return Unprocessable($"A batch may contain at most {MaxBatchEntries} entries; got {reqs.Count}.");
+
+        // Idempotency classification: look up every supplied id up front. All-present+content-match => replay;
+        // none-present => write; any mix, or a present id with different content => 422 (ambiguous partial replay).
+        int matchedExisting = 0;
+        List<PostEntryResponse> replay = [];
+        Dictionary<string, string[]> errors = [];
+        for (int i = 0; i < reqs.Count; i++)
+        {
+            if (reqs[i].Id is not { } id) continue;
+            JournalEntry? existing = await ctx.Ledger!.Service.GetEntryAsync(clientId, id, cancellationToken);
+            if (existing is null) continue;
+
+            if (!TryMapEntry(clientId, reqs[i], ctx.Actor!, ctx.ViaModule, out JournalEntry? mapped, out _)
+                || !EntryComparison.SameFinancialContent(existing, mapped!))
+            {
+                errors[$"entries[{i}].id"] = ["An entry with this id already exists with different content."];
+                continue;
+            }
+            matchedExisting++;
+            replay.Add(new PostEntryResponse(existing.Id, existing.Status.ToString(), existing.Posting.ToString()));
+        }
+        if (errors.Count > 0) return ValidationProblem(errors);
+
+        // Whole-batch replay only when EVERY entry carries an id AND every one already exists with matching content.
+        if (matchedExisting > 0)
+        {
+            if (matchedExisting == reqs.Count) return Results.Ok(replay);
+            return Unprocessable("Partial replay: some entries in this batch already exist and some do not. "
+                               + "Re-submit the batch with all-new ids, or replay the exact original batch.");
+        }
+
+        // Validate every entry (map + chart + typo + balance + freeze), collecting per-index errors.
+        JournalEntry[] mappedEntries = new JournalEntry[reqs.Count];
+        for (int i = 0; i < reqs.Count; i++)
+        {
+            (Dictionary<string, string[]>? errs, IResult? conflict, JournalEntry? entry) =
+                await ValidateForPostAsync(clientId, reqs[i], ctx, cancellationToken);
+            if (errs is not null)
+            {
+                // Re-key the single-entry field errors under an entries[i]. prefix so the caller can locate the bad entry.
+                foreach (KeyValuePair<string, string[]> kv in errs)
+                    errors[$"entries[{i}].{kv.Key}"] = kv.Value;
+                continue;
+            }
+            if (conflict is not null)
+            {
+                // A closed-period freeze has no field to key on — surface it under the entry's date.
+                errors[$"entries[{i}].effectiveDate"] = ["This entry's effective date falls in a closed period."];
+                continue;
+            }
+            mappedEntries[i] = entry!;
+        }
+        if (errors.Count > 0) return ValidationProblem(errors);
+
+        try
+        {
+            IReadOnlyList<JournalEntry> written = await ctx.Ledger!.Service.PostBatchAsync(mappedEntries, ctx.Actor!, cancellationToken);
+            List<PostEntryResponse> body = written
+                .Select(e => new PostEntryResponse(e.Id, e.Status.ToString(), e.Posting.ToString()))
+                .ToList();
+            return Results.Created($"/clients/{clientId}/entries/batch", body);
+        }
+        catch (InvalidOperationException ex) // a freeze that raced past the pre-check
+        {
+            return Conflict(ex.Message);
+        }
+        catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
+        {
+            return Conflict("An entry id or sequence number in this batch already exists.");
+        }
     }
 
     private static async Task<IResult> ApproveEntry(
