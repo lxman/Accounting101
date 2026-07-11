@@ -2,12 +2,13 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } 
 import { RouterLink } from '@angular/router';
 import { ChartHealthService } from '../../core/chart-health/chart-health.service';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { CanDirective } from '../../core/capabilities/can.directive';
 import { AccountReadinessResult, CHART_HEALTH_MODULES, ModuleHealth } from '../../core/chart-health/chart-health';
 
 @Component({
   selector: 'app-chart-health-widget',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, CanDirective],
   template: `
     <section class="rounded-lg border p-4 flex flex-col gap-3 max-w-xl">
       <header class="flex items-center justify-between">
@@ -39,7 +40,7 @@ import { AccountReadinessResult, CHART_HEALTH_MODULES, ModuleHealth } from '../.
                     <li class="flex flex-col">
                       <span class="text-muted-foreground">{{ g.label }} — {{ g.status }}</span>
                       <span>{{ g.detail }}</span>
-                      <a class="text-primary underline w-fit" [routerLink]="gapLink(g)" [queryParams]="gapQuery(g)">Fix ›</a>
+                      <a *appCan="'gl.manageAccounts'" class="text-primary underline w-fit" [routerLink]="gapLink(g)" [queryParams]="gapQuery(g)">Fix ›</a>
                     </li>
                   }
                 </ul>
@@ -57,7 +58,7 @@ export class ChartHealthWidget {
 
   readonly total = CHART_HEALTH_MODULES.length;
   readonly modules = signal<ModuleHealth[]>([]);
-  readonly loading = signal(false);
+  readonly loading = signal(true);
   readonly expanded = signal<Set<string>>(new Set());
 
   readonly readyCount = computed(() => this.modules().filter(m => m.report?.ready).length);
@@ -83,7 +84,7 @@ export class ChartHealthWidget {
     });
   }
 
-  gapLink(g: AccountReadinessResult): (string)[] {
+  gapLink(g: AccountReadinessResult): string[] {
     return g.status === 'Missing' ? ['/accounts', 'new'] : ['/accounts', g.accountId, 'edit'];
   }
 

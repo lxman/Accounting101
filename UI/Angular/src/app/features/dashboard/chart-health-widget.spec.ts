@@ -5,12 +5,20 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ChartHealthWidget } from './chart-health-widget';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
 const KEYS = ['receivables', 'payables', 'payroll', 'cash', 'fixedassets', 'inventory'];
 
-function setup() {
+const GAP = { accountId: 'wh', label: 'Withholdings Payable', expectedType: 'Liability', requiredDimensions: [],
+  status: 'Missing', actualType: null, actualRequiredDimensions: null, detail: 'add a Liability account' };
+const notReadyPayroll = { payroll: { moduleKey: 'payroll', ready: false, accounts: [GAP] } };
+const fixLinks = (el: HTMLElement) => [...el.querySelectorAll('a')].filter(a => /Fix/.test(a.textContent ?? ''));
+
+// Defaults to a user who CAN manage accounts so the Fix link renders; pass [] for a read-only user.
+function setup(caps: string[] = ['gl.manageAccounts']) {
   TestBed.configureTestingModule({
-    providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
+      provideCapabilities(...caps)],
   });
   const ctrl = TestBed.inject(HttpTestingController);
   TestBed.inject(ClientContextService).select('C1');
@@ -57,6 +65,40 @@ describe('ChartHealthWidget', () => {
     const gap = { accountId: 'ar', label: 'A/R', expectedType: 'Asset', requiredDimensions: ['Customer'], status: 'MissingDimensions' as const, actualType: 'Asset', actualRequiredDimensions: [], detail: '' };
     expect(f.componentInstance.gapLink(gap)).toEqual(['/accounts', 'ar', 'edit']);
     expect(f.componentInstance.gapQuery(gap)).toBeUndefined();
+    ctrl.verify();
+  });
+
+  it('renders "couldn\'t check" for a module whose host errored', () => {
+    const { ctrl } = setup();
+    const f = TestBed.createComponent(ChartHealthWidget); f.detectChanges();
+    for (const key of KEYS) {
+      const req = ctrl.expectOne(`http://localhost:5000/clients/C1/${key}/chart-readiness`);
+      if (key === 'payroll') req.flush('boom', { status: 400, statusText: 'Bad Request' });
+      else req.flush({ moduleKey: key, ready: true, accounts: [] });
+    }
+    f.detectChanges();
+    expect((f.nativeElement as HTMLElement).textContent).toContain("couldn't check");
+    expect(f.componentInstance.readyCount()).toBe(5);
+    ctrl.verify();
+  });
+
+  it('shows the Fix link on an expanded gap when the user can manage accounts', () => {
+    const { ctrl } = setup(['gl.manageAccounts']);
+    const f = TestBed.createComponent(ChartHealthWidget); f.detectChanges();
+    flushAll(ctrl, notReadyPayroll); f.detectChanges();
+    f.componentInstance.toggle('payroll'); f.detectChanges();
+    expect(fixLinks(f.nativeElement as HTMLElement).length).toBe(1);
+    ctrl.verify();
+  });
+
+  it('hides the Fix link for a user without gl.manageAccounts, but still shows the gap detail', () => {
+    const { ctrl } = setup([]);
+    const f = TestBed.createComponent(ChartHealthWidget); f.detectChanges();
+    flushAll(ctrl, notReadyPayroll); f.detectChanges();
+    f.componentInstance.toggle('payroll'); f.detectChanges();
+    const el = f.nativeElement as HTMLElement;
+    expect(fixLinks(el).length).toBe(0);                          // Fix hidden — read-only user
+    expect(el.textContent).toContain('Withholdings Payable');     // but the gap is still surfaced
     ctrl.verify();
   });
 
