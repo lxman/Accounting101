@@ -653,12 +653,17 @@ public static class LedgerEndpoints
     }
 
     private static async Task<IResult> GetAccountBalance(
-        Guid clientId, Guid accountId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+        Guid clientId, Guid accountId, DateOnly? asOf, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
-        decimal balance = await ctx.Ledger.Projection.GetBalanceAsync(clientId, accountId, cancellationToken);
+        // Absent asOf: the O(1) live projection. With asOf: a point-in-time fold from the journal, exactly as
+        // GetTrialBalance does, then plucked for this account (0 when it has no activity through that date).
+        decimal balance = asOf is { } asOfDate
+            ? (await ctx.Ledger.Journal.AggregateBalancesAsync(clientId, asOfDate, cancellationToken)).GetValueOrDefault(accountId)
+            : await ctx.Ledger.Projection.GetBalanceAsync(clientId, accountId, cancellationToken);
+
         return Results.Ok(new AccountBalanceResponse(accountId, balance));
     }
 
