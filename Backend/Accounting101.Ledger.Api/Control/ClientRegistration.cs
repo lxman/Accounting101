@@ -1,3 +1,4 @@
+using Accounting101.Ledger.Contracts;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
@@ -19,11 +20,17 @@ public sealed class ClientRegistration
     public string DatabaseName { get; set; } = string.Empty;
 
     /// <summary>
-    /// When true, the host enforces segregation of duties: an entry must be approved by someone other
-    /// than its author. Off by default — some shops (e.g. a sole proprietor) allow self-approval. This
-    /// policy lives here in the control DB, not in the engine.
+    /// LEGACY. Superseded by <see cref="ApprovalMode"/>; retained only so documents written before the
+    /// enum existed still deserialize. Never written going forward — <c>ApprovalPolicy.ModeOf</c> reads it
+    /// only when <see cref="ApprovalMode"/> is <see cref="Contracts.ApprovalMode.Unspecified"/>.
     /// </summary>
     public bool RequireSegregationOfDuties { get; set; }
+
+    /// <summary>The client's approval posture (two-person / self-approve / auto-approve). Host policy, stored
+    /// here in the control DB, not in the engine. A legacy document with no value deserializes to
+    /// <see cref="Contracts.ApprovalMode.Unspecified"/>; read the effective mode via <c>ApprovalPolicy.ModeOf</c>.</summary>
+    [BsonRepresentation(BsonType.String)]
+    public ApprovalMode ApprovalMode { get; set; }
 
     /// <summary>The month (1-12) the client's fiscal year ends; the fiscal year ends on the LAST day of
     /// that month. December (12) by default — a per-client policy, like SoD. Legacy registrations stored

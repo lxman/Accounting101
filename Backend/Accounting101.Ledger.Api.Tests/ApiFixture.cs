@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Control;
 using Accounting101.Ledger.Api.Platform;
+using Accounting101.Ledger.Contracts;
 using Accounting101.TestSupport;
 using EphemeralMongo;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -68,7 +69,7 @@ public sealed class ApiFixture : IAsyncLifetime
     /// <summary>Register a fresh client plus a member user, returning an HttpClient authed as that user.</summary>
     public async Task<SeededClient> SeedClientAsync(
         string name = "Acme", bool requireSod = false, LedgerRole role = LedgerRole.Controller,
-        IReadOnlyList<string>? enabledModules = null)
+        IReadOnlyList<string>? enabledModules = null, ApprovalMode approvalMode = ApprovalMode.Unspecified)
     {
         Guid clientId = Guid.NewGuid();
         string database = "client_" + clientId.ToString("N");
@@ -88,6 +89,7 @@ public sealed class ApiFixture : IAsyncLifetime
             Name = name,
             DatabaseName = database,
             RequireSegregationOfDuties = requireSod,
+            ApprovalMode = approvalMode,
             EnabledModules = modules,
         });
         await control.AddMembershipAsync(userId, clientId, role);
