@@ -28,6 +28,7 @@ public static class PayablesServiceExtensions
         services.AddScoped<BillPaymentService>();
         services.AddScoped<VendorAccountService>();
         services.AddSingleton<IBillAccountsProvider, ConfiguredBillAccountsProvider>();
+        services.AddScoped<PayablesChartRequirements>();
 
         // Use an explicit name to avoid a short-name collision with Accounting101.Invoicing.ILedgerClient
         // (both are named "ILedgerClient" by the factory when using the type-only overload).
