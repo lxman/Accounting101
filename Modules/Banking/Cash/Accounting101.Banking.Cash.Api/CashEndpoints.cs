@@ -1,4 +1,5 @@
 using Accounting101.Ledger.Contracts;
+using Accounting101.ModuleKit;
 
 namespace Accounting101.Banking.Cash.Api;
 
@@ -20,6 +21,8 @@ public static class CashEndpoints
         clients.MapPost("/cash-deposits/{id:guid}/void", VoidDeposit);
         clients.MapGet("/cash-deposits/{id:guid}", GetDeposit);
         clients.MapGet("/cash-deposits", ListDeposits);
+
+        clients.MapGet("/cash/chart-readiness", ChartReadiness);
     }
 
     // ── Cash Disbursements ──────────────────────────────────────────────────
@@ -130,6 +133,16 @@ public static class CashEndpoints
             clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeVoided ?? false, cancellationToken);
         return Results.Ok(new PagedResponse<CashDepositView>(
             page.Items.Select(d => new CashDepositView(d)).ToList(), page.Total, page.Skip, page.Limit));
+    }
+
+    // ── Chart Readiness ─────────────────────────────────────────────────────
+
+    private static async Task<IResult> ChartReadiness(
+        Guid clientId, CashChartRequirements requirements, ILedgerClient ledger, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<AccountRequirement> reqs = await requirements.ForAsync(clientId, cancellationToken);
+        IReadOnlyList<AccountResponse> chart = await ledger.GetAccountsAsync(clientId, cancellationToken);
+        return Results.Ok(ChartReadinessChecker.Check(reqs, chart, "cash"));
     }
 
     private static bool TryOrder(string? order, out bool descending)

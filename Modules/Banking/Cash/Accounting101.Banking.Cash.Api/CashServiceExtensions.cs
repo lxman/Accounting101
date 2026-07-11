@@ -24,6 +24,7 @@ public static class CashServiceExtensions
         services.AddScoped<ICashDepositStore>(sp => new DocumentCashDepositStore(sp.GetRequiredKeyedService<IDocumentStore>("cash")));
         services.AddScoped<CashService>();
         services.AddSingleton<ICashAccountsProvider, ConfiguredCashAccountsProvider>();
+        services.AddScoped<CashChartRequirements>();
 
         // Use an explicit name to avoid a short-name collision with the other modules' ILedgerClient
         // (Cash, Payroll, Payables, and Invoicing all declare a type named "ILedgerClient"; the type-only
