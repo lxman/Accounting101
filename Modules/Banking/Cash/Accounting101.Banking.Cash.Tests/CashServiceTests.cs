@@ -372,4 +372,71 @@ public sealed class CashServiceTests
         Assert.Equal(CashDisbursementStatus.Posted, page.Items.Single(d => d.Id == stayPosted.Id).Status);
         Assert.Equal(CashDisbursementStatus.Void, page.Items.Single(d => d.Id == goVoid.Id).Status);
     }
+
+    // ── Batch-read discipline: a list folds in ONE batch call; a detail passes through one singular call ──
+
+    [Fact]
+    public async Task ListDeposits_folds_ledger_truth_in_one_batch_call_never_per_row()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        Guid capitalAccount = Guid.NewGuid();
+        for (int i = 0; i < 3; i++)
+            await h.Service.RecordDepositAsync(clientId,
+                new CashDepositBody([new CashLine(capitalAccount, 1_000m * (i + 1))], new DateOnly(2026, 1, i + 1), null, null));
+
+        await h.Service.ListDepositsAsync(clientId, 0, 50, descending: false, includeVoided: true);
+
+        // ONE batched ledger read for the whole page — never a per-row singular fan-out (N+1).
+        IReadOnlyList<Guid> batch = Assert.Single(h.Ledger.BatchCalls);
+        Assert.Equal(3, batch.Count);
+        Assert.Empty(h.Ledger.SingularCalls);
+    }
+
+    [Fact]
+    public async Task ListDisbursements_folds_ledger_truth_in_one_batch_call_never_per_row()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        Guid expenseAccount = Guid.NewGuid();
+        for (int i = 0; i < 3; i++)
+            await h.Service.RecordDisbursementAsync(clientId,
+                new CashDisbursementBody([new CashLine(expenseAccount, 1_000m * (i + 1))], new DateOnly(2026, 6, i + 1), null, null));
+
+        await h.Service.ListDisbursementsAsync(clientId, 0, 50, descending: false, includeVoided: true);
+
+        IReadOnlyList<Guid> batch = Assert.Single(h.Ledger.BatchCalls);
+        Assert.Equal(3, batch.Count);
+        Assert.Empty(h.Ledger.SingularCalls);
+    }
+
+    [Fact]
+    public async Task GetDeposit_passes_through_one_singular_read_never_the_batch()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        Guid capitalAccount = Guid.NewGuid();
+        CashDeposit doc = await h.Service.RecordDepositAsync(clientId,
+            new CashDepositBody([new CashLine(capitalAccount, 25_000m)], new DateOnly(2026, 1, 2), null, null));
+
+        await h.Service.GetDepositAsync(clientId, doc.Id);
+
+        Assert.Equal(doc.Id, Assert.Single(h.Ledger.SingularCalls));
+        Assert.Empty(h.Ledger.BatchCalls);
+    }
+
+    [Fact]
+    public async Task GetDisbursement_passes_through_one_singular_read_never_the_batch()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        Guid expenseAccount = Guid.NewGuid();
+        CashDisbursement doc = await h.Service.RecordDisbursementAsync(clientId,
+            new CashDisbursementBody([new CashLine(expenseAccount, 1_000m)], new DateOnly(2026, 6, 15), null, null));
+
+        await h.Service.GetDisbursementAsync(clientId, doc.Id);
+
+        Assert.Equal(doc.Id, Assert.Single(h.Ledger.SingularCalls));
+        Assert.Empty(h.Ledger.BatchCalls);
+    }
 }

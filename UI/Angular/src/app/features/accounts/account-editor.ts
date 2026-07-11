@@ -19,6 +19,9 @@ interface EditorValue {
 const TYPES: AccountType[] = ['Asset', 'Liability', 'Equity', 'Revenue', 'Expense'];
 const DEBIT_TYPES = new Set<AccountType>(['Asset', 'Expense']);
 
+/** Parse a comma-separated dimensions string into trimmed, non-empty axis names. */
+const parseDims = (text: string): string[] => text.split(',').map(s => s.trim()).filter(Boolean);
+
 @Component({
   selector: 'app-account-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -139,7 +142,7 @@ export class AccountEditor {
 
   readonly dimsText = computed(() => this.model().requiredDimensions.join(', '));
   setDims(text: string): void {
-    this.accountForm.requiredDimensions().value.set(text.split(',').map(s => s.trim()).filter(Boolean));
+    this.accountForm.requiredDimensions().value.set(parseDims(text));
   }
 
   private initialValue(): EditorValue {
@@ -152,7 +155,7 @@ export class AccountEditor {
       name: creating ? (q.get('name') ?? '') : '',
       type: creating && qType && TYPES.includes(qType) ? qType : 'Asset',
       parentId: null, cashFlowActivity: '', postable: true, isRetainedEarnings: false, active: true,
-      requiredDimensions: creating && qDims ? qDims.split(',').map(s => s.trim()).filter(Boolean) : [],
+      requiredDimensions: creating && qDims ? parseDims(qDims) : [],
     };
   }
   private fromAccount(a: AccountResponse): EditorValue {
