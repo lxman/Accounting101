@@ -68,7 +68,7 @@ public sealed class AdminCapabilityTests(ApiFixture fixture) : IClassFixture<Api
     {
         SeededClient c = await fixture.SeedClientAsync("NotDeployAdmin");
         HttpResponseMessage resp = await c.Http.PostAsJsonAsync(
-            "/admin/clients", new CreateClientRequest { Name = "New Co", DatabaseName = null, RequireSegregationOfDuties = false, FiscalYearEndMonth = 12 });
+            "/admin/clients", new CreateClientRequest { Name = "New Co", DatabaseName = null, ApprovalMode = ApprovalMode.SelfApprove, FiscalYearEndMonth = 12 });
         Assert.Equal(HttpStatusCode.Forbidden, resp.StatusCode);
     }
 }

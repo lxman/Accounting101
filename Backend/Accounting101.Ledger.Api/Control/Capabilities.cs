@@ -41,10 +41,10 @@ public static class Capabilities
 
     // Admin.
     public const string AdminUsers = "admin.users";
-    public const string AdminFirm = "admin.firm";
     public const string AdminClient = "admin.client";
     public const string AdminFiscal = "admin.fiscal";
     public const string AdminPostingAccounts = "admin.postingAccounts";
+    public const string AdminApprovalPolicy = "admin.approvalPolicy";
 
     private static readonly Dictionary<Permission, string> PermissionToCapability = new()
     {
@@ -93,6 +93,6 @@ public static class Capabilities
         BankRecRead, BankRecWrite, FixedAssetsRead, FixedAssetsWrite,
         InventoryRead, InventoryWrite,
         AuditRead, ReportsRead,
-        AdminUsers, AdminFirm, AdminClient, AdminFiscal, AdminPostingAccounts,
+        AdminUsers, AdminClient, AdminFiscal, AdminPostingAccounts, AdminApprovalPolicy,
     };
 }

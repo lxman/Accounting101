@@ -64,10 +64,12 @@ public static class LedgerEndpoints
 
     private static async Task<IResult> PostEntry(
         Guid clientId, PostEntryRequest request, LedgerGateway gateway, IModuleAuthenticator moduleAuth,
-        ClaimsPrincipal user, CancellationToken cancellationToken)
+        ControlStore control, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         LedgerContext ctx = await gateway.ResolveForPostAsync(user, clientId, moduleAuth, cancellationToken);
         if (ctx.Failed) return ctx.Error;
+
+        bool autoApprove = await AutoApproveAsync(clientId, control, cancellationToken);
 
         // Fast idempotent-replay path: if the caller supplied an id and that entry already exists for this
         // client, short-circuit before freeze validation. The replay performs no write — no sequence $inc,
@@ -80,7 +82,10 @@ public static class LedgerEndpoints
                 return ValidationProblem(earlyErrors);
 
             if (EntryComparison.SameFinancialContent(earlyExisting, earlyMapped!))
-                return Results.Ok(new PostEntryResponse(earlyExisting.Id, earlyExisting.Status.ToString(), earlyExisting.Posting.ToString()));
+            {
+                JournalEntry finalizedEarly = await FinalizeAsync(autoApprove, earlyExisting, ctx, cancellationToken);
+                return Results.Ok(new PostEntryResponse(finalizedEarly.Id, finalizedEarly.Status.ToString(), finalizedEarly.Posting.ToString()));
+            }
 
             return Unprocessable("An entry with this id already exists with different content.");
         }
@@ -106,7 +111,10 @@ public static class LedgerEndpoints
             {
                 // Same client + same financial content => idempotent replay of the same operation.
                 if (EntryComparison.SameFinancialContent(existing, entry!))
-                    return Results.Ok(new PostEntryResponse(existing.Id, existing.Status.ToString(), existing.Posting.ToString()));
+                {
+                    JournalEntry finalizedDup = await FinalizeAsync(autoApprove, existing, ctx, cancellationToken);
+                    return Results.Ok(new PostEntryResponse(finalizedDup.Id, finalizedDup.Status.ToString(), finalizedDup.Posting.ToString()));
+                }
 
                 // Same id, different content => the caller reused an operation id for a different entry.
                 return Unprocessable("An entry with this id already exists with different content.");
@@ -117,9 +125,10 @@ public static class LedgerEndpoints
             return Conflict("An entry with this id or sequence number already exists.");
         }
 
+        JournalEntry finalizedEntry = await FinalizeAsync(autoApprove, entry!, ctx, cancellationToken);
         return Results.Created(
-            $"/clients/{clientId}/entries/{entry!.Id}",
-            new PostEntryResponse(entry.Id, entry.Status.ToString(), entry.Posting.ToString()));
+            $"/clients/{clientId}/entries/{finalizedEntry.Id}",
+            new PostEntryResponse(finalizedEntry.Id, finalizedEntry.Status.ToString(), finalizedEntry.Posting.ToString()));
     }
 
     /// <summary>
@@ -190,10 +199,12 @@ public static class LedgerEndpoints
     /// </summary>
     private static async Task<IResult> PostBatch(
         Guid clientId, PostBatchRequest request, LedgerGateway gateway, IModuleAuthenticator moduleAuth,
-        ClaimsPrincipal user, CancellationToken cancellationToken)
+        ControlStore control, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         LedgerContext ctx = await gateway.ResolveForPostAsync(user, clientId, moduleAuth, cancellationToken);
         if (ctx.Failed) return ctx.Error;
+
+        bool autoApprove = await AutoApproveAsync(clientId, control, cancellationToken);
 
         IReadOnlyList<PostEntryRequest> reqs = request.Entries ?? [];
         if (reqs.Count == 0) return Unprocessable("A batch must contain at least one entry.");
@@ -255,9 +266,12 @@ public static class LedgerEndpoints
         try
         {
             IReadOnlyList<JournalEntry> written = await ctx.Ledger!.Service.PostBatchAsync(mappedEntries, ctx.Actor!, cancellationToken);
-            List<PostEntryResponse> body = written
-                .Select(e => new PostEntryResponse(e.Id, e.Status.ToString(), e.Posting.ToString()))
-                .ToList();
+            List<PostEntryResponse> body = [];
+            foreach (JournalEntry e in written)
+            {
+                JournalEntry finalized = await FinalizeAsync(autoApprove, e, ctx, cancellationToken);
+                body.Add(new PostEntryResponse(finalized.Id, finalized.Status.ToString(), finalized.Posting.ToString()));
+            }
             return Results.Created($"/clients/{clientId}/entries/batch", body);
         }
         catch (InvalidOperationException ex) // a freeze that raced past the pre-check
@@ -270,6 +284,22 @@ public static class LedgerEndpoints
         }
     }
 
+    /// <summary>True iff the client's resolved approval mode is AutoApprove (host policy, control DB).</summary>
+    private static async Task<bool> AutoApproveAsync(Guid clientId, ControlStore control, CancellationToken ct)
+    {
+        ClientRegistration? client = await control.GetClientAsync(clientId, ct);
+        return client is not null && ApprovalPolicy.ModeOf(client) == ApprovalMode.AutoApprove;
+    }
+
+    /// <summary>Under AutoApprove, approve a still-pending entry inline with the current actor (writing the
+    /// Approved audit event) and return the approved entry; otherwise return it unchanged. Idempotent — a
+    /// non-pending entry is returned untouched — so it is safe on both the fresh-post and replay paths.</summary>
+    private static async Task<JournalEntry> FinalizeAsync(
+        bool autoApprove, JournalEntry entry, LedgerContext ctx, CancellationToken ct) =>
+        autoApprove && entry.Posting == PostingState.PendingApproval
+            ? await ctx.Ledger!.Service.ApproveAsync(entry.Id, ctx.Actor!, ct)
+            : entry;
+
     private static async Task<IResult> ApproveEntry(
         Guid clientId, Guid entryId, LedgerGateway gateway, ControlStore control, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
@@ -280,10 +310,11 @@ public static class LedgerEndpoints
         if (entry is null)
             return Results.NotFound();
 
-        // Segregation of duties (host policy, per client): the approver may not be the author. This
-        // also covers revisions and reversals, since they are approved through this same endpoint.
+        // Approval policy (host policy, per client). TwoPerson requires the approver to differ from the
+        // author; this also covers revisions and reversals, approved through this same endpoint.
         ClientRegistration? client = await control.GetClientAsync(clientId, cancellationToken);
-        if (client?.RequireSegregationOfDuties == true && entry.Audit.CreatedBy == ctx.Actor.UserId)
+        if (client is not null && ApprovalPolicy.ModeOf(client) == ApprovalMode.TwoPerson
+            && entry.Audit.CreatedBy == ctx.Actor.UserId)
             return Results.Problem(
                 "Segregation of duties: an entry must be approved by someone other than the person who entered it.",
                 statusCode: StatusCodes.Status403Forbidden);
@@ -326,7 +357,7 @@ public static class LedgerEndpoints
 
     private static async Task<IResult> ReviseEntry(
         Guid clientId, Guid originalId, ReviseRequest request, LedgerGateway gateway, IModuleAuthenticator moduleAuth,
-        ClaimsPrincipal user, CancellationToken cancellationToken)
+        ControlStore control, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         LedgerContext ctx = await gateway.ResolveMemberAsync(user, clientId, cancellationToken);
         if (ctx.Failed) return ctx.Error;
@@ -354,7 +385,9 @@ public static class LedgerEndpoints
         try
         {
             JournalEntry result = await ctx.Ledger.Service.ReviseAsync(originalId, replacement, ctx.Actor, request.Reason, cancellationToken);
-            return Results.Created($"/clients/{clientId}/entries/{result.Id}", ToEntryResponse(result));
+            bool autoApprove = await AutoApproveAsync(clientId, control, cancellationToken);
+            JournalEntry finalized = await FinalizeAsync(autoApprove, result, ctx, cancellationToken);
+            return Results.Created($"/clients/{clientId}/entries/{finalized.Id}", ToEntryResponse(finalized));
         }
         catch (InvalidOperationException ex) // closed-period freeze, or original no longer active
         {
@@ -368,7 +401,7 @@ public static class LedgerEndpoints
 
     private static async Task<IResult> ReverseEntry(
         Guid clientId, Guid originalId, ReverseRequest request, LedgerGateway gateway, IModuleAuthenticator moduleAuth,
-        ClaimsPrincipal user, CancellationToken cancellationToken)
+        ControlStore control, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
         LedgerContext ctx = await gateway.ResolveMemberAsync(user, clientId, cancellationToken);
         if (ctx.Failed) return ctx.Error;
@@ -385,7 +418,9 @@ public static class LedgerEndpoints
             JournalEntry reversal = await ctx.Ledger.Service.ReverseAsync(
                 originalId, request.ReversalDate, ctx.Actor, request.Reason,
                 request.SourceRef, request.SourceType, cancellationToken);
-            return Results.Created($"/clients/{clientId}/entries/{reversal.Id}", ToEntryResponse(reversal));
+            bool autoApprove = await AutoApproveAsync(clientId, control, cancellationToken);
+            JournalEntry finalized = await FinalizeAsync(autoApprove, reversal, ctx, cancellationToken);
+            return Results.Created($"/clients/{clientId}/entries/{finalized.Id}", ToEntryResponse(finalized));
         }
         catch (InvalidOperationException ex) // not reversible, or reversal date in a closed period
         {

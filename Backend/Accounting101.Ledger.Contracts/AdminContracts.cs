@@ -5,13 +5,14 @@ public sealed record CreateClientRequest
 {
     public required string Name { get; init; }
     public string? DatabaseName { get; init; }
-    public bool RequireSegregationOfDuties { get; init; }
+    /// <summary>Approval posture. Defaults to TwoPerson when omitted (see the create handler).</summary>
+    public ApprovalMode ApprovalMode { get; init; }
     /// <summary>Month (1-12) the fiscal year ends; defaults to December.</summary>
     public int FiscalYearEndMonth { get; init; } = 12;
 }
 
 public sealed record ClientRegistrationResponse(
-    Guid Id, string Name, string DatabaseName, bool RequireSegregationOfDuties, int FiscalYearEndMonth);
+    Guid Id, string Name, string DatabaseName, ApprovalMode ApprovalMode, int FiscalYearEndMonth);
 
 /// <summary>Change a client's fiscal-year-end month (1-12), forward-only. Already-closed years are
 /// immutable; this affects only future closes.</summary>
@@ -56,3 +57,9 @@ public sealed record SetClientModulesRequest(IReadOnlyList<string> ModuleKeys);
 
 /// <summary>A client's entitled module keys as returned by the entitlement setter.</summary>
 public sealed record ClientModulesResponse(Guid ClientId, IReadOnlyList<string> ModuleKeys);
+
+/// <summary>A client's current approval mode.</summary>
+public sealed record ApprovalPolicyResponse(ApprovalMode Mode);
+
+/// <summary>Change a client's approval mode. <see cref="ApprovalMode.Unspecified"/> is rejected (422).</summary>
+public sealed record SetApprovalPolicyRequest(ApprovalMode Mode);
