@@ -2,6 +2,7 @@ using Accounting101.Inventory;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Hosting;
 using Accounting101.Ledger.Contracts;
+using Accounting101.ModuleKit.Api;
 
 namespace Accounting101.Inventory.Api;
 
@@ -30,9 +31,7 @@ public static class InventoryServiceExtensions
         services.AddSingleton<IInventoryAccountsProvider, ConfiguredInventoryAccountsProvider>();
 
         // Explicit client name to avoid the ILedgerClient short-name collision across modules.
-        services.AddHttpClient("InventoryLedgerClient", client =>
-                client.BaseAddress = new Uri(configuration["Engine:BaseAddress"] ?? "http://localhost"))
-            .AddTypedClient<ILedgerClient, HttpLedgerClient>();
+        services.AddModuleLedgerClient<ILedgerClient, HttpLedgerClient>("InventoryLedgerClient", configuration);
 
         return services;
     }

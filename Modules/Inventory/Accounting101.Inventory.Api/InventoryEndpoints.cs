@@ -159,15 +159,8 @@ public static class InventoryEndpoints
     private static async Task<IResult> GetItem(
         Guid clientId, Guid itemId, InventoryService service, CancellationToken cancellationToken)
     {
-        try
-        {
-            Item? item = await service.GetAsync(clientId, itemId, cancellationToken);
-            return item is null ? Results.NotFound() : Results.Ok(new ItemView(item));
-        }
-        catch (LedgerClientException ex) // the engine refused the fold read (e.g. folded control account lacks its required dimension) — relay its real status + reason, not a 500
-        {
-            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
-        }
+        Item? item = await service.GetAsync(clientId, itemId, cancellationToken);
+        return item is null ? Results.NotFound() : Results.Ok(new ItemView(item));
     }
 
     private static async Task<IResult> ListItems(
@@ -177,18 +170,11 @@ public static class InventoryEndpoints
         if (!TryOrder(order, out bool descending))
             return Results.Problem("order must be 'asc' or 'desc'.", statusCode: StatusCodes.Status400BadRequest);
 
-        try
-        {
-            PagedResponse<Item> page = await service.GetPagedAsync(
-                clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeInactive ?? false, cancellationToken);
+        PagedResponse<Item> page = await service.GetPagedAsync(
+            clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeInactive ?? false, cancellationToken);
 
-            return Results.Ok(new PagedResponse<ItemView>(
-                page.Items.Select(i => new ItemView(i)).ToList(), page.Total, page.Skip, page.Limit));
-        }
-        catch (LedgerClientException ex) // the engine refused the fold read (e.g. folded control account lacks its required dimension) — relay its real status + reason, not a 500
-        {
-            return Results.Problem(ex.Reason, statusCode: ex.StatusCode);
-        }
+        return Results.Ok(new PagedResponse<ItemView>(
+            page.Items.Select(i => new ItemView(i)).ToList(), page.Total, page.Skip, page.Limit));
     }
 
     private static bool TryOrder(string? order, out bool descending)
