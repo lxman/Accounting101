@@ -2,6 +2,7 @@ using Accounting101.FixedAssets;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Hosting;
 using Accounting101.Ledger.Contracts;
+using Accounting101.ModuleKit.Api;
 
 namespace Accounting101.FixedAssets.Api;
 
@@ -37,9 +38,7 @@ public static class FixedAssetsServiceExtensions
         services.AddSingleton<IFixedAssetsAccountsProvider, ConfiguredFixedAssetsAccountsProvider>();
 
         // Explicit client name to avoid the ILedgerClient short-name collision across modules.
-        services.AddHttpClient("FixedAssetsLedgerClient", client =>
-                client.BaseAddress = new Uri(configuration["Engine:BaseAddress"] ?? "http://localhost"))
-            .AddTypedClient<ILedgerClient, HttpLedgerClient>();
+        services.AddModuleLedgerClient<ILedgerClient, HttpLedgerClient>("FixedAssetsLedgerClient", configuration);
 
         return services;
     }
