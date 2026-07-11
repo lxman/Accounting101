@@ -54,6 +54,7 @@ import { MemberList } from './features/admin/member-list';
 import { MemberEditor } from './features/admin/member-editor';
 import { CapabilitySetList } from './features/admin/capability-set-list';
 import { CapabilitySetEditor } from './features/admin/capability-set-editor';
+import { ApprovalPolicyScreen } from './features/admin/approval-policy';
 import { BankingShell } from './features/banking/banking-shell';
 import { CashList } from './features/banking/cash-list';
 import { CashVoucherEditor } from './features/banking/cash-voucher-editor';
@@ -180,9 +181,10 @@ export const routes: Routes = [
   { path: 'admin/access/sets', component: CapabilitySetList, canActivate: [deploymentAdminGuard('/admin/users')] },
   { path: 'admin/access/sets/new', component: CapabilitySetEditor, canActivate: [deploymentAdminGuard('/admin/users')] },
   { path: 'admin/access/sets/:id', component: CapabilitySetEditor, canActivate: [deploymentAdminGuard('/admin/users')] },
+  { path: 'admin/approval-policy', component: ApprovalPolicyScreen, canActivate: [canWrite], data: { requiredCapability: 'admin.approvalPolicy', fallback: '/admin/users' } },
   // Every nav leaf not served by a built route tree above → Placeholder.
   ...(() => {
-    const built = ['/dashboard', '/journal', '/trial-balance', '/statements', '/accounts', '/receivables', '/payables', '/payroll', '/fixed-assets', '/cash', '/inventory', '/admin/users', '/admin/access/sets', '/admin/access/sets/new'];
+    const built = ['/dashboard', '/journal', '/trial-balance', '/statements', '/accounts', '/receivables', '/payables', '/payroll', '/fixed-assets', '/cash', '/inventory', '/admin/users', '/admin/access/sets', '/admin/access/sets/new', '/admin/approval-policy'];
     const isBuilt = (p: string) => built.some((b) => p === b || p.startsWith(b + '/'));
     return navLeafPaths()
       .filter((p) => !isBuilt(p))
