@@ -128,9 +128,16 @@ check with no new signal.
   var chart = await ledger.GetAccountsAsync(clientId, ct);  // AccountResponse[]
   return Results.Ok(ChartReadinessChecker.Check(reqs, chart, "<module>"));
   ```
-  Gated by the module's existing read capability + `ModuleAccess` (you can only check
-  a module you have — an un-entitled module 403s exactly like its other endpoints).
-  Always `200` on success (the report itself carries `ready`).
+  Requires authentication and engine **read** permission on the client's chart —
+  enforced when `GetAccountsAsync` hits the engine (`GET /accounts` resolves
+  `Permission.Read`); a caller without it gets the engine's relayed 403. Note: the
+  endpoint reads only the chart and does **not** touch the module doc-store, so it
+  does not pass through the `ModuleAccess` entitlement chokepoint — module
+  entitlement is not separately enforced here (an authenticated client user who can
+  read the chart can retrieve any module's readiness report; the data is advisory,
+  read-only chart-config metadata). Adding strict per-module entitlement parity is a
+  documented fast-follow if wanted. Always `200` on success (the report itself carries
+  `ready`).
 
 ### Data flow
 
@@ -178,8 +185,14 @@ and the fixtures that set `RequiredDimensions`):
 | | `Payroll:Accounts:PayrollTaxesPayable` | Liability | — |
 | | `Payroll:Accounts:Cash` | Asset | — |
 
-The declared `RequiredDimensions` mirror exactly what each fold call site passes to
-`GetSubledgerAsync`. **Not covered** (caller-supplied per transaction, not a
+The declared `RequiredDimensions` mirror each account's **posting contract** — the
+dimensions the module's recipes stamp on that account's lines — which the chart
+account must `RequiredDimensions`-require for the posts to be accepted. This is a
+superset of what the *fold* reads: e.g. A/R lines are stamped with both `Customer`
+and `Invoice` (`InvoicePosting`), while the balance fold reads only `Invoice`; both
+must be required on the account, so the declaration lists both. Same for A/P
+(`Vendor`+`Bill` stamped, `Bill` folded). **Not covered** (caller-supplied per
+transaction, not a
 config-fixed account): AR's `RevenueByCategory` map (per-category revenue accounts,
 only the default `Revenue` is a fixed target), AP's per-bill-line expense accounts,
 Reconciliation's per-adjustment offset accounts.
