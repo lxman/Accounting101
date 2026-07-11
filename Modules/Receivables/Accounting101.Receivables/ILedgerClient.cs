@@ -50,4 +50,7 @@ public interface ILedgerClient
     /// <summary>The client's full chart of accounts — how chart-readiness checks compare the module's
     /// account requirements against what is actually configured.</summary>
     Task<IReadOnlyList<AccountResponse>> GetAccountsAsync(Guid clientId, CancellationToken cancellationToken = default);
+
+    /// <summary>The acting user's resolved capabilities on the client (for readiness authorization). 403 if not a member.</summary>
+    Task<CapabilitiesResponse> GetMyCapabilitiesAsync(Guid clientId, CancellationToken cancellationToken = default);
 }

@@ -92,6 +92,14 @@ public abstract class ModuleLedgerClient(HttpClient http, IHttpContextAccessor c
         return (await response.Content.ReadFromJsonAsync<List<AccountResponse>>(cancellationToken))!;
     }
 
+    public async Task<CapabilitiesResponse> GetMyCapabilitiesAsync(Guid clientId, CancellationToken cancellationToken = default)
+    {
+        using HttpRequestMessage request = Forwarded(HttpMethod.Get, $"clients/{clientId}/me/capabilities");
+        using HttpResponseMessage response = await http.SendAsync(request, cancellationToken);
+        await EnsureSuccessAsync(response, cancellationToken); // non-member → 403 → LedgerClientException → relayed
+        return (await response.Content.ReadFromJsonAsync<CapabilitiesResponse>(cancellationToken))!;
+    }
+
     public async Task<IReadOnlyList<SubledgerLineResponse>> GetSubledgerAsync(
         Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default,
         bool includePending = false)

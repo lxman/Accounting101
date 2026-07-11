@@ -38,6 +38,9 @@ public interface ILedgerClient
     /// account requirements against what is actually configured.</summary>
     Task<IReadOnlyList<AccountResponse>> GetAccountsAsync(Guid clientId, CancellationToken cancellationToken = default);
 
+    /// <summary>The acting user's resolved capabilities on the client (for readiness authorization). 403 if not a member.</summary>
+    Task<CapabilitiesResponse> GetMyCapabilitiesAsync(Guid clientId, CancellationToken cancellationToken = default);
+
     /// <summary>Read a per-dimension control-account fold: the signed (debit-positive) balance of
     /// <paramref name="account"/> grouped by the value of dimension <paramref name="dimension"/>
     /// (e.g. "Vendor" or "Bill"). This is how ledger-first read paths derive balances.

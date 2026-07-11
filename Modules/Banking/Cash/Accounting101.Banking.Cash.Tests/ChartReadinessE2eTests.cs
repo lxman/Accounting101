@@ -40,6 +40,42 @@ public sealed class ChartReadinessE2eTests(CashHostFixture fixture) : IClassFixt
         Assert.Equal(AccountReadinessStatus.Missing, cash.Status);
     }
 
+    [Fact]
+    public async Task Member_with_cash_read_may_read_cash_readiness()
+    {
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync(LedgerRole.CashClerk); // CashClerk holds cash.read
+        HttpResponseMessage resp = await http.GetAsync($"/clients/{clientId}/cash/chart-readiness");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Member_without_cash_read_is_forbidden()
+    {
+        (Guid clientId, HttpClient http) = await fixture.SeedClientAsync(LedgerRole.ArClerk); // ArClerk lacks cash.read
+        HttpResponseMessage resp = await http.GetAsync($"/clients/{clientId}/cash/chart-readiness");
+        Assert.Equal(HttpStatusCode.Forbidden, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Deployment_admin_member_without_cash_read_may_read()
+    {
+        (Guid clientId, _) = await fixture.SeedClientAsync(LedgerRole.Controller);
+        Guid adminUser = Guid.NewGuid();
+        await fixture.Control().AddMembershipAsync(adminUser, clientId, LedgerRole.ArClerk); // no cash.read…
+        HttpClient adminHttp = fixture.AdminClientFor(adminUser, "Acme Admin");               // …but admin=true
+        HttpResponseMessage resp = await adminHttp.GetAsync($"/clients/{clientId}/cash/chart-readiness");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Non_member_is_forbidden()
+    {
+        (Guid clientId, _) = await fixture.SeedClientAsync(LedgerRole.Controller);
+        HttpClient stranger = fixture.ClientFor(Guid.NewGuid(), "Nobody"); // authenticated, not a member
+        HttpResponseMessage resp = await stranger.GetAsync($"/clients/{clientId}/cash/chart-readiness");
+        Assert.Equal(HttpStatusCode.Forbidden, resp.StatusCode);
+    }
+
     private static async Task PutAccountAsync(HttpClient http, Guid clientId, Guid accountId,
         string number, string name, string type) =>
         (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{accountId}",

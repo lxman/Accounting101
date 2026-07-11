@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { ChartHealthService } from '../../core/chart-health/chart-health.service';
 import { ClientContextService } from '../../core/client/client-context.service';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { CapabilityService } from '../../core/capabilities/capability.service';
 import { AccountReadinessResult, CHART_HEALTH_MODULES, ModuleHealth } from '../../core/chart-health/chart-health';
 
 @Component({
@@ -13,7 +14,7 @@ import { AccountReadinessResult, CHART_HEALTH_MODULES, ModuleHealth } from '../.
     <section class="rounded-lg border p-4 flex flex-col gap-3 max-w-xl">
       <header class="flex items-center justify-between">
         <h2 class="font-semibold">Chart Health</h2>
-        <span class="text-sm text-muted-foreground">{{ readyCount() }} / {{ total }} ready</span>
+        <span class="text-sm text-muted-foreground">{{ readyCount() }} / {{ total() }} ready</span>
       </header>
 
       @if (loading()) {
@@ -55,8 +56,14 @@ import { AccountReadinessResult, CHART_HEALTH_MODULES, ModuleHealth } from '../.
 export class ChartHealthWidget {
   private readonly health = inject(ChartHealthService);
   private readonly client = inject(ClientContextService);
+  private readonly caps = inject(CapabilityService);
 
-  readonly total = CHART_HEALTH_MODULES.length;
+  /** Modules the acting user may see — mirrors the server rule: deploymentAdmin || admin.client || {module}.read. */
+  readonly visibleModules = computed(() =>
+    CHART_HEALTH_MODULES.filter(m =>
+      this.caps.deploymentAdmin() || this.caps.has('admin.client') || this.caps.has(m.readCap)));
+
+  readonly total = computed(() => this.visibleModules().length);
   readonly modules = signal<ModuleHealth[]>([]);
   readonly loading = signal(true);
   readonly expanded = signal<Set<string>>(new Set());
@@ -67,8 +74,11 @@ export class ChartHealthWidget {
     effect((onCleanup) => {
       const id = this.client.clientId();
       if (!id) { this.modules.set([]); this.loading.set(false); return; }
+      if (!this.caps.loaded()) { this.loading.set(true); return; } // wait for caps before deciding visibility (avoids empty flicker)
+      const modules = this.visibleModules();
+      if (modules.length === 0) { this.modules.set([]); this.loading.set(false); return; } // zero visible → empty, not a spinner
       this.loading.set(true);
-      const sub = this.health.readiness().subscribe(m => { this.modules.set(m); this.loading.set(false); });
+      const sub = this.health.readiness(modules).subscribe(m => { this.modules.set(m); this.loading.set(false); });
       onCleanup(() => sub.unsubscribe());
     });
   }

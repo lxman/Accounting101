@@ -194,6 +194,10 @@ public static class InventoryEndpoints
     private static async Task<IResult> ChartReadiness(
         Guid clientId, InventoryChartRequirements requirements, ILedgerClient ledger, CancellationToken cancellationToken)
     {
+        CapabilitiesResponse caps = await ledger.GetMyCapabilitiesAsync(clientId, cancellationToken); // non-member → relayed 403
+        if (!ReadinessAccess.Allows("inventory", caps.DeploymentAdmin, caps.Capabilities))
+            return Results.Problem("Not authorized to view this module's chart readiness.", statusCode: StatusCodes.Status403Forbidden);
+
         IReadOnlyList<AccountRequirement> reqs = await requirements.ForAsync(clientId, cancellationToken);
         IReadOnlyList<AccountResponse> chart = await ledger.GetAccountsAsync(clientId, cancellationToken);
         return Results.Ok(ChartReadinessChecker.Check(reqs, chart, "inventory"));

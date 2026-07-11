@@ -26,11 +26,11 @@ export interface ModuleHealth {
 }
 
 /** The six modules the widget checks, in display order. */
-export const CHART_HEALTH_MODULES: { key: string; label: string }[] = [
-  { key: 'receivables', label: 'Receivables' },
-  { key: 'payables', label: 'Payables' },
-  { key: 'payroll', label: 'Payroll' },
-  { key: 'cash', label: 'Cash' },
-  { key: 'fixedassets', label: 'Fixed Assets' },
-  { key: 'inventory', label: 'Inventory' },
+export const CHART_HEALTH_MODULES: { key: string; label: string; readCap: string }[] = [
+  { key: 'receivables', label: 'Receivables', readCap: 'ar.read' },
+  { key: 'payables', label: 'Payables', readCap: 'ap.read' },
+  { key: 'payroll', label: 'Payroll', readCap: 'payroll.read' },
+  { key: 'cash', label: 'Cash', readCap: 'cash.read' },
+  { key: 'fixedassets', label: 'Fixed Assets', readCap: 'fixedassets.read' },
+  { key: 'inventory', label: 'Inventory', readCap: 'inventory.read' },
 ];
