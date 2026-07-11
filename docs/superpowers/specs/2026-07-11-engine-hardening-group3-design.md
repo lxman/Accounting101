@@ -144,17 +144,25 @@ and `CHART_HEALTH_MODULES` (`UI/Angular/src/app/core/chart-health/chart-health.t
   `{area}.read` literal — guards the Angular home against the known-good map (cross-language, so it
   checks the literal, not a live backend call).
 
-### 9. Readiness coverage for per-line accounts (leftover)
+### 9. Readiness coverage for configured revenue-by-category accounts (leftover)
 
-`ReceivablesChartRequirements` / `PayablesChartRequirements` validate the fixed configured accounts
-(AR/AP control, cash, etc.) but **not** the revenue/expense accounts chosen per invoice/bill line
-("revenue by category"). Extend each module's `ChartRequirements` to also validate the configured
-category→account mappings (`ConfiguredInvoiceAccountsProvider` and the payables equivalent): each
-mapped account must exist, be Active, the correct type (Revenue for AR categories, Expense for AP),
-and postable. Surfaced through the same `chart-readiness` report shape.
+`ReceivablesChartRequirements.ForAsync` declares the fixed configured accounts (AR control, default
+revenue, cash, etc.) but **not** the per-category revenue accounts in the configured
+`RevenueByCategory` map (`InvoicePostingAccounts.RevenueAccountsByCategory`). An invoice line with a
+`RevenueCategory` posts to one of those accounts, yet readiness never checks they exist / are the
+right type. Extend `ReceivablesChartRequirements` to add one `AccountRequirement` per
+`RevenueAccountsByCategory` entry (label `"Revenue: {category}"`, ExpectedType `"Revenue"`, no
+required dimensions). Surfaced through the same `chart-readiness` report shape and evaluator — no
+checker change.
 
-**Tests (E2E):** a category mapped to a missing/inactive/wrong-type account surfaces a readiness gap
-naming the account; a fully-mapped chart reports ready.
+**Payables is deliberately excluded:** its bill-line expense accounts are chosen per line **at
+data-entry time** (`BillLineBody.ExpenseAccountId`), not from configuration, so there is no
+config-driven set to pre-validate — readiness cannot know them ahead of a bill. `PayablesChartRequirements`
+is unchanged.
+
+**Tests (E2E):** a configured revenue category mapped to a missing/wrong-type account surfaces a
+readiness gap naming `"Revenue: {category}"`; a fully-mapped chart still reports ready; an empty
+category map adds no requirements (unchanged behavior).
 
 ## Testing strategy
 
