@@ -29,9 +29,11 @@ public static class CapabilitiesEndpoints
             return Results.Forbid();
 
         bool deploymentAdmin = user.HasClaim("admin", "true");
+        ClientRegistration? client = await control.GetClientAsync(clientId, cancellationToken);
         return Results.Ok(new CapabilitiesResponse(
             membership.Capabilities,
             membership.GrantedRoles.Select(r => r.ToString()).ToList(),
-            deploymentAdmin));
+            deploymentAdmin,
+            client?.EnabledModules ?? []));
     }
 }

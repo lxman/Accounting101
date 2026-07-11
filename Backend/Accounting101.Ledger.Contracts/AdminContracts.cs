@@ -24,10 +24,12 @@ public sealed record MembershipResponse(
     Guid UserId, Guid ClientId, IReadOnlyList<string> Roles, IReadOnlyList<string> Capabilities,
     IReadOnlyList<Guid>? GrantedSetIds = null, IReadOnlyList<string>? SetNames = null);
 
-/// <summary>The acting user's resolved capabilities on a client, the role preset(s) granted, and
-/// whether they hold the deployment-admin claim (a separate authorization axis).</summary>
+/// <summary>The acting user's resolved capabilities on a client, the role preset(s) granted,
+/// whether they hold the deployment-admin claim (a separate authorization axis), and the client's
+/// enabled module keys (drives frontend nav filtering).</summary>
 public sealed record CapabilitiesResponse(
-    IReadOnlyList<string> Capabilities, IReadOnlyList<string> Roles, bool DeploymentAdmin);
+    IReadOnlyList<string> Capabilities, IReadOnlyList<string> Roles, bool DeploymentAdmin,
+    IReadOnlyList<string> EnabledModules);
 
 /// <summary>Add a member to a client with an explicit role preset list and capability set.</summary>
 public sealed record AddClientMemberRequest(Guid UserId, IReadOnlyList<string> Roles, IReadOnlyList<string> Capabilities);

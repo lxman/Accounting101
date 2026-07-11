@@ -91,6 +91,7 @@ export class Shell {
   protected readonly visibleNav = computed(() =>
     visibleSections(NAV, (link) =>
       (!link.area || this.caps.hasArea(link.area)) &&
+      (!link.moduleKey || this.caps.moduleEnabled(link.moduleKey)) &&
       (!link.deploymentAdmin || this.caps.deploymentAdmin())));
 
   // The trigger renders the active value (a user sub) via itemToString; map it back to a readable

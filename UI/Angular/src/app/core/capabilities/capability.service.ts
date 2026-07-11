@@ -55,6 +55,7 @@ export class CapabilityService {
   readonly capabilities: Signal<ReadonlySet<string>> = computed(() => new Set(this.current().capabilities));
   readonly roles: Signal<string[]> = computed(() => this.current().roles);
   readonly deploymentAdmin: Signal<boolean> = computed(() => this.current().deploymentAdmin);
+  readonly enabledModules: Signal<ReadonlySet<string>> = computed(() => new Set(this.current().enabledModules));
 
   has(capability: string): boolean { return this.capabilities().has(capability); }
 
@@ -64,6 +65,9 @@ export class CapabilityService {
     for (const c of this.capabilities()) if (c.startsWith(prefix)) return true;
     return false;
   }
+
+  /** True if the given module key is enabled for the active client. */
+  moduleEnabled(key: string): boolean { return this.enabledModules().has(key); }
 
   /** Force a re-fetch of the current client's capabilities (e.g. after a 403, or on a poll tick). */
   reload(): void { this.reloadTick.update((n) => n + 1); }
