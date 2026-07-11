@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Accounting101.Ledger.Api.Control;
 using Accounting101.Ledger.Contracts;
 using Accounting101.ModuleKit;
 using Accounting101.Receivables.Api;
@@ -58,6 +59,34 @@ public sealed class ChartReadinessE2eTests(ReceivablesHostFixture fixture) : ICl
         await Put(http, clientId, fixture.CashAccountId,            "1000", "Cash",                "Asset",     null);
         await Put(http, clientId, fixture.BadDebtExpenseAccountId,  "6000", "Bad Debt Expense",    "Expense",   null);
         await Put(http, clientId, fixture.SalesReturnsAccountId,    "4900", "Sales Returns",       "Revenue",   null);
+    }
+
+    // fixture.SeedClientAsync() always registers a Controller member (holds every .read), so these two
+    // gating tests add a second member of a specific role directly via Control()/ClientFor — mirroring
+    // the Cash tests' shape but adapted since this fixture's SeedClientAsync has no role parameter.
+
+    [Fact]
+    public async Task Member_with_ar_read_may_read_receivables_readiness()
+    {
+        (Guid clientId, _) = await fixture.SeedClientAsync();
+        Guid userId = Guid.NewGuid();
+        await fixture.Control().AddMembershipAsync(userId, clientId, LedgerRole.ArClerk); // ArClerk holds ar.read
+        HttpClient http = fixture.ClientFor(userId, "Acme ArClerk");
+
+        HttpResponseMessage resp = await http.GetAsync($"/clients/{clientId}/receivables/chart-readiness");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Member_without_ar_read_is_forbidden()
+    {
+        (Guid clientId, _) = await fixture.SeedClientAsync();
+        Guid userId = Guid.NewGuid();
+        await fixture.Control().AddMembershipAsync(userId, clientId, LedgerRole.CashClerk); // CashClerk lacks ar.read
+        HttpClient http = fixture.ClientFor(userId, "Acme CashClerk");
+
+        HttpResponseMessage resp = await http.GetAsync($"/clients/{clientId}/receivables/chart-readiness");
+        Assert.Equal(HttpStatusCode.Forbidden, resp.StatusCode);
     }
 
     private static async Task Put(HttpClient http, Guid clientId, Guid id, string number, string name, string type,
