@@ -1,11 +1,14 @@
 using System.Text;
+using System.Xml;
+using System.Xml.Linq;
 
 namespace Accounting101.Interchange;
 
-/// <summary>Parses an OFX 1.x SGML bank-statement file (the Wells Fargo QFX dialect and friends) into one
-/// <see cref="ImportedStatement"/> per &lt;STMTRS&gt;. Tolerant: header optional, unclosed leaves, multiple
-/// statements, LEDGERBAL (not AVAILBAL) closing balance, bad transactions warned-and-skipped, malformed-but-
-/// readable files degrade to warnings. OFX 2.x XML is refused (slice 4c). No balances opening (OFX has none).</summary>
+/// <summary>Parses an OFX bank-statement file — either the OFX 1.x SGML dialect (the Wells Fargo QFX dialect
+/// and friends) or OFX 2.x XML — into one <see cref="ImportedStatement"/> per &lt;STMTRS&gt;. Tolerant: header
+/// optional, unclosed leaves (1.x), multiple statements, LEDGERBAL (not AVAILBAL) closing balance, bad
+/// transactions warned-and-skipped, malformed-but-readable files degrade to warnings. OFX 2.x XML is parsed
+/// via the same routine over an XML navigator. No balances opening (OFX has none).</summary>
 public sealed class OfxStatementImporter : IImporter<ImportedStatement>
 {
     public InterchangeFormat Format => InterchangeFormat.Ofx;
@@ -23,11 +26,20 @@ public sealed class OfxStatementImporter : IImporter<ImportedStatement>
         string text = encoding.GetString(bytes);
 
         string body = OfxScanner.StripHeaderAndDetectDialect(text, out bool isXml);
-        if (isXml)
-            throw new NotSupportedException("OFX 2.x XML import is not yet supported (slice 4c). Re-export as OFX/QFX 1.x, or import the CSV.");
 
         List<string> warnings = [];
-        return AssembleStatements(new SgmlOfxNode(body), warnings);
+        IOfxNode root;
+        if (isXml)
+        {
+            try { root = new XmlOfxNode(XDocument.Parse(body).Root!); }
+            catch (XmlException ex)
+            {
+                return new ImportResult<ImportedStatement>([], [$"OFX 2.x XML could not be parsed: {ex.Message}"]);
+            }
+        }
+        else root = new SgmlOfxNode(body);
+
+        return AssembleStatements(root, warnings);
     }
 
     private static ImportResult<ImportedStatement> AssembleStatements(IOfxNode root, List<string> warnings)
