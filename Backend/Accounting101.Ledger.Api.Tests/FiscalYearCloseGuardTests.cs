@@ -57,10 +57,15 @@ public sealed class FiscalYearCloseGuardTests(ApiFixture fixture) : IClassFixtur
     {
         HttpClient admin = fixture.AdminClient();
 
-        // Create the client with the desired fiscal-year-end month.
+        // Create the client with the desired fiscal-year-end month. SelfApprove: these scenarios post and
+        // approve through the one Controller actor and are not about segregation of duties; the admin create
+        // handler otherwise defaults an omitted mode to TwoPerson, forbidding this actor's self-approve.
         HttpResponseMessage created = await admin.PostAsJsonAsync(
             "/admin/clients",
-            new CreateClientRequest { Name = name, FiscalYearEndMonth = fiscalYearEndMonth });
+            new CreateClientRequest
+            {
+                Name = name, FiscalYearEndMonth = fiscalYearEndMonth, ApprovalMode = ApprovalMode.SelfApprove,
+            });
         created.EnsureSuccessStatusCode();
         ClientRegistrationResponse reg = (await created.Content.ReadFromJsonAsync<ClientRegistrationResponse>())!;
 

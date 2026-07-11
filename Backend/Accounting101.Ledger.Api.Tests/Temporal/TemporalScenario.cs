@@ -13,13 +13,19 @@ internal static class TemporalScenario
     internal static string FreshAuth() => DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
 
     /// <summary>Create a client with the given fiscal-year-end month via the admin path, add a Controller
-    /// member, and return an HttpClient authenticated as that member.</summary>
+    /// member, and return an HttpClient authenticated as that member. Explicitly requests SelfApprove —
+    /// these scenarios drive the whole lifecycle (post + approve + close) through one actor, and are not
+    /// about segregation of duties; the admin create handler otherwise defaults an omitted mode to
+    /// TwoPerson, which would forbid this single actor from approving its own posts.</summary>
     internal static async Task<(Guid ClientId, HttpClient Http)> SeedFyeClientAsync(
         ApiFixture fixture, int fiscalYearEndMonth, string name)
     {
         HttpClient admin = fixture.AdminClient();
         ClientRegistrationResponse reg = (await (await admin.PostAsJsonAsync(
-                "/admin/clients", new CreateClientRequest { Name = name, FiscalYearEndMonth = fiscalYearEndMonth }))
+                "/admin/clients", new CreateClientRequest
+                {
+                    Name = name, FiscalYearEndMonth = fiscalYearEndMonth, ApprovalMode = ApprovalMode.SelfApprove,
+                }))
             .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<ClientRegistrationResponse>())!;
 
         Guid userId = Guid.NewGuid();
