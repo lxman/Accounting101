@@ -14,6 +14,12 @@ internal sealed class FakeLedgerClient : ILedgerClient
 
     public IReadOnlyList<PostEntryRequest> Posted => _posted;
 
+    /// <summary>Each singular by-source-ref read, recorded so tests can assert detail reads pass through once.</summary>
+    public List<Guid> SingularCalls { get; } = [];
+
+    /// <summary>Each batched by-source-refs read, recorded so tests can assert a list folds in ONE call (not N+1).</summary>
+    public List<IReadOnlyList<Guid>> BatchCalls { get; } = [];
+
     public Task<PostEntryResponse> PostAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
     {
         _posted.Add(entry);
@@ -38,12 +44,18 @@ internal sealed class FakeLedgerClient : ILedgerClient
         return Task.FromResult(voided);
     }
 
-    public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<EntryResponse>>(_entries.Values.Where(e => e.SourceRef == sourceRef).ToList());
+    public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default)
+    {
+        SingularCalls.Add(sourceRef);
+        return Task.FromResult<IReadOnlyList<EntryResponse>>(_entries.Values.Where(e => e.SourceRef == sourceRef).ToList());
+    }
 
-    public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefsAsync(Guid clientId, IReadOnlyList<Guid> sourceRefs, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<EntryResponse>>(
+    public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefsAsync(Guid clientId, IReadOnlyList<Guid> sourceRefs, CancellationToken cancellationToken = default)
+    {
+        BatchCalls.Add(sourceRefs);
+        return Task.FromResult<IReadOnlyList<EntryResponse>>(
             _entries.Values.Where(e => e.SourceRef is { } s && sourceRefs.Contains(s)).ToList());
+    }
 
     public Task<IReadOnlyList<AccountResponse>> GetAccountsAsync(Guid clientId, CancellationToken cancellationToken = default) =>
         throw new NotSupportedException("Not needed by this fake's consumers; ChartReadinessE2eTests exercises the real HTTP-backed engine.");

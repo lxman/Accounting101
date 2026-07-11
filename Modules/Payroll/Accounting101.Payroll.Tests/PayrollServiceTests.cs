@@ -351,4 +351,67 @@ public sealed class PayrollServiceTests
         Assert.Equal(TaxRemittanceStatus.Posted, page.Items.Single(r => r.Id == stayPosted.Id).Status);
         Assert.Equal(TaxRemittanceStatus.Void, page.Items.Single(r => r.Id == goVoid.Id).Status);
     }
+
+    // ── Batch-read discipline: a list folds in ONE batch call; a detail passes through one singular call ──
+
+    [Fact]
+    public async Task ListRuns_folds_ledger_truth_in_one_batch_call_never_per_row()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        for (int i = 0; i < 3; i++)
+            await h.Service.RecordRunAsync(clientId,
+                new PayrollRunBody(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, i + 1, 28), null));
+
+        await h.Service.ListRunsAsync(clientId, 0, 50, descending: false, includeVoided: true);
+
+        // ONE batched ledger read for the whole page — never a per-row singular fan-out (N+1).
+        IReadOnlyList<Guid> batch = Assert.Single(h.Ledger.BatchCalls);
+        Assert.Equal(3, batch.Count);
+        Assert.Empty(h.Ledger.SingularCalls);
+    }
+
+    [Fact]
+    public async Task ListRemittances_folds_ledger_truth_in_one_batch_call_never_per_row()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        for (int i = 0; i < 3; i++)
+            await h.Service.RecordRemittanceAsync(clientId,
+                new TaxRemittanceBody(1_700m, 1_240m, new DateOnly(2026, i + 1, 15), null));
+
+        await h.Service.ListRemittancesAsync(clientId, 0, 50, descending: false, includeVoided: true);
+
+        IReadOnlyList<Guid> batch = Assert.Single(h.Ledger.BatchCalls);
+        Assert.Equal(3, batch.Count);
+        Assert.Empty(h.Ledger.SingularCalls);
+    }
+
+    [Fact]
+    public async Task GetRun_passes_through_one_singular_read_never_the_batch()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        PayrollRun run = await h.Service.RecordRunAsync(clientId,
+            new PayrollRunBody(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, 6, 30), null));
+
+        await h.Service.GetRunAsync(clientId, run.Id);
+
+        Assert.Equal(run.Id, Assert.Single(h.Ledger.SingularCalls));
+        Assert.Empty(h.Ledger.BatchCalls);
+    }
+
+    [Fact]
+    public async Task GetRemittance_passes_through_one_singular_read_never_the_batch()
+    {
+        Harness h = BuildHarness();
+        Guid clientId = Guid.NewGuid();
+        TaxRemittance remittance = await h.Service.RecordRemittanceAsync(clientId,
+            new TaxRemittanceBody(1_700m, 1_240m, new DateOnly(2026, 7, 15), null));
+
+        await h.Service.GetRemittanceAsync(clientId, remittance.Id);
+
+        Assert.Equal(remittance.Id, Assert.Single(h.Ledger.SingularCalls));
+        Assert.Empty(h.Ledger.BatchCalls);
+    }
 }
