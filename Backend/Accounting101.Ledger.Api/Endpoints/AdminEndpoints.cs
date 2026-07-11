@@ -40,12 +40,16 @@ public static class AdminEndpoints
             ? "client_" + id.ToString("N")
             : request.DatabaseName;
 
+        ApprovalMode mode = request.ApprovalMode == ApprovalMode.Unspecified
+            ? ApprovalMode.TwoPerson
+            : request.ApprovalMode;
+
         ClientRegistration registration = new()
         {
             Id = id,
             Name = request.Name,
             DatabaseName = database,
-            RequireSegregationOfDuties = request.RequireSegregationOfDuties,
+            ApprovalMode = mode,
             FiscalYearEndMonth = request.FiscalYearEndMonth,
         };
         await control.RegisterClientAsync(registration, cancellationToken);
@@ -53,7 +57,7 @@ public static class AdminEndpoints
         return Results.Created(
             $"/admin/clients/{id}",
             new ClientRegistrationResponse(id, registration.Name, registration.DatabaseName,
-                registration.RequireSegregationOfDuties, FiscalYear.MonthOf(registration)));
+                ApprovalPolicy.ModeOf(registration), FiscalYear.MonthOf(registration)));
     }
 
     private static async Task<IResult> SetFiscalYearEnd(
@@ -76,14 +80,14 @@ public static class AdminEndpoints
         await control.RegisterClientAsync(registration, cancellationToken);
 
         return Results.Ok(new ClientRegistrationResponse(registration.Id, registration.Name, registration.DatabaseName,
-            registration.RequireSegregationOfDuties, FiscalYear.MonthOf(registration)));
+            ApprovalPolicy.ModeOf(registration), FiscalYear.MonthOf(registration)));
     }
 
     private static async Task<IResult> ListClients(ControlStore control, CancellationToken cancellationToken)
     {
         IReadOnlyList<ClientRegistration> clients = await control.ListClientsAsync(cancellationToken);
         return Results.Ok(clients
-            .Select(c => new ClientRegistrationResponse(c.Id, c.Name, c.DatabaseName, c.RequireSegregationOfDuties, FiscalYear.MonthOf(c)))
+            .Select(c => new ClientRegistrationResponse(c.Id, c.Name, c.DatabaseName, ApprovalPolicy.ModeOf(c), FiscalYear.MonthOf(c)))
             .ToList());
     }
 

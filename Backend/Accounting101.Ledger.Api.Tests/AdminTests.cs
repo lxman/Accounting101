@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Accounting101.Ledger.Contracts;
 
 namespace Accounting101.Ledger.Api.Tests;
@@ -126,5 +127,26 @@ public sealed class AdminTests(ApiFixture fixture) : IClassFixture<ApiFixture>
         HttpResponseMessage changed = await fixture.AdminClient().PutAsJsonAsync(
             $"/admin/clients/{Guid.NewGuid()}/fiscal-year-end", new SetFiscalYearEndRequest(6));
         Assert.Equal(HttpStatusCode.NotFound, changed.StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_client_without_mode_defaults_to_two_person()
+    {
+        HttpResponseMessage resp = await fixture.AdminClient().PostAsJsonAsync(
+            "/admin/clients", new CreateClientRequest { Name = "Defaults Co", DatabaseName = null, FiscalYearEndMonth = 12 });
+        resp.EnsureSuccessStatusCode();
+        ClientRegistrationResponse body = (await resp.Content.ReadFromJsonAsync<ClientRegistrationResponse>())!;
+        Assert.Equal(ApprovalMode.TwoPerson, body.ApprovalMode);
+    }
+
+    [Fact]
+    public async Task Create_client_echoes_explicit_mode_as_a_string()
+    {
+        HttpResponseMessage resp = await fixture.AdminClient().PostAsJsonAsync(
+            "/admin/clients", new CreateClientRequest { Name = "SelfCo", DatabaseName = null, ApprovalMode = ApprovalMode.SelfApprove, FiscalYearEndMonth = 12 });
+        resp.EnsureSuccessStatusCode();
+        string json = await resp.Content.ReadAsStringAsync();
+        Assert.Contains("SelfApprove", json);                 // string on the wire
+        Assert.DoesNotContain("RequireSegregationOfDuties", json); // bool is gone
     }
 }
