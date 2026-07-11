@@ -16,6 +16,10 @@ makes the one illegal combination — SoD **on** *and* auto-approve **on** — *
 Auto-approve inherently makes author = approver, which contradicts SoD; a single enum
 cannot express both at once.
 
+As a small rider (same files, same review), this feature also removes the ghost `admin.firm`
+capability — defined and bundled into the `Admin` preset but enforced nowhere. See *Ghost-cap
+correction*.
+
 ## Motivation
 
 Today every client runs one of two postures via `RequireSegregationOfDuties`:
@@ -39,8 +43,10 @@ is lost from the audit record; only the human round-trip is removed.
 | **SelfApprove** | Author may approve their own entries. | `RequireSegregationOfDuties = false` |
 | **AutoApprove** | Entry approved inline at post time by the posting actor. Both post + approval audit events written. | *(new)* |
 
-The modes apply to journal entries **and** to AR/AP Issue/Enter (invoice/bill promotion),
-wherever the approval gate currently sits.
+The modes apply to **every entry-creation path** — direct journal entries, all subledger module
+postings (AR Issue, AP Enter, payroll, cash, fixed-assets, inventory), revisions, and reversals
+— because they all resolve through the shared host creation handlers. See *Enforcement* for the
+exact surface.
 
 ## Data model
 
@@ -121,23 +127,48 @@ if (mode == ApprovalMode.TwoPerson && entry.Audit.CreatedBy == ctx.Actor.UserId)
 - `TwoPerson` → author ≠ approver enforced (unchanged behavior).
 - `SelfApprove` → guard skipped; author may approve (unchanged behavior).
 
-### AutoApprove — the post handlers
+### AutoApprove — the entry-creation handlers
 
-AutoApprove is enforced at the **post** path, not the approve endpoint. After an entry is
-posted, when `ApprovalPolicy.ModeOf(client) == AutoApprove`, the host immediately approves the
-just-posted entry inline, using the **posting actor**, so both the post audit event and the
-approval audit event are recorded (identical evidentiary chain to a manual approval).
+AutoApprove is enforced at the **creation** path, in the host, not at the approve endpoint.
+When `ApprovalPolicy.ModeOf(client) == AutoApprove`, immediately after a new pending entry is
+created the host calls the existing engine `ApproveAsync(entryId, actor)` for it, using the
+**creating actor**. Both the `Created` and the `Approved` audit events are therefore written,
+with the same actor — an evidentiary chain identical to a manual approval; only the human
+round-trip is removed. The handler returns the **post-approval** status (`Posted`), so a caller
+(including a module) sees the entry's true final state.
 
-This hook must cover **both** journal-entry post entry points:
-- single-entry post
-- `PostBatchAsync` / `POST /entries/batch`
+Reusing `ApproveAsync` is deliberate: it already performs the revision supersede-swap and the
+reversal application correctly, so all creation kinds are auto-approved through one
+well-tested path rather than duplicated logic.
 
-and the **AR/AP Issue/Enter** promotion paths, wherever they currently create a
-`PendingApproval` entry.
+**Complete surface — the four host handlers that create a `PendingApproval` entry:**
 
-The SoD guard on the approve endpoint is unaffected by AutoApprove (auto-approved entries
-never reach a manual approval call in the normal flow; a manual approve of an already-approved
-entry remains a no-op/conflict as today).
+| Handler | Route | Engine call |
+|---------|-------|-------------|
+| `PostEntry` | `POST /entries` | `PostAsync` |
+| `PostBatch` | `POST /entries/batch` | `PostBatchAsync` (approve each written entry) |
+| `ReviseEntry` | `POST /entries/{id}/revise` | `ReviseAsync` |
+| `ReverseEntry` | `POST /entries/{id}/reverse` | `ReverseAsync` |
+
+**Modules are covered transitively — no per-module code.** Every subledger (AR Issue, AP Enter,
+payroll runs, cash, fixed-assets, inventory) posts through `PostEntry` / `PostBatch` via
+`gateway.ResolveForPostAsync(..., moduleAuth, ...)` (the entry is stamped `Audit.ViaModule`).
+Because AutoApprove lives in those two shared handlers, an AutoApprove client's module postings
+are auto-approved automatically. No module host changes.
+
+**Atomicity.** The auto-approve is a second transaction after the create (the engine stays
+policy-agnostic — it receives no `ApprovalMode`), so a process crash in the narrow window
+between create and approve would leave an `Active`/`PendingApproval` entry. This is a **benign,
+self-healing transient**, not corruption: the entry is durable and simply awaits approval. The
+auto-approve step also runs on the **idempotent-replay** branch when the replayed entry is still
+pending, so a retried post heals a straggler. (If this window ever proves material, the
+hardening path is to thread a host-computed `autoApprove` flag into the engine create methods so
+create+approve share one transaction — deferred; not needed for v1.)
+
+**SoD guard interaction.** The approve-endpoint SoD guard (TwoPerson) is unaffected: AutoApprove
+approves via the engine directly, bypassing the endpoint guard, which is correct because
+AutoApprove is by definition author = approver. A manual approve of an already-auto-approved
+entry remains a no-op/conflict as today.
 
 ## Authorization
 
@@ -160,6 +191,26 @@ Wiring:
 - The GET/PUT approval-policy endpoints are gated by `AdminApprovalPolicy` via
   `AdminAuthorization.MayAsync` (deployment `admin=true` continues to override, as with all
   admin caps).
+
+### Ghost-cap correction: remove `admin.firm`
+
+While editing `Capabilities.cs` and `RolePresets.cs` to add `admin.approvalPolicy`, this feature
+also **removes the `admin.firm` capability**. It is a ghost: defined in the vocabulary and bundled
+into the `Admin` role preset, but **enforced at no endpoint, granted by no seeded set, used by no
+UI, and asserted by no functional test** — there is literally nothing for it to gate (firm
+provisioning is a platform-operator concern gated by `platform=true`, not `admin.firm`; a prior
+design doc records that `admin.firm` endpoints do not exist). An unenforced, grantable admin cap
+is a latent confusion/security smell — someone can grant it believing it confers authority.
+
+Removal touches exactly three lines: the `AdminFirm` const, its entry in `Capabilities.All`, and
+its entry in the `LedgerRole.Admin` preset. Any test that asserts the exact contents/count of
+`Capabilities.All` or the `Admin` preset is updated. Stored grants of the string `"admin.firm"`
+(if any exist in a DB) simply become unrecognized and inert; new grants of it are rejected by
+`All`-based validation, which is the desired outcome.
+
+When the firm-admin console epic lands and there is a firm-scoped surface to protect, it
+reintroduces a **properly enforced** `admin.firm`. Carrying dead vocabulary until then buys
+nothing.
 
 ## API surface
 
@@ -202,19 +253,20 @@ decision.
 ## Scope boundaries (YAGNI)
 
 This feature does **not** build out the firm-admin or super-admin (platform-operator) UI
-console shells. Those tiers exist in the backend (`admin.firm` capability — currently a defined
--but-unenforced placeholder; `platform=true` claim → `/platform/*`), but a proper tier→screen
-build-out is a **separate epic**. ApprovalMode is one per-client setting on the existing
-per-client admin surface; a firm or deployment admin who outranks the client admin can already
-edit it when scoped to that client. Building three admin consoles to host one enum field would
+console shells. The super-admin tier exists in the backend (`platform=true` claim →
+`/platform/*`); the firm-admin tier is currently only a tenancy brick with no admin surface (and
+this feature removes its ghost `admin.firm` cap — see *Ghost-cap correction*). A proper
+tier→screen build-out is a **separate epic**. ApprovalMode is one per-client setting on the
+existing per-client admin surface; a firm or deployment admin who outranks the client admin can
+already edit it when scoped to that client. Building admin consoles to host one enum field would
 be badly disproportionate.
 
 Likewise, this feature does **not** construct the full "which capabilities does each admin
-tier need" list. That list does not exist today (the single `Admin` role preset grabs all five
-`admin.*` caps at once; `admin.firm` and `admin.postingAccounts` are defined but not enforced
-at any endpoint). Articulating that per-tier list is a prerequisite for the admin-console epic,
-not for this feature — ApprovalMode needs exactly one gating decision (`admin.approvalPolicy`),
-which this spec makes.
+tier need" list. That list does not exist today (the single `Admin` role preset grabs all the
+`admin.*` caps at once; `admin.postingAccounts` is defined and seeded as a narrow set but not yet
+enforced at any endpoint — left as-is, out of scope). Articulating that per-tier list is a
+prerequisite for the admin-console epic, not for this feature — ApprovalMode needs exactly one
+gating decision (`admin.approvalPolicy`), which this spec makes.
 
 ## Testing
 
@@ -222,14 +274,21 @@ which this spec makes.
   `false→SelfApprove`; `Unspecified` only from legacy docs.
 - **Enforcement — TwoPerson:** author approving own entry → 403 (unchanged); other approver → OK.
 - **Enforcement — SelfApprove:** author approving own entry → OK.
-- **Enforcement — AutoApprove:** posted entry lands `Approved`; **both** post and approval audit
-  events present, both stamped with the posting actor; covers single post, batch post, and AR/AP
-  Issue/Enter.
+- **Enforcement — AutoApprove:** created entry lands `Posted`; **both** `Created` and `Approved`
+  audit events present, both stamped with the creating actor; the handler response reports the
+  post-approval (`Posted`) status. Covered across **all four creation handlers** — single post,
+  batch post, revise (supersede swap applied), reverse (reversal applied) — **and transitively via
+  a module posting** (a `ViaModule`-stamped `POST /entries` under AutoApprove lands `Posted`,
+  proving no per-module code is required). Idempotent-replay of a still-pending entry heals it to
+  `Posted`.
 - **Authorization:** `PUT /approval-policy` — holder of `admin.approvalPolicy` succeeds; a plain
   clerk 403s; deployment admin overrides; `Unspecified` body → 422.
 - **Wire:** `CreateClientRequest` / `ClientRegistrationResponse` serialize `ApprovalMode` as the
   expected representation (guard against enum-as-number vs string wire mismatch — the recurring
   UI-mock casing trap); no `RequireSegregationOfDuties` on the wire.
+- **Ghost cap:** `Capabilities.All` no longer contains `admin.firm`; the `Admin` preset no longer
+  grants it; existing preset/vocabulary assertions updated to match; a grant request for
+  `"admin.firm"` is rejected as an unknown capability.
 - **UI:** approval-policy screen — RED-first component spec; renders three radios, loads current
   mode, PUTs the chosen mode; guarded by `admin.approvalPolicy`.
 - **Dev-stack smoke:** flip a client to AutoApprove, post an entry, confirm it reaches the trial
