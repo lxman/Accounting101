@@ -28,10 +28,10 @@ public sealed class CashE2eTests(CashHostFixture fixture) : IClassFixture<CashHo
     }
 
     private static async Task PutAccountAsync(HttpClient http, Guid clientId, Guid accountId,
-        string number, string name, string type, string? requiredDimension)
+        string number, string name, string type, string? requiredDimension, string[]? requiredDimensions = null)
     {
         (await http.PutAsJsonAsync($"/clients/{clientId}/accounts/{accountId}",
-            new AccountRequest { Number = number, Name = name, Type = type, RequiredDimension = requiredDimension }))
+            new AccountRequest { Number = number, Name = name, Type = type, RequiredDimension = requiredDimension, RequiredDimensions = requiredDimensions }))
             .EnsureSuccessStatusCode();
     }
 
@@ -167,8 +167,9 @@ public sealed class CashE2eTests(CashHostFixture fixture) : IClassFixture<CashHo
         (Guid clientId, HttpClient controller, HttpClient clerk, _) =
             await fixture.SeedSodClientAsync();
 
-        // Payables chart: A/P (Vendor dimension) + Cash + Rent expense.
-        await PutAccountAsync(controller, clientId, fixture.PayableAccountId,    "2000", "Accounts Payable", "Liability", "Vendor");
+        // Payables chart: A/P (Vendor + Bill — BillPosting.ComposeBill stamps both on the AP credit
+        // line) + Cash + Rent expense.
+        await PutAccountAsync(controller, clientId, fixture.PayableAccountId,    "2000", "Accounts Payable", "Liability", null, requiredDimensions: ["Vendor", "Bill"]);
         await PutAccountAsync(controller, clientId, fixture.CashAccountId,       "1000", "Cash",             "Asset",     null);
         await PutAccountAsync(controller, clientId, fixture.RentExpenseAccountId,"5200", "Rent Expense",     "Expense",   null);
 

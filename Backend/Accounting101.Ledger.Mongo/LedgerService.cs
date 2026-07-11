@@ -77,6 +77,37 @@ public sealed class LedgerService
         }, cancellationToken);
     }
 
+    /// <summary>Record many entries as one business event — atomic all-or-nothing. Every entry is appended
+    /// in a single transaction, each taking its own gapless sequence number; if any entry fails its freeze
+    /// check or write, the whole batch rolls back. Returns the sequenced entries in input order.</summary>
+    public async Task<IReadOnlyList<JournalEntry>> PostBatchAsync(
+        IReadOnlyList<JournalEntry> entries, Actor actor, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        ArgumentNullException.ThrowIfNull(actor);
+        if (entries.Count == 0) throw new ArgumentException("A batch must contain at least one entry.", nameof(entries));
+
+        // Fast-fail freeze check per entry, outside the transaction (mirrors PostAsync's pre-check).
+        foreach (JournalEntry entry in entries)
+            await EnsureOpenAsync(entry.ClientId, entry.EffectiveDate, cancellationToken);
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        JournalEntry[] recorded = new JournalEntry[entries.Count];
+        await InTransactionAsync(async session =>
+        {
+            for (int i = 0; i < entries.Count; i++)
+            {
+                JournalEntry entry = entries[i];
+                await EnsureOpenForPostAsync(entry.ClientId, entry.EffectiveDate, session, cancellationToken); // authoritative, via session
+                JournalEntry posted = await AppendSequencedAsync(entry, session, cancellationToken);           // $inc journal:{clientId}
+                await _audit.AppendAsync(posted.ClientId, posted.Id, posted.Version, AuditAction.Created, actor, null, now, session, cancellationToken);
+                recorded[i] = posted;
+            }
+        }, cancellationToken);
+
+        return recorded;
+    }
+
     /// <summary>
     /// Approve a pending entry — it goes on the books and updates the projection. If the entry is a
     /// correction (it supersedes another), the swap happens here, atomically: the superseded original
@@ -187,7 +218,8 @@ public sealed class LedgerService
     /// approved, like any entry. The original must be active and posted.
     /// </summary>
     public async Task<JournalEntry> ReverseAsync(
-        Guid originalId, DateOnly reversalDate, Actor actor, string? reason = null, CancellationToken cancellationToken = default)
+        Guid originalId, DateOnly reversalDate, Actor actor, string? reason = null,
+        Guid? sourceRef = null, string? sourceType = null, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(actor);
         JournalEntry original = await RequireAsync(originalId, cancellationToken);
@@ -224,8 +256,8 @@ public sealed class LedgerService
             audit: new AuditStamp { CreatedBy = actor.UserId, CreatedAt = DateTimeOffset.UtcNow },
             lines: reversedLines,
             reversalOf: originalId,
-            sourceRef: original.SourceRef,   // a reversal stays linked to the same source document...
-            sourceType: original.SourceType, // ...so drill-down from that document still finds it
+            sourceRef: sourceRef ?? original.SourceRef,     // caller override, else stay linked to the same document
+            sourceType: sourceType ?? original.SourceType,  // (a credit-memo module tags the reversal with its own doc)
             reference: original.Reference,
             memo: reason ?? $"Reversal of entry {originalId}");
 

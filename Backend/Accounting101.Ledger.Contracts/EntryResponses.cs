@@ -46,7 +46,7 @@ public sealed record ActorResponse(Guid UserId, string? Name, IReadOnlyList<Clai
 
 public sealed record ClaimResponse(string Type, string Value);
 
-public sealed record AccountBalanceResponse(Guid AccountId, decimal Balance);
+public sealed record AccountBalanceResponse(Guid AccountId, decimal Balance, string? Number = null, string? Name = null);
 
 public sealed record TrialBalanceResponse(DateOnly? AsOf, IReadOnlyList<AccountBalanceResponse> Accounts);
 

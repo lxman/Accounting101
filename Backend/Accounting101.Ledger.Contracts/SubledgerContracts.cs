@@ -10,7 +10,7 @@ public sealed record SubledgerResponse(
     IReadOnlyList<SubledgerLineResponse> Lines);
 
 /// <summary>One dimension value's balance (debit-positive), e.g. one customer's A/R.</summary>
-public sealed record SubledgerLineResponse(Guid AccountId, Guid DimensionValue, decimal Balance);
+public sealed record SubledgerLineResponse(Guid AccountId, Guid DimensionValue, decimal Balance, string? Number = null, string? Name = null);
 
 /// <summary>
 /// Whether a control account's subsidiary ledger ties to its general-ledger balance. The subledger sees

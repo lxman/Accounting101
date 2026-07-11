@@ -26,7 +26,7 @@ public sealed record VoidRequest(string? Reason);
 /// Reverse a posted entry: book a negating entry dated <see cref="ReversalDate"/> (which must be in an
 /// open period). Used for reversing accruals and for correcting a closed period without unfreezing it.
 /// </summary>
-public sealed record ReverseRequest(DateOnly ReversalDate, string? Reason);
+public sealed record ReverseRequest(DateOnly ReversalDate, string? Reason, Guid? SourceRef = null, string? SourceType = null);
 
 /// <summary>
 /// Close a fiscal year: post a balanced closing entry that resets temporary accounts (revenue/expense)

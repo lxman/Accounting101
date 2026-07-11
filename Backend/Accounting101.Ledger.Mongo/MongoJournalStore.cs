@@ -201,7 +201,7 @@ public sealed class MongoJournalStore
     /// <summary>
     /// Entries for <paramref name="clientId"/> whose posting state matches <paramref name="posting"/>,
     /// paged via <paramref name="skip"/>/<paramref name="limit"/>, in sequence order. Served by the
-    /// <c>client_status_posting</c> index. <paramref name="limit"/> &lt;= 0 means no limit.
+    /// <c>client_status_posting_effdate</c> index (its client+status+posting prefix). <paramref name="limit"/> &lt;= 0 means no limit.
     /// </summary>
     public async Task<IReadOnlyList<JournalEntry>> GetByPostingAsync(
         Guid clientId, PostingState posting, int skip, int limit,
@@ -242,15 +242,33 @@ public sealed class MongoJournalStore
         return _entries.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
     }
 
+    /// <summary>Distinct, non-empty SourceType values present in a client's journal — the discovery list a
+    /// module uses to offer source-type filters. Sorted for a stable response.</summary>
+    public async Task<IReadOnlyList<string>> DistinctSourceTypesAsync(
+        Guid clientId, CancellationToken cancellationToken = default)
+    {
+        FilterDefinition<JournalEntryDocument> filter = Builders<JournalEntryDocument>.Filter.And(
+            Builders<JournalEntryDocument>.Filter.Eq(e => e.ClientId, clientId),
+            Builders<JournalEntryDocument>.Filter.Ne(e => e.SourceType, null));
+        List<string> values = await (await _entries.DistinctAsync(e => e.SourceType!, filter, cancellationToken: cancellationToken))
+            .ToListAsync(cancellationToken);
+        return values.Where(v => !string.IsNullOrWhiteSpace(v)).OrderBy(v => v, StringComparer.Ordinal).ToList();
+    }
+
     /// <summary>Creates the indexes the prototype's read paths rely on. Idempotent.</summary>
-    public Task EnsureIndexesAsync(CancellationToken cancellationToken = default)
+    public async Task EnsureIndexesAsync(CancellationToken cancellationToken = default)
     {
         IndexKeysDefinitionBuilder<JournalEntryDocument> keys = Builders<JournalEntryDocument>.IndexKeys;
 
+        // The 3-key client_status_posting was superseded by the 4-key covering index below; drop it so the
+        // windowed folds stop residual-scanning on EffectiveDate. Ignore "not found" on a fresh database.
+        try { await _entries.Indexes.DropOneAsync("client_status_posting", cancellationToken); }
+        catch (MongoCommandException ex) when (ex.CodeName == "IndexNotFound") { }
+
         CreateIndexModel<JournalEntryDocument>[] models =
         [
-            new(keys.Ascending(e => e.ClientId).Ascending(e => e.Status).Ascending(e => e.Posting),
-                new CreateIndexOptions { Name = "client_status_posting" }),
+            new(keys.Ascending(e => e.ClientId).Ascending(e => e.Status).Ascending(e => e.Posting).Ascending(e => e.EffectiveDate),
+                new CreateIndexOptions { Name = "client_status_posting_effdate" }),
             new(keys.Ascending(e => e.ClientId).Ascending("Lines.AccountId"),
                 new CreateIndexOptions { Name = "client_lineAccount" }),
             new(keys.Ascending(e => e.ClientId).Ascending(e => e.EffectiveDate),
@@ -263,7 +281,7 @@ public sealed class MongoJournalStore
                 new CreateIndexOptions { Name = "client_lineDimension" }),
         ];
 
-        return _entries.Indexes.CreateManyAsync(models, cancellationToken);
+        await _entries.Indexes.CreateManyAsync(models, cancellationToken);
     }
 
     /// <summary>

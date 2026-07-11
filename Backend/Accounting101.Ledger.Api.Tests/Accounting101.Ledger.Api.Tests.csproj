@@ -33,6 +33,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Accounting101.Host\Accounting101.Host.csproj" />
     <ProjectReference Include="..\..\Accounting101.TestSupport\Accounting101.TestSupport.csproj" />
+    <ProjectReference Include="..\..\Modules\Shared\Accounting101.ModuleKit\Accounting101.ModuleKit.csproj" />
   </ItemGroup>
 
 </Project>
