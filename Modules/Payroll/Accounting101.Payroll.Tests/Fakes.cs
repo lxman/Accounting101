@@ -45,6 +45,9 @@ internal sealed class FakeLedgerClient : ILedgerClient
         Task.FromResult<IReadOnlyList<EntryResponse>>(
             _entries.Values.Where(e => e.SourceRef is { } s && sourceRefs.Contains(s)).ToList());
 
+    public Task<IReadOnlyList<AccountResponse>> GetAccountsAsync(Guid clientId, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("Not needed by this fake's consumers; ChartReadinessE2eTests exercises the real HTTP-backed engine.");
+
     private static EntryResponse Entry(Guid id, Guid? sourceRef, string? sourceType, string posting, Guid? reversalOf) =>
         new(id, 0, default, "Standard", "Active", posting, 0, null, null, reversalOf, null, [], sourceRef, sourceType);
 }

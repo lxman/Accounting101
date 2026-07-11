@@ -1,4 +1,5 @@
 using Accounting101.Ledger.Contracts;
+using Accounting101.ModuleKit;
 
 namespace Accounting101.Payroll.Api;
 
@@ -20,6 +21,8 @@ public static class PayrollEndpoints
         clients.MapPost("/tax-remittances/{remittanceId:guid}/void", VoidRemittance);
         clients.MapGet("/tax-remittances/{remittanceId:guid}", GetRemittance);
         clients.MapGet("/tax-remittances", ListRemittances);
+
+        clients.MapGet("/payroll/chart-readiness", ChartReadiness);
     }
 
     // ── Payroll Runs ────────────────────────────────────────────────────────
@@ -116,6 +119,16 @@ public static class PayrollEndpoints
             clientId, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200), descending, includeVoided ?? false, cancellationToken);
         return Results.Ok(new PagedResponse<TaxRemittanceView>(
             page.Items.Select(r => new TaxRemittanceView(r)).ToList(), page.Total, page.Skip, page.Limit));
+    }
+
+    // ── Chart Readiness ─────────────────────────────────────────────────────
+
+    private static async Task<IResult> ChartReadiness(
+        Guid clientId, PayrollChartRequirements requirements, ILedgerClient ledger, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<AccountRequirement> reqs = await requirements.ForAsync(clientId, cancellationToken);
+        IReadOnlyList<AccountResponse> chart = await ledger.GetAccountsAsync(clientId, cancellationToken);
+        return Results.Ok(ChartReadinessChecker.Check(reqs, chart, "payroll"));
     }
 
     private static bool TryOrder(string? order, out bool descending)
