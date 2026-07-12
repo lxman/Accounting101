@@ -102,7 +102,38 @@ Layering, each tier depending only on the one beneath it:
 
 ---
 
-## 9. The contract is UI-agnostic — any front end must be able to ship against it
+## 9. Subledgers are folds, never stores — the ledger-first invariant
+
+A subledger — accounts receivable by customer, accounts payable by vendor, inventory by item, the
+fixed-asset register — is a **view of the journal, not a second set of books**. This is the sharpest
+consequence of §1 and §8 taken together, and it is load-bearing enough to state on its own.
+
+A module stores only the immutable business **document**: the invoice, the bill, the asset, the payroll
+run — a frozen snapshot of what was agreed, with its own lifecycle. It never stores a balance and never
+stores an allocation. Every number a subledger reports — a customer's open balance and aging, a vendor's
+outstanding, on-hand quantity and value, an asset's net book value — is a **fold over the journal,
+filtered by the document's dimension**, computed on read. If it is a number, it came from the journal; if
+it is the document, it is an envelope, not an amount.
+
+Status obeys the same rule: a document's posted/void state is **derived from ledger truth**, not tracked
+in parallel. A union rule settles the two-writer race — a document reads Void if *either* its own envelope
+or its ledger entry says so — so a crash between "void the document" and "reverse the entry" can never
+leave a subledger claiming a life the journal has already ended.
+
+The payoff is that **control-account-versus-subledger divergence is structurally impossible, not
+reconciled after the fact.** There is nothing to reconcile, because there is only ever one set of numbers:
+the A/R control balance and the sum of customer balances are the same fold of the same journal, sliced two
+ways. Reconciliation stops being a repair job and becomes a proof — it reads the one truth twice and
+confirms it agrees, which by construction it must.
+
+The insight that made this uniform across every module is that they are all the same shape. An invoice, a
+bill, a fixed asset, a payroll remittance are each "a document that folds to a dimension-filtered slice of
+the journal." Fixed Assets is A/R-shaped; inventory is A/R-shaped; once you see it, there is one pattern to
+hold correct, not seven.
+
+---
+
+## 10. The contract is UI-agnostic — any front end must be able to ship against it
 
 A core product principle: you could put an Angular, Vue, React, plain-HTML, WPF, WinForms, Qt, X11, or CLI
 front end on this system and ship it. The front end is a swappable consumer; the value is the contract.
@@ -146,7 +177,43 @@ renderer keyed by `SourceType`; the read contract — which sits on the stable e
 
 ---
 
-## 10. How the system is built
+## The pattern, named
+
+None of the above is ad hoc, and none of it is a Gang-of-Four pattern — those describe how objects
+collaborate, one level below this. What these principles compose into is an **architectural stack**, and
+it is worth naming so the vocabulary is shared:
+
+- **Event sourcing** is the core (§1, §2, §7). The journal is an append-only, immutable event log; every
+  balance, subledger total, trial balance, and statement is a fold over it, and nothing derived is stored
+  as gospel. This is not a pattern we imposed — double-entry bookkeeping *is* event sourcing, and it
+  predates computing by five centuries. We recognized that the domain already was one and refused to
+  fight it.
+- **CQRS** is the read/write asymmetry (§1, §6). Writes flow in as recipes that append balanced events;
+  reads come back as projections — folds, the `$inc` cache, checkpoints. The path in and the path out are
+  shaped differently on purpose.
+- **Hexagonal (ports and adapters)** is the contract boundary (§10). The engine is a view-ignorant core
+  exposing one REST/JSON port; every front end — Angular, WPF, CLI — is an interchangeable adapter. The
+  server owns numbers and semantics; the adapter owns presentation. The engine never knows who is calling.
+- **Domain-Driven Design with bounded contexts** is the module story (§8). The ledger is the domain core
+  and shared kernel; each module (A/R, A/P, Payroll, Fixed Assets, …) is a bounded context with its own
+  documents and language, integrating through the published **Contracts** and nothing else.
+- **Modular monolith** is the packaging (§8). Bounded contexts as separate projects, one deployable host
+  today, HTTP-shaped seams so a context can split into its own service tomorrow without a rewrite.
+
+In one breath: an **event-sourced double-entry ledger, exposed through a hexagonal port to
+interchangeable front ends, with domain use-cases handled by DDD bounded-context modules, packaged as a
+modular monolith.**
+
+These are five names for one discipline. Every principle in this document is that same rule seen from a
+different side: **a fact is immutable and owned in exactly one place, and everything else is a projection
+of it.** Event sourcing says it about time; the single-source-of-truth journal says it about storage; the
+ledger-first subledger invariant (§9) says it about modules; "classification is never a value" says it about
+the chart; UI-agnosticism says it about the client. When a design decision is hard, resolve it by asking
+which thing is the fact and where it lives — the rest is a view.
+
+---
+
+## 11. How the system is built
 
 These are practices, not product invariants, but they are how the principles above stay true over time:
 
