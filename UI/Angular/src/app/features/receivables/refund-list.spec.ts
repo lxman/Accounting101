@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { RefundList } from './refund-list';
@@ -78,5 +78,28 @@ describe('RefundList', () => {
     ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([]);
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('No customers yet');
+  });
+
+  it('navigates to the refund detail when a row is clicked', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(RefundList); f.detectChanges();
+    loadCustomerAndRefunds(ctrl, f, [refund('rf1', 50, 'x')]);
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const row = f.nativeElement.querySelector('tbody tr') as HTMLElement;
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(nav).toHaveBeenCalledWith(['/receivables/refunds', 'rf1']);
+  });
+
+  it('does not navigate when the Void button is clicked', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(RefundList); f.detectChanges();
+    loadCustomerAndRefunds(ctrl, f, [refund('rf1', 50, 'x')]);
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const voidBtn = [...f.nativeElement.querySelectorAll('button')].find(b => b.textContent.trim() === 'Void') as HTMLButtonElement;
+    voidBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(nav).not.toHaveBeenCalled();
+    // flush the void POST + reload the void triggers, so HttpTestingController stays clean
+    ctrl.expectOne('http://localhost:5000/clients/C1/refunds/rf1/void').flush({});
+    ctrl.expectOne(r => r.url.endsWith('/clients/C1/refunds')).flush([refund('rf1', 50, 'x', true)]);
   });
 });

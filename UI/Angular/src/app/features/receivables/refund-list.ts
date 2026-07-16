@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { toObservable, toSignal, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { BehaviorSubject, catchError, combineLatest, of, switchMap } from 'rxjs';
 import { HlmButton } from '@spartan-ng/helm/button';
@@ -10,11 +10,12 @@ import { money, displayDate } from '../../core/format/display';
 import { extractProblem } from '../../core/api/problem-details';
 import { CustomerSelect } from '../../shared/customer-select';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { TruncateDirective } from '../../shared/truncate.directive';
 
 @Component({
   selector: 'app-refund-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, HlmButton, ...HlmTableImports, CustomerSelect, CanDirective],
+  imports: [RouterLink, HlmButton, ...HlmTableImports, CustomerSelect, CanDirective, TruncateDirective],
   template: `
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-3 flex-wrap">
@@ -47,14 +48,21 @@ import { CanDirective } from '../../core/capabilities/can.directive';
               </thead>
               <tbody hlmTBody>
                 @for (r of refunds(); track r.id) {
-                  <tr hlmTr [class.opacity-50]="r.voided">
+                  <tr hlmTr role="button" tabindex="0"
+                      class="cursor-pointer hover:bg-muted/50"
+                      [class.opacity-50]="r.voided"
+                      (click)="open(r.id)"
+                      (keydown.enter)="open(r.id)">
                     <td hlmTd>{{ fmtDate(r.date) }}</td>
                     <td hlmTd class="tabular-nums">{{ fmtMoney(r.amount) }}</td>
-                    <td hlmTd>{{ r.memo ?? '—' }}</td>
+                    <td hlmTd><span appTruncate>{{ r.memo ?? '—' }}</span></td>
                     <td hlmTd>{{ r.voided ? 'Voided' : 'Active' }}</td>
                     <td hlmTd>
                       @if (!r.voided) {
-                        <button *appCan="'ar.write'" hlmBtn size="sm" variant="outline" (click)="doVoid(r)" [disabled]="busy()">Void</button>
+                        <button *appCan="'ar.write'" hlmBtn size="sm" variant="outline"
+                                (click)="$event.stopPropagation(); doVoid(r)"
+                                (keydown.enter)="$event.stopPropagation()"
+                                [disabled]="busy()">Void</button>
                       } @else { <span class="text-muted-foreground">—</span> }
                     </td>
                   </tr>
@@ -70,6 +78,7 @@ import { CanDirective } from '../../core/capabilities/can.directive';
 export class RefundList {
   readonly svc = inject(ReceivablesService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly router = inject(Router);
   readonly customerId = this.svc.selectedCustomerId;
   readonly listError = signal<string | null>(null);
   readonly busy = signal(false);
@@ -97,6 +106,8 @@ export class RefundList {
       error: e => { this.listError.set(extractProblem(e).detail); this.busy.set(false); },
     });
   }
+
+  open(id: string): void { void this.router.navigate(['/receivables/refunds', id]); }
 
   fmtMoney(n: number): string { return money(n); }
   fmtDate(d: string): string { return displayDate(d); }
