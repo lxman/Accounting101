@@ -98,4 +98,47 @@ public sealed class GetRefundsEndpointTests(ReceivablesHostFixture fixture) : IC
         HttpResponseMessage res = await clerk.GetAsync($"/clients/{clientId}/refunds");
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
+
+    [Fact]
+    public async Task GET_refund_by_id_returns_the_refund_and_its_journal_entry_id()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId);
+        Customer customer = (await (await clerk.PostAsJsonAsync(
+            $"/clients/{clientId}/customers", new CreateCustomerRequest("Stark", null)))
+            .Content.ReadFromJsonAsync<Customer>())!;
+
+        // $100 of unapplied credit: issue a $100 invoice, pay $200 allocating $100.
+        Guid invoiceId = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m);
+        Payment payment = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
+                new RecordPaymentRequest(customer.Id, new DateOnly(2026, 3, 2), 200m, "check",
+                    [new Allocation(invoiceId, 100m)])))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Payment>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, payment.Id);
+
+        Refund refund = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/refunds",
+            new RefundRequest(customer.Id, new DateOnly(2026, 3, 5), 30m, "partial")))
+            .Content.ReadFromJsonAsync<Refund>())!;
+
+        EntryResponse[] entries = (await clerk.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={refund.Id}"))!;
+        Guid expectedEntryId = entries.Single(e => e is { Status: "Active", ReversalOf: null }).Id;
+
+        RefundView view = (await clerk.GetFromJsonAsync<RefundView>(
+            $"/clients/{clientId}/refunds/{refund.Id}"))!;
+
+        Assert.Equal(refund.Id, view.Refund.Id);
+        Assert.Equal(30m, view.Refund.Amount);
+        Assert.Equal("partial", view.Refund.Memo);
+        Assert.False(view.Refund.Voided);
+        Assert.Equal(expectedEntryId, view.JournalEntryId);
+    }
+
+    [Fact]
+    public async Task GET_refund_by_unknown_id_is_404()
+    {
+        (Guid clientId, _, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        HttpResponseMessage res = await clerk.GetAsync($"/clients/{clientId}/refunds/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+    }
 }

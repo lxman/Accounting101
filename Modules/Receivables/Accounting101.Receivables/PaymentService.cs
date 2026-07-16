@@ -100,6 +100,17 @@ public sealed class PaymentService(
         return refunds.OrderByDescending(r => r.Date).ToList();
     }
 
+    /// <summary>A single refund plus its posted journal entry id (for the detail screen's drill-in).
+    /// The entry is the original posting sourced from the refund; null if none is found.</summary>
+    public async Task<RefundView?> GetRefundViewAsync(Guid clientId, Guid refundId, CancellationToken ct = default)
+    {
+        Refund? refund = await payments.GetRefundAsync(clientId, refundId, ct);
+        if (refund is null) return null;
+        IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, refundId, ct);
+        EntryResponse? posting = spawned.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null });
+        return new RefundView(refund, posting?.Id);
+    }
+
     /// <summary>The customer's allocation-based dispositions — credit notes, write-offs, and credit
     /// applications — as one date-descending list. Read-only; powers the Credits list. Memo comes from the
     /// stored note/write-off; credit applications carry none. Amount is each document's AR relief, folded
