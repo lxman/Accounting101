@@ -24,6 +24,7 @@ public static class PayablesEndpoints
         clients.MapGet("/bills", ListBills);
         clients.MapPost("/bill-payments", RecordPayment);
         clients.MapGet("/bill-payments", ListBillPayments);
+        clients.MapGet("/bill-payments/{paymentId:guid}", GetBillPayment);
         clients.MapPost("/bill-payments/{paymentId:guid}/void", VoidPayment);
         clients.MapPost("/vendor-credit-applications", ApplyCredit);
         clients.MapGet("/vendor-credit-applications", ListCreditApplications);
@@ -160,6 +161,13 @@ public static class PayablesEndpoints
         if (string.Equals(order, "desc", StringComparison.OrdinalIgnoreCase)) { descending = true; return true; }
         if (string.Equals(order, "asc", StringComparison.OrdinalIgnoreCase)) { descending = false; return true; }
         return false;
+    }
+
+    private static async Task<IResult> GetBillPayment(
+        Guid clientId, Guid paymentId, BillPaymentService payments, CancellationToken cancellationToken)
+    {
+        BillPaymentView? view = await payments.GetBillPaymentViewAsync(clientId, paymentId, cancellationToken);
+        return view is null ? Results.NotFound() : Results.Ok(view);
     }
 
     private static async Task<IResult> ListBillPayments(
