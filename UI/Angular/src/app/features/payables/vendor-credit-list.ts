@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { catchError, of, switchMap } from 'rxjs';
 import { HlmButton } from '@spartan-ng/helm/button';
@@ -48,7 +48,11 @@ import { CanDirective } from '../../core/capabilities/can.directive';
               </thead>
               <tbody hlmTBody>
                 @for (c of applications(); track c.id) {
-                  <tr hlmTr [class.opacity-50]="c.voided">
+                  <tr hlmTr role="button" tabindex="0"
+                      class="cursor-pointer hover:bg-muted/50"
+                      [class.opacity-50]="c.voided"
+                      (click)="open(c.id)"
+                      (keydown.enter)="open(c.id)">
                     <td hlmTd>{{ fmtDate(c.date) }}</td>
                     <td hlmTd class="tabular-nums">{{ fmtMoney(applied(c)) }}</td>
                     <td hlmTd class="tabular-nums">{{ c.allocations.length }}</td>
@@ -66,6 +70,7 @@ import { CanDirective } from '../../core/capabilities/can.directive';
 export class VendorCreditList {
   readonly svc = inject(PayablesService);
   readonly vendorId = this.svc.selectedVendorId;
+  private readonly router = inject(Router);
   readonly listError = signal<string | null>(null);
 
   readonly balance = toSignal(
@@ -91,6 +96,7 @@ export class VendorCreditList {
   constructor() { this.svc.load(); }
 
   applied(c: VendorCreditApplication): number { return c.allocations.reduce((s, a) => s + a.amount, 0); }
+  open(id: string): void { void this.router.navigate(['/payables/credits', id]); }
   fmtMoney(n: number): string { return money(n); }
   fmtDate(d: string): string { return displayDate(d); }
 }
