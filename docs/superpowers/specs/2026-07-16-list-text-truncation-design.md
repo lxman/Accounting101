@@ -76,19 +76,26 @@ untouched to avoid wrap-then-unwrap churn:
 `src/app/shared/truncate.directive.ts`, selector `[appTruncate]`, standalone,
 alongside `CanDirective` (`appCan`) and `Paginator`.
 
-- **Host classes only**: applies `block truncate min-w-0`.
+- **Host classes only**: applies `block truncate min-w-0 max-w-[28rem]`.
   - `truncate` = `overflow: hidden; text-overflow: ellipsis; white-space: nowrap`.
   - `block` makes the element take the cell/flex content-box width so the clip has a
     bound to work against.
   - `min-w-0` lets it also shrink when it is itself a flex child.
+  - `max-w-[28rem]` caps the column width so truncation actually engages.
 - **No `title`/tooltip.** The reveal is the row's drill-in (guaranteed for every
   site this directive is applied to in this slice).
-- **No `max-width`.** Verified during the Journal fix: `max-w-*` on a `<td>` is
-  ignored by auto table-layout (the memo cell rendered ~630px despite
-  `max-w-[28rem]`), and `truncate` clips to whatever width the column receives.
-  Omitting a cap lets each column use its fair share and truncate only genuinely
-  overlong values. The Journal cell's now-pointless `max-w-[28rem]` is removed as
-  part of the retrofit so there is one idiom.
+- **The `max-w-[28rem]` cap is required** (corrected after Slice-1 visual
+  verification). `block truncate min-w-0` alone does NOT truncate in an auto-layout
+  table: with no width bound, the column grows to the full `nowrap` content width,
+  `overflow: hidden` has nothing to clip (`scrollWidth == clientWidth`), and the
+  table overflows its container — pushing sibling columns (Lines/Status on the
+  Journal list) off-screen, i.e. the exact bug this slice fixes. A max-width caps
+  the column so the clip has a bound. An earlier draft claimed "max-w is ignored by
+  auto table-layout, so omit it"; that observation was mistaken and was disproven by
+  driving the real Journal list — with the cap, long memos ellipsize while
+  Lines/Status stay visible and the table fits its container. The cap is generous
+  enough that shorter values are unaffected; flex-row children shrink below it via
+  `min-w-0`.
 
 The directive is deliberately thin; its value is a single named, discoverable source
 of truth for the `block truncate min-w-0` trio so call sites can't forget `min-w-0`,
