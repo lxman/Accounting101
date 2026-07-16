@@ -5,7 +5,7 @@ import { environment } from '../api/environment';
 import { ClientContextService } from '../client/client-context.service';
 import { PagedResponse } from '../api/paged-response';
 import { extractProblem } from '../api/problem-details';
-import { Vendor, Bill, BillView, DraftBillRequest, BillListQuery, BillPayment, RecordBillPaymentRequest, VendorCreditApplication, ApplyVendorCreditRequest, VendorAccountView } from './payables';
+import { Vendor, Bill, BillView, DraftBillRequest, BillListQuery, BillPayment, RecordBillPaymentRequest, VendorCreditApplication, ApplyVendorCreditRequest, VendorAccountView, BillPaymentView } from './payables';
 
 @Injectable({ providedIn: 'root' })
 export class PayablesService {
@@ -72,6 +72,8 @@ export class PayablesService {
     const clientId = this.client.clientId(); if (!clientId) return EMPTY;
     return this.http.get<BillView>(this.base(`/bills/${id}`));
   }
+
+  getBillPayment(id: string): Observable<BillPaymentView> { return this.http.get<BillPaymentView>(this.base(`/bill-payments/${id}`)); }
 
   draftBill(req: DraftBillRequest): Observable<Bill> {
     const id = this.client.clientId(); if (!id) return EMPTY;

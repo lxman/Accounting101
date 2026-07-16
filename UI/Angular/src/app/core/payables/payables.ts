@@ -37,6 +37,9 @@ export interface BillPayment {
   method: string | null; allocations: PaymentAllocation[]; voided: boolean;
 }
 
+export interface BillAllocationLine { billId: string; billNumber: string | null; amount: number; }
+export interface BillPaymentView { payment: BillPayment; allocations: BillAllocationLine[]; unapplied: number; journalEntryId: string | null; }
+
 export interface RecordBillPaymentRequest {
   vendorId: string; date: string; amount: number;
   method: string | null; allocations: PaymentAllocation[];
