@@ -23,6 +23,7 @@ import { AdjustmentEditor } from './features/receivables/adjustment-editor';
 import { RefundList } from './features/receivables/refund-list';
 import { RefundEditor } from './features/receivables/refund-editor';
 import { RefundDetail } from './features/receivables/refund-detail';
+import { CreditDetail } from './features/receivables/credit-detail';
 import { CustomerAccount } from './features/receivables/customer-account';
 import { PayablesShell } from './features/payables/payables-shell';
 import { VendorList } from './features/payables/vendor-list';
@@ -114,6 +115,7 @@ export const routes: Routes = [
     { path: 'customers/:id', component: CustomerAccount },
     { path: 'credits', component: CreditList },
     { path: 'credits/new', component: AdjustmentEditor, canActivate: [canWrite], data: { requiredCapability: 'ar.write', fallback: '/receivables/credits' } },
+    { path: 'credits/:type/:id', component: CreditDetail },
     { path: 'refunds', component: RefundList },
     { path: 'refunds/new', component: RefundEditor, canActivate: [canWrite], data: { requiredCapability: 'ar.write', fallback: '/receivables/refunds' } },
     { path: 'refunds/:id', component: RefundDetail },

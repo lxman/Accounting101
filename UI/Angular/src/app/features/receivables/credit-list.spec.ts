@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { CreditList } from './credit-list';
@@ -82,5 +82,28 @@ describe('CreditList', () => {
     ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([]);
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('No customers yet');
+  });
+
+  it('navigates to the credit detail when a row is clicked', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(CreditList); f.detectChanges();
+    loadCustomerAndCredits(ctrl, f, [credit('cn1', 'credit-note', 100, 'x')]);
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const row = f.nativeElement.querySelector('tbody tr') as HTMLElement;
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(nav).toHaveBeenCalledWith(['/receivables/credits', 'credit-note', 'cn1']);
+  });
+
+  it('does not navigate when the Void button is clicked', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(CreditList); f.detectChanges();
+    loadCustomerAndCredits(ctrl, f, [credit('cn1', 'credit-note', 100, 'x')]);
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const voidBtn = [...f.nativeElement.querySelectorAll('button')].find(b => b.textContent.trim() === 'Void') as HTMLButtonElement;
+    voidBtn.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(nav).not.toHaveBeenCalled();
+    // flush the void POST + the reload the void triggers, so HttpTestingController stays clean
+    ctrl.expectOne('http://localhost:5000/clients/C1/credit-notes/cn1/void').flush({});
+    ctrl.expectOne(r => r.url.endsWith('/clients/C1/credits')).flush([credit('cn1', 'credit-note', 100, 'x', true)]);
   });
 });

@@ -138,6 +138,62 @@ public sealed class PaymentService(
         return all.OrderByDescending(c => c.Date).ToList();
     }
 
+    /// <summary>A single credit (note, write-off, or application) plus the invoices it was applied to and
+    /// its posted journal entry id — for the detail screen's drill-in. Amount is the document's AR relief
+    /// folded Posted-only (identical to the Credits list); allocations are recovered from the posting's
+    /// Invoice-dimensioned lines and resolved to invoice numbers; memo is null for credit applications.
+    /// Returns null for an unknown type or a missing document.</summary>
+    public async Task<CreditView?> GetCreditViewAsync(Guid clientId, string type, Guid creditId, CancellationToken ct = default)
+    {
+        Guid customerId;
+        DateOnly date;
+        string? memo;
+        bool voided;
+        switch (type)
+        {
+            case "credit-note":
+                CreditNote? note = await payments.GetCreditNoteAsync(clientId, creditId, ct);
+                if (note is null) return null;
+                (customerId, date, memo, voided) = (note.CustomerId, note.Date, note.Memo, note.Voided);
+                break;
+            case "write-off":
+                WriteOff? writeOff = await payments.GetWriteOffAsync(clientId, creditId, ct);
+                if (writeOff is null) return null;
+                (customerId, date, memo, voided) = (writeOff.CustomerId, writeOff.Date, writeOff.Memo, writeOff.Voided);
+                break;
+            case "credit-application":
+                CreditApplication? app = await payments.GetCreditApplicationAsync(clientId, creditId, ct);
+                if (app is null) return null;
+                (customerId, date, memo, voided) = (app.CustomerId, app.Date, null, app.Voided);
+                break;
+            default:
+                return null;
+        }
+
+        PaymentPostingAccounts postingAccounts = await accounts.GetAsync(clientId, ct);
+        decimal amount = await SettlementRelief.ForSourceAsync(
+            ledger, clientId, creditId, postingAccounts.ReceivableAccountId, ct, postedOnly: true);
+        CreditDocument credit = new(type, creditId, customerId, date, amount, memo, voided);
+
+        IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, creditId, ct);
+        EntryResponse? postingEntry = spawned.FirstOrDefault(e => e is { Status: "Active", Posting: "Posted", ReversalOf: null });
+
+        List<CreditAllocationLine> allocations = [];
+        if (postingEntry is not null)
+        {
+            // GroupBy preserves first-appearance order of each invoice key → posting-line order.
+            foreach (IGrouping<Guid, EntryLineResponse> group in postingEntry.Lines
+                         .Where(l => l.Dimensions.ContainsKey(PaymentPosting.InvoiceDimension))
+                         .GroupBy(l => l.Dimensions[PaymentPosting.InvoiceDimension]))
+            {
+                Invoice? invoice = await invoices.GetAsync(clientId, group.Key, ct);
+                allocations.Add(new CreditAllocationLine(group.Key, invoice?.Number, group.Sum(l => l.Amount)));
+            }
+        }
+
+        return new CreditView(credit, allocations, postingEntry?.Id);
+    }
+
     /// <summary>Unapplied customer credit, folded from the ledger's Customer-axis Customer Credits
     /// subledger. Customer Credits is a liability (credit-normal); the ledger's debit-positive fold reads
     /// a positive available credit as NEGATIVE — negate it to present a positive balance.</summary>

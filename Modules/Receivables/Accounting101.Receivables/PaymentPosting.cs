@@ -15,7 +15,7 @@ public static class PaymentPosting
     public const string CustomerDimension = "Customer";
 
     /// <summary>The per-invoice dimension the recipe tags on each A/R credit line (additive; not yet required).</summary>
-    private const string InvoiceDimension = "Invoice";
+    public const string InvoiceDimension = "Invoice";
 
     public static PostEntryRequest ComposePayment(
         Guid paymentId, PaymentBody body, IReadOnlyList<Allocation> allocations, PaymentPostingAccounts accounts)
