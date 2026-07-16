@@ -119,6 +119,29 @@ public sealed class PaymentService(
         return new PaymentView(payment, allocations, unapplied, postingEntry?.Id);
     }
 
+    /// <summary>The customer's payments each with its per-invoice allocations folded from the GL (Posted-only)
+    /// — what the Payments list and the invoice-detail "applied payments" section consume. Voided payments
+    /// are included (greyed in the UI); a not-yet-Posted payment folds to no allocations.</summary>
+    public async Task<IReadOnlyList<PaymentWithAllocations>> GetPaymentsWithAllocationsByCustomerAsync(
+        Guid clientId, Guid customerId, CancellationToken ct = default)
+    {
+        IReadOnlyList<Payment> ps = await payments.GetPaymentsByCustomerAsync(clientId, customerId, ct);
+        List<PaymentWithAllocations> result = [];
+        foreach (Payment p in ps)
+        {
+            IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, p.Id, ct);
+            EntryResponse? postingEntry = spawned.FirstOrDefault(e => e is { Status: "Active", Posting: "Posted", ReversalOf: null });
+            List<Allocation> allocs = [];
+            if (postingEntry is not null)
+                foreach (IGrouping<Guid, EntryLineResponse> group in postingEntry.Lines
+                             .Where(l => l.Dimensions.ContainsKey(PaymentPosting.InvoiceDimension))
+                             .GroupBy(l => l.Dimensions[PaymentPosting.InvoiceDimension]))
+                    allocs.Add(new Allocation(group.Key, group.Sum(l => l.Amount)));
+            result.Add(new PaymentWithAllocations(p.Id, p.CustomerId, p.Date, p.Amount, p.Method, p.Voided, allocs));
+        }
+        return result;
+    }
+
     /// <summary>The customer's refunds (cash returned against credit), date-descending. Read-only; powers the
     /// Refunds list. Includes voided refunds (greyed in the UI).</summary>
     public async Task<IReadOnlyList<Refund>> GetRefundsByCustomerAsync(

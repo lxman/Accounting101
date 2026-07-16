@@ -175,7 +175,7 @@ public static class ReceivablesEndpoints
     {
         if (customerId is null || customerId == Guid.Empty)
             return Results.Problem("customerId query parameter is required.", statusCode: StatusCodes.Status400BadRequest);
-        IReadOnlyList<Payment> payments = await service.GetPaymentsByCustomerAsync(clientId, customerId.Value, cancellationToken);
+        IReadOnlyList<PaymentWithAllocations> payments = await service.GetPaymentsWithAllocationsByCustomerAsync(clientId, customerId.Value, cancellationToken);
         return Results.Ok(payments);
     }
 
