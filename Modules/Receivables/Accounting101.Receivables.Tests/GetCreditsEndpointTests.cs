@@ -230,6 +230,32 @@ public sealed class GetCreditsEndpointTests(ReceivablesHostFixture fixture) : IC
     }
 
     [Fact]
+    public async Task GET_credit_before_approval_shows_no_amount_or_allocations()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId);
+        Customer customer = (await (await clerk.PostAsJsonAsync(
+            $"/clients/{clientId}/customers", new CreateCustomerRequest("Kent", null)))
+            .Content.ReadFromJsonAsync<Customer>())!;
+
+        Guid inv = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m);
+
+        // Post a credit note as clerk but DO NOT approve it — it is Active but PendingApproval (not on the books).
+        CreditNote creditNote = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/credit-notes",
+            new CreditNoteRequest(customer.Id, new DateOnly(2026, 3, 10), [new Allocation(inv, 100m)], "returned goods")))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<CreditNote>())!;
+
+        CreditView view = (await clerk.GetFromJsonAsync<CreditView>(
+            $"/clients/{clientId}/credits/credit-note/{creditNote.Id}"))!;
+
+        // Not yet on the books: amount 0, no allocations, no journal drill — consistent with the list's
+        // Posted-only fold ("a document's relief must not show before its own posting does").
+        Assert.Equal(0m, view.Credit.Amount);
+        Assert.Empty(view.Allocations);
+        Assert.Null(view.JournalEntryId);
+    }
+
+    [Fact]
     public async Task GET_credit_by_unknown_id_is_404()
     {
         (Guid clientId, _, HttpClient clerk, _) = await fixture.SeedSodClientAsync();

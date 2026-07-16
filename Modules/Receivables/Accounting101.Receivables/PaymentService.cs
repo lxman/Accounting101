@@ -176,7 +176,7 @@ public sealed class PaymentService(
         CreditDocument credit = new(type, creditId, customerId, date, amount, memo, voided);
 
         IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, creditId, ct);
-        EntryResponse? postingEntry = spawned.FirstOrDefault(e => e is { Status: "Active", ReversalOf: null });
+        EntryResponse? postingEntry = spawned.FirstOrDefault(e => e is { Status: "Active", Posting: "Posted", ReversalOf: null });
 
         List<CreditAllocationLine> allocations = [];
         if (postingEntry is not null)
