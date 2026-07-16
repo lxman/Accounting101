@@ -11,11 +11,12 @@ import { extractProblem } from '../../core/api/problem-details';
 import { money } from '../../core/format/display';
 import { CanDirective } from '../../core/capabilities/can.directive';
 import { CapabilityService } from '../../core/capabilities/capability.service';
+import { TruncateDirective } from '../../shared/truncate.directive';
 
 @Component({
   selector: 'app-chart-of-accounts',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [NgTemplateOutlet, RouterLink, CdkDropListGroup, CdkDropList, CdkDrag, HlmButton, CanDirective],
+  imports: [NgTemplateOutlet, RouterLink, CdkDropListGroup, CdkDropList, CdkDrag, HlmButton, CanDirective, TruncateDirective],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-3xl">
       <div class="flex items-center gap-3">
@@ -58,7 +59,7 @@ import { CapabilityService } from '../../core/capabilities/capability.service';
                cdkDrag [cdkDragData]="node.account.id" [cdkDragDisabled]="!caps.has('gl.manageAccounts')"
                [class.opacity-50]="!node.account.active">
             <span class="font-mono">{{ node.account.number }}</span>
-            <span> {{ node.account.name }}</span>
+            <span appTruncate> {{ node.account.name }}</span>
             @if (!node.account.postable) { <span class="text-xs px-1 rounded bg-muted text-muted-foreground">header</span> }
             @if (!node.account.active) { <span class="text-xs px-1 rounded bg-muted text-muted-foreground">inactive</span> }
             <span class="ms-auto tabular-nums">{{ money(node.balance) }}</span>

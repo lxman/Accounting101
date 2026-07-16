@@ -4,12 +4,13 @@ import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { CapabilitySetService } from '../../core/capability-sets/capability-set.service';
 import { CapabilitySet } from '../../core/capability-sets/capability-set';
+import { TruncateDirective } from '../../shared/truncate.directive';
 
 @Component({
   selector: 'app-capability-set-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [HlmButton, ...HlmTableImports],
+  imports: [HlmButton, ...HlmTableImports, TruncateDirective],
   template: `
     <div class="flex items-center justify-between mb-4">
       <h1 class="text-xl font-semibold">Capability Sets</h1>
@@ -24,7 +25,7 @@ import { CapabilitySet } from '../../core/capability-sets/capability-set';
         <tbody hlmTBody>
           @for (s of sets(); track s.id) {
             <tr hlmTr class="cursor-pointer" (click)="edit(s)">
-              <td hlmTd>{{ s.name }} @if (s.builtin) { <span class="text-xs text-muted-foreground">(built-in)</span> }</td>
+              <td hlmTd><div class="flex items-center gap-1 min-w-0"><span appTruncate>{{ s.name }}</span>@if (s.builtin) { <span class="text-xs text-muted-foreground shrink-0">(built-in)</span> }</div></td>
               <td hlmTd>{{ s.capabilities.length }}</td>
               <td hlmTd>{{ s.affectedMemberCount }}</td>
               <td hlmTd>

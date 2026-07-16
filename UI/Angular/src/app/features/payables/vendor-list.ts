@@ -6,11 +6,12 @@ import { HlmButton } from '@spartan-ng/helm/button';
 import { PayablesService } from '../../core/payables/payables.service';
 import { extractProblem } from '../../core/api/problem-details';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { TruncateDirective } from '../../shared/truncate.directive';
 
 @Component({
   selector: 'app-vendor-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...HlmInputImports, HlmButton, CanDirective],
+  imports: [...HlmInputImports, HlmButton, CanDirective, TruncateDirective],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-2xl">
       <h1 class="text-2xl font-bold">Vendors</h1>
@@ -29,7 +30,7 @@ import { CanDirective } from '../../core/capabilities/can.directive';
              class="flex items-center gap-3 py-1 border-b border-border/50 text-sm cursor-pointer hover:bg-muted/50"
              role="button" tabindex="0"
              (click)="open(v.id)" (keydown.enter)="open(v.id)">
-          <span>{{ v.name }}</span><span class="text-muted-foreground">{{ v.email }}</span>
+          <span appTruncate>{{ v.name }}</span><span class="text-muted-foreground" appTruncate>{{ v.email }}</span>
         </div>
       }
     </div>`,
