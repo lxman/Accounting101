@@ -4,7 +4,7 @@ import { EMPTY, Observable, map, tap } from 'rxjs';
 import { environment } from '../api/environment';
 import { ClientContextService } from '../client/client-context.service';
 import { PagedResponse } from '../api/paged-response';
-import { Customer, DraftInvoiceRequest, Invoice, InvoiceListQuery, InvoiceView, Payment, RecordPaymentRequest, CreditDocument, CreditType, CreditNoteRequest, WriteOffRequest, CreditApplyRequest, Refund, RefundRequest, RefundView, CustomerAccountView } from './receivables';
+import { Customer, DraftInvoiceRequest, Invoice, InvoiceListQuery, InvoiceView, Payment, RecordPaymentRequest, CreditDocument, CreditType, CreditNoteRequest, WriteOffRequest, CreditApplyRequest, Refund, RefundRequest, RefundView, CustomerAccountView, CreditView } from './receivables';
 import { extractProblem } from '../api/problem-details';
 
 @Injectable({ providedIn: 'root' })
@@ -70,6 +70,7 @@ export class ReceivablesService {
   }
   getInvoice(id: string): Observable<InvoiceView> { return this.http.get<InvoiceView>(this.base(`/invoices/${id}`)); }
   getRefund(id: string): Observable<RefundView> { return this.http.get<RefundView>(this.base(`/refunds/${id}`)); }
+  getCredit(type: string, id: string): Observable<CreditView> { return this.http.get<CreditView>(this.base(`/credits/${type}/${id}`)); }
   draft(req: DraftInvoiceRequest): Observable<Invoice> {
     const id = this.client.clientId(); if (!id) return EMPTY;
     return this.http.post<Invoice>(this.base('/invoices'), req);
