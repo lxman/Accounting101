@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { PaymentList } from './payment-list';
@@ -58,5 +58,20 @@ describe('PaymentList', () => {
     ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([]);
     f.detectChanges();
     expect(f.nativeElement.textContent).toContain('No customers yet');
+  });
+
+  it('navigates to the payment detail when a row is clicked', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(PaymentList); f.detectChanges();
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme Co', email: null }]);
+    f.detectChanges();
+    f.componentInstance.svc.setSelectedCustomer('cu1'); f.detectChanges();
+    ctrl.expectOne(r => r.url.endsWith('/clients/C1/payments') && r.params.get('customerId') === 'cu1')
+      .flush([payment('p1', 100, 60)]);
+    f.detectChanges();
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const row = f.nativeElement.querySelector('tbody tr') as HTMLElement;
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(nav).toHaveBeenCalledWith(['/receivables/payments', 'p1']);
   });
 });
