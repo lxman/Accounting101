@@ -35,6 +35,7 @@ public static class ReceivablesEndpoints
         clients.MapPost("/credit-notes/{creditNoteId:guid}/void", VoidCreditNote);
         clients.MapPost("/refunds", RecordRefund);
         clients.MapGet("/refunds", ListRefunds);
+        clients.MapGet("/refunds/{refundId:guid}", GetRefund);
         clients.MapPost("/refunds/{refundId:guid}/void", VoidRefund);
 
         clients.MapGet("/receivables/chart-readiness", ChartReadiness);
@@ -205,6 +206,13 @@ public static class ReceivablesEndpoints
             return Results.Problem("customerId query parameter is required.", statusCode: StatusCodes.Status400BadRequest);
         IReadOnlyList<Refund> refunds = await service.GetRefundsByCustomerAsync(clientId, customerId.Value, cancellationToken);
         return Results.Ok(refunds);
+    }
+
+    private static async Task<IResult> GetRefund(
+        Guid clientId, Guid refundId, PaymentService service, CancellationToken cancellationToken)
+    {
+        RefundView? view = await service.GetRefundViewAsync(clientId, refundId, cancellationToken);
+        return view is null ? Results.NotFound() : Results.Ok(view);
     }
 
     private static async Task<IResult> RecordPayment(
