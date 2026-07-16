@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { provideRouter, ActivatedRoute } from '@angular/router';
+import { provideRouter, ActivatedRoute, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ReconciliationWorksheet } from './reconciliation-worksheet';
@@ -15,10 +15,10 @@ const worksheet = (over: Record<string, unknown> = {}) => ({
   entries: [{ entryId: 'e1', date: '2026-03-05', reference: null, sourceType: 'Cash', cashEffect: 100, cleared: false }],
   bookBalance: 100, clearedTotal: 0, reconciledDifference: 100, balanced: false, ...over });
 
-function boot() {
+function boot(caps: string[] = ['bankrec.write']) {
   TestBed.configureTestingModule({
     providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
-      provideCapabilities('bankrec.write'),
+      provideCapabilities(...caps),
       { provide: ActivatedRoute, useValue: { snapshot: { paramMap: new Map([['id', 'r1']]) } } }],
   });
   TestBed.inject(ClientContextService).select('C1');
@@ -47,5 +47,31 @@ describe('ReconciliationWorksheet', () => {
     expect(cmp.worksheet()!.balanced).toBe(true);
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Balanced');
     ctrl.verify();
+  });
+
+  it('navigates to the journal entry when a drillable row is clicked', () => {
+    const { fixture } = boot(['bankrec.write', 'gl.read']);
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const row = (fixture.nativeElement as HTMLElement).querySelector('tbody tr')!;
+    expect(row.getAttribute('role')).toBe('button');
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(nav).toHaveBeenCalledWith(['/journal', 'e1']);
+  });
+
+  it('does not navigate when the clearing checkbox is clicked (stopPropagation)', () => {
+    const { fixture } = boot(['bankrec.write', 'gl.read']);
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const checkbox = (fixture.nativeElement as HTMLElement).querySelector('tbody tr input[type=checkbox]')!;
+    checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(nav).not.toHaveBeenCalled();
+  });
+
+  it('shows no drill affordance without gl.read', () => {
+    const { fixture } = boot(['bankrec.write']);
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const row = (fixture.nativeElement as HTMLElement).querySelector('tbody tr')!;
+    expect(row.getAttribute('role')).toBeNull();
+    row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(nav).not.toHaveBeenCalled();
   });
 });
