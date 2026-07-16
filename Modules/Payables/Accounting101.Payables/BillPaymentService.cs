@@ -127,6 +127,29 @@ public sealed class BillPaymentService(
         return new BillPaymentView(payment, allocations, unapplied, postingEntry?.Id);
     }
 
+    /// <summary>The vendor's bill payments each with its per-bill allocations folded from the GL (Posted-only)
+    /// — what the Payments list and the bill-detail "applied payments" section consume. Voided payments are
+    /// included (greyed in the UI); a not-yet-Posted payment folds to no allocations.</summary>
+    public async Task<IReadOnlyList<BillPaymentWithAllocations>> GetPaymentsWithAllocationsByVendorAsync(
+        Guid clientId, Guid vendorId, CancellationToken ct = default)
+    {
+        IReadOnlyList<BillPayment> ps = await payments.GetPaymentsByVendorAsync(clientId, vendorId, ct);
+        List<BillPaymentWithAllocations> result = [];
+        foreach (BillPayment p in ps)
+        {
+            IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, p.Id, ct);
+            EntryResponse? postingEntry = spawned.FirstOrDefault(e => e is { Status: "Active", Posting: "Posted", ReversalOf: null });
+            List<Allocation> allocs = [];
+            if (postingEntry is not null)
+                foreach (IGrouping<Guid, EntryLineResponse> group in postingEntry.Lines
+                             .Where(l => l.Dimensions.ContainsKey(BillPosting.BillDimension))
+                             .GroupBy(l => l.Dimensions[BillPosting.BillDimension]))
+                    allocs.Add(new Allocation(group.Key, group.Sum(l => l.Amount)));
+            result.Add(new BillPaymentWithAllocations(p.Id, p.VendorId, p.Date, p.Amount, p.Method, p.Voided, allocs));
+        }
+        return result;
+    }
+
     /// <summary>Unapplied vendor credit, folded from the ledger's Vendor-axis Vendor Credits subledger.
     /// Vendor Credits is an ASSET (debit-normal); the fold reads available credit directly POSITIVE — NO
     /// negation (the mirror of AR's Customer Credits, a liability, which negates).</summary>

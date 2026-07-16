@@ -64,11 +64,12 @@ public sealed class BillPaymentListEndpointTests(PayablesHostFixture fixture) : 
         RecordBillPaymentRequest req = new(vendor.Id, new DateOnly(2026, 3, 1), 500m, "check", []);
         (await clerk.PostAsJsonAsync($"/clients/{clientId}/bill-payments", req)).EnsureSuccessStatusCode();
 
-        BillPayment[] payments = (await clerk.GetFromJsonAsync<BillPayment[]>(
+        BillPaymentWithAllocations[] payments = (await clerk.GetFromJsonAsync<BillPaymentWithAllocations[]>(
             $"/clients/{clientId}/bill-payments?vendorId={vendor.Id}"))!;
         Assert.Single(payments);
         Assert.Equal(500m, payments[0].Amount);
         Assert.Equal(vendor.Id, payments[0].VendorId);
+        Assert.Empty(payments[0].Allocations);   // a pure prepayment applies to no bill
     }
 
     [Fact]
@@ -162,5 +163,30 @@ public sealed class BillPaymentListEndpointTests(PayablesHostFixture fixture) : 
         (Guid clientId, _, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
         HttpResponseMessage res = await clerk.GetAsync($"/clients/{clientId}/bill-payments/{Guid.NewGuid()}");
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task List_folds_each_payments_allocations()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId);
+        Vendor vendor = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/vendors",
+            new CreateVendorRequest("PropCo", null))).Content.ReadFromJsonAsync<Vendor>())!;
+        Bill bill = await EnterBillAsync(clerk, approver, clientId, vendor.Id, "Rent");
+
+        BillPayment payment = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/bill-payments",
+                new RecordBillPaymentRequest(vendor.Id, new DateOnly(2026, 3, 31), 80m, "check",
+                    [new Allocation(bill.Id, 80m)])))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<BillPayment>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, payment.Id);
+
+        BillPaymentWithAllocations[] list = (await clerk.GetFromJsonAsync<BillPaymentWithAllocations[]>(
+            $"/clients/{clientId}/bill-payments?vendorId={vendor.Id}"))!;
+
+        Assert.Single(list);
+        Assert.Equal(payment.Id, list[0].Id);
+        Allocation alloc = Assert.Single(list[0].Allocations);
+        Assert.Equal(bill.Id, alloc.TargetId);
+        Assert.Equal(80m, alloc.Amount);
     }
 }

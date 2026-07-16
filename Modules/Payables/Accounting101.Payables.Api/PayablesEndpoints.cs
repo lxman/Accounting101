@@ -171,12 +171,12 @@ public static class PayablesEndpoints
     }
 
     private static async Task<IResult> ListBillPayments(
-        Guid clientId, Guid? vendorId, IBillPaymentStore store, CancellationToken cancellationToken)
+        Guid clientId, Guid? vendorId, BillPaymentService payments, CancellationToken cancellationToken)
     {
         if (vendorId is null || vendorId == Guid.Empty)
             return Results.Problem("vendorId query parameter is required.", statusCode: StatusCodes.Status400BadRequest);
-        IReadOnlyList<BillPayment> payments = await store.GetPaymentsByVendorAsync(clientId, vendorId.Value, cancellationToken);
-        return Results.Ok(payments);
+        IReadOnlyList<BillPaymentWithAllocations> result = await payments.GetPaymentsWithAllocationsByVendorAsync(clientId, vendorId.Value, cancellationToken);
+        return Results.Ok(result);
     }
 
     private static async Task<IResult> RecordPayment(
