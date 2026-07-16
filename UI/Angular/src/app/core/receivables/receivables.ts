@@ -49,8 +49,9 @@ export interface CreditDocument {
   type: CreditType; id: string; customerId: string; date: string;
   amount: number; memo: string | null; allocations: PaymentAllocation[]; voided: boolean;
 }
-export interface CreditAllocationLine { invoiceId: string; invoiceNumber: string | null; amount: number; }
-export interface CreditView { credit: CreditDocument; allocations: CreditAllocationLine[]; journalEntryId: string | null; }
+export interface InvoiceAllocationLine { invoiceId: string; invoiceNumber: string | null; amount: number; }
+export interface CreditView { credit: CreditDocument; allocations: InvoiceAllocationLine[]; journalEntryId: string | null; }
+export interface PaymentView { payment: Payment; allocations: InvoiceAllocationLine[]; unapplied: number; journalEntryId: string | null; }
 export interface CreditNoteRequest { customerId: string; date: string; allocations: PaymentAllocation[]; memo: string | null; }
 export interface WriteOffRequest   { customerId: string; date: string; allocations: PaymentAllocation[]; memo: string | null; }
 export interface CreditApplyRequest { customerId: string; date: string; allocations: PaymentAllocation[]; }
