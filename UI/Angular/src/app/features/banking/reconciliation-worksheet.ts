@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { NgClass } from '@angular/common';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { BankingService } from '../../core/banking/banking.service';
@@ -8,12 +9,14 @@ import { ReconciliationWorksheet as Worksheet, WorksheetEntry, AutoMatchProposal
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { CapabilityService } from '../../core/capabilities/capability.service';
+import { TruncateDirective } from '../../shared/truncate.directive';
 import { AdjustmentsPanel } from './adjustments-panel';
 
 @Component({
   selector: 'app-reconciliation-worksheet',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, HlmButton, CanDirective, AdjustmentsPanel, ...HlmTableImports],
+  imports: [RouterLink, HlmButton, CanDirective, AdjustmentsPanel, ...HlmTableImports, NgClass, TruncateDirective],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-4xl">
       <a routerLink="/cash/reconciliation" class="text-sm text-muted-foreground hover:text-foreground">← Reconcile</a>
@@ -67,10 +70,15 @@ import { AdjustmentsPanel } from './adjustments-panel';
               <th hlmTh>Source</th><th hlmTh class="text-right">Cash effect</th></tr></thead>
             <tbody hlmTBody>
               @for (e of w.entries; track e.entryId) {
-                <tr hlmTr>
-                  <td hlmTd><input type="checkbox" [checked]="e.cleared" [disabled]="w.reconciliation.status !== 'InProgress' || busy()" (change)="toggle(e)" /></td>
+                <tr hlmTr
+                    [ngClass]="canDrill() ? 'cursor-pointer hover:bg-muted/50' : ''"
+                    [attr.role]="canDrill() ? 'button' : null"
+                    [attr.tabindex]="canDrill() ? 0 : null"
+                    (click)="canDrill() && open(e.entryId)"
+                    (keydown.enter)="canDrill() && open(e.entryId)">
+                  <td hlmTd><input type="checkbox" [checked]="e.cleared" [disabled]="w.reconciliation.status !== 'InProgress' || busy()" (change)="toggle(e)" (click)="$event.stopPropagation()" /></td>
                   <td hlmTd>{{ date(e.date) }}</td>
-                  <td hlmTd>{{ e.reference ?? '—' }}</td>
+                  <td hlmTd><span appTruncate>{{ e.reference ?? '—' }}</span></td>
                   <td hlmTd>{{ e.sourceType ?? '—' }}</td>
                   <td hlmTd class="text-right tabular-nums" [class.text-destructive]="e.cashEffect < 0">{{ money(e.cashEffect) }}</td>
                 </tr>
@@ -88,12 +96,15 @@ export class ReconciliationWorksheet {
   private readonly svc = inject(BankingService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly router = inject(Router);
+  private readonly caps = inject(CapabilityService);
 
   readonly id = this.route.snapshot.paramMap.get('id')!;
   readonly worksheet = signal<Worksheet | null>(null);
   readonly proposal = signal<AutoMatchProposal | null>(null);
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
+  readonly canDrill = computed(() => this.caps.has('gl.read'));
 
   constructor() { this.reload(); }
 
@@ -112,6 +123,8 @@ export class ReconciliationWorksheet {
       error: (err) => { this.message.set(extractProblem(err).detail); this.busy.set(false); },
     });
   }
+
+  open(entryId: string): void { void this.router.navigate(['/journal', entryId]); }
 
   loadProposal(): void {
     this.busy.set(true); this.message.set(null);
