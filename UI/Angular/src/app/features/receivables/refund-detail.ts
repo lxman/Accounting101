@@ -5,11 +5,12 @@ import { ReceivablesService } from '../../core/receivables/receivables.service';
 import { RefundView } from '../../core/receivables/receivables';
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
+import { CanDirective } from '../../core/capabilities/can.directive';
 
 @Component({
   selector: 'app-refund-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink],
+  imports: [RouterLink, CanDirective],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-3xl">
       <a routerLink="/receivables/refunds" class="text-sm text-muted-foreground hover:text-foreground w-fit">← Refunds</a>
@@ -24,7 +25,7 @@ import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/dis
           <div><span class="text-muted-foreground">Memo</span> · {{ v.refund.memo ?? '—' }}</div>
         </div>
         @if (v.journalEntryId) {
-          <a [routerLink]="['/journal', v.journalEntryId]" class="text-sm text-primary hover:underline w-fit">View journal entry →</a>
+          <a *appCan="'gl.read'" [routerLink]="['/journal', v.journalEntryId]" class="text-sm text-primary hover:underline w-fit">View journal entry →</a>
         }
       } @else if (loadError()) {
         <p class="text-destructive text-sm">{{ loadError() }}</p>

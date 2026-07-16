@@ -5,10 +5,12 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { RefundDetail } from './refund-detail';
 import { ClientContextService } from '../../core/client/client-context.service';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
 
-function boot(id: string) {
+function boot(id: string, caps: string[] = ['gl.read']) {
   TestBed.configureTestingModule({
     providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
+      provideCapabilities(...caps),
       { provide: ActivatedRoute, useValue: { snapshot: { paramMap: new Map([['id', id]]) } } }],
   });
   TestBed.inject(ClientContextService).select('C1');
@@ -36,6 +38,16 @@ describe('RefundDetail', () => {
     const { fixture, ctrl } = boot('rf2');
     ctrl.expectOne('http://localhost:5000/clients/C1/refunds/rf2').flush(
       { refund: { id: 'rf2', customerId: 'cu1', date: '2026-06-30', amount: 25, memo: null, voided: false }, journalEntryId: null });
+    fixture.detectChanges();
+    const link = [...(fixture.nativeElement as HTMLElement).querySelectorAll('a')]
+      .find(a => a.textContent!.includes('View journal entry'));
+    expect(link).toBeUndefined();
+  });
+
+  it('hides the journal link when the user lacks gl.read', () => {
+    const { fixture, ctrl } = boot('rf3', []);
+    ctrl.expectOne('http://localhost:5000/clients/C1/refunds/rf3').flush(
+      { refund: { id: 'rf3', customerId: 'cu1', date: '2026-06-30', amount: 40, memo: 'x', voided: false }, journalEntryId: 'e9' });
     fixture.detectChanges();
     const link = [...(fixture.nativeElement as HTMLElement).querySelectorAll('a')]
       .find(a => a.textContent!.includes('View journal entry'));
