@@ -24,6 +24,7 @@ public static class PayablesEndpoints
         clients.MapGet("/bills", ListBills);
         clients.MapPost("/bill-payments", RecordPayment);
         clients.MapGet("/bill-payments", ListBillPayments);
+        clients.MapGet("/bill-payments/{paymentId:guid}", GetBillPayment);
         clients.MapPost("/bill-payments/{paymentId:guid}/void", VoidPayment);
         clients.MapPost("/vendor-credit-applications", ApplyCredit);
         clients.MapGet("/vendor-credit-applications", ListCreditApplications);
@@ -162,13 +163,20 @@ public static class PayablesEndpoints
         return false;
     }
 
+    private static async Task<IResult> GetBillPayment(
+        Guid clientId, Guid paymentId, BillPaymentService payments, CancellationToken cancellationToken)
+    {
+        BillPaymentView? view = await payments.GetBillPaymentViewAsync(clientId, paymentId, cancellationToken);
+        return view is null ? Results.NotFound() : Results.Ok(view);
+    }
+
     private static async Task<IResult> ListBillPayments(
-        Guid clientId, Guid? vendorId, IBillPaymentStore store, CancellationToken cancellationToken)
+        Guid clientId, Guid? vendorId, BillPaymentService payments, CancellationToken cancellationToken)
     {
         if (vendorId is null || vendorId == Guid.Empty)
             return Results.Problem("vendorId query parameter is required.", statusCode: StatusCodes.Status400BadRequest);
-        IReadOnlyList<BillPayment> payments = await store.GetPaymentsByVendorAsync(clientId, vendorId.Value, cancellationToken);
-        return Results.Ok(payments);
+        IReadOnlyList<BillPaymentWithAllocations> result = await payments.GetPaymentsWithAllocationsByVendorAsync(clientId, vendorId.Value, cancellationToken);
+        return Results.Ok(result);
     }
 
     private static async Task<IResult> RecordPayment(

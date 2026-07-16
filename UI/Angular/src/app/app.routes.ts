@@ -32,6 +32,7 @@ import { BillList } from './features/payables/bill-list';
 import { BillEditor } from './features/payables/bill-editor';
 import { BillDetail } from './features/payables/bill-detail';
 import { BillPaymentList } from './features/payables/bill-payment-list';
+import { BillPaymentDetail } from './features/payables/bill-payment-detail';
 import { BillPaymentEditor } from './features/payables/bill-payment-editor';
 import { VendorCreditList } from './features/payables/vendor-credit-list';
 import { VendorCreditApplyEditor } from './features/payables/vendor-credit-apply-editor';
@@ -130,6 +131,7 @@ export const routes: Routes = [
     { path: 'bills/:id', component: BillDetail },
     { path: 'payments', component: BillPaymentList },
     { path: 'payments/new', component: BillPaymentEditor, canActivate: [canWrite], data: { requiredCapability: 'ap.write', fallback: '/payables/payments' } },
+    { path: 'payments/:id', component: BillPaymentDetail },
     { path: 'vendors', component: VendorList },
     { path: 'vendors/:id', component: VendorAccount },
     { path: 'credits', component: VendorCreditList },
