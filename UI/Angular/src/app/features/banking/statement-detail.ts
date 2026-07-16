@@ -40,9 +40,9 @@ import { CanDirective } from '../../core/capabilities/can.directive';
             <thead hlmTHead><tr hlmTr><th hlmTh>Date</th><th hlmTh>Description</th><th hlmTh class="text-right">Amount</th><th hlmTh>Ref</th></tr></thead>
             <tbody hlmTBody>
               @for (l of s.lines; track $index) {
-                <tr hlmTr><td hlmTd>{{ date(l.date) }}</td><td hlmTd>{{ l.description }}</td>
+                <tr hlmTr><td hlmTd>{{ date(l.date) }}</td><td hlmTd><span class="whitespace-normal break-words">{{ l.description }}</span></td>
                   <td hlmTd class="text-right tabular-nums" [class.text-destructive]="l.amount < 0">{{ money(l.amount) }}</td>
-                  <td hlmTd>{{ l.externalRef ?? '' }}</td></tr>
+                  <td hlmTd><span class="whitespace-normal break-words">{{ l.externalRef ?? '' }}</span></td></tr>
               }
             </tbody>
           </table>

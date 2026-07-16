@@ -42,7 +42,7 @@ import { CanDirective } from '../../core/capabilities/can.directive';
           <tbody hlmTBody>
             @for (l of v.invoice.lines; track $index) {
               <tr hlmTr>
-                <td hlmTd>{{ l.description }}</td>
+                <td hlmTd><span class="whitespace-normal break-words">{{ l.description }}</span></td>
                 <td hlmTd class="text-right tabular-nums">{{ l.quantity }}</td>
                 <td hlmTd class="text-right tabular-nums">{{ money(l.unitPrice) }}</td>
                 <td hlmTd class="text-right tabular-nums">{{ money(lineAmt(l)) }}</td>
