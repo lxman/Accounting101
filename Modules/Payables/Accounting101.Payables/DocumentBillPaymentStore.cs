@@ -51,6 +51,12 @@ public sealed class DocumentBillPaymentStore(IDocumentStore documents) : IBillPa
         return results.Select(MapCredit).ToList();
     }
 
+    public async Task<VendorCreditApplication?> GetCreditApplicationAsync(Guid clientId, Guid creditApplicationId, CancellationToken ct = default)
+    {
+        DocumentResult<VendorCreditApplicationBody>? r = await documents.GetAsync<VendorCreditApplicationBody>(clientId, VendorCreditApplications, creditApplicationId, ct);
+        return r is null ? null : MapCredit(r);
+    }
+
     private static Dictionary<string, string> Tags(Guid vendorId) => new() { ["Vendor"] = vendorId.ToString() };
 
     private static bool IsVoided(DocumentLifecycle state) =>

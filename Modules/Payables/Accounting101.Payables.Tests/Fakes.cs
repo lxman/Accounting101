@@ -277,4 +277,7 @@ internal sealed class InMemoryBillPaymentStore : IBillPaymentStore
         Task.FromResult<IReadOnlyList<VendorCreditApplication>>(
             _credits.Where(kv => kv.Key.Item1 == clientId && kv.Value.VendorId == vendorId)
                 .Select(kv => kv.Value).ToList());
+
+    public Task<VendorCreditApplication?> GetCreditApplicationAsync(Guid clientId, Guid creditApplicationId, CancellationToken ct = default) =>
+        Task.FromResult(_credits.GetValueOrDefault((clientId, creditApplicationId)));
 }

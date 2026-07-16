@@ -28,6 +28,7 @@ public static class PayablesEndpoints
         clients.MapPost("/bill-payments/{paymentId:guid}/void", VoidPayment);
         clients.MapPost("/vendor-credit-applications", ApplyCredit);
         clients.MapGet("/vendor-credit-applications", ListCreditApplications);
+        clients.MapGet("/vendor-credit-applications/{creditApplicationId:guid}", GetVendorCredit);
         clients.MapGet("/vendors/{vendorId:guid}/credit-balance", GetCreditBalance);
         clients.MapGet("/vendors/{vendorId:guid}/account", GetVendorAccount);
         clients.MapGet("/payables/chart-readiness", ChartReadiness);
@@ -231,6 +232,13 @@ public static class PayablesEndpoints
             return Results.Problem("vendorId query parameter is required.", statusCode: StatusCodes.Status400BadRequest);
         IReadOnlyList<VendorCreditApplication> apps = await store.GetCreditApplicationsByVendorAsync(clientId, vendorId.Value, cancellationToken);
         return Results.Ok(apps);
+    }
+
+    private static async Task<IResult> GetVendorCredit(
+        Guid clientId, Guid creditApplicationId, BillPaymentService payments, CancellationToken cancellationToken)
+    {
+        VendorCreditView? view = await payments.GetVendorCreditViewAsync(clientId, creditApplicationId, cancellationToken);
+        return view is null ? Results.NotFound() : Results.Ok(view);
     }
 
     private static async Task<IResult> GetCreditBalance(

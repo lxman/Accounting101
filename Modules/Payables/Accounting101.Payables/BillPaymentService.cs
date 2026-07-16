@@ -127,6 +127,32 @@ public sealed class BillPaymentService(
         return new BillPaymentView(payment, allocations, unapplied, postingEntry?.Id);
     }
 
+    /// <summary>A single vendor credit application plus the bills it was applied to and its posted journal
+    /// entry id — for the detail screen. Allocations and the journal id come from the Posted posting; a
+    /// credit application applies fully, so the allocations' total is the amount. Returns null if not found.</summary>
+    public async Task<VendorCreditView?> GetVendorCreditViewAsync(Guid clientId, Guid creditApplicationId, CancellationToken ct = default)
+    {
+        VendorCreditApplication? credit = await payments.GetCreditApplicationAsync(clientId, creditApplicationId, ct);
+        if (credit is null) return null;
+
+        IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, creditApplicationId, ct);
+        EntryResponse? postingEntry = spawned.FirstOrDefault(e => e is { Status: "Active", Posting: "Posted", ReversalOf: null });
+
+        List<BillAllocationLine> allocations = [];
+        if (postingEntry is not null)
+        {
+            foreach (IGrouping<Guid, EntryLineResponse> group in postingEntry.Lines
+                         .Where(l => l.Dimensions.ContainsKey(BillPosting.BillDimension))
+                         .GroupBy(l => l.Dimensions[BillPosting.BillDimension]))
+            {
+                Bill? bill = await bills.GetAsync(clientId, group.Key, ct);
+                allocations.Add(new BillAllocationLine(group.Key, bill?.Number, group.Sum(l => l.Amount)));
+            }
+        }
+
+        return new VendorCreditView(credit, allocations, postingEntry?.Id);
+    }
+
     /// <summary>The vendor's bill payments each with its per-bill allocations folded from the GL (Posted-only)
     /// — what the Payments list and the bill-detail "applied payments" section consume. Voided payments are
     /// included (greyed in the UI); a not-yet-Posted payment folds to no allocations.</summary>
