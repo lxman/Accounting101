@@ -6,6 +6,6 @@ import { Directive } from '@angular/core';
  * a row that drills into a detail showing the full value. */
 @Directive({
   selector: '[appTruncate]',
-  host: { class: 'block truncate min-w-0' },
+  host: { class: 'block truncate min-w-0 max-w-[28rem]' },
 })
 export class TruncateDirective {}
