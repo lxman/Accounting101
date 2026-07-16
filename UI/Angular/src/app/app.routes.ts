@@ -35,6 +35,7 @@ import { BillPaymentList } from './features/payables/bill-payment-list';
 import { BillPaymentDetail } from './features/payables/bill-payment-detail';
 import { BillPaymentEditor } from './features/payables/bill-payment-editor';
 import { VendorCreditList } from './features/payables/vendor-credit-list';
+import { VendorCreditDetail } from './features/payables/vendor-credit-detail';
 import { VendorCreditApplyEditor } from './features/payables/vendor-credit-apply-editor';
 import { VendorAccount } from './features/payables/vendor-account';
 import { PayrollShell } from './features/payroll/payroll-shell';
@@ -136,6 +137,7 @@ export const routes: Routes = [
     { path: 'vendors/:id', component: VendorAccount },
     { path: 'credits', component: VendorCreditList },
     { path: 'credits/new', component: VendorCreditApplyEditor, canActivate: [canWrite], data: { requiredCapability: 'ap.write', fallback: '/payables/credits' } },
+    { path: 'credits/:id', component: VendorCreditDetail },
   ] },
   { path: 'payroll', component: PayrollShell, children: [
     { path: '', pathMatch: 'full', redirectTo: 'runs' },

@@ -66,6 +66,8 @@ export interface VendorCreditApplication {
   id: string; vendorId: string; date: string; allocations: PaymentAllocation[]; voided: boolean;
 }
 
+export interface VendorCreditView { credit: VendorCreditApplication; allocations: BillAllocationLine[]; journalEntryId: string | null; }
+
 export interface ApplyVendorCreditRequest {
   vendorId: string; date: string; allocations: PaymentAllocation[];
 }
