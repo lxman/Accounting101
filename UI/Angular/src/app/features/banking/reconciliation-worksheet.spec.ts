@@ -51,7 +51,7 @@ describe('ReconciliationWorksheet', () => {
 
   it('navigates to the journal entry when a drillable row is clicked', () => {
     const { fixture } = boot(['bankrec.write', 'gl.read']);
-    const nav = vi.spyOn(TestBed.inject(Router), 'navigate');
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const row = (fixture.nativeElement as HTMLElement).querySelector('tbody tr')!;
     expect(row.getAttribute('role')).toBe('button');
     row.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -60,7 +60,7 @@ describe('ReconciliationWorksheet', () => {
 
   it('does not navigate when the clearing checkbox is clicked (stopPropagation)', () => {
     const { fixture } = boot(['bankrec.write', 'gl.read']);
-    const nav = vi.spyOn(TestBed.inject(Router), 'navigate');
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const checkbox = (fixture.nativeElement as HTMLElement).querySelector('tbody tr input[type=checkbox]')!;
     checkbox.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(nav).not.toHaveBeenCalled();
@@ -68,7 +68,7 @@ describe('ReconciliationWorksheet', () => {
 
   it('shows no drill affordance without gl.read', () => {
     const { fixture } = boot(['bankrec.write']);
-    const nav = vi.spyOn(TestBed.inject(Router), 'navigate');
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const row = (fixture.nativeElement as HTMLElement).querySelector('tbody tr')!;
     expect(row.getAttribute('role')).toBeNull();
     row.dispatchEvent(new MouseEvent('click', { bubbles: true }));

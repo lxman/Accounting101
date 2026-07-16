@@ -76,7 +76,7 @@ import { AdjustmentsPanel } from './adjustments-panel';
                     [attr.tabindex]="canDrill() ? 0 : null"
                     (click)="canDrill() && open(e.entryId)"
                     (keydown.enter)="canDrill() && open(e.entryId)">
-                  <td hlmTd><input type="checkbox" [checked]="e.cleared" [disabled]="w.reconciliation.status !== 'InProgress' || busy()" (change)="toggle(e)" (click)="$event.stopPropagation()" /></td>
+                  <td hlmTd><input type="checkbox" [checked]="e.cleared" [disabled]="w.reconciliation.status !== 'InProgress' || busy()" (change)="toggle(e)" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()" /></td>
                   <td hlmTd>{{ date(e.date) }}</td>
                   <td hlmTd><span appTruncate>{{ e.reference ?? '—' }}</span></td>
                   <td hlmTd>{{ e.sourceType ?? '—' }}</td>
