@@ -317,6 +317,9 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
     public Task<IReadOnlyList<CreditApplication>> GetCreditApplicationsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyList<CreditApplication>>(_credits.Where(kv => kv.Key.Item1 == clientId && kv.Value.CustomerId == customerId).Select(kv => kv.Value).ToList());
 
+    public Task<CreditApplication?> GetCreditApplicationAsync(Guid clientId, Guid creditApplicationId, CancellationToken ct = default) =>
+        Task.FromResult(_credits.GetValueOrDefault((clientId, creditApplicationId)));
+
     public Task<WriteOff> RecordWriteOffAsync(Guid clientId, WriteOffBody body, CancellationToken ct = default)
     {
         WriteOff w = new()

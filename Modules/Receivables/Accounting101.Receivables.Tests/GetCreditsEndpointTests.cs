@@ -148,4 +148,100 @@ public sealed class GetCreditsEndpointTests(ReceivablesHostFixture fixture) : IC
         HttpResponseMessage res = await clerk.GetAsync($"/clients/{clientId}/credits");
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
+
+    [Fact]
+    public async Task GET_credit_note_by_id_returns_folded_amount_allocations_and_journal_entry_id()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId);
+        Customer customer = (await (await clerk.PostAsJsonAsync(
+            $"/clients/{clientId}/customers", new CreateCustomerRequest("Stark", null)))
+            .Content.ReadFromJsonAsync<Customer>())!;
+
+        Guid inv1 = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m);
+        Guid inv2 = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m);
+
+        // A credit note allocated across two invoices: 60 to inv1, 40 to inv2 (total 100).
+        CreditNote creditNote = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/credit-notes",
+            new CreditNoteRequest(customer.Id, new DateOnly(2026, 3, 10),
+                [new Allocation(inv1, 60m), new Allocation(inv2, 40m)], "returned goods")))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<CreditNote>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, creditNote.Id);
+
+        InvoiceView iv1 = (await clerk.GetFromJsonAsync<InvoiceView>($"/clients/{clientId}/invoices/{inv1}"))!;
+        InvoiceView iv2 = (await clerk.GetFromJsonAsync<InvoiceView>($"/clients/{clientId}/invoices/{inv2}"))!;
+
+        EntryResponse[] entries = (await clerk.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={creditNote.Id}"))!;
+        Guid expectedEntryId = entries.Single(e => e is { Status: "Active", ReversalOf: null }).Id;
+
+        CreditView view = (await clerk.GetFromJsonAsync<CreditView>(
+            $"/clients/{clientId}/credits/credit-note/{creditNote.Id}"))!;
+
+        Assert.Equal("credit-note", view.Credit.Type);
+        Assert.Equal(creditNote.Id, view.Credit.Id);
+        Assert.Equal(100m, view.Credit.Amount);
+        Assert.Equal("returned goods", view.Credit.Memo);
+        Assert.False(view.Credit.Voided);
+        Assert.Equal(expectedEntryId, view.JournalEntryId);
+
+        Assert.Equal(2, view.Allocations.Count);
+        CreditAllocationLine a1 = view.Allocations.Single(a => a.InvoiceId == inv1);
+        Assert.Equal(60m, a1.Amount);
+        Assert.Equal(iv1.Invoice.Number, a1.InvoiceNumber);
+        CreditAllocationLine a2 = view.Allocations.Single(a => a.InvoiceId == inv2);
+        Assert.Equal(40m, a2.Amount);
+        Assert.Equal(iv2.Invoice.Number, a2.InvoiceNumber);
+    }
+
+    [Fact]
+    public async Task GET_credit_application_by_id_has_null_memo_and_resolved_allocations()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId);
+        Customer customer = (await (await clerk.PostAsJsonAsync(
+            $"/clients/{clientId}/customers", new CreateCustomerRequest("Wayne", null)))
+            .Content.ReadFromJsonAsync<Customer>())!;
+
+        Guid invSrc = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m);     // overpaid → credit
+        Guid invTarget = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m);  // credit-application target
+
+        // Overpay invSrc by 50 → 50 of unapplied customer credit.
+        Payment payment = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
+                new RecordPaymentRequest(customer.Id, new DateOnly(2026, 3, 2), 150m, "check",
+                    [new Allocation(invSrc, 100m)])))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Payment>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, payment.Id);
+
+        CreditApplication creditApp = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/credit-applications",
+                new CreditApplicationRequest(customer.Id, new DateOnly(2026, 3, 8), [new Allocation(invTarget, 50m)])))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<CreditApplication>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, creditApp.Id);
+
+        CreditView view = (await clerk.GetFromJsonAsync<CreditView>(
+            $"/clients/{clientId}/credits/credit-application/{creditApp.Id}"))!;
+
+        Assert.Equal("credit-application", view.Credit.Type);
+        Assert.Null(view.Credit.Memo);
+        Assert.Equal(50m, view.Credit.Amount);
+        CreditAllocationLine only = Assert.Single(view.Allocations);
+        Assert.Equal(invTarget, only.InvoiceId);
+        Assert.Equal(50m, only.Amount);
+    }
+
+    [Fact]
+    public async Task GET_credit_by_unknown_id_is_404()
+    {
+        (Guid clientId, _, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        HttpResponseMessage res = await clerk.GetAsync($"/clients/{clientId}/credits/credit-note/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task GET_credit_by_unknown_type_is_404()
+    {
+        (Guid clientId, _, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        HttpResponseMessage res = await clerk.GetAsync($"/clients/{clientId}/credits/bogus/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+    }
 }

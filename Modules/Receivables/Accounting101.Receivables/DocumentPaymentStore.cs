@@ -54,6 +54,12 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
         return results.Select(MapCredit).ToList();
     }
 
+    public async Task<CreditApplication?> GetCreditApplicationAsync(Guid clientId, Guid creditApplicationId, CancellationToken ct = default)
+    {
+        DocumentResult<CreditApplicationBody>? r = await documents.GetAsync<CreditApplicationBody>(clientId, CreditApplications, creditApplicationId, ct);
+        return r is null ? null : MapCredit(r);
+    }
+
     public async Task<WriteOff> RecordWriteOffAsync(Guid clientId, WriteOffBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
