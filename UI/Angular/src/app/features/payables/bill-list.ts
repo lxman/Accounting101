@@ -14,11 +14,12 @@ import { SettlementBadge } from '../../shared/settlement-badge';
 import { extractProblem } from '../../core/api/problem-details';
 import { CanDirective } from '../../core/capabilities/can.directive';
 import { Paginator } from '../../shared/paginator';
+import { TruncateDirective } from '../../shared/truncate.directive';
 
 @Component({
   selector: 'app-bill-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, HlmButton, VendorSelect, SettlementBadge, CanDirective, ...HlmSelectImports, ...HlmTableImports, Paginator],
+  imports: [RouterLink, HlmButton, VendorSelect, SettlementBadge, CanDirective, ...HlmSelectImports, ...HlmTableImports, Paginator, TruncateDirective],
   template: `
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-3 flex-wrap">
@@ -57,7 +58,7 @@ import { Paginator } from '../../shared/paginator';
                   <td hlmTd>{{ v.bill.number ?? '—' }}</td>
                   <td hlmTd>{{ fmtDate(v.bill.billDate) }}</td>
                   <td hlmTd>{{ v.bill.dueDate ? fmtDate(v.bill.dueDate) : '—' }}</td>
-                  <td hlmTd>{{ v.bill.vendorReference ?? '—' }}</td>
+                  <td hlmTd><span appTruncate>{{ v.bill.vendorReference ?? '—' }}</span></td>
                   <td hlmTd>{{ fmtMoney(calcTotal(v)) }}</td>
                   <td hlmTd>{{ fmtMoney(v.openBalance) }}</td>
                   <td hlmTd class="flex gap-1 flex-wrap items-center">

@@ -19,6 +19,7 @@ import { displayDate } from '../../core/format/display';
 import { PostingBadge } from '../../shared/posting-badge';
 import { CanDirective } from '../../core/capabilities/can.directive';
 import { Paginator } from '../../shared/paginator';
+import { TruncateDirective } from '../../shared/truncate.directive';
 
 @Component({
   selector: 'app-entry-list',
@@ -31,6 +32,7 @@ import { Paginator } from '../../shared/paginator';
     ...HlmTableImports,
     ...HlmSelectImports,
     Paginator,
+    TruncateDirective,
   ],
   template: `
     <div class="flex flex-col gap-4 p-4">
@@ -80,9 +82,7 @@ import { Paginator } from '../../shared/paginator';
                       (keydown.enter)="open(entry.id)">
                     <td hlmTd>{{ entry.sequenceNumber }}</td>
                     <td hlmTd>{{ formatDate(entry.effectiveDate) }}</td>
-                    <td hlmTd class="max-w-[28rem]">
-                      <span class="block truncate" [title]="entry.memo ?? ''">{{ entry.memo ?? '—' }}</span>
-                    </td>
+                    <td hlmTd><span appTruncate>{{ entry.memo ?? '—' }}</span></td>
                     <td hlmTd>{{ entry.lineCount }}</td>
                     <td hlmTd><app-posting-badge [posting]="entry.posting" /></td>
                   </tr>

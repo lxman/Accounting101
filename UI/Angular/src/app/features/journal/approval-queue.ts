@@ -11,11 +11,12 @@ import { DevIdentityService } from '../../core/api/dev-identity.service';
 import { extractProblem } from '../../core/api/problem-details';
 import { DEFAULT_FORMAT_PROFILE } from '../../core/format/format-profile';
 import { formatProfileDate } from '../../core/format/date-formatter';
+import { TruncateDirective } from '../../shared/truncate.directive';
 
 @Component({
   selector: 'app-approval-queue',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...HlmTableImports, ...HlmBadgeImports],
+  imports: [...HlmTableImports, ...HlmBadgeImports, TruncateDirective],
   template: `
     <div class="flex flex-col gap-4 p-4">
       <h1 class="text-2xl font-bold">Pending Approval</h1>
@@ -34,7 +35,7 @@ import { formatProfileDate } from '../../core/format/date-formatter';
                     (keydown.enter)="open(e.id)">
                   <td hlmTd>{{ e.sequenceNumber }}</td>
                   <td hlmTd>{{ formatDate(e.effectiveDate) }}</td>
-                  <td hlmTd>{{ e.memo ?? '—' }}</td>
+                  <td hlmTd><span appTruncate>{{ e.memo ?? '—' }}</span></td>
                   <td hlmTd>{{ e.lineCount }}</td>
                   <td hlmTd>
                     @switch (cueById()[e.id]) {
