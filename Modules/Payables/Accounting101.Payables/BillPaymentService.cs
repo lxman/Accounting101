@@ -153,6 +153,29 @@ public sealed class BillPaymentService(
         return new VendorCreditView(credit, allocations, postingEntry?.Id);
     }
 
+    /// <summary>The vendor's credit applications each with its per-bill allocations folded from the GL
+    /// (Posted-only) — what the Credits list consumes. Voided applications are included (greyed in the UI);
+    /// a not-yet-Posted application folds to no allocations.</summary>
+    public async Task<IReadOnlyList<VendorCreditApplicationWithAllocations>> GetCreditApplicationsWithAllocationsByVendorAsync(
+        Guid clientId, Guid vendorId, CancellationToken ct = default)
+    {
+        IReadOnlyList<VendorCreditApplication> apps = await payments.GetCreditApplicationsByVendorAsync(clientId, vendorId, ct);
+        List<VendorCreditApplicationWithAllocations> result = [];
+        foreach (VendorCreditApplication c in apps)
+        {
+            IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, c.Id, ct);
+            EntryResponse? postingEntry = spawned.FirstOrDefault(e => e is { Status: "Active", Posting: "Posted", ReversalOf: null });
+            List<Allocation> allocs = [];
+            if (postingEntry is not null)
+                foreach (IGrouping<Guid, EntryLineResponse> group in postingEntry.Lines
+                             .Where(l => l.Dimensions.ContainsKey(BillPosting.BillDimension))
+                             .GroupBy(l => l.Dimensions[BillPosting.BillDimension]))
+                    allocs.Add(new Allocation(group.Key, group.Sum(l => l.Amount)));
+            result.Add(new VendorCreditApplicationWithAllocations(c.Id, c.VendorId, c.Date, c.Voided, allocs));
+        }
+        return result;
+    }
+
     /// <summary>The vendor's bill payments each with its per-bill allocations folded from the GL (Posted-only)
     /// — what the Payments list and the bill-detail "applied payments" section consume. Voided payments are
     /// included (greyed in the UI); a not-yet-Posted payment folds to no allocations.</summary>

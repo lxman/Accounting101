@@ -226,12 +226,12 @@ public static class PayablesEndpoints
     }
 
     private static async Task<IResult> ListCreditApplications(
-        Guid clientId, Guid? vendorId, IBillPaymentStore store, CancellationToken cancellationToken)
+        Guid clientId, Guid? vendorId, BillPaymentService payments, CancellationToken cancellationToken)
     {
         if (vendorId is null || vendorId == Guid.Empty)
             return Results.Problem("vendorId query parameter is required.", statusCode: StatusCodes.Status400BadRequest);
-        IReadOnlyList<VendorCreditApplication> apps = await store.GetCreditApplicationsByVendorAsync(clientId, vendorId.Value, cancellationToken);
-        return Results.Ok(apps);
+        IReadOnlyList<VendorCreditApplicationWithAllocations> result = await payments.GetCreditApplicationsWithAllocationsByVendorAsync(clientId, vendorId.Value, cancellationToken);
+        return Results.Ok(result);
     }
 
     private static async Task<IResult> GetVendorCredit(

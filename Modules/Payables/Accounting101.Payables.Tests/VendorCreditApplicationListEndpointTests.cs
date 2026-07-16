@@ -100,7 +100,7 @@ public sealed class VendorCreditApplicationListEndpointTests(PayablesHostFixture
             new VendorCreditApplicationRequest(vendor.Id, new DateOnly(2026, 4, 2), [new Allocation(entered2.Id, 40m)])))
             .EnsureSuccessStatusCode();
 
-        VendorCreditApplication[] apps = (await clerk.GetFromJsonAsync<VendorCreditApplication[]>(
+        VendorCreditApplicationWithAllocations[] apps = (await clerk.GetFromJsonAsync<VendorCreditApplicationWithAllocations[]>(
             $"/clients/{clientId}/vendor-credit-applications?vendorId={vendor.Id}"))!;
         Assert.Single(apps);
         Assert.Equal(vendor.Id, apps[0].VendorId);
@@ -111,6 +111,27 @@ public sealed class VendorCreditApplicationListEndpointTests(PayablesHostFixture
             $"/clients/{clientId}/entries?sourceRef={apps[0].Id}"))!;
         EntryResponse appEntry = appEntries.Single(e => e.ReversalOf is null);
         Assert.Equal(40m, appEntry.Lines.Where(l => l.AccountId == fixture.PayableAccountId).Sum(l => l.Amount));
+    }
+
+    [Fact]
+    public async Task List_folds_each_applications_allocations()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId);
+        Vendor vendor = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/vendors",
+            new CreateVendorRequest("PropCo", null))).Content.ReadFromJsonAsync<Vendor>())!;
+
+        Bill firstBill = await EnterBillAsync(clerk, approver, clientId, vendor.Id, "March Rent");
+        Bill targetBill = await EnterBillAsync(clerk, approver, clientId, vendor.Id, "April Rent");
+        VendorCreditApplication creditApp = await ApplyVendorCreditAsync(clerk, approver, clientId, vendor.Id, firstBill.Id, targetBill.Id, 60m);
+
+        VendorCreditApplicationWithAllocations[] list = (await clerk.GetFromJsonAsync<VendorCreditApplicationWithAllocations[]>(
+            $"/clients/{clientId}/vendor-credit-applications?vendorId={vendor.Id}"))!;
+
+        VendorCreditApplicationWithAllocations row = Assert.Single(list, a => a.Id == creditApp.Id);
+        Allocation alloc = Assert.Single(row.Allocations);
+        Assert.Equal(targetBill.Id, alloc.TargetId);
+        Assert.Equal(60m, alloc.Amount);
     }
 
     [Fact]
