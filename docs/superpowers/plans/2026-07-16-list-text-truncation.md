@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **⚠️ POST-EXECUTION CORRECTION (2026-07-16):** This plan's "no `max-width`" decision was **wrong** and was reversed during Task 5 visual verification. The shipped directive applies `block truncate min-w-0 **max-w-[28rem]**`. Without the cap, `truncate` does not engage in an auto-layout table (the column expands to full content width and the table overflows its container, pushing sibling columns off-screen). Wherever this plan says the directive is `block truncate min-w-0` with "no max-width" (Architecture, Global Constraints, Task 1 Step 3), read `block truncate min-w-0 max-w-[28rem]`. The corrected spec is authoritative. **Slice 2 must copy the cap.**
+
 **Goal:** Add a shared `appTruncate` directive and apply it so long free-text list columns truncate (where the row drills into a detail) or wrap (true-leaf line-item tables), without tooltips.
 
 **Architecture:** A thin standalone Angular directive applies the host classes `block truncate min-w-0` to a text element. List/table cells whose row already navigates to a detail wrap their text in `<span appTruncate>`; true-leaf line-item tables instead wrap their text in `<span class="whitespace-normal break-words">`. No new tooltips, no `max-width`. The already-shipped shell `min-w-0` fix guarantees the nav never scrolls off regardless.

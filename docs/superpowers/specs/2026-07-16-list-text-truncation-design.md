@@ -110,9 +110,13 @@ is otherwise unchanged:
 <td hlmTd><span appTruncate>{{ entry.memo }}</span></td>
 ```
 
-**Flex / tree rows** — add the directive to the existing text element **and** add
-`min-w-0` to the row's flex/tree container so the truncating child may shrink (the
-directive targets the child, not the parent, so the container tweak is per-site).
+**Flex / tree rows** — add the directive to the existing text element. The
+truncating child needs its flex row to be width-bound: when an ancestor already
+bounds the width (e.g. a `max-w-2xl`/`max-w-3xl` page wrapper with block stretch, as
+in customer-list/vendor-list/chart-of-accounts), the child's directive-supplied
+`min-w-0` is sufficient and no container change is needed — this is what shipped. Add
+`min-w-0` to the row's flex container only for a genuinely unbounded flex context;
+otherwise truncation would silently fail there.
 
 ### Wrap treatment (leaf tables)
 
