@@ -186,10 +186,10 @@ public sealed class GetCreditsEndpointTests(ReceivablesHostFixture fixture) : IC
         Assert.Equal(expectedEntryId, view.JournalEntryId);
 
         Assert.Equal(2, view.Allocations.Count);
-        CreditAllocationLine a1 = view.Allocations.Single(a => a.InvoiceId == inv1);
+        InvoiceAllocationLine a1 = view.Allocations.Single(a => a.InvoiceId == inv1);
         Assert.Equal(60m, a1.Amount);
         Assert.Equal(iv1.Invoice.Number, a1.InvoiceNumber);
-        CreditAllocationLine a2 = view.Allocations.Single(a => a.InvoiceId == inv2);
+        InvoiceAllocationLine a2 = view.Allocations.Single(a => a.InvoiceId == inv2);
         Assert.Equal(40m, a2.Amount);
         Assert.Equal(iv2.Invoice.Number, a2.InvoiceNumber);
     }
@@ -224,7 +224,7 @@ public sealed class GetCreditsEndpointTests(ReceivablesHostFixture fixture) : IC
         Assert.Equal("credit-application", view.Credit.Type);
         Assert.Null(view.Credit.Memo);
         Assert.Equal(50m, view.Credit.Amount);
-        CreditAllocationLine only = Assert.Single(view.Allocations);
+        InvoiceAllocationLine only = Assert.Single(view.Allocations);
         Assert.Equal(invTarget, only.InvoiceId);
         Assert.Equal(50m, only.Amount);
     }

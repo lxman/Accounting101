@@ -91,6 +91,34 @@ public sealed class PaymentService(
     public Task<IReadOnlyList<Payment>> GetPaymentsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default) =>
         payments.GetPaymentsByCustomerAsync(clientId, customerId, ct);
 
+    /// <summary>A single payment plus the invoices it was applied to, its unapplied remainder (held as
+    /// customer credit), and its posted journal entry id — for the detail screen. Allocations and the
+    /// journal id come from the Posted posting; Unapplied = Amount − Σallocations. Returns null if the
+    /// payment does not exist.</summary>
+    public async Task<PaymentView?> GetPaymentViewAsync(Guid clientId, Guid paymentId, CancellationToken ct = default)
+    {
+        Payment? payment = await payments.GetPaymentAsync(clientId, paymentId, ct);
+        if (payment is null) return null;
+
+        IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, paymentId, ct);
+        EntryResponse? postingEntry = spawned.FirstOrDefault(e => e is { Status: "Active", Posting: "Posted", ReversalOf: null });
+
+        List<InvoiceAllocationLine> allocations = [];
+        if (postingEntry is not null)
+        {
+            foreach (IGrouping<Guid, EntryLineResponse> group in postingEntry.Lines
+                         .Where(l => l.Dimensions.ContainsKey(PaymentPosting.InvoiceDimension))
+                         .GroupBy(l => l.Dimensions[PaymentPosting.InvoiceDimension]))
+            {
+                Invoice? invoice = await invoices.GetAsync(clientId, group.Key, ct);
+                allocations.Add(new InvoiceAllocationLine(group.Key, invoice?.Number, group.Sum(l => l.Amount)));
+            }
+        }
+
+        decimal unapplied = payment.Amount - allocations.Sum(a => a.Amount);
+        return new PaymentView(payment, allocations, unapplied, postingEntry?.Id);
+    }
+
     /// <summary>The customer's refunds (cash returned against credit), date-descending. Read-only; powers the
     /// Refunds list. Includes voided refunds (greyed in the UI).</summary>
     public async Task<IReadOnlyList<Refund>> GetRefundsByCustomerAsync(
@@ -178,7 +206,7 @@ public sealed class PaymentService(
         IReadOnlyList<EntryResponse> spawned = await ledger.GetEntriesBySourceRefAsync(clientId, creditId, ct);
         EntryResponse? postingEntry = spawned.FirstOrDefault(e => e is { Status: "Active", Posting: "Posted", ReversalOf: null });
 
-        List<CreditAllocationLine> allocations = [];
+        List<InvoiceAllocationLine> allocations = [];
         if (postingEntry is not null)
         {
             // GroupBy preserves first-appearance order of each invoice key → posting-line order.
@@ -187,7 +215,7 @@ public sealed class PaymentService(
                          .GroupBy(l => l.Dimensions[PaymentPosting.InvoiceDimension]))
             {
                 Invoice? invoice = await invoices.GetAsync(clientId, group.Key, ct);
-                allocations.Add(new CreditAllocationLine(group.Key, invoice?.Number, group.Sum(l => l.Amount)));
+                allocations.Add(new InvoiceAllocationLine(group.Key, invoice?.Number, group.Sum(l => l.Amount)));
             }
         }
 

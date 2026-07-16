@@ -92,4 +92,80 @@ public sealed class GetPaymentsEndpointTests(ReceivablesHostFixture fixture) : I
         HttpResponseMessage res = await clerk.GetAsync($"/clients/{clientId}/payments");
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);
     }
+
+    [Fact]
+    public async Task GET_payment_by_id_returns_allocations_unapplied_and_journal_entry_id()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId);
+        Customer customer = (await (await clerk.PostAsJsonAsync(
+            $"/clients/{clientId}/customers", new CreateCustomerRequest("Stark", null)))
+            .Content.ReadFromJsonAsync<Customer>())!;
+
+        Guid inv1 = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m);
+        Guid inv2 = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m);
+
+        // Pay 150 allocating 60→inv1 and 40→inv2 (total 100 applied), leaving 50 unapplied.
+        Payment payment = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
+                new RecordPaymentRequest(customer.Id, new DateOnly(2026, 3, 5), 150m, "check",
+                    [new Allocation(inv1, 60m), new Allocation(inv2, 40m)])))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Payment>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, payment.Id);
+
+        InvoiceView iv1 = (await clerk.GetFromJsonAsync<InvoiceView>($"/clients/{clientId}/invoices/{inv1}"))!;
+        InvoiceView iv2 = (await clerk.GetFromJsonAsync<InvoiceView>($"/clients/{clientId}/invoices/{inv2}"))!;
+
+        EntryResponse[] entries = (await clerk.GetFromJsonAsync<EntryResponse[]>(
+            $"/clients/{clientId}/entries?sourceRef={payment.Id}"))!;
+        Guid expectedEntryId = entries.Single(e => e is { Status: "Active", ReversalOf: null }).Id;
+
+        PaymentView view = (await clerk.GetFromJsonAsync<PaymentView>(
+            $"/clients/{clientId}/payments/{payment.Id}"))!;
+
+        Assert.Equal(payment.Id, view.Payment.Id);
+        Assert.Equal(150m, view.Payment.Amount);
+        Assert.Equal("check", view.Payment.Method);
+        Assert.False(view.Payment.Voided);
+        Assert.Equal(expectedEntryId, view.JournalEntryId);
+        Assert.Equal(50m, view.Unapplied);
+
+        Assert.Equal(2, view.Allocations.Count);
+        InvoiceAllocationLine a1 = view.Allocations.Single(a => a.InvoiceId == inv1);
+        Assert.Equal(60m, a1.Amount);
+        Assert.Equal(iv1.Invoice.Number, a1.InvoiceNumber);
+        InvoiceAllocationLine a2 = view.Allocations.Single(a => a.InvoiceId == inv2);
+        Assert.Equal(40m, a2.Amount);
+        Assert.Equal(iv2.Invoice.Number, a2.InvoiceNumber);
+    }
+
+    [Fact]
+    public async Task GET_fully_allocated_payment_has_zero_unapplied()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, HttpClient approver) = await fixture.SeedSodClientAsync();
+        await SetUpChartAsync(controller, clientId);
+        Customer customer = (await (await clerk.PostAsJsonAsync(
+            $"/clients/{clientId}/customers", new CreateCustomerRequest("Wayne", null)))
+            .Content.ReadFromJsonAsync<Customer>())!;
+        Guid inv = await IssueInvoiceAsync(clerk, approver, clientId, customer.Id, 100m);
+
+        Payment payment = (await (await clerk.PostAsJsonAsync($"/clients/{clientId}/payments",
+                new RecordPaymentRequest(customer.Id, new DateOnly(2026, 3, 6), 100m, "check",
+                    [new Allocation(inv, 100m)])))
+            .EnsureSuccessStatusCode().Content.ReadFromJsonAsync<Payment>())!;
+        await ApproveBySourceRefAsync(clerk, approver, clientId, payment.Id);
+
+        PaymentView view = (await clerk.GetFromJsonAsync<PaymentView>(
+            $"/clients/{clientId}/payments/{payment.Id}"))!;
+
+        Assert.Equal(0m, view.Unapplied);
+        Assert.Equal(100m, Assert.Single(view.Allocations).Amount);
+    }
+
+    [Fact]
+    public async Task GET_payment_by_unknown_id_is_404()
+    {
+        (Guid clientId, _, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        HttpResponseMessage res = await clerk.GetAsync($"/clients/{clientId}/payments/{Guid.NewGuid()}");
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+    }
 }
