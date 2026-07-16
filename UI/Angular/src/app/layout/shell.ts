@@ -79,7 +79,7 @@ import { NavStateService } from './nav-state.service';
           }
         </aside>
         }
-        <main class="flex-1 p-6"><router-outlet /></main>
+        <main class="flex-1 min-w-0 p-6"><router-outlet /></main>
       </div>
     </div>`,
 })

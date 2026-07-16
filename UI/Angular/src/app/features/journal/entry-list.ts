@@ -80,7 +80,9 @@ import { Paginator } from '../../shared/paginator';
                       (keydown.enter)="open(entry.id)">
                     <td hlmTd>{{ entry.sequenceNumber }}</td>
                     <td hlmTd>{{ formatDate(entry.effectiveDate) }}</td>
-                    <td hlmTd>{{ entry.memo ?? '—' }}</td>
+                    <td hlmTd class="max-w-[28rem]">
+                      <span class="block truncate" [title]="entry.memo ?? ''">{{ entry.memo ?? '—' }}</span>
+                    </td>
                     <td hlmTd>{{ entry.lineCount }}</td>
                     <td hlmTd><app-posting-badge [posting]="entry.posting" /></td>
                   </tr>
