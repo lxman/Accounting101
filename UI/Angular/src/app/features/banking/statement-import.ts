@@ -112,7 +112,7 @@ type Stage = 'upload' | 'preview';
             <table class="w-full text-sm">
               <thead><tr class="text-left text-muted-foreground"><th class="py-1">Date</th><th>Description</th><th class="text-right">Amount</th></tr></thead>
               <tbody>@for (l of p.lines; track $index) {
-                <tr><td class="py-1">{{ l.date }}</td><td>{{ l.description }}</td><td class="text-right tabular-nums">{{ money(l.amount) }}</td></tr> }</tbody>
+                <tr><td class="py-1">{{ l.date }}</td><td class="break-words">{{ l.description }}</td><td class="text-right tabular-nums">{{ money(l.amount) }}</td></tr> }</tbody>
             </table>
             <p class="text-xs" [class.text-destructive]="!foots(p)" [class.text-emerald-600]="foots(p)">{{ foots(p) ? 'Foots' : 'Does not foot — adjust balances' }}</p>
             @if (p.error) { <p class="text-destructive text-sm">{{ p.error }}</p> }

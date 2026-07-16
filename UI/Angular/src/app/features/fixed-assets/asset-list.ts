@@ -11,11 +11,12 @@ import { ClientContextService } from '../../core/client/client-context.service';
 import { money as fmtMoney } from '../../core/format/display';
 import { CanDirective } from '../../core/capabilities/can.directive';
 import { Paginator } from '../../shared/paginator';
+import { TruncateDirective } from '../../shared/truncate.directive';
 
 @Component({
   selector: 'app-asset-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, HlmButton, CanDirective, ...HlmTableImports, Paginator],
+  imports: [RouterLink, HlmButton, CanDirective, ...HlmTableImports, Paginator, TruncateDirective],
   template: `
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-3">
@@ -40,7 +41,7 @@ import { Paginator } from '../../shared/paginator';
               @for (v of assets(); track v.asset.id) {
                 <tr hlmTr class="cursor-pointer hover:bg-muted/50" tabindex="0"
                     (click)="open(v.asset.id)" (keydown.enter)="open(v.asset.id)">
-                  <td hlmTd>{{ v.asset.description }}</td>
+                  <td hlmTd><span appTruncate>{{ v.asset.description }}</span></td>
                   <td hlmTd class="text-right tabular-nums">{{ money(v.asset.acquisitionCost) }}</td>
                   <td hlmTd class="text-right tabular-nums">{{ money(v.netBookValue) }}</td>
                   <td hlmTd>{{ method(v.asset.method) }}</td>

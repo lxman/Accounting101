@@ -6,11 +6,12 @@ import { MemberService } from '../../core/members/member.service';
 import { Member } from '../../core/members/member';
 import { memberDisplayName } from '../../core/api/dev-identity-names';
 import { extractProblem } from '../../core/api/problem-details';
+import { TruncateDirective } from '../../shared/truncate.directive';
 
 @Component({
   selector: 'app-member-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [...HlmTableImports],
+  imports: [...HlmTableImports, TruncateDirective],
   template: `
     <div class="flex flex-col gap-4 p-4">
       <div class="flex items-center gap-3">
@@ -32,8 +33,8 @@ import { extractProblem } from '../../core/api/problem-details';
               @for (m of members(); track m.userId) {
                 <tr hlmTr class="cursor-pointer hover:bg-muted/50" role="button" tabindex="0"
                     (click)="open(m.userId)" (keydown.enter)="open(m.userId)">
-                  <td hlmTd>{{ displayName(m.userId) }}</td>
-                  <td hlmTd>{{ m.roles.join(', ') }}</td>
+                  <td hlmTd><span appTruncate>{{ displayName(m.userId) }}</span></td>
+                  <td hlmTd><span appTruncate>{{ m.roles.join(', ') }}</span></td>
                   <td hlmTd class="tabular-nums">{{ m.capabilities.length }}</td>
                 </tr>
               }
