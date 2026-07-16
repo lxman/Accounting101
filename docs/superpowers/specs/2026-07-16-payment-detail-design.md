@@ -31,6 +31,12 @@ This slice also introduces a shared `InvoiceAllocationLine` (renamed from `Credi
 - **Endpoint** is a simple `GET /clients/{id}/payments/{paymentId}` — payments are one collection, so no type qualifier (unlike credits).
 - **`Unapplied = Payment.Amount − Σ(allocation amounts)`** — equals the CustomerCredits remainder line; computed from the resolved allocations rather than read as a separate GL line, so it stays consistent with the allocations shown.
 
+## Scope addition — payments-list allocations fold (bug fix)
+
+Planning recon surfaced a pre-existing bug in the drill source: `GET /clients/{id}/payments?customerId=` returns raw `Payment[]` with no allocations, but **both** `PaymentList` (its Allocated/Unapplied columns) and `InvoiceDetail` (its "Applied payments" section) read `p.allocations` from that single endpoint — so those are wrong (and crash) on real data. The FE interfaces and test mocks already expect `allocations: {targetId, amount}[]` on each payment; the backend simply never folded them (classic self-consistent-mock trap).
+
+**Decision (approved):** fix it properly, folded into 2c-1, **backend-only** — the list endpoint folds each payment's allocations from its GL posting (Posted-only, `{targetId=invoiceId, amount}`) so both consumers get real data with zero FE consumer changes. New flat read DTO `PaymentWithAllocations(Id, CustomerId, Date, Amount, Method, Voided, Allocations)` (`Allocation` = the existing `{TargetId, Amount}` pair), a `GetPaymentsWithAllocationsByCustomerAsync` service method, and `ListPayments` returns it. This is its own task in the plan, separate from the payment-detail feature.
+
 ## Architecture
 
 ### Backend (Receivables module)
