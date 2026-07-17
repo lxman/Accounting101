@@ -55,4 +55,5 @@ public sealed record CloseResponse(DateOnly AsOf, IReadOnlyList<AccountBalanceRe
 /// <summary>The result of a year-end close — the materialized closing entry, or null if there was nothing to close.</summary>
 public sealed record CloseYearResponse(EntryResponse? ClosingEntry);
 
-public sealed record AuditVerifyResponse(bool Valid);
+public sealed record AuditVerifyResponse(
+    bool Valid, long RecordCount, long? HeadSequence, string? Failure, long? BrokenAtSequence);

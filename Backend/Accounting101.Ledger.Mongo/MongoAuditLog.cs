@@ -190,38 +190,55 @@ public sealed class MongoAuditLog
         _audit.CountDocumentsAsync(a => a.ClientId == clientId, cancellationToken: cancellationToken);
 
     /// <summary>
-    /// Verify the client's chain: every record must link to its predecessor and its stored
-    /// hash must recompute. Any after-the-fact edit (even by a DBA) breaks this.
-    /// Also reconciles the walked chain against the guarded head to detect tail truncation.
+    /// Verify the client's chain and, when broken, diagnose how: every record must link to its
+    /// predecessor and its stored hash must recompute, and the walked tail must reconcile with the
+    /// guarded head (which catches tail truncation). The failure taxonomy maps 1:1 to the checks below.
     /// </summary>
-    public async Task<bool> VerifyAsync(Guid clientId, CancellationToken cancellationToken = default)
+    public async Task<AuditChainVerification> VerifyDetailedAsync(Guid clientId, CancellationToken cancellationToken = default)
     {
         List<AuditRecordDocument> records = await _audit
             .Find(a => a.ClientId == clientId)
             .SortBy(a => a.Sequence)
             .ToListAsync(cancellationToken);
 
+        AuditHeadDocument? head = await FindHeadAsync(clientId, cancellationToken: cancellationToken);
+        long? headSeq = head?.Sequence;
+
         var previousHash = string.Empty;
         long expectedSeq = 1;
         foreach (AuditRecordDocument record in records)
         {
-            if (record.Sequence != expectedSeq || record.PreviousHash != previousHash || record.Hash != ComputeHash(record))
-                return false;
+            if (record.Sequence != expectedSeq)
+                return new AuditChainVerification(false, records.Count, headSeq, AuditChainFailure.SequenceGap, expectedSeq);
+            if (record.PreviousHash != previousHash)
+                return new AuditChainVerification(false, records.Count, headSeq, AuditChainFailure.BrokenLink, record.Sequence);
+            if (record.Hash != ComputeHash(record))
+                return new AuditChainVerification(false, records.Count, headSeq, AuditChainFailure.HashMismatch, record.Sequence);
 
             previousHash = record.Hash;
             expectedSeq++;
         }
 
-        // Reconcile the walked chain against the guarded head.
-        AuditHeadDocument? head = await FindHeadAsync(clientId, cancellationToken: cancellationToken);
-
         if (records.Count == 0)
-            return head is null || head.Sequence == 0;
+            return head is null || head.Sequence == 0
+                ? new AuditChainVerification(true, 0, headSeq, null, null)
+                : new AuditChainVerification(false, 0, headSeq, AuditChainFailure.TailTruncated, 1);
 
-        return head is not null
-            && head.Sequence == records[^1].Sequence
-            && head.Hash == records[^1].Hash;
+        AuditRecordDocument last = records[^1];
+        if (head is null || head.Sequence < last.Sequence)
+            return new AuditChainVerification(false, records.Count, headSeq, AuditChainFailure.HeadMismatch, null);
+        if (head.Sequence > last.Sequence)
+            return new AuditChainVerification(false, records.Count, headSeq, AuditChainFailure.TailTruncated, last.Sequence + 1);
+        if (head.Hash != last.Hash)
+            return new AuditChainVerification(false, records.Count, headSeq, AuditChainFailure.HeadMismatch, null);
+
+        return new AuditChainVerification(true, records.Count, headSeq, null, null);
     }
+
+    /// <summary>Pass/fail chain verification — delegates to <see cref="VerifyDetailedAsync"/>. Behavior
+    /// preserved for existing callers.</summary>
+    public async Task<bool> VerifyAsync(Guid clientId, CancellationToken cancellationToken = default) =>
+        (await VerifyDetailedAsync(clientId, cancellationToken)).Valid;
 
     private static ActorSnapshot ToSnapshot(Actor actor) => new()
     {

@@ -438,3 +438,95 @@ public sealed class AuditCountTests(MongoFixture fixture) : IClassFixture<MongoF
         Assert.Equal(1, await audit.CountForClientAsync(b));
     }
 }
+
+public sealed class AuditVerifyDetailedTests(MongoFixture fixture) : IClassFixture<MongoFixture>
+{
+    private static Actor User() => new() { UserId = Guid.NewGuid(), Name = "tester", Claims = [new Claim("role", "tester")] };
+
+    private async Task<(MongoAuditLog audit, string coll, Guid clientId)> SeededChainAsync(int n)
+    {
+        string coll = "audit_verify_" + Guid.NewGuid().ToString("N");
+        MongoAuditLog audit = new(fixture.Database, coll);
+        Guid clientId = Guid.NewGuid();
+        for (int i = 0; i < n; i++)
+            await audit.AppendAsync(clientId, Guid.NewGuid(), 1, AuditAction.Created, User(), null, DateTimeOffset.UtcNow);
+        return (audit, coll, clientId);
+    }
+
+    private IMongoCollection<AuditRecordDocument> Records(string coll) => fixture.Database.GetCollection<AuditRecordDocument>(coll);
+    private IMongoCollection<AuditHeadDocument> Head() => fixture.Database.GetCollection<AuditHeadDocument>("audit-head");
+
+    [Fact]
+    public async Task Clean_chain_is_valid_with_counts()
+    {
+        (MongoAuditLog audit, _, Guid clientId) = await SeededChainAsync(3);
+        AuditChainVerification v = await audit.VerifyDetailedAsync(clientId);
+        Assert.True(v.Valid);
+        Assert.Null(v.Failure);
+        Assert.Equal(3, v.RecordCount);
+        Assert.Equal(3, v.HeadSequence);
+        Assert.Null(v.BrokenAtSequence);
+        Assert.True(await audit.VerifyAsync(clientId)); // bool delegate unchanged
+    }
+
+    [Fact]
+    public async Task Tampered_record_is_HashMismatch_at_its_sequence()
+    {
+        (MongoAuditLog audit, string coll, Guid clientId) = await SeededChainAsync(3);
+        await Records(coll).UpdateOneAsync(
+            r => r.ClientId == clientId && r.Sequence == 2,
+            Builders<AuditRecordDocument>.Update.Set(r => r.Reason, "tampered"));
+        AuditChainVerification v = await audit.VerifyDetailedAsync(clientId);
+        Assert.False(v.Valid);
+        Assert.Equal(AuditChainFailure.HashMismatch, v.Failure);
+        Assert.Equal(2, v.BrokenAtSequence);
+        Assert.False(await audit.VerifyAsync(clientId));
+    }
+
+    [Fact]
+    public async Task Rewritten_link_is_BrokenLink_at_its_sequence()
+    {
+        (MongoAuditLog audit, string coll, Guid clientId) = await SeededChainAsync(3);
+        await Records(coll).UpdateOneAsync(
+            r => r.ClientId == clientId && r.Sequence == 2,
+            Builders<AuditRecordDocument>.Update.Set(r => r.PreviousHash, "DEADBEEF"));
+        AuditChainVerification v = await audit.VerifyDetailedAsync(clientId);
+        Assert.False(v.Valid);
+        Assert.Equal(AuditChainFailure.BrokenLink, v.Failure);
+        Assert.Equal(2, v.BrokenAtSequence);
+    }
+
+    [Fact]
+    public async Task Missing_middle_record_is_SequenceGap()
+    {
+        (MongoAuditLog audit, string coll, Guid clientId) = await SeededChainAsync(3);
+        await Records(coll).DeleteOneAsync(r => r.ClientId == clientId && r.Sequence == 2);
+        AuditChainVerification v = await audit.VerifyDetailedAsync(clientId);
+        Assert.False(v.Valid);
+        Assert.Equal(AuditChainFailure.SequenceGap, v.Failure);
+        Assert.Equal(2, v.BrokenAtSequence);
+    }
+
+    [Fact]
+    public async Task Deleted_newest_record_is_TailTruncated()
+    {
+        (MongoAuditLog audit, string coll, Guid clientId) = await SeededChainAsync(3);
+        await Records(coll).DeleteOneAsync(r => r.ClientId == clientId && r.Sequence == 3);
+        AuditChainVerification v = await audit.VerifyDetailedAsync(clientId);
+        Assert.False(v.Valid);
+        Assert.Equal(AuditChainFailure.TailTruncated, v.Failure);
+        Assert.Equal(3, v.BrokenAtSequence);
+    }
+
+    [Fact]
+    public async Task Rewritten_head_hash_is_HeadMismatch()
+    {
+        (MongoAuditLog audit, _, Guid clientId) = await SeededChainAsync(3);
+        await Head().UpdateOneAsync(
+            h => h.ClientId == clientId,
+            Builders<AuditHeadDocument>.Update.Set(h => h.Hash, "DEADBEEF"));
+        AuditChainVerification v = await audit.VerifyDetailedAsync(clientId);
+        Assert.False(v.Valid);
+        Assert.Equal(AuditChainFailure.HeadMismatch, v.Failure);
+    }
+}

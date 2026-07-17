@@ -844,8 +844,8 @@ public static class LedgerEndpoints
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
-        bool valid = await ctx.Ledger.Audit.VerifyAsync(clientId, cancellationToken);
-        return Results.Ok(new AuditVerifyResponse(valid));
+        AuditChainVerification v = await ctx.Ledger.Audit.VerifyDetailedAsync(clientId, cancellationToken);
+        return Results.Ok(new AuditVerifyResponse(v.Valid, v.RecordCount, v.HeadSequence, v.Failure?.ToString(), v.BrokenAtSequence));
     }
 
     // ---- Chart of accounts + year-end -------------------------------------------------------

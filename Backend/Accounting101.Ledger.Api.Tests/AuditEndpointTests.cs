@@ -35,4 +35,20 @@ public sealed class AuditEndpointTests(ApiFixture fixture) : IClassFixture<ApiFi
         Assert.Equal(2, page.Limit);
         Assert.True(page.Items.Count <= 2);
     }
+
+    [Fact]
+    public async Task Verify_reports_a_valid_chain_with_diagnostic_fields()
+    {
+        SeededClient c = await fixture.SeedClientAsync();
+        Guid cash = Guid.NewGuid(), revenue = Guid.NewGuid();
+        await PostApproveAsync(c.Http, c.ClientId, new DateOnly(2026, 3, 31), cash, revenue, 100m);
+
+        AuditVerifyResponse v = (await c.Http.GetFromJsonAsync<AuditVerifyResponse>(
+            $"/clients/{c.ClientId}/audit/verify"))!;
+        Assert.True(v.Valid);
+        Assert.Null(v.Failure);
+        Assert.Null(v.BrokenAtSequence);
+        Assert.True(v.RecordCount > 0);
+        Assert.Equal(v.RecordCount, v.HeadSequence);
+    }
 }
