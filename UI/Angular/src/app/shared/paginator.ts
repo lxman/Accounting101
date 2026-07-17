@@ -18,7 +18,7 @@ import { HlmPaginationImports } from '@spartan-ng/helm/pagination';
   // list's content column, sitting as its fixed-height footer at the bottom.
   host: { class: 'contents' },
   template: `
-    <div class="-mb-[30px] flex h-8 shrink-0 items-center justify-between gap-4 border-t border-border bg-background text-sm text-muted-foreground">
+    <div class="-mb-[30px] flex h-10 shrink-0 items-center justify-between gap-4 border-t border-border bg-background text-sm text-muted-foreground">
       <span class="whitespace-nowrap">Page {{ currentPage() }} of {{ pageCount() }}</span>
       <div class="flex items-center gap-4">
         <label class="flex items-center gap-2 whitespace-nowrap">
