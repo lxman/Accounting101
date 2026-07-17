@@ -10,6 +10,7 @@ import { PagedResponse } from '../../core/api/paged-response';
 import { ClientContextService } from '../../core/client/client-context.service';
 import { money as fmtMoney } from '../../core/format/display';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { PaginationPrefsService } from '../../core/pagination/pagination-prefs.service';
 import { Paginator } from '../../shared/paginator';
 import { TruncateDirective } from '../../shared/truncate.directive';
 
@@ -62,9 +63,10 @@ export class ItemList {
   private readonly svc = inject(InventoryService);
   private readonly client = inject(ClientContextService);
   private readonly router = inject(Router);
+  private readonly prefs = inject(PaginationPrefsService);
 
   readonly skip = signal(0);
-  readonly limit = signal(50);
+  readonly limit = this.prefs.pageSize;
   readonly error = signal<string | null>(null);
 
   private readonly query = computed(() => ({ id: this.client.clientId(), skip: this.skip(), limit: this.limit() }));
@@ -89,6 +91,6 @@ export class ItemList {
   open(id: string): void { void this.router.navigate(['/inventory/items', id]); }
   prev(): void { if (this.skip() > 0) this.skip.set(Math.max(0, this.skip() - this.limit())); }
   next(): void { if (this.currentPage() < this.pageCount()) this.skip.set(this.skip() + this.limit()); }
-  setPageSize(n: number): void { this.limit.set(n); this.skip.set(0); }
+  setPageSize(n: number): void { this.prefs.setPageSize(n); this.skip.set(0); }
   money(n: number): string { return fmtMoney(n); }
 }

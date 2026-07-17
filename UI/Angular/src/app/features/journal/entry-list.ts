@@ -18,6 +18,7 @@ import { PagedResponse } from '../../core/api/paged-response';
 import { displayDate } from '../../core/format/display';
 import { PostingBadge } from '../../shared/posting-badge';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { PaginationPrefsService } from '../../core/pagination/pagination-prefs.service';
 import { Paginator } from '../../shared/paginator';
 import { TruncateDirective } from '../../shared/truncate.directive';
 
@@ -102,6 +103,7 @@ export class EntryList {
   private readonly entriesSvc = inject(EntriesService);
   private readonly client = inject(ClientContextService);
   private readonly router = inject(Router);
+  private readonly prefs = inject(PaginationPrefsService);
 
   open(id: string): void {
     void this.router.navigate(['/journal', id]);
@@ -109,7 +111,7 @@ export class EntryList {
 
   readonly posting = signal<Posting | null>(null);
   readonly skip = signal(0);
-  readonly limit = signal(50);
+  readonly limit = this.prefs.pageSize;
 
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
@@ -180,7 +182,7 @@ export class EntryList {
   }
 
   setPageSize(n: number): void {
-    this.limit.set(n);
+    this.prefs.setPageSize(n);
     this.skip.set(0);
   }
 

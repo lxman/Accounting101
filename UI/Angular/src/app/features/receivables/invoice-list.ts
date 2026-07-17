@@ -25,6 +25,7 @@ import { InvoiceStatusBadge } from '../../shared/invoice-status-badge';
 import { SettlementBadge } from '../../shared/settlement-badge';
 import { extractProblem } from '../../core/api/problem-details';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { PaginationPrefsService } from '../../core/pagination/pagination-prefs.service';
 import { Paginator } from '../../shared/paginator';
 
 @Component({
@@ -120,12 +121,13 @@ import { Paginator } from '../../shared/paginator';
 export class InvoiceList {
   readonly svc = inject(ReceivablesService);
   private readonly router = inject(Router);
+  private readonly prefs = inject(PaginationPrefsService);
 
   // Selection lives in the service so it survives leaving and returning (and a reload); see ReceivablesService.
   readonly customerId = this.svc.selectedCustomerId;
   readonly settlement = signal<SettlementFilter | ''>('');
   readonly skip = signal(0);
-  readonly limit = signal(50);
+  readonly limit = this.prefs.pageSize;
   readonly listError = signal<string | null>(null);
 
   // Mirrors entry-list: computed query re-emits when any filter/page signal changes;
@@ -194,7 +196,7 @@ export class InvoiceList {
   }
 
   setPageSize(n: number): void {
-    this.limit.set(n);
+    this.prefs.setPageSize(n);
     this.skip.set(0);
   }
 
