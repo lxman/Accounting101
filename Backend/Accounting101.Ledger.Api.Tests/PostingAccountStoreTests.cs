@@ -75,13 +75,14 @@ public sealed class PostingAccountStoreTests(ApiFixture fixture) : IClassFixture
     {
         PostingAccountStore store = fixture.PostingAccounts();
         Guid clientId = Guid.NewGuid();
-        await store.SetModuleAsync(clientId, "cash", new Dictionary<string, Guid> { ["Cash"] = Guid.NewGuid() });
+        Guid cash = Guid.NewGuid();
+        await store.SetModuleAsync(clientId, "cash", new Dictionary<string, Guid> { ["Cash"] = cash });
         await store.SetModuleAsync(clientId, "payroll", new Dictionary<string, Guid> { ["Cash"] = Guid.NewGuid() });
         Guid newPay = Guid.NewGuid();
         await store.SetModuleAsync(clientId, "payroll", new Dictionary<string, Guid> { ["Cash"] = newPay });
 
         PostingAccountsDoc doc = (await store.GetAsync(clientId))!;
         Assert.Equal(newPay, doc.Accounts["payroll"]["Cash"]);   // payroll replaced
-        Assert.True(doc.Accounts.ContainsKey("cash"));           // cash preserved by the targeted update
+        Assert.Equal(cash, doc.Accounts["cash"]["Cash"]);        // cash value preserved by the targeted update
     }
 }
