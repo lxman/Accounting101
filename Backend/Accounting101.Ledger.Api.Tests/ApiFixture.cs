@@ -46,6 +46,10 @@ public sealed class ApiFixture : IAsyncLifetime
     /// <summary>A control-store bound to the same control DB the app reads — for seeding clients/memberships.</summary>
     public ControlStore Control() => new(Mongo.GetDatabase(ControlDatabase));
 
+    /// <summary>A posting-account store bound to the same control DB the app reads — for seeding/asserting
+    /// per-client posting account configuration.</summary>
+    public PostingAccountStore PostingAccounts() => new(Mongo.GetDatabase(ControlDatabase));
+
     /// <summary>An audit store bound to the same control DB the app writes — for asserting audit entries.</summary>
     public AdminAuditStore Audit() => new(Mongo.GetDatabase(ControlDatabase));
 

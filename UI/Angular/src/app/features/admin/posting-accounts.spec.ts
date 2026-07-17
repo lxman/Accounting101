@@ -1,0 +1,94 @@
+import { TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { PostingAccountsScreen } from './posting-accounts';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
+import { ClientContextService } from '../../core/client/client-context.service';
+import { environment } from '../../core/api/environment';
+
+function seed(...caps: string[]) {
+  TestBed.configureTestingModule({
+    providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(),
+                provideHttpClientTesting(), provideCapabilities(...caps)],
+  });
+  TestBed.inject(ClientContextService).select('c1');
+}
+
+const base = `${environment.apiBaseUrl}/clients/c1`;
+const cashSlot = { moduleKey: 'cash', slotKey: 'Cash', label: 'Cash / bank account', expectedType: 'Asset', requiredDimensions: [], currentAccountId: null };
+const accounts = [
+  { id: 'a1', number: '1000', name: 'Business Checking', type: 'Asset', postable: true },
+  { id: 'a2', number: '4000', name: 'Sales', type: 'Revenue', postable: true },
+];
+
+describe('PostingAccountsScreen', () => {
+  let http: HttpTestingController;
+  afterEach(() => http.verify());
+
+  function boot(caps: string[]) {
+    seed(...caps); http = TestBed.inject(HttpTestingController);
+    const f = TestBed.createComponent(PostingAccountsScreen);
+    f.detectChanges();
+    http.expectOne(`${base}/posting-accounts`).flush({ slots: [cashSlot] });
+    http.expectOne(`${base}/accounts`).flush(accounts);
+    f.detectChanges();
+    return f;
+  }
+
+  it('renders the Cash slot and PUTs the chosen account', () => {
+    const f = boot(['admin.postingAccounts']);
+    const c = f.componentInstance as PostingAccountsScreen;
+    expect(c.slots().length).toBe(1);
+
+    c.selectAccount('cash', 'Cash', 'a1');
+    c.save('cash');
+    const req = http.expectOne(`${base}/posting-accounts/cash`);
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ slots: { Cash: 'a1' } });
+    req.flush({ moduleKey: 'cash', slots: { Cash: 'a1' } });
+    expect(c.savedModule()).toBe('cash');
+  });
+
+  it('hides Save without admin.postingAccounts', () => {
+    const f = boot(['gl.read']);
+    expect((f.nativeElement as HTMLElement).querySelector('button')).toBeNull();
+  });
+
+  it('preselects the current account when the chart loads in a later CD cycle', () => {
+    seed('admin.postingAccounts'); http = TestBed.inject(HttpTestingController);
+    const f = TestBed.createComponent(PostingAccountsScreen);
+    f.detectChanges();
+
+    // slots resolve first, in their own change-detection cycle...
+    http.expectOne(`${base}/posting-accounts`)
+      .flush({ slots: [{ ...cashSlot, currentAccountId: 'a1' }] });
+    f.detectChanges();
+
+    // ...then the chart resolves in a separate cycle (the live-stack timing).
+    http.expectOne(`${base}/accounts`).flush(accounts);
+    f.detectChanges();
+
+    const select = (f.nativeElement as HTMLElement)
+      .querySelector('[data-testid="slot-cash-Cash"]') as HTMLSelectElement;
+    expect(select).not.toBeNull();
+    expect(select.value).toBe('a1');
+    const selectedText = select.options[select.selectedIndex].textContent ?? '';
+    expect(selectedText).toContain('Business Checking');
+  });
+
+  it('shows only the error when the slots GET fails, hiding the loading indicator', () => {
+    seed('admin.postingAccounts'); http = TestBed.inject(HttpTestingController);
+    const f = TestBed.createComponent(PostingAccountsScreen);
+    f.detectChanges();
+
+    http.expectOne(`${base}/posting-accounts`).flush('fail', { status: 500, statusText: 'Server Error' });
+    http.expectOne(`${base}/accounts`).flush(accounts);
+    f.detectChanges();
+
+    const text = (f.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Could not load posting accounts.');
+    expect(text).not.toContain('Loading…');
+  });
+});
