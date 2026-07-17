@@ -16,9 +16,10 @@ import { TruncateDirective } from '../../shared/truncate.directive';
 @Component({
   selector: 'app-item-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'contents' },
   imports: [RouterLink, HlmButton, CanDirective, ...HlmTableImports, Paginator, TruncateDirective],
   template: `
-    <div class="flex flex-col gap-4 p-4">
+    <div class="flex flex-col gap-4 p-4 flex-1 min-h-0">
       <div class="flex items-center gap-3">
         <h1 class="text-2xl font-bold">Inventory items</h1>
         <a *appCan="'inventory.write'" hlmBtn size="sm" routerLink="/inventory/items/new" class="ms-auto">New item</a>
@@ -29,7 +30,7 @@ import { TruncateDirective } from '../../shared/truncate.directive';
       @if (items().length === 0) {
         <p class="text-muted-foreground text-sm">No items yet.</p>
       } @else {
-        <div hlmTableContainer>
+        <div hlmTableContainer class="flex-1 min-h-0 overflow-y-auto">
           <table hlmTable>
             <thead hlmTHead>
               <tr hlmTr>

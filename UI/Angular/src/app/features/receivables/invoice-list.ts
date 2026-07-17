@@ -30,6 +30,7 @@ import { Paginator } from '../../shared/paginator';
 @Component({
   selector: 'app-invoice-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'contents' },
   imports: [
     RouterLink,
     HlmButton,
@@ -42,7 +43,7 @@ import { Paginator } from '../../shared/paginator';
     Paginator,
   ],
   template: `
-    <div class="flex flex-col gap-4 p-4">
+    <div class="flex flex-col gap-4 p-4 flex-1 min-h-0">
       <div class="flex items-center gap-3 flex-wrap">
         <h1 class="text-2xl font-bold">Invoices</h1>
 
@@ -77,7 +78,7 @@ import { Paginator } from '../../shared/paginator';
         @if (invoices().length === 0 && !listError()) {
           <p class="text-muted-foreground text-sm">No invoices found.</p>
         } @else {
-          <div hlmTableContainer>
+          <div hlmTableContainer class="flex-1 min-h-0 overflow-y-auto">
             <table hlmTable>
               <thead hlmTHead>
                 <tr hlmTr>

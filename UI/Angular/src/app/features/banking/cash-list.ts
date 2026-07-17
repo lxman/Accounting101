@@ -16,9 +16,10 @@ import { TruncateDirective } from '../../shared/truncate.directive';
 @Component({
   selector: 'app-cash-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'contents' },
   imports: [RouterLink, HlmButton, CanDirective, ...HlmTableImports, Paginator, TruncateDirective],
   template: `
-    <div class="flex flex-col gap-4 p-4">
+    <div class="flex flex-col gap-4 p-4 flex-1 min-h-0">
       <div class="flex items-center gap-3">
         <h1 class="text-2xl font-bold">Cash vouchers</h1>
         <div class="ms-auto flex gap-2">
@@ -32,7 +33,7 @@ import { TruncateDirective } from '../../shared/truncate.directive';
       @if (rows().length === 0) {
         <p class="text-muted-foreground text-sm">No cash vouchers yet.</p>
       } @else {
-        <div hlmTableContainer>
+        <div hlmTableContainer class="flex-1 min-h-0 overflow-y-auto">
           <table hlmTable>
             <thead hlmTHead>
               <tr hlmTr><th hlmTh>Number</th><th hlmTh>Date</th><th hlmTh>Type</th>

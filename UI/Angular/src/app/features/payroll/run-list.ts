@@ -15,9 +15,10 @@ import { Paginator } from '../../shared/paginator';
 @Component({
   selector: 'app-run-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'contents' },
   imports: [RouterLink, HlmButton, CanDirective, ...HlmTableImports, Paginator],
   template: `
-    <div class="flex flex-col gap-4 p-4">
+    <div class="flex flex-col gap-4 p-4 flex-1 min-h-0">
       <div class="flex items-center gap-3">
         <h1 class="text-2xl font-bold">Payroll runs</h1>
         <a *appCan="'payroll.write'" hlmBtn size="sm" routerLink="/payroll/runs/new" class="ms-auto">Record payroll run</a>
@@ -32,7 +33,7 @@ import { Paginator } from '../../shared/paginator';
       @if (runs().length === 0) {
         <p class="text-muted-foreground text-sm">No payroll runs yet.</p>
       } @else {
-        <div hlmTableContainer>
+        <div hlmTableContainer class="flex-1 min-h-0 overflow-y-auto">
           <table hlmTable>
             <thead hlmTHead>
               <tr hlmTr>
