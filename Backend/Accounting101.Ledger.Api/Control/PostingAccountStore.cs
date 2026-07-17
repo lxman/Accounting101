@@ -29,6 +29,12 @@ public sealed class PostingAccountStore
 
     /// <summary>Upsert the client's posting accounts, replacing the given module's slot map (other
     /// modules untouched).</summary>
+    /// <remarks>The read-modify-write of the whole document below is NOT atomic: two concurrent
+    /// calls for different modules can race (read-read-write-write), and the second writer's
+    /// <c>ReplaceOneAsync</c> can clobber the first writer's module update. This is safe today only
+    /// because the registry has a single module (Cash). When fan-out adds a second slot, switch to a
+    /// targeted atomic update instead, e.g. <c>Update.Set($"Accounts.{moduleKey}", slots)</c> with
+    /// <c>IsUpsert = true</c>, so concurrent different-module writes can't clobber each other.</remarks>
     public async Task SetModuleAsync(
         Guid clientId, string moduleKey, IReadOnlyDictionary<string, Guid> slots, CancellationToken cancellationToken = default)
     {

@@ -18,40 +18,44 @@ interface ModuleGroup { moduleKey: string; label: string; slots: PostingAccountS
   imports: [HlmButton, CanDirective],
   template: `
     <h1 class="text-xl font-semibold mb-4">Posting accounts</h1>
-    @if (error()) { <p class="text-red-600 mb-2">{{ error() }}</p> }
-    <p class="text-sm text-muted-foreground mb-4">The chart accounts each module posts to for this client.
-       Leaving a slot unset uses the deployment default.</p>
 
-    @if (!ready()) {
-      <p class="text-sm text-muted-foreground">Loading…</p>
+    @if (error()) {
+      <p class="text-red-600 mb-2">{{ error() }}</p>
     } @else {
-      @if (groups().length === 0) {
-        <p class="text-sm text-muted-foreground">No modules with posting accounts are enabled for this client.</p>
-      }
+      <p class="text-sm text-muted-foreground mb-4">The chart accounts each module posts to for this client.
+         Leaving a slot unset uses the deployment default.</p>
 
-      @for (g of groups(); track g.moduleKey) {
-        <section class="mb-6">
-          <h2 class="font-medium mb-2">{{ g.label }}</h2>
-          <div class="space-y-3">
-            @for (s of g.slots; track s.slotKey) {
-              <label class="block">
-                <span class="text-sm font-medium">{{ s.label }}</span>
-                <span class="ms-2 text-xs text-muted-foreground">expects {{ s.expectedType }}</span>
-                <select class="mt-1 block w-96 rounded border border-border bg-background px-3 py-2 text-sm"
-                        [value]="chosen()[key(g.moduleKey, s.slotKey)] ?? ''"
-                        (change)="onSelect(g.moduleKey, s.slotKey, $event)"
-                        [attr.data-testid]="'slot-' + g.moduleKey + '-' + s.slotKey">
-                  <option value="" [selected]="(chosen()[key(g.moduleKey, s.slotKey)] ?? '') === ''">— deployment default —</option>
-                  @for (a of postableAccounts(); track a.id) {
-                    <option [value]="a.id" [selected]="a.id === (chosen()[key(g.moduleKey, s.slotKey)] ?? '')">{{ a.number }} · {{ a.name }} ({{ a.type }})</option>
-                  }
-                </select>
-              </label>
-            }
-            @if (savedModule() === g.moduleKey) { <p class="text-green-600 text-sm">Saved.</p> }
-            <button *appCan="'admin.postingAccounts'" hlmBtn (click)="save(g.moduleKey)">Save {{ g.label }}</button>
-          </div>
-        </section>
+      @if (!ready()) {
+        <p class="text-sm text-muted-foreground">Loading…</p>
+      } @else {
+        @if (groups().length === 0) {
+          <p class="text-sm text-muted-foreground">No modules with posting accounts are enabled for this client.</p>
+        }
+
+        @for (g of groups(); track g.moduleKey) {
+          <section class="mb-6">
+            <h2 class="font-medium mb-2">{{ g.label }}</h2>
+            <div class="space-y-3">
+              @for (s of g.slots; track s.slotKey) {
+                <label class="block">
+                  <span class="text-sm font-medium">{{ s.label }}</span>
+                  <span class="ms-2 text-xs text-muted-foreground">expects {{ s.expectedType }}</span>
+                  <select class="mt-1 block w-96 rounded border border-border bg-background px-3 py-2 text-sm"
+                          [value]="chosen()[key(g.moduleKey, s.slotKey)] ?? ''"
+                          (change)="onSelect(g.moduleKey, s.slotKey, $event)"
+                          [attr.data-testid]="'slot-' + g.moduleKey + '-' + s.slotKey">
+                    <option value="" [selected]="(chosen()[key(g.moduleKey, s.slotKey)] ?? '') === ''">— deployment default —</option>
+                    @for (a of postableAccounts(); track a.id) {
+                      <option [value]="a.id" [selected]="a.id === (chosen()[key(g.moduleKey, s.slotKey)] ?? '')">{{ a.number }} · {{ a.name }} ({{ a.type }})</option>
+                    }
+                  </select>
+                </label>
+              }
+              @if (savedModule() === g.moduleKey) { <p class="text-green-600 text-sm">Saved.</p> }
+              <button *appCan="'admin.postingAccounts'" hlmBtn (click)="save(g.moduleKey)">Save {{ g.label }}</button>
+            </div>
+          </section>
+        }
       }
     }
   `,

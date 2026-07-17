@@ -6,7 +6,8 @@ using Accounting101.ModuleKit.Api;
 namespace Accounting101.Banking.Cash.Api;
 
 /// <summary>Installs the cash module into the host: module identity + collection manifest, the
-/// document-store-backed stores and service, the config-backed accounts provider, and the loopback
+/// document-store-backed stores and service, the store-backed accounts provider (per-client posting
+/// accounts, with config fallback), and the loopback
 /// ledger HttpClient. Cash is the fourth installed module — the live test of five-module host
 /// composition (each module's document store is keyed by its own module key, so their manifests do
 /// not clobber one another).</summary>

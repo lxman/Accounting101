@@ -77,4 +77,18 @@ describe('PostingAccountsScreen', () => {
     const selectedText = select.options[select.selectedIndex].textContent ?? '';
     expect(selectedText).toContain('Business Checking');
   });
+
+  it('shows only the error when the slots GET fails, hiding the loading indicator', () => {
+    seed('admin.postingAccounts'); http = TestBed.inject(HttpTestingController);
+    const f = TestBed.createComponent(PostingAccountsScreen);
+    f.detectChanges();
+
+    http.expectOne(`${base}/posting-accounts`).flush('fail', { status: 500, statusText: 'Server Error' });
+    http.expectOne(`${base}/accounts`).flush(accounts);
+    f.detectChanges();
+
+    const text = (f.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Could not load posting accounts.');
+    expect(text).not.toContain('Loading…');
+  });
 });
