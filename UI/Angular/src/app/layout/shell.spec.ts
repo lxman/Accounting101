@@ -8,6 +8,7 @@ import { CapabilityService } from '../core/capabilities/capability.service';
 class StubCaps {
   areas = new Set<string>();
   modules = new Set<string>();
+  mode = 'TwoPerson';
   hasArea(a: string) { return this.areas.has(a); }
   has() { return false; }
   capabilities() { return new Set<string>(); }
@@ -15,17 +16,20 @@ class StubCaps {
   deploymentAdmin() { return false; }
   enabledModules() { return this.modules; }
   moduleEnabled(key: string) { return this.modules.has(key); }
+  approvalMode() { return this.mode; }
 }
 
 describe('Shell', () => {
   async function make(
     areas: string[] = ['gl','ar','ap','payroll','cash','bankrec','fixedassets','audit','reports','admin'],
     modules: string[] = ['receivables','payables','payroll','cash','reconciliation','fixedassets','inventory'],
+    mode = 'TwoPerson',
   ) {
     TestBed.resetTestingModule();
     const stub = new StubCaps();
     areas.forEach(a => stub.areas.add(a));
     modules.forEach(m => stub.modules.add(m));
+    stub.mode = mode;
     await TestBed.configureTestingModule({
       imports: [Shell],
       providers: [provideRouter([]), { provide: CapabilityService, useValue: stub }],
@@ -177,5 +181,17 @@ describe('Shell', () => {
     expect(after.textContent).not.toContain('Payroll');
     expect(after.textContent).not.toContain('Fixed Assets');
     expect(after.textContent).not.toContain('Inventory');
+  });
+
+  it('hides the Approvals leaf when the client is on AutoApprove', async () => {
+    const shown = await make(['gl'], [], 'TwoPerson');
+    sectionHeader(shown.nativeElement, 'General Ledger').click();
+    shown.detectChanges();
+    expect((shown.nativeElement as HTMLElement).textContent).toContain('Approvals');
+
+    const hidden = await make(['gl'], [], 'AutoApprove');
+    sectionHeader(hidden.nativeElement, 'General Ledger').click();
+    hidden.detectChanges();
+    expect((hidden.nativeElement as HTMLElement).textContent).not.toContain('Approvals');
   });
 });

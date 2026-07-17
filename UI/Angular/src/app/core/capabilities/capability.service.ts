@@ -6,6 +6,7 @@ import { environment } from '../api/environment';
 import { ClientContextService } from '../client/client-context.service';
 import { DevIdentityService } from '../api/dev-identity.service';
 import { CapabilitiesResponse, EMPTY_CAPABILITIES } from './capabilities';
+import { ApprovalMode } from '../approval-policy/approval-policy';
 
 /** Sentinel distinguishing "not yet loaded" from a loaded-but-empty response. */
 const LOADING = Symbol('capabilities-loading');
@@ -56,6 +57,7 @@ export class CapabilityService {
   readonly roles: Signal<string[]> = computed(() => this.current().roles);
   readonly deploymentAdmin: Signal<boolean> = computed(() => this.current().deploymentAdmin);
   readonly enabledModules: Signal<ReadonlySet<string>> = computed(() => new Set(this.current().enabledModules));
+  readonly approvalMode: Signal<ApprovalMode> = computed(() => this.current().approvalMode);
 
   has(capability: string): boolean { return this.capabilities().has(capability); }
 
