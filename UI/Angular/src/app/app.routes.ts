@@ -3,6 +3,7 @@ import { Dashboard } from './features/dashboard/dashboard';
 import { EntryList } from './features/journal/entry-list';
 import { EntryForm } from './features/journal/entry-form';
 import { TrialBalance } from './features/trial-balance/trial-balance';
+import { PeriodClose } from './features/periods/period-close';
 import { Statements } from './features/statements/statements';
 import { BalanceSheet } from './features/statements/balance-sheet';
 import { IncomeStatement } from './features/statements/income-statement';
@@ -95,6 +96,7 @@ export const routes: Routes = [
     ],
   },
   { path: 'trial-balance', component: TrialBalance },
+  { path: 'periods', component: PeriodClose },
   {
     path: 'statements',
     component: Statements,
@@ -201,7 +203,7 @@ export const routes: Routes = [
   { path: 'audit', redirectTo: 'audit/trail', pathMatch: 'full' },
   // Every nav leaf not served by a built route tree above → Placeholder.
   ...(() => {
-    const built = ['/dashboard', '/journal', '/trial-balance', '/statements', '/accounts', '/receivables', '/payables', '/payroll', '/fixed-assets', '/cash', '/inventory', '/admin/users', '/admin/access/sets', '/admin/access/sets/new', '/admin/approval-policy', '/audit/trail', '/audit/verify', '/audit/reconciliations'];
+    const built = ['/dashboard', '/journal', '/trial-balance', '/periods', '/statements', '/accounts', '/receivables', '/payables', '/payroll', '/fixed-assets', '/cash', '/inventory', '/admin/users', '/admin/access/sets', '/admin/access/sets/new', '/admin/approval-policy', '/audit/trail', '/audit/verify', '/audit/reconciliations'];
     const isBuilt = (p: string) => built.some((b) => p === b || p.startsWith(b + '/'));
     return navLeafPaths()
       .filter((p) => !isBuilt(p))
