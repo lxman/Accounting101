@@ -4,3 +4,7 @@ export interface AuditRecordResponse {
   sequence: number; action: string; entryId: string | null; entryVersion: number;
   at: string; reason: string | null; actor: ActorResponse;
 }
+export interface AuditVerifyResponse {
+  valid: boolean; recordCount: number; headSequence: number | null;
+  failure: string | null; brokenAtSequence: number | null;
+}

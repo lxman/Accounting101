@@ -30,6 +30,23 @@ public sealed class LedgerGateway(IActorFactory actorFactory, ControlStore contr
         return ledger is null ? LedgerContext.NotFound() : LedgerContext.Ok(actor, ledger);
     }
 
+    /// <summary>Authorize a member on a client by a specific capability string (not a GL
+    /// <see cref="Permission"/>) — for areas whose capability has no <see cref="Permission"/> mapping
+    /// (e.g. <see cref="Capabilities.AuditRead"/>). Mirrors <see cref="ResolveAsync"/> but checks the
+    /// capability directly, leaving the Permission↔capability maps untouched.</summary>
+    public async Task<LedgerContext> ResolveCapabilityAsync(
+        ClaimsPrincipal user, Guid clientId, string capability, CancellationToken cancellationToken)
+    {
+        Actor actor = actorFactory.Create(user);
+
+        Membership? membership = await control.GetMembershipAsync(actor.UserId, clientId, cancellationToken);
+        if (membership is null || !membership.Capabilities.Contains(capability))
+            return LedgerContext.Forbidden();
+
+        ClientLedger? ledger = await ledgers.CreateAsync(clientId, cancellationToken);
+        return ledger is null ? LedgerContext.NotFound() : LedgerContext.Ok(actor, ledger);
+    }
+
     /// <summary>
     /// Posting-specific resolution that supports two authorization paths decided by whether a module
     /// credential was established in the current request:

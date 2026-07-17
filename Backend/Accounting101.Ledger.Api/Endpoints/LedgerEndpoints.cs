@@ -816,11 +816,17 @@ public static class LedgerEndpoints
     private static async Task<IResult> GetClientAudit(
         Guid clientId, int? skip, int? limit, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveCapabilityAsync(user, clientId, Capabilities.AuditRead, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
-        return Results.Ok(ToAuditResponses(
-            await ctx.Ledger.Audit.GetForClientAsync(clientId, Page(skip), PageLimit(limit), cancellationToken)));
+        List<AuditRecordResponse> items = ToAuditResponses(
+            await ctx.Ledger.Audit.GetForClientAsync(clientId, Page(skip), PageLimit(limit), cancellationToken));
+        if (skip is not null || limit is not null)
+        {
+            long total = await ctx.Ledger.Audit.CountForClientAsync(clientId, cancellationToken);
+            return Results.Ok(new PagedResponse<AuditRecordResponse>(items, total, Page(skip), PageLimit(limit)));
+        }
+        return Results.Ok(items);
     }
 
     private static async Task<IResult> GetEntryAudit(
@@ -835,11 +841,11 @@ public static class LedgerEndpoints
     private static async Task<IResult> VerifyAudit(
         Guid clientId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveCapabilityAsync(user, clientId, Capabilities.AuditRead, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
-        bool valid = await ctx.Ledger.Audit.VerifyAsync(clientId, cancellationToken);
-        return Results.Ok(new AuditVerifyResponse(valid));
+        AuditChainVerification v = await ctx.Ledger.Audit.VerifyDetailedAsync(clientId, cancellationToken);
+        return Results.Ok(new AuditVerifyResponse(v.Valid, v.RecordCount, v.HeadSequence, v.Failure?.ToString(), v.BrokenAtSequence));
     }
 
     // ---- Chart of accounts + year-end -------------------------------------------------------
