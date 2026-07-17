@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { PayablesService } from '../../core/payables/payables.service';
 import { VendorAccountView } from '../../core/payables/payables';
@@ -60,8 +60,9 @@ import { extractProblem } from '../../core/api/problem-details';
                 <table class="w-full text-sm">
                   <thead><tr class="text-left text-muted-foreground"><th class="py-1">Date</th><th>Type</th><th>Ref</th><th class="text-right">Charge</th><th class="text-right">Payment</th><th class="text-right">Balance</th></tr></thead>
                   <tbody>
-                    @for (s of a.statementLines; track $index) {
-                      <tr>
+                    @for (s of a.statementLines; track s.id) {
+                      <tr role="button" tabindex="0" class="cursor-pointer hover:bg-muted/50"
+                          (click)="open(s)" (keydown.enter)="open(s)">
                         <td class="py-1">{{ fmtDate(s.date) }}</td><td>{{ s.type }}</td><td>{{ s.reference ?? '—' }}</td>
                         <td class="text-right tabular-nums">{{ s.charge ? money(s.charge) : '' }}</td>
                         <td class="text-right tabular-nums">{{ s.payment ? money(s.payment) : '' }}</td>
@@ -81,8 +82,9 @@ import { extractProblem } from '../../core/api/problem-details';
               <table class="w-full text-sm">
                 <thead><tr class="text-left text-muted-foreground"><th class="py-1">Date</th><th>Type</th><th class="text-right">Amount</th><th class="text-right">Balance</th></tr></thead>
                 <tbody>
-                  @for (c of a.creditLines; track $index) {
-                    <tr>
+                  @for (c of a.creditLines; track c.id) {
+                    <tr role="button" tabindex="0" class="cursor-pointer hover:bg-muted/50"
+                        (click)="open(c)" (keydown.enter)="open(c)">
                       <td class="py-1">{{ fmtDate(c.date) }}</td><td>{{ c.type }}</td>
                       <td class="text-right tabular-nums" [class.text-destructive]="c.amount < 0">{{ money(c.amount) }}</td>
                       <td class="text-right tabular-nums font-medium">{{ money(c.creditBalance) }}</td>
@@ -102,6 +104,7 @@ import { extractProblem } from '../../core/api/problem-details';
 export class VendorAccount {
   private readonly svc = inject(PayablesService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly account = signal<VendorAccountView | null>(null);
@@ -118,4 +121,14 @@ export class VendorAccount {
 
   money(n: number): string { return money(n); }
   fmtDate(d: string): string { return displayDate(d); }
+
+  open(line: { kind: string; id: string }): void {
+    const k = line.kind;
+    const path =
+      k === 'bill' ? ['/payables/bills', line.id]
+      : k === 'payment' ? ['/payables/payments', line.id]
+      : k === 'credit-application' ? ['/payables/credits', line.id]
+      : null;
+    if (path) void this.router.navigate(path);
+  }
 }
