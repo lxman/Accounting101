@@ -1,8 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
 import { ClientContextService } from '../client/client-context.service';
 import { environment } from '../api/environment';
 import { AuditRecordResponse } from './audit';
+import { PagedResponse } from '../api/paged-response';
 
 @Injectable({ providedIn: 'root' })
 export class AuditService {
@@ -12,6 +14,12 @@ export class AuditService {
   entryAudit(entryId: string) {
     return this.http.get<AuditRecordResponse[]>(
       `${environment.apiBaseUrl}/clients/${this.client.clientId()}/audit/${entryId}`,
+    );
+  }
+
+  clientAudit(skip: number, limit: number): Observable<PagedResponse<AuditRecordResponse>> {
+    return this.http.get<PagedResponse<AuditRecordResponse>>(
+      `${environment.apiBaseUrl}/clients/${this.client.clientId()}/audit?skip=${skip}&limit=${limit}`,
     );
   }
 
