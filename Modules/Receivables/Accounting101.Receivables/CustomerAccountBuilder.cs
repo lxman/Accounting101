@@ -44,28 +44,28 @@ public static class CustomerAccountBuilder
         IReadOnlyList<CreditNote> creditNotes, IReadOnlyList<WriteOff> writeOffs,
         IReadOnlyList<CreditApplication> creditApps, IReadOnlyDictionary<Guid, decimal> reliefByDocument)
     {
-        List<(DateOnly Date, int Order, string Type, string? Reference, decimal Charge, decimal Payment)> raw = [];
+        List<(DateOnly Date, int Order, Guid Id, string Kind, string Type, string? Reference, decimal Charge, decimal Payment)> raw = [];
         foreach (Invoice i in invoices.Where(i => i.Status == InvoiceStatus.Issued))
-            raw.Add((i.IssueDate, 0, "Invoice", i.Number, i.Total, 0m));
+            raw.Add((i.IssueDate, 0, i.Id, "invoice", "Invoice", i.Number, i.Total, 0m));
         // Settlement.Payment column = the document's AR relief (total cash/credit applied to invoices).
         // The running balance subtracts each settlement's relief in full, while ArBalance floors each
         // invoice's open balance at 0 via Settlement.OpenBalance; these agree as long as allocations never
         // over-apply an invoice (enforced upstream by allocation validation).
         foreach (Payment p in payments.Where(p => !p.Voided))
-            raw.Add((p.Date, 1, "Payment", null, 0m, reliefByDocument.GetValueOrDefault(p.Id)));
+            raw.Add((p.Date, 1, p.Id, "payment", "Payment", null, 0m, reliefByDocument.GetValueOrDefault(p.Id)));
         foreach (CreditNote n in creditNotes.Where(n => !n.Voided))
-            raw.Add((n.Date, 1, "Credit note", n.Memo, 0m, reliefByDocument.GetValueOrDefault(n.Id)));
+            raw.Add((n.Date, 1, n.Id, "credit-note", "Credit note", n.Memo, 0m, reliefByDocument.GetValueOrDefault(n.Id)));
         foreach (WriteOff w in writeOffs.Where(w => !w.Voided))
-            raw.Add((w.Date, 1, "Write-off", w.Memo, 0m, reliefByDocument.GetValueOrDefault(w.Id)));
+            raw.Add((w.Date, 1, w.Id, "write-off", "Write-off", w.Memo, 0m, reliefByDocument.GetValueOrDefault(w.Id)));
         foreach (CreditApplication c in creditApps.Where(c => !c.Voided))
-            raw.Add((c.Date, 1, "Credit applied", null, 0m, reliefByDocument.GetValueOrDefault(c.Id)));
+            raw.Add((c.Date, 1, c.Id, "credit-application", "Credit applied", null, 0m, reliefByDocument.GetValueOrDefault(c.Id)));
 
         decimal balance = 0m;
         return raw.OrderBy(r => r.Date).ThenBy(r => r.Order)
             .Select(r =>
             {
                 balance += r.Charge - r.Payment;
-                return new StatementLine(r.Date, r.Type, r.Reference, r.Charge, r.Payment, balance);
+                return new StatementLine(r.Date, r.Type, r.Reference, r.Charge, r.Payment, balance, r.Id, r.Kind);
             }).ToList();
     }
 
@@ -78,23 +78,23 @@ public static class CustomerAccountBuilder
         IReadOnlyList<Payment> payments, IReadOnlyList<CreditApplication> creditApps, IReadOnlyList<Refund> refunds,
         IReadOnlyDictionary<Guid, decimal> reliefByDocument)
     {
-        List<(DateOnly Date, int Order, Guid Id, string Type, string? Reference, decimal Amount)> raw = [];
+        List<(DateOnly Date, int Order, Guid Id, string Kind, string Type, string? Reference, decimal Amount)> raw = [];
         foreach (Payment p in payments.Where(p => !p.Voided))
         {
             decimal unapplied = p.Amount - reliefByDocument.GetValueOrDefault(p.Id);
-            if (unapplied > 0m) raw.Add((p.Date, 0, p.Id, "Overpayment", null, unapplied));
+            if (unapplied > 0m) raw.Add((p.Date, 0, p.Id, "payment", "Overpayment", null, unapplied));
         }
         foreach (CreditApplication c in creditApps.Where(c => !c.Voided))
-            raw.Add((c.Date, 1, c.Id, "Credit applied", null, -reliefByDocument.GetValueOrDefault(c.Id)));
+            raw.Add((c.Date, 1, c.Id, "credit-application", "Credit applied", null, -reliefByDocument.GetValueOrDefault(c.Id)));
         foreach (Refund r in refunds.Where(r => !r.Voided))
-            raw.Add((r.Date, 2, r.Id, "Refund", r.Memo, -r.Amount));
+            raw.Add((r.Date, 2, r.Id, "refund", "Refund", r.Memo, -r.Amount));
 
         decimal balance = 0m;
         return raw.OrderBy(r => r.Date).ThenBy(r => r.Order).ThenBy(r => r.Id)
             .Select(r =>
             {
                 balance += r.Amount;
-                return new CreditActivityLine(r.Date, r.Type, r.Reference, r.Amount, balance);
+                return new CreditActivityLine(r.Date, r.Type, r.Reference, r.Amount, balance, r.Id, r.Kind);
             }).ToList();
     }
 }

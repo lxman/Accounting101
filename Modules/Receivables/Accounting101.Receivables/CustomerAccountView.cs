@@ -17,8 +17,10 @@ public sealed record AgingBuckets(decimal Current, decimal D1To30, decimal D31To
 /// <summary>One open (issued, not fully settled) invoice with its age.</summary>
 public sealed record OpenInvoiceLine(Guid InvoiceId, string? Number, DateOnly IssueDate, DateOnly? DueDate, decimal OpenBalance, int DaysOverdue);
 
-/// <summary>One AR statement line. Charge increases the running balance; Payment decreases it.</summary>
-public sealed record StatementLine(DateOnly Date, string Type, string? Reference, decimal Charge, decimal Payment, decimal Balance);
+/// <summary>One AR statement line. Charge increases the running balance; Payment decreases it.
+/// Id/Kind identify the source document for drill-in (Kind is a route-aligned slug).</summary>
+public sealed record StatementLine(DateOnly Date, string Type, string? Reference, decimal Charge, decimal Payment, decimal Balance, Guid Id, string Kind);
 
-/// <summary>One credit-ledger line. Amount is signed (+ overpayment, − application/refund); CreditBalance is the running total.</summary>
-public sealed record CreditActivityLine(DateOnly Date, string Type, string? Reference, decimal Amount, decimal CreditBalance);
+/// <summary>One credit-ledger line. Amount is signed (+ overpayment, − application/refund); CreditBalance is the running total.
+/// Id/Kind identify the source document for drill-in (an Overpayment row's Kind is "payment").</summary>
+public sealed record CreditActivityLine(DateOnly Date, string Type, string? Reference, decimal Amount, decimal CreditBalance, Guid Id, string Kind);

@@ -179,4 +179,42 @@ public sealed class CustomerAccountBuilderTests
         Assert.Equal([10m, 20m, -5m], lines.Select(l => l.Amount));
         Assert.Equal(["Overpayment", "Overpayment", "Credit applied"], lines.Select(l => l.Type));
     }
+
+    [Fact]
+    public void Statement_carries_each_rows_source_id_and_kind()
+    {
+        Guid i = Guid.NewGuid(), p = Guid.NewGuid(), n = Guid.NewGuid(), w = Guid.NewGuid(), c = Guid.NewGuid();
+        Invoice invoice = IssuedInvoice(i, "1001", new(2026, 3, 1), null, 1000m);
+        List<Payment> payments = [new() { Id = p, CustomerId = Guid.NewGuid(), Date = new(2026, 3, 2), Amount = 100m }];
+        List<CreditNote> notes = [new() { Id = n, CustomerId = Guid.NewGuid(), Date = new(2026, 3, 3) }];
+        List<WriteOff> writeOffs = [new() { Id = w, CustomerId = Guid.NewGuid(), Date = new(2026, 3, 4) }];
+        List<CreditApplication> apps = [new() { Id = c, CustomerId = Guid.NewGuid(), Date = new(2026, 3, 5) }];
+        Dictionary<Guid, decimal> relief = new() { [p] = 100m };
+
+        IReadOnlyList<StatementLine> lines = CustomerAccountBuilder.Statement([invoice], payments, notes, writeOffs, apps, relief);
+
+        Assert.Equal((i, "invoice"), (lines[0].Id, lines[0].Kind));
+        Assert.Equal((p, "payment"), (lines[1].Id, lines[1].Kind));
+        Assert.Equal((n, "credit-note"), (lines[2].Id, lines[2].Kind));
+        Assert.Equal((w, "write-off"), (lines[3].Id, lines[3].Kind));
+        Assert.Equal((c, "credit-application"), (lines[4].Id, lines[4].Kind));
+        Assert.Equal("Invoice", lines[0].Type);   // display label unchanged
+    }
+
+    [Fact]
+    public void CreditActivity_carries_source_id_and_kind_overpayment_maps_to_payment()
+    {
+        Guid p = Guid.NewGuid(), c = Guid.NewGuid(), r = Guid.NewGuid();
+        List<Payment> payments = [new() { Id = p, CustomerId = Guid.NewGuid(), Date = new(2026, 3, 2), Amount = 150m }]; // 150 unapplied
+        List<CreditApplication> apps = [new() { Id = c, CustomerId = Guid.NewGuid(), Date = new(2026, 3, 10) }];
+        List<Refund> refunds = [new() { Id = r, CustomerId = Guid.NewGuid(), Date = new(2026, 3, 20), Amount = 20m }];
+        Dictionary<Guid, decimal> relief = new() { [c] = 30m };
+
+        IReadOnlyList<CreditActivityLine> lines = CustomerAccountBuilder.CreditActivity(payments, apps, refunds, relief);
+
+        Assert.Equal((p, "payment"), (lines[0].Id, lines[0].Kind));    // Overpayment row → its payment
+        Assert.Equal("Overpayment", lines[0].Type);                    // display label unchanged
+        Assert.Equal((c, "credit-application"), (lines[1].Id, lines[1].Kind));
+        Assert.Equal((r, "refund"), (lines[2].Id, lines[2].Kind));
+    }
 }
