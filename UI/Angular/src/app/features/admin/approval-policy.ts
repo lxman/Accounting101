@@ -3,6 +3,7 @@ import { HlmButton } from '@spartan-ng/helm/button';
 import { CanDirective } from '../../core/capabilities/can.directive';
 import { ApprovalPolicyService } from '../../core/approval-policy/approval-policy.service';
 import { ApprovalMode } from '../../core/approval-policy/approval-policy';
+import { CapabilityService } from '../../core/capabilities/capability.service';
 
 interface ModeOption { value: ApprovalMode; label: string; description: string; lowControl?: boolean; }
 
@@ -41,6 +42,7 @@ interface ModeOption { value: ApprovalMode; label: string; description: string; 
 })
 export class ApprovalPolicyScreen {
   private readonly service = inject(ApprovalPolicyService);
+  private readonly caps = inject(CapabilityService);
 
   readonly options: ModeOption[] = [
     { value: 'TwoPerson', label: 'Two-person approval',
@@ -72,7 +74,7 @@ export class ApprovalPolicyScreen {
     if (!mode) return;
     this.error.set(null);
     this.service.set(mode).subscribe({
-      next: () => this.saved.set(true),
+      next: () => { this.saved.set(true); this.caps.reload(); },
       error: (e) => this.error.set(e?.error?.detail ?? 'Save failed.'),
     });
   }
