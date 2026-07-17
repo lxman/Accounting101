@@ -19,9 +19,10 @@ import { TruncateDirective } from '../../shared/truncate.directive';
 @Component({
   selector: 'app-bill-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'contents' },
   imports: [RouterLink, HlmButton, VendorSelect, SettlementBadge, CanDirective, ...HlmSelectImports, ...HlmTableImports, Paginator, TruncateDirective],
   template: `
-    <div class="flex flex-col gap-4 p-4">
+    <div class="flex flex-col gap-4 p-4 flex-1 min-h-0">
       <div class="flex items-center gap-3 flex-wrap">
         <h1 class="text-2xl font-bold">Bills</h1>
         <app-vendor-select />
@@ -46,7 +47,7 @@ import { TruncateDirective } from '../../shared/truncate.directive';
         @if (bills().length === 0 && !listError()) {
           <p class="text-muted-foreground text-sm">No bills found.</p>
         } @else {
-          <div hlmTableContainer><table hlmTable>
+          <div hlmTableContainer class="flex-1 min-h-0 overflow-y-auto"><table hlmTable>
             <thead hlmTHead><tr hlmTr>
               <th hlmTh>Number</th><th hlmTh>Bill date</th><th hlmTh>Due</th>
               <th hlmTh>Vendor ref</th><th hlmTh>Total</th><th hlmTh>Open</th><th hlmTh>Status</th>

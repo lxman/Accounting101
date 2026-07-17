@@ -14,9 +14,10 @@ import { Paginator } from '../../shared/paginator';
 @Component({
   selector: 'app-audit-trail',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'contents' },
   imports: [...HlmTableImports, Paginator],
   template: `
-    <div class="flex flex-col gap-4 p-4">
+    <div class="flex flex-col gap-4 p-4 flex-1 min-h-0">
       <h1 class="text-2xl font-bold">Audit Trail</h1>
 
       @if (loading()) { <p class="text-muted-foreground text-sm">Loading…</p> }
@@ -26,7 +27,7 @@ import { Paginator } from '../../shared/paginator';
         @if (records().length === 0) {
           <p class="text-muted-foreground text-sm">No audit activity.</p>
         } @else {
-          <div hlmTableContainer>
+          <div hlmTableContainer class="flex-1 min-h-0 overflow-y-auto">
             <table hlmTable>
               <thead hlmTHead>
                 <tr hlmTr><th hlmTh>#</th><th hlmTh>Date</th><th hlmTh>Action</th><th hlmTh>Actor</th><th hlmTh>Reason</th><th hlmTh>Entry</th></tr>

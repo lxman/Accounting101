@@ -13,14 +13,11 @@ import { HlmPaginationImports } from '@spartan-ng/helm/pagination';
   selector: 'app-paginator',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [...HlmPaginationImports],
-  // display:contents collapses this host box so the sticky footer's containing block
-  // becomes the (tall) list container — otherwise bottom-0 has no runway and never pins.
+  // display:contents collapses this host box so the bar is a direct flex child of the
+  // list's content column, sitting as its fixed-height footer at the bottom.
   host: { class: 'contents' },
-  // The downward skirt paints the page background over the list container's bottom
-  // padding so scrolled rows don't peek beneath the pinned footer.
-  styles: `.paginator-bar { box-shadow: 0 2rem 0 0 var(--background); }`,
   template: `
-    <div class="paginator-bar sticky bottom-0 z-10 flex h-14 shrink-0 items-center justify-between gap-4 border-t border-border bg-background text-sm text-muted-foreground">
+    <div class="flex h-14 shrink-0 items-center justify-between gap-4 border-t border-border bg-background text-sm text-muted-foreground">
       <span class="whitespace-nowrap">Page {{ currentPage() }} of {{ pageCount() }}</span>
       <div class="flex items-center gap-4">
         <label class="flex items-center gap-2 whitespace-nowrap">
