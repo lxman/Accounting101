@@ -51,7 +51,7 @@ import { Paginator } from '../../shared/paginator';
             </table>
           </div>
 
-          <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Audit pagination" (previous)="prevPage()" (next)="nextPage()" />
+          <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Audit pagination" (previous)="prevPage()" (next)="nextPage()" [pageSize]="limit()" (pageSizeChange)="setPageSize($event)" />
         }
       }
     </div>
@@ -114,6 +114,7 @@ export class AuditTrail {
 
   prevPage(): void { const s = this.skip(), l = this.limit(); if (s > 0) this.skip.set(Math.max(0, s - l)); }
   nextPage(): void { const s = this.skip(), l = this.limit(); if (this.currentPage() < this.pageCount()) this.skip.set(s + l); }
+  setPageSize(n: number): void { this.limit.set(n); this.skip.set(0); }
 
   formatDate(d: string): string { return displayDate(d); }
 }

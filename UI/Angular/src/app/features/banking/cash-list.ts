@@ -55,7 +55,7 @@ import { TruncateDirective } from '../../shared/truncate.directive';
           </table>
         </div>
 
-        <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Cash vouchers pagination" (previous)="prev()" (next)="next()" />
+        <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Cash vouchers pagination" (previous)="prev()" (next)="next()" [pageSize]="limit()" (pageSizeChange)="setPageSize($event)" />
       }
     </div>
   `,
@@ -91,6 +91,7 @@ export class CashList {
   open(id: string): void { void this.router.navigate(['/cash/cash', id]); }
   prev(): void { if (this.skip() > 0) this.skip.set(Math.max(0, this.skip() - this.limit())); }
   next(): void { if (this.currentPage() < this.pageCount()) this.skip.set(this.skip() + this.limit()); }
+  setPageSize(n: number): void { this.limit.set(n); this.skip.set(0); }
   money(n: number): string { return fmtMoney(n); }
   date(d: string): string { return fmtDate(d); }
 }

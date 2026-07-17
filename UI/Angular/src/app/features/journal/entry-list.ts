@@ -91,7 +91,7 @@ import { TruncateDirective } from '../../shared/truncate.directive';
             </table>
           </div>
 
-          <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Entries pagination" (previous)="prevPage()" (next)="nextPage()" />
+          <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Entries pagination" (previous)="prevPage()" (next)="nextPage()" [pageSize]="limit()" (pageSizeChange)="setPageSize($event)" />
         }
       }
     </div>
@@ -176,6 +176,11 @@ export class EntryList {
     const s = this.skip();
     const l = this.limit();
     if (this.currentPage() < this.pageCount()) this.skip.set(s + l);
+  }
+
+  setPageSize(n: number): void {
+    this.limit.set(n);
+    this.skip.set(0);
   }
 
   formatDate(date: string): string {

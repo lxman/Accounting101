@@ -110,7 +110,7 @@ import { Paginator } from '../../shared/paginator';
             </table>
           </div>
 
-          <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Invoices pagination" (previous)="prevPage()" (next)="nextPage()" />
+          <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Invoices pagination" (previous)="prevPage()" (next)="nextPage()" [pageSize]="limit()" (pageSizeChange)="setPageSize($event)" />
         }
       }
     </div>
@@ -190,6 +190,11 @@ export class InvoiceList {
 
   nextPage(): void {
     if (this.currentPage() < this.pageCount()) this.skip.set(this.skip() + this.limit());
+  }
+
+  setPageSize(n: number): void {
+    this.limit.set(n);
+    this.skip.set(0);
   }
 
   calcTotal(v: InvoiceView): number {
