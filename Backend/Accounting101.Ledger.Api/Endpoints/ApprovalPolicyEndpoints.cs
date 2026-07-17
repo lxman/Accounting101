@@ -57,6 +57,9 @@ public static class ApprovalPolicyEndpoints
         if (client is null) return Results.NotFound();
 
         long pending = await CountPendingAsync(ledgers, clientId, ct);
+        // Accepted race: an entry could post between this count and the persist below. The window is
+        // tiny and benign — switching back to SelfApprove/TwoPerson is never blocked, so an admin can
+        // recover (switch back, approve the straggler, switch forward). Not worth a control-store lock.
         if (request.Mode == ApprovalMode.AutoApprove && pending > 0)
             return Results.Problem(
                 $"Cannot enable auto-approve while {pending} {(pending == 1 ? "entry awaits" : "entries await")} approval. Clear the approval queue first.",

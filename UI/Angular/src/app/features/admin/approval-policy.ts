@@ -94,7 +94,7 @@ export class ApprovalPolicyScreen {
     if (!mode) return;
     this.error.set(null);
     this.service.set(mode).subscribe({
-      next: () => { this.saved.set(true); this.caps.reload(); },
+      next: (p) => { this.saved.set(true); this.pendingApprovalCount.set(p.pendingApprovalCount ?? 0); this.caps.reload(); },
       error: (e) => this.error.set(e?.error?.detail ?? 'Save failed.'),
     });
   }

@@ -89,6 +89,22 @@ describe('ApprovalPolicyScreen', () => {
     expect(el.querySelector('[data-testid=pending-note]')).toBeNull();
   });
 
+  it('refreshes the pending count from the PUT response on save', () => {
+    seed(); http = TestBed.inject(HttpTestingController);
+    const f = TestBed.createComponent(ApprovalPolicyScreen);
+    f.detectChanges();
+    http.expectOne(`${environment.apiBaseUrl}/clients/c1/approval-policy`).flush({ mode: 'SelfApprove', pendingApprovalCount: 0 });
+    f.detectChanges();
+
+    const c = f.componentInstance as ApprovalPolicyScreen;
+    c.select('TwoPerson');   // non-blocked mode
+    c.save();
+    http.expectOne(`${environment.apiBaseUrl}/clients/c1/approval-policy`)
+      .flush({ mode: 'TwoPerson', pendingApprovalCount: 3 });
+
+    expect(c.pendingApprovalCount()).toBe(3);
+  });
+
   it('surfaces a 422 detail from a failed save', () => {
     seed(); http = TestBed.inject(HttpTestingController);
     const f = TestBed.createComponent(ApprovalPolicyScreen);
