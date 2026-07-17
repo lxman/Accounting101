@@ -3,7 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { FiscalSettings } from './fiscal-settings';
+import { FiscalSettingsScreen } from './fiscal-settings';
 import { provideCapabilities } from '../../core/capabilities/capability.testing';
 import { ClientContextService } from '../../core/client/client-context.service';
 import { environment } from '../../core/api/environment';
@@ -18,22 +18,33 @@ function seed(...caps: string[]) {
 
 const url = `${environment.apiBaseUrl}/admin/clients/c1/fiscal-year-end`;
 
-describe('FiscalSettings', () => {
+describe('FiscalSettingsScreen', () => {
   let http: HttpTestingController;
   afterEach(() => http.verify());
 
-  it('loads the current month and PUTs the chosen one', () => {
+  it('loads the current month and PUTs the chosen one via the DOM select', () => {
     seed('admin.fiscal'); http = TestBed.inject(HttpTestingController);
-    const f = TestBed.createComponent(FiscalSettings);
+    const f = TestBed.createComponent(FiscalSettingsScreen);
     f.detectChanges();
     http.expectOne(url).flush({ fiscalYearEndMonth: 12 });
     f.detectChanges();
 
-    const c = f.componentInstance as FiscalSettings;
+    const c = f.componentInstance as FiscalSettingsScreen;
     expect(c.selected()).toBe(12);
     expect(c.months.length).toBe(12);
 
-    c.selected.set(6);
+    // The rendered <select> reflects the loaded month via the [value] binding.
+    const select = (f.nativeElement as HTMLElement)
+      .querySelector('[data-testid=fye-select]') as HTMLSelectElement;
+    expect(select).not.toBeNull();
+    expect(select.value).toBe('12');
+
+    // Drive a real DOM change so the (change) handler + Number(...) coercion run end-to-end.
+    select.value = '6';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    f.detectChanges();
+    expect(c.selected()).toBe(6);          // NUMBER, proving Number(...) coercion in select()
+
     c.save();
     const req = http.expectOne(url);
     expect(req.request.method).toBe('PUT');
@@ -44,7 +55,7 @@ describe('FiscalSettings', () => {
 
   it('hides Save without admin.fiscal', () => {
     seed('gl.read'); http = TestBed.inject(HttpTestingController);
-    const f = TestBed.createComponent(FiscalSettings);
+    const f = TestBed.createComponent(FiscalSettingsScreen);
     f.detectChanges();
     http.expectOne(url).flush({ fiscalYearEndMonth: 12 });
     f.detectChanges();

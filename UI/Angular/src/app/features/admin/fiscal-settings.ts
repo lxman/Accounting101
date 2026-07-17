@@ -34,7 +34,7 @@ interface MonthOption { value: number; label: string; }
     </div>
   `,
 })
-export class FiscalSettings {
+export class FiscalSettingsScreen {
   private readonly service = inject(FiscalService);
 
   readonly months: MonthOption[] = [
