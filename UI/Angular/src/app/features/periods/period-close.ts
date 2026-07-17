@@ -79,6 +79,13 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
             </div>
           }
 
+          @if (closingEntryId(); as id) {
+            <p class="text-sm text-green-700 dark:text-green-400">
+              Year-end close posted.
+              <a *appCan="'gl.read'" [routerLink]="['/journal', id]" class="underline">View closing entry</a>
+            </p>
+          }
+
           <div class="flex items-center gap-2 text-sm" *appCan="'gl.close'">
             <span class="text-muted-foreground">Other period:</span>
             <select class="rounded-md border border-border bg-background px-2 py-1"
@@ -110,6 +117,7 @@ export class PeriodClose {
   private readonly caps = inject(CapabilityService);
   readonly canDrill = computed(() => this.caps.has('gl.read'));
   readonly blockers = signal<PendingEntryRef[] | null>(null);
+  readonly closingEntryId = signal<string | null>(null);
   private lastAsOf: string | null = null;
 
   readonly isYearEndNext = computed(() => {
@@ -168,6 +176,7 @@ export class PeriodClose {
   protected runClose(asOf: string): void {
     this.actionError.set(null);
     this.blockers.set(null);
+    this.closingEntryId.set(null);
     this.lastAsOf = asOf;
     this.busy.set(true);
     this.svc.close(asOf).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
@@ -181,9 +190,10 @@ export class PeriodClose {
   runYearEnd(fiscalYearEnd: string): void {
     this.actionError.set(null);
     this.blockers.set(null);
+    this.closingEntryId.set(null);
     this.busy.set(true);
     this.svc.closeYear(fiscalYearEnd).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.busy.set(false); this.load(); },
+      next: (r) => { this.busy.set(false); this.closingEntryId.set(r.closingEntry?.id ?? null); this.load(); },
       error: (e) => this.handleCloseError(e),
     });
   }

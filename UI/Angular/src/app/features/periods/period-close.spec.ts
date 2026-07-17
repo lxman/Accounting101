@@ -99,4 +99,26 @@ describe('PeriodClose', () => {
     f.detectChanges(); await f.whenStable();
     expect(stub.closeYear).toHaveBeenCalledWith('2026-12-31');
   });
+
+  it('shows a link to the closing entry after a year-end close', async () => {
+    const closeYear = vi.fn().mockReturnValue(of({ closingEntry: { id: 'ce9' } }));
+    const { f } = await boot({ closedThrough: '2026-11-30', fiscalYearEndMonth: 12 }, ['gl.read', 'gl.close'], { closeYear });
+    const el = f.nativeElement as HTMLElement;
+    [...el.querySelectorAll('button')].find(b => b.textContent!.includes('Run year-end close'))!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    f.detectChanges(); await f.whenStable(); f.detectChanges();
+    expect(el.textContent).toContain('Year-end close posted');
+    expect([...el.querySelectorAll('a')].some(a => a.getAttribute('href')?.includes('/journal/ce9'))).toBe(true);
+  });
+
+  it('reactively runs the year-end close when a monthly close 409s with a fiscal-year-end steer', async () => {
+    const close = vi.fn().mockReturnValue(throwError(() => conflict({ useEndpoint: 'periods/close-year', fiscalYearEnd: '2026-12-31' })));
+    const closeYear = vi.fn().mockReturnValue(of({ closingEntry: null }));
+    const { f } = await boot({ closedThrough: '2026-05-31', fiscalYearEndMonth: 12 }, ['gl.read', 'gl.close'], { close, closeYear });
+    const el = f.nativeElement as HTMLElement;
+    [...el.querySelectorAll('button')].find(b => b.textContent!.includes('Close June 2026'))!
+      .dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    f.detectChanges(); await f.whenStable();
+    expect(closeYear).toHaveBeenCalledWith('2026-12-31');
+  });
 });
