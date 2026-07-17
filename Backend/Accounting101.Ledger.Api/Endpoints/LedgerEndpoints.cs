@@ -819,8 +819,14 @@ public static class LedgerEndpoints
         LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
-        return Results.Ok(ToAuditResponses(
-            await ctx.Ledger.Audit.GetForClientAsync(clientId, Page(skip), PageLimit(limit), cancellationToken)));
+        List<AuditRecordResponse> items = ToAuditResponses(
+            await ctx.Ledger.Audit.GetForClientAsync(clientId, Page(skip), PageLimit(limit), cancellationToken));
+        if (skip is not null || limit is not null)
+        {
+            long total = await ctx.Ledger.Audit.CountForClientAsync(clientId, cancellationToken);
+            return Results.Ok(new PagedResponse<AuditRecordResponse>(items, total, Page(skip), PageLimit(limit)));
+        }
+        return Results.Ok(items);
     }
 
     private static async Task<IResult> GetEntryAudit(

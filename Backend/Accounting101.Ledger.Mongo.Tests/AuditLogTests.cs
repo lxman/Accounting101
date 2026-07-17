@@ -420,3 +420,21 @@ public sealed class AuditLogTests(MongoFixture fixture) : IClassFixture<MongoFix
         Assert.False(await audit.VerifyAsync(client));
     }
 }
+
+public sealed class AuditCountTests(MongoFixture fixture) : IClassFixture<MongoFixture>
+{
+    private static Actor User() => new() { UserId = Guid.NewGuid(), Name = "tester", Claims = [new Claim("role", "tester")] };
+
+    [Fact]
+    public async Task CountForClient_returns_the_per_client_record_count()
+    {
+        MongoAuditLog audit = new(fixture.Database, "audit_count_" + Guid.NewGuid().ToString("N"));
+        Guid a = Guid.NewGuid(), b = Guid.NewGuid();
+        for (int i = 0; i < 3; i++)
+            await audit.AppendAsync(a, Guid.NewGuid(), 1, AuditAction.Created, User(), null, DateTimeOffset.UtcNow);
+        await audit.AppendAsync(b, Guid.NewGuid(), 1, AuditAction.Created, User(), null, DateTimeOffset.UtcNow);
+
+        Assert.Equal(3, await audit.CountForClientAsync(a));
+        Assert.Equal(1, await audit.CountForClientAsync(b));
+    }
+}

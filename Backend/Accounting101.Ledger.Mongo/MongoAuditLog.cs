@@ -185,6 +185,10 @@ public sealed class MongoAuditLog
             .Limit(limit > 0 ? limit : null)
             .ToListAsync(cancellationToken);
 
+    /// <summary>The count of the client's audit records — the <c>Total</c> for a paged audit-log response.</summary>
+    public Task<long> CountForClientAsync(Guid clientId, CancellationToken cancellationToken = default) =>
+        _audit.CountDocumentsAsync(a => a.ClientId == clientId, cancellationToken: cancellationToken);
+
     /// <summary>
     /// Verify the client's chain: every record must link to its predecessor and its stored
     /// hash must recompute. Any after-the-fact edit (even by a DBA) breaks this.
