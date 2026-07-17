@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HlmTableImports } from '@spartan-ng/helm/table';
 import { SubledgerService } from '../../core/subledger/subledger.service';
-import { SubledgerReconciliationLine } from '../../core/subledger/subledger';
+import { SubledgerReconciliationLine, SubledgerResponse } from '../../core/subledger/subledger';
 import { money as fmtMoney } from '../../core/format/display';
 import { extractProblem } from '../../core/api/problem-details';
 
@@ -32,8 +32,9 @@ import { extractProblem } from '../../core/api/problem-details';
               </thead>
               <tbody hlmTBody>
                 @for (r of rows(); track key(r)) {
-                  <tr hlmTr>
-                    <td hlmTd>{{ r.number }} {{ r.name }}</td>
+                  <tr hlmTr role="button" tabindex="0" class="cursor-pointer hover:bg-muted/50"
+                      (click)="toggle(r)" (keydown.enter)="toggle(r)">
+                    <td hlmTd>{{ expanded().has(key(r)) ? '▾' : '▸' }} {{ r.number }} {{ r.name }}</td>
                     <td hlmTd>{{ r.dimension }}</td>
                     <td hlmTd class="text-right tabular-nums">{{ money(r.controlBalance) }}</td>
                     <td hlmTd class="text-right tabular-nums">{{ money(r.subledgerTotal) }}</td>
@@ -46,6 +47,36 @@ import { extractProblem } from '../../core/api/problem-details';
                       }
                     </td>
                   </tr>
+                  @if (expanded().has(key(r))) {
+                    <tr hlmTr>
+                      <td hlmTd colspan="6" class="bg-muted/30">
+                        @if (breakdowns()[key(r)]; as b) {
+                          @if (b === 'error') {
+                            <p class="text-destructive text-sm">Could not load the breakdown.</p>
+                          } @else if (b === 'loading') {
+                            <p class="text-muted-foreground text-sm">Loading…</p>
+                          } @else {
+                            <table class="text-sm w-full max-w-lg">
+                              <tbody>
+                                @for (l of b.lines; track l.dimensionValue) {
+                                  <tr>
+                                    <td class="py-0.5">{{ l.number ?? l.name ?? l.dimensionValue }}</td>
+                                    <td class="py-0.5 text-right tabular-nums">{{ money(l.balance) }}</td>
+                                  </tr>
+                                }
+                                @if (r.variance !== 0) {
+                                  <tr class="border-t border-border text-destructive">
+                                    <td class="py-0.5">Untagged remainder (no {{ r.dimension }})</td>
+                                    <td class="py-0.5 text-right tabular-nums">{{ money(r.variance) }}</td>
+                                  </tr>
+                                }
+                              </tbody>
+                            </table>
+                          }
+                        }
+                      </td>
+                    </tr>
+                  }
                 }
               </tbody>
             </table>
@@ -72,4 +103,21 @@ export class SubledgerReconciliations {
 
   key(r: SubledgerReconciliationLine): string { return `${r.account}|${r.dimension}`; }
   money(n: number): string { return fmtMoney(n); }
+
+  readonly expanded = signal<Set<string>>(new Set());
+  readonly breakdowns = signal<Record<string, SubledgerResponse | 'loading' | 'error'>>({});
+
+  toggle(r: SubledgerReconciliationLine): void {
+    const k = this.key(r);
+    const next = new Set(this.expanded());
+    if (next.has(k)) { next.delete(k); this.expanded.set(next); return; }
+    next.add(k);
+    this.expanded.set(next);
+    if (this.breakdowns()[k]) return;   // already loaded/loading — do not re-fetch
+    this.breakdowns.update((m) => ({ ...m, [k]: 'loading' }));
+    this.svc.breakdown(r.account, r.dimension).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (b) => this.breakdowns.update((m) => ({ ...m, [k]: b })),
+      error: () => this.breakdowns.update((m) => ({ ...m, [k]: 'error' })),
+    });
+  }
 }

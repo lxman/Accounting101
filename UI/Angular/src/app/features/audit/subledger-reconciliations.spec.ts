@@ -4,7 +4,7 @@ import { of } from 'rxjs';
 import { SubledgerReconciliations } from './subledger-reconciliations';
 import { SubledgerService } from '../../core/subledger/subledger.service';
 import { ClientContextService } from '../../core/client/client-context.service';
-import { SubledgerReconciliationsResponse } from '../../core/subledger/subledger';
+import { SubledgerReconciliationsResponse, SubledgerResponse } from '../../core/subledger/subledger';
 
 const clientId = 'aaaaaaaa-0000-0000-0000-000000000003';
 
@@ -45,5 +45,40 @@ describe('SubledgerReconciliations', () => {
   it('shows an empty state when there are no dimensioned control accounts', async () => {
     const { f } = await boot({ asOf: null, lines: [] });
     expect((f.nativeElement as HTMLElement).textContent).toContain('No dimensioned control accounts');
+  });
+
+  it('expands a variance row to lazy-load its breakdown and shows the untagged remainder', async () => {
+    const breakdown: SubledgerResponse = {
+      dimension: 'Item', asOf: null,
+      lines: [
+        { accountId: 'inv', dimensionValue: 'i1', balance: 150, number: 'WIDGET', name: 'Widget' },
+        { accountId: 'inv', dimensionValue: 'i2', balance: 100, number: 'GADGET', name: 'Gadget' },
+      ],
+    };
+    const stub = { reconciliations: vi.fn().mockReturnValue(of(resp)), breakdown: vi.fn().mockReturnValue(of(breakdown)) };
+    await TestBed.configureTestingModule({
+      imports: [SubledgerReconciliations],
+      providers: [provideZonelessChangeDetection(), { provide: SubledgerService, useValue: stub }],
+    }).compileComponents();
+    TestBed.inject(ClientContextService).select(clientId);
+    const f = TestBed.createComponent(SubledgerReconciliations);
+    f.detectChanges(); await f.whenStable(); f.detectChanges();
+
+    const invRow = [...(f.nativeElement as HTMLElement).querySelectorAll('tbody tr')]
+      .find(tr => tr.textContent!.includes('Inventory')) as HTMLElement;
+    invRow.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    f.detectChanges(); await f.whenStable(); f.detectChanges();
+    invRow.dispatchEvent(new MouseEvent('click', { bubbles: true }));   // toggle off then on again below — no re-fetch
+    f.detectChanges();
+    invRow.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    f.detectChanges(); await f.whenStable(); f.detectChanges();
+
+    expect(stub.breakdown).toHaveBeenCalledTimes(1);                    // cached across expands
+    expect(stub.breakdown).toHaveBeenCalledWith('inv', 'Item');
+    const text = (f.nativeElement as HTMLElement).textContent!;
+    expect(text).toContain('WIDGET');
+    expect(text).toContain('150.00');
+    expect(text).toContain('Untagged remainder');
+    expect(text).toContain('50.00');   // the variance
   });
 });
