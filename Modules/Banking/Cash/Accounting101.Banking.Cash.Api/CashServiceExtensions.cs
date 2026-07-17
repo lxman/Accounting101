@@ -23,7 +23,7 @@ public static class CashServiceExtensions
         services.AddScoped<ICashDisbursementStore>(sp => new DocumentCashDisbursementStore(sp.GetRequiredKeyedService<IDocumentStore>("cash")));
         services.AddScoped<ICashDepositStore>(sp => new DocumentCashDepositStore(sp.GetRequiredKeyedService<IDocumentStore>("cash")));
         services.AddScoped<CashService>();
-        services.AddSingleton<ICashAccountsProvider, ConfiguredCashAccountsProvider>();
+        services.AddScoped<ICashAccountsProvider, StoreBackedCashAccountsProvider>();
         services.AddScoped<CashChartRequirements>();
 
         // Use an explicit name to avoid a short-name collision with the other modules' ILedgerClient
