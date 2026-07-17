@@ -110,4 +110,35 @@ public sealed class VendorAccountBuilderTests
         Assert.Equal([10m, 20m, -5m], lines.Select(l => l.Amount));
         Assert.Equal(["Overpayment", "Overpayment", "Credit applied"], lines.Select(l => l.Type));
     }
+
+    [Fact]
+    public void Statement_carries_each_rows_source_id_and_kind()
+    {
+        Guid billId = Guid.NewGuid();
+        var bills = new List<Bill> { EnteredBill(billId, 100m, new DateOnly(2026, 3, 1), null) };
+        BillPayment payment = Payment(40m, new DateOnly(2026, 3, 2));
+        VendorCreditApplication creditApp = CreditApp(new DateOnly(2026, 3, 3));
+        var relief = new Dictionary<Guid, decimal> { [payment.Id] = 40m };
+
+        var lines = VendorAccountBuilder.Statement(bills, [payment], [creditApp], relief);
+
+        Assert.Equal((billId, "bill"), (lines[0].Id, lines[0].Kind));
+        Assert.Equal((payment.Id, "payment"), (lines[1].Id, lines[1].Kind));
+        Assert.Equal((creditApp.Id, "credit-application"), (lines[2].Id, lines[2].Kind));
+        Assert.Equal("Bill", lines[0].Type);   // display label unchanged
+    }
+
+    [Fact]
+    public void CreditActivity_carries_source_id_and_kind_overpayment_maps_to_payment()
+    {
+        BillPayment payment = Payment(150m, new DateOnly(2026, 3, 1));   // 150 unapplied → overpayment
+        VendorCreditApplication creditApp = CreditApp(new DateOnly(2026, 3, 5));
+        var relief = new Dictionary<Guid, decimal> { [creditApp.Id] = 20m };
+
+        var lines = VendorAccountBuilder.CreditActivity([payment], [creditApp], relief);
+
+        Assert.Equal((payment.Id, "payment"), (lines[0].Id, lines[0].Kind));   // Overpayment → its payment
+        Assert.Equal("Overpayment", lines[0].Type);                            // display label unchanged
+        Assert.Equal((creditApp.Id, "credit-application"), (lines[1].Id, lines[1].Kind));
+    }
 }

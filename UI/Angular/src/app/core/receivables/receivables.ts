@@ -78,8 +78,8 @@ export function autoAllocate(amount: number, rows: readonly AllocRow[]): AllocRo
 
 export interface AgingBuckets { current: number; d1To30: number; d31To60: number; d61To90: number; d90Plus: number; }
 export interface OpenInvoiceLine { invoiceId: string; number: string | null; issueDate: string; dueDate: string | null; openBalance: number; daysOverdue: number; }
-export interface StatementLine { date: string; type: string; reference: string | null; charge: number; payment: number; balance: number; }
-export interface CreditActivityLine { date: string; type: string; reference: string | null; amount: number; creditBalance: number; }
+export interface StatementLine { date: string; type: string; reference: string | null; charge: number; payment: number; balance: number; id: string; kind: string; }
+export interface CreditActivityLine { date: string; type: string; reference: string | null; amount: number; creditBalance: number; id: string; kind: string; }
 export interface CustomerAccountView {
   customer: Customer; arBalance: number; creditBalance: number; aging: AgingBuckets;
   openInvoices: OpenInvoiceLine[]; statementLines: StatementLine[]; creditLines: CreditActivityLine[];

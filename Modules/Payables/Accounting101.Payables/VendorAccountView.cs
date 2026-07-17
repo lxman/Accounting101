@@ -10,6 +10,6 @@ public sealed record AgingBuckets(decimal Current, decimal D1To30, decimal D31To
 
 public sealed record OpenBillLine(Guid BillId, string? Number, DateOnly BillDate, DateOnly? DueDate, decimal OpenBalance, int DaysOverdue);
 
-public sealed record StatementLine(DateOnly Date, string Type, string? Reference, decimal Charge, decimal Payment, decimal Balance);
+public sealed record StatementLine(DateOnly Date, string Type, string? Reference, decimal Charge, decimal Payment, decimal Balance, Guid Id, string Kind);
 
-public sealed record CreditActivityLine(DateOnly Date, string Type, string? Reference, decimal Amount, decimal CreditBalance);
+public sealed record CreditActivityLine(DateOnly Date, string Type, string? Reference, decimal Amount, decimal CreditBalance, Guid Id, string Kind);
