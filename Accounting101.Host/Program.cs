@@ -101,6 +101,7 @@ app.MapAdminEndpoints();
 app.MapCapabilitiesEndpoints();
 app.MapMemberEndpoints();
 app.MapApprovalPolicyEndpoints();
+app.MapPostingAccountEndpoints();
 app.MapCapabilityCatalogEndpoints();
 app.MapCapabilitySetEndpoints();
 app.MapAdminAuditEndpoints();
