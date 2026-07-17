@@ -1,4 +1,4 @@
-export interface NavLink { label: string; path: string; area?: string; moduleKey?: string; deploymentAdmin?: boolean; children?: NavLink[]; }
+export interface NavLink { label: string; path: string; area?: string; moduleKey?: string; deploymentAdmin?: boolean; hideWhenAutoApprove?: boolean; children?: NavLink[]; }
 export interface NavSection { label: string; items: NavLink[]; }
 
 export const NAV: NavSection[] = [
@@ -7,7 +7,7 @@ export const NAV: NavSection[] = [
   ] },
   { label: 'General Ledger', items: [
     { label: 'Journal', path: '/journal', area: 'gl' },
-    { label: 'Approvals', path: '/journal/approvals', area: 'gl' },
+    { label: 'Approvals', path: '/journal/approvals', area: 'gl', hideWhenAutoApprove: true },
     { label: 'Chart of Accounts', path: '/accounts', area: 'gl' },
     { label: 'Trial Balance', path: '/trial-balance', area: 'gl' },
     { label: 'Financial Statements', path: '/statements', area: 'gl' },

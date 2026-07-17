@@ -92,7 +92,8 @@ export class Shell {
     visibleSections(NAV, (link) =>
       (!link.area || this.caps.hasArea(link.area)) &&
       (!link.moduleKey || this.caps.moduleEnabled(link.moduleKey)) &&
-      (!link.deploymentAdmin || this.caps.deploymentAdmin())));
+      (!link.deploymentAdmin || this.caps.deploymentAdmin()) &&
+      (!link.hideWhenAutoApprove || this.caps.approvalMode() !== 'AutoApprove')));
 
   // The trigger renders the active value (a user sub) via itemToString; map it back to a readable
   // "Acting as: <name>" (a bare value would display the raw GUID).

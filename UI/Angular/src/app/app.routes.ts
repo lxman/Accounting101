@@ -83,6 +83,7 @@ import { SubledgerReconciliations } from './features/audit/subledger-reconciliat
 import { navLeafPaths } from './layout/nav';
 import { canWrite } from './core/capabilities/can.guard';
 import { deploymentAdminGuard } from './core/capabilities/deployment-admin.guard';
+import { hideWhenAutoApproveGuard } from './core/capabilities/hide-when-autoapprove.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -92,7 +93,7 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', component: EntryList },
       { path: 'new', component: EntryForm, canActivate: [canWrite], data: { requiredCapability: 'gl.post', fallback: '/journal' } },
-      { path: 'approvals', component: ApprovalQueue },
+      { path: 'approvals', component: ApprovalQueue, canActivate: [hideWhenAutoApproveGuard], data: { fallback: '/journal' } },
       { path: ':id', component: EntryDetail },
     ],
   },
