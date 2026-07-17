@@ -13,8 +13,8 @@ import { NavStateService } from './nav-state.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterOutlet, RouterLink, ThemeSwitch, ...HlmSelectImports],
   template: `
-    <div class="min-h-screen bg-background text-foreground">
-      <header class="flex items-center gap-3 px-4 h-14 bg-card border-b border-border">
+    <div class="flex flex-col h-screen overflow-hidden bg-background text-foreground">
+      <header class="shrink-0 flex items-center gap-3 px-4 h-14 bg-card border-b border-border">
         <button type="button" data-testid="sidebar-toggle"
                 (click)="navState.toggleSidebar()"
                 [attr.aria-label]="navState.sidebarCollapsed() ? 'Show sidebar' : 'Hide sidebar'"
@@ -36,9 +36,9 @@ import { NavStateService } from './nav-state.service';
           </div>
         </div>
       </header>
-      <div class="flex">
+      <div class="flex flex-1 min-h-0">
         @if (!navState.sidebarCollapsed()) {
-        <aside class="w-56 min-h-[calc(100vh-3.5rem)] p-2 bg-sidebar text-sidebar-foreground">
+        <aside class="w-56 shrink-0 overflow-y-auto p-2 bg-sidebar text-sidebar-foreground">
           @for (section of visibleNav(); track section.label) {
             <div class="mt-3 first:mt-0">
               <button type="button" data-testid="nav-section-header"
@@ -79,7 +79,7 @@ import { NavStateService } from './nav-state.service';
           }
         </aside>
         }
-        <main class="flex-1 min-w-0 p-6"><router-outlet /></main>
+        <main class="flex-1 min-w-0 overflow-y-auto p-6"><router-outlet /></main>
       </div>
     </div>`,
 })
