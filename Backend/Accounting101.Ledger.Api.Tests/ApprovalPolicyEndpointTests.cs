@@ -63,4 +63,50 @@ public sealed class ApprovalPolicyEndpointTests(ApiFixture fixture) : IClassFixt
         ApprovalPolicyResponse got = (await resp.Content.ReadFromJsonAsync<ApprovalPolicyResponse>())!;
         Assert.Equal(ApprovalMode.TwoPerson, got.Mode);
     }
+
+    private static PostEntryRequest Balanced(Guid? id, string date, Guid debit, Guid credit, decimal amount = 100m) =>
+        new(id, DateOnly.Parse(date), null, null,
+            [new PostLineRequest(debit, "Debit", amount), new PostLineRequest(credit, "Credit", amount)]);
+
+    [Fact]
+    public async Task Cannot_switch_to_auto_approve_while_entries_await_approval()
+    {
+        // SelfApprove leaves a post PendingApproval (see ApprovalModeEnforcementTests).
+        SeededClient c = await fixture.SeedClientAsync("BlockAuto", approvalMode: ApprovalMode.SelfApprove);
+        HttpResponseMessage post = await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries",
+            Balanced(Guid.NewGuid(), "2026-03-31", Guid.NewGuid(), Guid.NewGuid()));
+        post.EnsureSuccessStatusCode();
+
+        HttpResponseMessage put = await fixture.AdminClient().PutAsJsonAsync(
+            $"/clients/{c.ClientId}/approval-policy", new SetApprovalPolicyRequest(ApprovalMode.AutoApprove));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, put.StatusCode);
+
+        // Mode not persisted; GET still reports SelfApprove and the pending count.
+        ApprovalPolicyResponse got = (await fixture.AdminClient().GetFromJsonAsync<ApprovalPolicyResponse>(
+            $"/clients/{c.ClientId}/approval-policy"))!;
+        Assert.Equal(ApprovalMode.SelfApprove, got.Mode);
+        Assert.Equal(1, got.PendingApprovalCount);
+    }
+
+    [Fact]
+    public async Task Can_switch_to_auto_approve_when_nothing_is_pending()
+    {
+        SeededClient c = await fixture.SeedClientAsync("BlockAutoOk", approvalMode: ApprovalMode.SelfApprove);
+        HttpResponseMessage put = await fixture.AdminClient().PutAsJsonAsync(
+            $"/clients/{c.ClientId}/approval-policy", new SetApprovalPolicyRequest(ApprovalMode.AutoApprove));
+        Assert.Equal(HttpStatusCode.OK, put.StatusCode);
+    }
+
+    [Fact]
+    public async Task Switching_to_two_person_is_not_blocked_by_pending_entries()
+    {
+        SeededClient c = await fixture.SeedClientAsync("PendingTwoPerson", approvalMode: ApprovalMode.SelfApprove);
+        HttpResponseMessage post = await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries",
+            Balanced(Guid.NewGuid(), "2026-03-31", Guid.NewGuid(), Guid.NewGuid()));
+        post.EnsureSuccessStatusCode();
+
+        HttpResponseMessage put = await fixture.AdminClient().PutAsJsonAsync(
+            $"/clients/{c.ClientId}/approval-policy", new SetApprovalPolicyRequest(ApprovalMode.TwoPerson));
+        Assert.Equal(HttpStatusCode.OK, put.StatusCode);
+    }
 }
