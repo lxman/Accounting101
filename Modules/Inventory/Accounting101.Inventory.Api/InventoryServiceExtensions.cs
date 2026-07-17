@@ -8,8 +8,8 @@ namespace Accounting101.Inventory.Api;
 
 /// <summary>Installs the inventory module: identity + manifest (reference "items" + evidentiary
 /// "stock-movements"), the document-store-backed item register and stock-movement stores, the
-/// config-backed posting-accounts provider, the movement service, and the loopback ledger HttpClient
-/// (movements are the first slice that posts).</summary>
+/// store-backed posting-accounts provider (per-client, config fallback), the movement service, and the
+/// loopback ledger HttpClient (movements are the first slice that posts).</summary>
 public static class InventoryServiceExtensions
 {
     public static IServiceCollection AddInventory(this IServiceCollection services, IConfiguration configuration)
@@ -28,7 +28,7 @@ public static class InventoryServiceExtensions
             new DocumentStockMovementStore(sp.GetRequiredKeyedService<IDocumentStore>("inventory")));
         services.AddScoped<InventoryMovementService>();
         services.AddScoped<ItemValuationService>();
-        services.AddSingleton<IInventoryAccountsProvider, ConfiguredInventoryAccountsProvider>();
+        services.AddScoped<IInventoryAccountsProvider, StoreBackedInventoryAccountsProvider>();
         services.AddScoped<InventoryChartRequirements>();
 
         // Explicit client name to avoid the ILedgerClient short-name collision across modules.
