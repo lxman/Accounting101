@@ -35,6 +35,8 @@ public static class LedgerEngineExtensions
         services.AddScoped<IFirmContext, HttpContextFirmContext>();
         services.AddScoped(sp => new ControlStore(sp.GetRequiredService<FirmScope>().RequireControlDatabase()));
         services.AddScoped(sp => new AdminAuditStore(sp.GetRequiredService<FirmScope>().RequireControlDatabase()));
+        services.AddScoped(sp => new PostingAccountStore(sp.GetRequiredService<FirmScope>().RequireControlDatabase()));
+        services.AddScoped<IPostingAccountsSource, StorePostingAccountsSource>();
 
         // Platform registry tier (firms + clusters). Additive: does not change client resolution yet.
         services.AddPlatformRegistry(configuration);
