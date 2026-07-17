@@ -39,20 +39,20 @@ public static class VendorAccountBuilder
         IReadOnlyList<Bill> bills, IReadOnlyList<BillPayment> payments, IReadOnlyList<VendorCreditApplication> creditApps,
         IReadOnlyDictionary<Guid, decimal> reliefByDocument)
     {
-        List<(DateOnly Date, int Order, string Type, string? Reference, decimal Charge, decimal Payment)> raw = [];
+        List<(DateOnly Date, int Order, Guid Id, string Kind, string Type, string? Reference, decimal Charge, decimal Payment)> raw = [];
         foreach (Bill b in bills.Where(b => b.Status == BillStatus.Entered))
-            raw.Add((b.BillDate, 0, "Bill", b.Number, b.Total, 0m));
+            raw.Add((b.BillDate, 0, b.Id, "bill", "Bill", b.Number, b.Total, 0m));
         foreach (BillPayment p in payments.Where(p => !p.Voided))
-            raw.Add((p.Date, 1, "Payment", null, 0m, reliefByDocument.GetValueOrDefault(p.Id)));
+            raw.Add((p.Date, 1, p.Id, "payment", "Payment", null, 0m, reliefByDocument.GetValueOrDefault(p.Id)));
         foreach (VendorCreditApplication c in creditApps.Where(c => !c.Voided))
-            raw.Add((c.Date, 1, "Credit applied", null, 0m, reliefByDocument.GetValueOrDefault(c.Id)));
+            raw.Add((c.Date, 1, c.Id, "credit-application", "Credit applied", null, 0m, reliefByDocument.GetValueOrDefault(c.Id)));
 
         decimal balance = 0m;
         return raw.OrderBy(r => r.Date).ThenBy(r => r.Order)
             .Select(r =>
             {
                 balance += r.Charge - r.Payment;
-                return new StatementLine(r.Date, r.Type, r.Reference, r.Charge, r.Payment, balance);
+                return new StatementLine(r.Date, r.Type, r.Reference, r.Charge, r.Payment, balance, r.Id, r.Kind);
             }).ToList();
     }
 
@@ -60,21 +60,21 @@ public static class VendorAccountBuilder
         IReadOnlyList<BillPayment> payments, IReadOnlyList<VendorCreditApplication> creditApps,
         IReadOnlyDictionary<Guid, decimal> reliefByDocument)
     {
-        List<(DateOnly Date, int Order, Guid Id, string Type, string? Reference, decimal Amount)> raw = [];
+        List<(DateOnly Date, int Order, Guid Id, string Kind, string Type, string? Reference, decimal Amount)> raw = [];
         foreach (BillPayment p in payments.Where(p => !p.Voided))
         {
             decimal overpayment = p.Amount - reliefByDocument.GetValueOrDefault(p.Id);
-            if (overpayment > 0m) raw.Add((p.Date, 0, p.Id, "Overpayment", null, overpayment));
+            if (overpayment > 0m) raw.Add((p.Date, 0, p.Id, "payment", "Overpayment", null, overpayment));
         }
         foreach (VendorCreditApplication c in creditApps.Where(c => !c.Voided))
-            raw.Add((c.Date, 1, c.Id, "Credit applied", null, -reliefByDocument.GetValueOrDefault(c.Id)));
+            raw.Add((c.Date, 1, c.Id, "credit-application", "Credit applied", null, -reliefByDocument.GetValueOrDefault(c.Id)));
 
         decimal balance = 0m;
         return raw.OrderBy(r => r.Date).ThenBy(r => r.Order).ThenBy(r => r.Id)
             .Select(r =>
             {
                 balance += r.Amount;
-                return new CreditActivityLine(r.Date, r.Type, r.Reference, r.Amount, balance);
+                return new CreditActivityLine(r.Date, r.Type, r.Reference, r.Amount, balance, r.Id, r.Kind);
             }).ToList();
     }
 }
