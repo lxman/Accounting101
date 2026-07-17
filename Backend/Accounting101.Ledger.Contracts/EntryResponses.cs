@@ -55,5 +55,9 @@ public sealed record CloseResponse(DateOnly AsOf, IReadOnlyList<AccountBalanceRe
 /// <summary>The result of a year-end close — the materialized closing entry, or null if there was nothing to close.</summary>
 public sealed record CloseYearResponse(EntryResponse? ClosingEntry);
 
+/// <summary>Current period state: the date the ledger is closed through (null if never closed) and the
+/// client's fiscal-year-end month (1–12), so the UI can identify the year-end close date.</summary>
+public sealed record PeriodStatusResponse(DateOnly? ClosedThrough, int FiscalYearEndMonth);
+
 public sealed record AuditVerifyResponse(
     bool Valid, long RecordCount, long? HeadSequence, string? Failure, long? BrokenAtSequence);
