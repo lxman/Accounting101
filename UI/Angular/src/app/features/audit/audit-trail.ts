@@ -8,6 +8,7 @@ import { AuditService } from '../../core/audit/audit.service';
 import { AuditRecordResponse } from '../../core/audit/audit';
 import { PagedResponse } from '../../core/api/paged-response';
 import { CapabilityService } from '../../core/capabilities/capability.service';
+import { PaginationPrefsService } from '../../core/pagination/pagination-prefs.service';
 import { displayDate } from '../../core/format/display';
 import { Paginator } from '../../shared/paginator';
 
@@ -63,9 +64,10 @@ export class AuditTrail {
   private readonly client = inject(ClientContextService);
   private readonly caps = inject(CapabilityService);
   private readonly router = inject(Router);
+  private readonly prefs = inject(PaginationPrefsService);
 
   readonly skip = signal(0);
-  readonly limit = signal(50);
+  readonly limit = this.prefs.pageSize;
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
 
@@ -115,7 +117,7 @@ export class AuditTrail {
 
   prevPage(): void { const s = this.skip(), l = this.limit(); if (s > 0) this.skip.set(Math.max(0, s - l)); }
   nextPage(): void { const s = this.skip(), l = this.limit(); if (this.currentPage() < this.pageCount()) this.skip.set(s + l); }
-  setPageSize(n: number): void { this.limit.set(n); this.skip.set(0); }
+  setPageSize(n: number): void { this.prefs.setPageSize(n); this.skip.set(0); }
 
   formatDate(d: string): string { return displayDate(d); }
 }

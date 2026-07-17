@@ -13,6 +13,7 @@ import { VendorSelect } from '../../shared/vendor-select';
 import { SettlementBadge } from '../../shared/settlement-badge';
 import { extractProblem } from '../../core/api/problem-details';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { PaginationPrefsService } from '../../core/pagination/pagination-prefs.service';
 import { Paginator } from '../../shared/paginator';
 import { TruncateDirective } from '../../shared/truncate.directive';
 
@@ -80,11 +81,12 @@ import { TruncateDirective } from '../../shared/truncate.directive';
 export class BillList {
   readonly svc = inject(PayablesService);
   private readonly router = inject(Router);
+  private readonly prefs = inject(PaginationPrefsService);
 
   readonly vendorId = this.svc.selectedVendorId;
   readonly settlement = signal<SettlementFilter | ''>('');
   readonly skip = signal(0);
-  readonly limit = signal(50);
+  readonly limit = this.prefs.pageSize;
   readonly listError = signal<string | null>(null);
 
   private readonly query = computed(() => ({
@@ -128,7 +130,7 @@ export class BillList {
 
   prevPage(): void { const s = this.skip(), l = this.limit(); if (s > 0) this.skip.set(Math.max(0, s - l)); }
   nextPage(): void { if (this.currentPage() < this.pageCount()) this.skip.set(this.skip() + this.limit()); }
-  setPageSize(n: number): void { this.limit.set(n); this.skip.set(0); }
+  setPageSize(n: number): void { this.prefs.setPageSize(n); this.skip.set(0); }
 
   calcTotal(v: BillView): number { return billTotal(v.bill.lines); }
   fmtMoney(n: number): string { return money(n); }

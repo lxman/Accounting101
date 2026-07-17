@@ -9,6 +9,7 @@ import { PagedResponse } from '../../core/api/paged-response';
 import { ClientContextService } from '../../core/client/client-context.service';
 import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
 import { Paginator } from '../../shared/paginator';
+import { PaginationPrefsService } from '../../core/pagination/pagination-prefs.service';
 
 @Component({
   selector: 'app-disposal-list',
@@ -53,10 +54,11 @@ export class DisposalList {
   private readonly svc = inject(FixedAssetsService);
   private readonly client = inject(ClientContextService);
   private readonly router = inject(Router);
+  private readonly prefs = inject(PaginationPrefsService);
 
   readonly includeVoided = signal(false);
   readonly skip = signal(0);
-  readonly limit = signal(50);
+  readonly limit = this.prefs.pageSize;
   readonly error = signal<string | null>(null);
 
   private readonly query = computed(() => ({ id: this.client.clientId(), includeVoided: this.includeVoided(), skip: this.skip(), limit: this.limit() }));
@@ -83,7 +85,7 @@ export class DisposalList {
   toggleVoided(v: boolean): void { this.includeVoided.set(v); this.skip.set(0); }
   prev(): void { if (this.skip() > 0) this.skip.set(Math.max(0, this.skip() - this.limit())); }
   next(): void { if (this.currentPage() < this.pageCount()) this.skip.set(this.skip() + this.limit()); }
-  setPageSize(n: number): void { this.limit.set(n); this.skip.set(0); }
+  setPageSize(n: number): void { this.prefs.setPageSize(n); this.skip.set(0); }
   money(n: number): string { return fmtMoney(n); }
   formatDate(d: string): string { return fmtDate(d); }
 }
