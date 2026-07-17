@@ -55,4 +55,26 @@ describe('PostingAccountsScreen', () => {
     const f = boot(['gl.read']);
     expect((f.nativeElement as HTMLElement).querySelector('button')).toBeNull();
   });
+
+  it('preselects the current account when the chart loads in a later CD cycle', () => {
+    seed('admin.postingAccounts'); http = TestBed.inject(HttpTestingController);
+    const f = TestBed.createComponent(PostingAccountsScreen);
+    f.detectChanges();
+
+    // slots resolve first, in their own change-detection cycle...
+    http.expectOne(`${base}/posting-accounts`)
+      .flush({ slots: [{ ...cashSlot, currentAccountId: 'a1' }] });
+    f.detectChanges();
+
+    // ...then the chart resolves in a separate cycle (the live-stack timing).
+    http.expectOne(`${base}/accounts`).flush(accounts);
+    f.detectChanges();
+
+    const select = (f.nativeElement as HTMLElement)
+      .querySelector('[data-testid="slot-cash-Cash"]') as HTMLSelectElement;
+    expect(select).not.toBeNull();
+    expect(select.value).toBe('a1');
+    const selectedText = select.options[select.selectedIndex].textContent ?? '';
+    expect(selectedText).toContain('Business Checking');
+  });
 });
