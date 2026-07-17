@@ -29,18 +29,16 @@ public sealed class PostingAccountStore
 
     /// <summary>Upsert the client's posting accounts, replacing the given module's slot map (other
     /// modules untouched).</summary>
-    /// <remarks>The read-modify-write of the whole document below is NOT atomic: two concurrent
-    /// calls for different modules can race (read-read-write-write), and the second writer's
-    /// <c>ReplaceOneAsync</c> can clobber the first writer's module update. This is safe today only
-    /// because the registry has a single module (Cash). When fan-out adds a second slot, switch to a
-    /// targeted atomic update instead, e.g. <c>Update.Set($"Accounts.{moduleKey}", slots)</c> with
-    /// <c>IsUpsert = true</c>, so concurrent different-module writes can't clobber each other.</remarks>
     public async Task SetModuleAsync(
         Guid clientId, string moduleKey, IReadOnlyDictionary<string, Guid> slots, CancellationToken cancellationToken = default)
     {
-        PostingAccountsDoc doc = await GetAsync(clientId, cancellationToken) ?? new PostingAccountsDoc { ClientId = clientId };
-        doc.Accounts[moduleKey] = new Dictionary<string, Guid>(slots);
-        await _accounts.ReplaceOneAsync(
-            d => d.ClientId == clientId, doc, new ReplaceOptions { IsUpsert = true }, cancellationToken);
+        // Targeted per-module update: writes only the Accounts.<moduleKey> sub-document, so concurrent
+        // writes for different modules on the same client cannot clobber each other. Upsert seeds ClientId
+        // from the filter on insert.
+        await _accounts.UpdateOneAsync(
+            d => d.ClientId == clientId,
+            Builders<PostingAccountsDoc>.Update.Set($"Accounts.{moduleKey}", new Dictionary<string, Guid>(slots)),
+            new UpdateOptions { IsUpsert = true },
+            cancellationToken);
     }
 }
