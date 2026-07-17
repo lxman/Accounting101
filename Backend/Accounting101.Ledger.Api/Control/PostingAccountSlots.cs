@@ -5,8 +5,8 @@ namespace Accounting101.Ledger.Api.Control;
 public sealed record PostingAccountSlot(
     string ModuleKey, string SlotKey, string Label, string ExpectedType, IReadOnlyList<string> RequiredDimensions);
 
-/// <summary>The declared posting-account slots, per module (cash, payroll, payables, fixedassets, inventory
-/// wired). Remaining modules fan out here (sourced from each module's *ChartRequirements).</summary>
+/// <summary>The declared posting-account slots, per module (cash, payroll, payables, fixedassets, inventory,
+/// receivables wired — the module fan-out is complete). Sourced from each module's *ChartRequirements.</summary>
 public static class PostingAccountSlots
 {
     public static readonly IReadOnlyList<PostingAccountSlot> All =
@@ -30,6 +30,13 @@ public static class PostingAccountSlots
         new("inventory", "Cogs",                "Cost of Goods Sold",   "Expense",   []),
         new("inventory", "GrniClearing",        "GRNI Clearing",        "Liability", []),
         new("inventory", "InventoryAdjustment", "Inventory Adjustment", "Expense",   []),
+        new("receivables", "Receivable",      "Accounts Receivable", "Asset",     ["Customer", "Invoice"]),
+        new("receivables", "Revenue",         "Revenue",             "Revenue",   []),
+        new("receivables", "SalesTaxPayable", "Sales Tax Payable",   "Liability", []),
+        new("receivables", "Cash",            "Cash",                "Asset",     []),
+        new("receivables", "CustomerCredits", "Customer Credits",    "Liability", ["Customer"]),
+        new("receivables", "BadDebtExpense",  "Bad Debt Expense",    "Expense",   []),
+        new("receivables", "SalesReturns",    "Sales Returns",       "Revenue",   []),
     ];
 
     public static IReadOnlyList<PostingAccountSlot> ForModule(string moduleKey) =>

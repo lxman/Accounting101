@@ -6,8 +6,9 @@ namespace Accounting101.Receivables.Api;
 
 /// <summary>
 /// Installs the receivables module into the host: stamps its module identity + collection manifest,
-/// wires its document-store-backed stores and service, the config-backed accounts provider, and the
-/// loopback ledger HttpClient. "Installed" = this line is present in the host's composition root.
+/// wires its document-store-backed stores and service, the store-backed accounts providers (per-client,
+/// config fallback), and the loopback ledger HttpClient. "Installed" = this line is present in the
+/// host's composition root.
 /// </summary>
 public static class ReceivablesServiceExtensions
 {
@@ -31,8 +32,8 @@ public static class ReceivablesServiceExtensions
         services.AddScoped<InvoiceService>();
         services.AddScoped<PaymentService>();
         services.AddScoped<CustomerAccountService>();
-        services.AddSingleton<IInvoiceAccountsProvider, ConfiguredInvoiceAccountsProvider>();
-        services.AddSingleton<IPaymentAccountsProvider, ConfiguredPaymentAccountsProvider>();
+        services.AddScoped<IInvoiceAccountsProvider, StoreBackedInvoiceAccountsProvider>();
+        services.AddScoped<IPaymentAccountsProvider, StoreBackedPaymentAccountsProvider>();
         services.AddScoped<ReceivablesChartRequirements>();
 
         services.AddHttpClient<ILedgerClient, HttpLedgerClient>(client =>
