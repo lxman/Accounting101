@@ -61,8 +61,9 @@ public sealed record SetClientModulesRequest(IReadOnlyList<string> ModuleKeys);
 /// <summary>A client's entitled module keys as returned by the entitlement setter.</summary>
 public sealed record ClientModulesResponse(Guid ClientId, IReadOnlyList<string> ModuleKeys);
 
-/// <summary>A client's current approval mode.</summary>
-public sealed record ApprovalPolicyResponse(ApprovalMode Mode);
+/// <summary>A client's current approval mode, plus how many entries are awaiting approval
+/// (drives the "clear the queue before enabling auto-approve" guard).</summary>
+public sealed record ApprovalPolicyResponse(ApprovalMode Mode, long PendingApprovalCount);
 
 /// <summary>Change a client's approval mode. <see cref="ApprovalMode.Unspecified"/> is rejected (422).</summary>
 public sealed record SetApprovalPolicyRequest(ApprovalMode Mode);
