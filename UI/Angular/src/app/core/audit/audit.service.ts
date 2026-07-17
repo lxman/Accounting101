@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ClientContextService } from '../client/client-context.service';
 import { environment } from '../api/environment';
-import { AuditRecordResponse } from './audit';
+import { AuditRecordResponse, AuditVerifyResponse } from './audit';
 import { PagedResponse } from '../api/paged-response';
 
 @Injectable({ providedIn: 'root' })
@@ -20,6 +20,12 @@ export class AuditService {
   clientAudit(skip: number, limit: number): Observable<PagedResponse<AuditRecordResponse>> {
     return this.http.get<PagedResponse<AuditRecordResponse>>(
       `${environment.apiBaseUrl}/clients/${this.client.clientId()}/audit?skip=${skip}&limit=${limit}`,
+    );
+  }
+
+  verify(): Observable<AuditVerifyResponse> {
+    return this.http.get<AuditVerifyResponse>(
+      `${environment.apiBaseUrl}/clients/${this.client.clientId()}/audit/verify`,
     );
   }
 
