@@ -816,7 +816,7 @@ public static class LedgerEndpoints
     private static async Task<IResult> GetClientAudit(
         Guid clientId, int? skip, int? limit, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveCapabilityAsync(user, clientId, Capabilities.AuditRead, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         List<AuditRecordResponse> items = ToAuditResponses(
@@ -841,7 +841,7 @@ public static class LedgerEndpoints
     private static async Task<IResult> VerifyAudit(
         Guid clientId, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
     {
-        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
+        LedgerContext ctx = await gateway.ResolveCapabilityAsync(user, clientId, Capabilities.AuditRead, cancellationToken);
         if (ctx.Failed) return ctx.Error;
 
         AuditChainVerification v = await ctx.Ledger.Audit.VerifyDetailedAsync(clientId, cancellationToken);

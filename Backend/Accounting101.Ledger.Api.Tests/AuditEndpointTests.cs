@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Accounting101.Ledger.Api.Control;
 using Accounting101.Ledger.Contracts;
 
 namespace Accounting101.Ledger.Api.Tests;
@@ -50,5 +51,30 @@ public sealed class AuditEndpointTests(ApiFixture fixture) : IClassFixture<ApiFi
         Assert.Null(v.BrokenAtSequence);
         Assert.True(v.RecordCount > 0);
         Assert.Equal(v.RecordCount, v.HeadSequence);
+    }
+
+    [Fact]
+    public async Task Audit_area_requires_audit_read_but_entry_timeline_stays_on_gl_read()
+    {
+        SeededClient c = await fixture.SeedClientAsync();   // Controller: holds audit.read + gl.read
+        Guid cash = Guid.NewGuid(), revenue = Guid.NewGuid();
+        PostEntryRequest req = new(null, new DateOnly(2026, 3, 31), null, null,
+            [new PostLineRequest(cash, "Debit", 100m), new PostLineRequest(revenue, "Credit", 100m)]);
+        PostEntryResponse created = (await (await c.Http.PostAsJsonAsync($"/clients/{c.ClientId}/entries", req))
+            .Content.ReadFromJsonAsync<PostEntryResponse>())!;
+        (await c.Http.PostAsync($"/clients/{c.ClientId}/entries/{created.Id}/approve", null)).EnsureSuccessStatusCode();
+
+        // A member with gl.read but NOT audit.read (ArClerk preset = {gl.read, ar.read, ar.write}).
+        HttpClient arClerk = await fixture.AddMemberAsync(c.ClientId, LedgerRole.ArClerk, "AR Clerk");
+
+        // Entry-timeline stays gl.read → reachable by the AR clerk.
+        Assert.Equal(HttpStatusCode.OK, (await arClerk.GetAsync($"/clients/{c.ClientId}/audit/{created.Id}")).StatusCode);
+
+        // The Audit-area endpoints require audit.read → forbidden for the AR clerk.
+        Assert.Equal(HttpStatusCode.Forbidden, (await arClerk.GetAsync($"/clients/{c.ClientId}/audit")).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await arClerk.GetAsync($"/clients/{c.ClientId}/audit/verify")).StatusCode);
+
+        // The controller (holds audit.read) still gets through.
+        Assert.Equal(HttpStatusCode.OK, (await c.Http.GetAsync($"/clients/{c.ClientId}/audit")).StatusCode);
     }
 }
