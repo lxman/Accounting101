@@ -16,7 +16,9 @@ function rec(o: Partial<AuditRecordResponse> = {}): AuditRecordResponse {
     reason: null, actor: { userId: 'u1', name: 'Alice', claims: [] }, ...o };
 }
 const page: PagedResponse<AuditRecordResponse> = {
-  items: [rec({ sequence: 1, entryId: 'e1' }), rec({ sequence: 2, action: 'AccountCreated', entryId: null })],
+  // Row 2 is an AccountCreated record: its entryId is the ACCOUNT id (non-null), NOT a journal entry —
+  // drilling it to /journal would 404, so it must stay inert.
+  items: [rec({ sequence: 1, entryId: 'e1' }), rec({ sequence: 2, action: 'AccountCreated', entryId: 'acct-1' })],
   total: 3, skip: 0, limit: 2,
 };
 
@@ -41,12 +43,12 @@ describe('AuditTrail', () => {
     expect((f.nativeElement as HTMLElement).textContent).toContain('Alice');
   });
 
-  it('drills a row with an entry to the journal entry when the user has gl.read', async () => {
+  it('drills a journal-entry row to the journal entry but NOT an account/document row', async () => {
     const { f } = await boot(['audit.read', 'gl.read']);
     const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const rows = [...(f.nativeElement as HTMLElement).querySelectorAll('tbody tr')] as HTMLElement[];
-    rows[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));  // entryId e1
-    rows[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));  // entryId null → no nav
+    rows[0].dispatchEvent(new MouseEvent('click', { bubbles: true }));  // Created + entryId e1 → journal entry
+    rows[1].dispatchEvent(new MouseEvent('click', { bubbles: true }));  // AccountCreated + acct-1 → NOT a journal entry, no nav
     expect(nav.mock.calls.map(c => c[0])).toEqual([['/journal', 'e1']]);
   });
 

@@ -102,8 +102,15 @@ export class AuditTrail {
     return Math.floor(p.skip / p.limit) + 1;
   });
 
-  canOpen(r: AuditRecordResponse): boolean { return this.canDrill() && !!r.entryId; }
-  open(r: AuditRecordResponse): void { if (r.entryId) void this.router.navigate(['/journal', r.entryId]); }
+  // An audit record's entryId is a polymorphic subject id: for journal-entry actions it IS a journal
+  // entry, but for AccountCreated/AccountUpdated it is the account id and for Document* it is the document
+  // id — neither of which resolves at /journal/:id (that drill would 404). Only journal-entry actions drill.
+  private static readonly JournalEntryActions = new Set(['Created', 'Approved', 'Superseded', 'Voided', 'Reversed']);
+
+  canOpen(r: AuditRecordResponse): boolean {
+    return this.canDrill() && !!r.entryId && AuditTrail.JournalEntryActions.has(r.action);
+  }
+  open(r: AuditRecordResponse): void { if (this.canOpen(r)) void this.router.navigate(['/journal', r.entryId]); }
 
   prevPage(): void { const s = this.skip(), l = this.limit(); if (s > 0) this.skip.set(Math.max(0, s - l)); }
   nextPage(): void { const s = this.skip(), l = this.limit(); if (this.currentPage() < this.pageCount()) this.skip.set(s + l); }
