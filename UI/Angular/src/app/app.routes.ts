@@ -62,6 +62,7 @@ import { CapabilitySetList } from './features/admin/capability-set-list';
 import { CapabilitySetEditor } from './features/admin/capability-set-editor';
 import { ApprovalPolicyScreen } from './features/admin/approval-policy';
 import { FiscalSettingsScreen } from './features/admin/fiscal-settings';
+import { PostingAccountsScreen } from './features/admin/posting-accounts';
 import { BankingShell } from './features/banking/banking-shell';
 import { CashList } from './features/banking/cash-list';
 import { CashVoucherEditor } from './features/banking/cash-voucher-editor';
@@ -200,13 +201,14 @@ export const routes: Routes = [
   { path: 'admin/access/sets/:id', component: CapabilitySetEditor, canActivate: [deploymentAdminGuard('/admin/users')] },
   { path: 'admin/approval-policy', component: ApprovalPolicyScreen, canActivate: [canWrite], data: { requiredCapability: 'admin.approvalPolicy', fallback: '/admin/users' } },
   { path: 'admin/fiscal', component: FiscalSettingsScreen, canActivate: [canWrite], data: { requiredCapability: 'admin.fiscal', fallback: '/admin/users' } },
+  { path: 'admin/posting-accounts', component: PostingAccountsScreen, canActivate: [canWrite], data: { requiredCapability: 'admin.postingAccounts', fallback: '/admin/users' } },
   { path: 'audit/trail', component: AuditTrail },
   { path: 'audit/verify', component: VerifyIntegrity },
   { path: 'audit/reconciliations', component: SubledgerReconciliations },
   { path: 'audit', redirectTo: 'audit/trail', pathMatch: 'full' },
   // Every nav leaf not served by a built route tree above → Placeholder.
   ...(() => {
-    const built = ['/dashboard', '/journal', '/trial-balance', '/periods', '/statements', '/accounts', '/receivables', '/payables', '/payroll', '/fixed-assets', '/cash', '/inventory', '/admin/users', '/admin/access/sets', '/admin/access/sets/new', '/admin/approval-policy', '/admin/fiscal', '/audit/trail', '/audit/verify', '/audit/reconciliations'];
+    const built = ['/dashboard', '/journal', '/trial-balance', '/periods', '/statements', '/accounts', '/receivables', '/payables', '/payroll', '/fixed-assets', '/cash', '/inventory', '/admin/users', '/admin/access/sets', '/admin/access/sets/new', '/admin/approval-policy', '/admin/fiscal', '/admin/posting-accounts', '/audit/trail', '/audit/verify', '/audit/reconciliations'];
     const isBuilt = (p: string) => built.some((b) => p === b || p.startsWith(b + '/'));
     return navLeafPaths()
       .filter((p) => !isBuilt(p))
