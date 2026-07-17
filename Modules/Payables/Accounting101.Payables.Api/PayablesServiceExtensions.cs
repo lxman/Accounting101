@@ -6,8 +6,8 @@ using Accounting101.ModuleKit.Api;
 namespace Accounting101.Payables.Api;
 
 /// <summary>Installs the payables module into the host: module identity + collection manifest, the
-/// document-store-backed stores and services, the config-backed accounts provider, and the loopback
-/// ledger HttpClient.</summary>
+/// document-store-backed stores and services, the store-backed accounts provider (per-client posting
+/// accounts, with config fallback), and the loopback ledger HttpClient.</summary>
 public static class PayablesServiceExtensions
 {
     public static IServiceCollection AddPayables(this IServiceCollection services, IConfiguration configuration)
@@ -27,7 +27,7 @@ public static class PayablesServiceExtensions
         services.AddScoped<BillService>();
         services.AddScoped<BillPaymentService>();
         services.AddScoped<VendorAccountService>();
-        services.AddSingleton<IBillAccountsProvider, ConfiguredBillAccountsProvider>();
+        services.AddScoped<IBillAccountsProvider, StoreBackedBillAccountsProvider>();
         services.AddScoped<PayablesChartRequirements>();
 
         // Use an explicit name to avoid a short-name collision with Accounting101.Invoicing.ILedgerClient
