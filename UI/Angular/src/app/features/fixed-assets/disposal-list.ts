@@ -43,7 +43,7 @@ import { Paginator } from '../../shared/paginator';
             </tbody>
           </table>
         </div>
-        <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Disposals pagination" (previous)="prev()" (next)="next()" />
+        <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Disposals pagination" (previous)="prev()" (next)="next()" [pageSize]="limit()" (pageSizeChange)="setPageSize($event)" />
       }
     </div>
   `,
@@ -82,6 +82,7 @@ export class DisposalList {
   toggleVoided(v: boolean): void { this.includeVoided.set(v); this.skip.set(0); }
   prev(): void { if (this.skip() > 0) this.skip.set(Math.max(0, this.skip() - this.limit())); }
   next(): void { if (this.currentPage() < this.pageCount()) this.skip.set(this.skip() + this.limit()); }
+  setPageSize(n: number): void { this.limit.set(n); this.skip.set(0); }
   money(n: number): string { return fmtMoney(n); }
   formatDate(d: string): string { return fmtDate(d); }
 }

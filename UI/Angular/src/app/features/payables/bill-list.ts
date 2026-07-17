@@ -70,7 +70,7 @@ import { TruncateDirective } from '../../shared/truncate.directive';
             </tbody>
           </table></div>
 
-          <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Bills pagination" (previous)="prevPage()" (next)="nextPage()" />
+          <app-paginator [currentPage]="currentPage()" [pageCount]="pageCount()" ariaLabel="Bills pagination" (previous)="prevPage()" (next)="nextPage()" [pageSize]="limit()" (pageSizeChange)="setPageSize($event)" />
         }
       }
     </div>
@@ -127,6 +127,7 @@ export class BillList {
 
   prevPage(): void { const s = this.skip(), l = this.limit(); if (s > 0) this.skip.set(Math.max(0, s - l)); }
   nextPage(): void { if (this.currentPage() < this.pageCount()) this.skip.set(this.skip() + this.limit()); }
+  setPageSize(n: number): void { this.limit.set(n); this.skip.set(0); }
 
   calcTotal(v: BillView): number { return billTotal(v.bill.lines); }
   fmtMoney(n: number): string { return money(n); }
