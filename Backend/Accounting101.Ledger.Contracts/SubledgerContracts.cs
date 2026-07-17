@@ -25,3 +25,15 @@ public sealed record SubledgerReconciliationResponse(
     decimal SubledgerTotal,
     decimal Variance,
     bool TiesOut);
+
+/// <summary>Every dimensioned control account tied out against its GL balance, one line per (account,
+/// required dimension). Chart-driven: an account is a control account iff it has RequiredDimensions.</summary>
+public sealed record SubledgerReconciliationsResponse(
+    DateOnly? AsOf,
+    IReadOnlyList<SubledgerReconciliationLine> Lines);
+
+/// <summary>One control account reconciled on one dimension. Variance is the untagged remainder
+/// (ControlBalance − SubledgerTotal); TiesOut is Variance == 0.</summary>
+public sealed record SubledgerReconciliationLine(
+    Guid Account, string? Number, string? Name, string Dimension,
+    decimal ControlBalance, decimal SubledgerTotal, decimal Variance, bool TiesOut);

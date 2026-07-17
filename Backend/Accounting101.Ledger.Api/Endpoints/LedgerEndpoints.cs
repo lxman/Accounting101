@@ -47,6 +47,7 @@ public static class LedgerEndpoints
         clients.MapGet("/trial-balance", GetTrialBalance);
         clients.MapGet("/subledger", GetSubledger);
         clients.MapGet("/subledger/reconciliation", GetSubledgerReconciliation);
+        clients.MapGet("/subledger/reconciliations", GetSubledgerReconciliations);
         clients.MapGet("/statements/balance-sheet", GetBalanceSheet);
         clients.MapGet("/statements/income-statement", GetIncomeStatement);
         clients.MapGet("/statements/cash-flow", GetCashFlow);
@@ -751,6 +752,35 @@ public static class LedgerEndpoints
         decimal variance = control - subledgerTotal;
         return Results.Ok(new SubledgerReconciliationResponse(
             accountId, dimension, asOf, control, subledgerTotal, variance, variance == 0m));
+    }
+
+    private static async Task<IResult> GetSubledgerReconciliations(
+        Guid clientId, DateOnly? asOf, LedgerGateway gateway, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveCapabilityAsync(user, clientId, Capabilities.AuditRead, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        ChartOfAccounts chart = await ctx.Ledger.Accounts.GetChartAsync(clientId, cancellationToken);
+        IReadOnlyDictionary<Guid, decimal> balances =
+            await ctx.Ledger.Journal.AggregateBalancesAsync(clientId, asOf, cancellationToken);
+
+        List<SubledgerReconciliationLine> lines = [];
+        foreach (Account account in chart.Accounts
+                     .Where(a => a.RequiredDimensions.Count > 0)
+                     .OrderBy(a => a.Number, StringComparer.Ordinal))
+        {
+            decimal control = balances.GetValueOrDefault(account.Id);
+            foreach (string dimension in account.RequiredDimensions)
+            {
+                IReadOnlyList<SubledgerBalance> subledger = await ctx.Ledger.Journal.AggregateSubledgerAsync(
+                    clientId, dimension, account.Id, asOf, cancellationToken: cancellationToken);
+                decimal subledgerTotal = subledger.Sum(s => s.Balance);
+                decimal variance = control - subledgerTotal;
+                lines.Add(new SubledgerReconciliationLine(
+                    account.Id, account.Number, account.Name, dimension, control, subledgerTotal, variance, variance == 0m));
+            }
+        }
+        return Results.Ok(new SubledgerReconciliationsResponse(asOf, lines));
     }
 
     private static async Task<IResult> GetBalanceSheet(
