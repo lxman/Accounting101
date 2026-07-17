@@ -41,6 +41,17 @@ public sealed class StoreBackedBillAccountsProviderTests
     }
 
     [Fact]
+    public async Task Falls_back_to_config_when_a_stored_slot_is_empty_guid()
+    {
+        Guid cash = Guid.NewGuid();
+        Dictionary<string, string?> cfg = Keys.ToDictionary(k => $"Payables:Accounts:{k}", k => (string?)Guid.NewGuid().ToString());
+        cfg["Payables:Accounts:Cash"] = cash.ToString();
+        var provider = new StoreBackedBillAccountsProvider(new FakeSource(new() { ["Cash"] = Guid.Empty }), Config(cfg));
+        BillPaymentPostingAccounts got = await provider.GetPaymentAccountsAsync(Guid.NewGuid());
+        Assert.Equal(cash, got.CashAccountId);
+    }
+
+    [Fact]
     public async Task Throws_when_a_slot_has_neither_store_nor_config()
     {
         var provider = new StoreBackedBillAccountsProvider(new FakeSource(new()), Config(new Dictionary<string, string?>()));
