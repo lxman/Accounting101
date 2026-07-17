@@ -6,8 +6,9 @@ import { HlmPaginationImports } from '@spartan-ng/helm/pagination';
  * hlm-pagination previous/next. Presentational — the parent owns skip/limit state
  * and reacts to (previous)/(next)/(pageSizeChange).
  *
- * Rendered as a sticky footer (bottom-0) so the controls stay visible while the
- * list scrolls inside the shell's main content area.
+ * Rendered as the fixed-height footer of a list's content column. The `-mb-[30px]`
+ * pulls the bar down through the list's `p-4` (16px) + main's `p-6` (24px) = 40px of
+ * stacked bottom padding, leaving a deliberate ~10px gap above the page edge.
  */
 @Component({
   selector: 'app-paginator',
@@ -17,7 +18,7 @@ import { HlmPaginationImports } from '@spartan-ng/helm/pagination';
   // list's content column, sitting as its fixed-height footer at the bottom.
   host: { class: 'contents' },
   template: `
-    <div class="flex h-8 shrink-0 items-center justify-between gap-4 border-t border-border bg-background text-sm text-muted-foreground">
+    <div class="-mb-[30px] flex h-8 shrink-0 items-center justify-between gap-4 border-t border-border bg-background text-sm text-muted-foreground">
       <span class="whitespace-nowrap">Page {{ currentPage() }} of {{ pageCount() }}</span>
       <div class="flex items-center gap-4">
         <label class="flex items-center gap-2 whitespace-nowrap">
