@@ -48,6 +48,34 @@ public sealed class AdminCapabilityTests(ApiFixture fixture) : IClassFixture<Api
     }
 
     [Fact]
+    public async Task Member_with_admin_fiscal_may_read_fiscal_year_end()
+    {
+        (Guid clientId, HttpClient http) = await MemberWithAsync(Capabilities.AdminFiscal);
+        await http.PutAsJsonAsync($"/admin/clients/{clientId}/fiscal-year-end", new SetFiscalYearEndRequest(6));
+
+        HttpResponseMessage resp = await http.GetAsync($"/admin/clients/{clientId}/fiscal-year-end");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        FiscalYearEndResponse? body = await resp.Content.ReadFromJsonAsync<FiscalYearEndResponse>();
+        Assert.Equal(6, body!.FiscalYearEndMonth);
+    }
+
+    [Fact]
+    public async Task Member_without_admin_fiscal_is_forbidden_from_reading_fiscal_year_end()
+    {
+        (Guid clientId, HttpClient http) = await MemberWithAsync(Capabilities.GlRead);
+        HttpResponseMessage resp = await http.GetAsync($"/admin/clients/{clientId}/fiscal-year-end");
+        Assert.Equal(HttpStatusCode.Forbidden, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task Deployment_admin_may_read_fiscal_year_end()
+    {
+        SeededClient c = await fixture.SeedClientAsync("AdminCapsFiscalRead");
+        HttpResponseMessage resp = await fixture.AdminClient().GetAsync($"/admin/clients/{c.ClientId}/fiscal-year-end");
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+    }
+
+    [Fact]
     public async Task Member_with_admin_users_may_list_members()
     {
         (Guid clientId, HttpClient http) = await MemberWithAsync(Capabilities.AdminUsers);

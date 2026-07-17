@@ -18,6 +18,9 @@ public sealed record ClientRegistrationResponse(
 /// immutable; this affects only future closes.</summary>
 public sealed record SetFiscalYearEndRequest(int FiscalYearEndMonth);
 
+/// <summary>A client's current fiscal-year-end month (1-12).</summary>
+public sealed record FiscalYearEndResponse(int FiscalYearEndMonth);
+
 /// <summary>Grant a user a role on a client. Role: Auditor | Clerk | Approver | Controller | Admin.</summary>
 public sealed record AddMemberRequest(Guid UserId, string Role);
 

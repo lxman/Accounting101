@@ -24,6 +24,7 @@ public static class AdminEndpoints
         // Per-client admin: deployment admin OR the matching admin.* capability (checked in-handler).
         RouteGroupBuilder perClient = app.MapGroup("/admin").RequireAuthorization();
         perClient.MapPut("/clients/{clientId:guid}/fiscal-year-end", SetFiscalYearEnd);
+        perClient.MapGet("/clients/{clientId:guid}/fiscal-year-end", GetFiscalYearEnd);
         perClient.MapPost("/clients/{clientId:guid}/members", AddMember);
         perClient.MapGet("/clients/{clientId:guid}/members", ListMembers);
         perClient.MapPut("/clients/{clientId:guid}/modules", SetClientModules);
@@ -58,6 +59,20 @@ public static class AdminEndpoints
             $"/admin/clients/{id}",
             new ClientRegistrationResponse(id, registration.Name, registration.DatabaseName,
                 ApprovalPolicy.ModeOf(registration), FiscalYear.MonthOf(registration)));
+    }
+
+    private static async Task<IResult> GetFiscalYearEnd(
+        Guid clientId, ClaimsPrincipal user,
+        IActorFactory actorFactory, ControlStore control, CancellationToken cancellationToken)
+    {
+        if (!await AdminAuthorization.MayAsync(user, clientId, Capabilities.AdminFiscal, actorFactory, control, cancellationToken))
+            return Results.Forbid();
+
+        ClientRegistration? registration = await control.GetClientAsync(clientId, cancellationToken);
+        if (registration is null)
+            return Results.NotFound();
+
+        return Results.Ok(new FiscalYearEndResponse(FiscalYear.MonthOf(registration)));
     }
 
     private static async Task<IResult> SetFiscalYearEnd(
