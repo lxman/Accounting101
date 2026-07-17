@@ -58,4 +58,31 @@ public sealed class PostingAccountStoreTests(ApiFixture fixture) : IClassFixture
         Assert.Equal("Asset", slot.ExpectedType);
         Assert.Contains("cash", PostingAccountSlots.ModuleKeys);
     }
+
+    [Fact]
+    public async Task Set_upserts_a_fresh_client()
+    {
+        PostingAccountStore store = fixture.PostingAccounts();
+        Guid clientId = Guid.NewGuid();
+        Guid cash = Guid.NewGuid();
+        await store.SetModuleAsync(clientId, "payroll", new Dictionary<string, Guid> { ["Cash"] = cash });
+        PostingAccountsDoc doc = (await store.GetAsync(clientId))!;
+        Assert.Equal(cash, doc.Accounts["payroll"]["Cash"]);
+    }
+
+    [Fact]
+    public async Task Overwriting_a_module_replaces_only_its_map_and_keeps_others()
+    {
+        PostingAccountStore store = fixture.PostingAccounts();
+        Guid clientId = Guid.NewGuid();
+        Guid cash = Guid.NewGuid();
+        await store.SetModuleAsync(clientId, "cash", new Dictionary<string, Guid> { ["Cash"] = cash });
+        await store.SetModuleAsync(clientId, "payroll", new Dictionary<string, Guid> { ["Cash"] = Guid.NewGuid() });
+        Guid newPay = Guid.NewGuid();
+        await store.SetModuleAsync(clientId, "payroll", new Dictionary<string, Guid> { ["Cash"] = newPay });
+
+        PostingAccountsDoc doc = (await store.GetAsync(clientId))!;
+        Assert.Equal(newPay, doc.Accounts["payroll"]["Cash"]);   // payroll replaced
+        Assert.Equal(cash, doc.Accounts["cash"]["Cash"]);        // cash value preserved by the targeted update
+    }
 }

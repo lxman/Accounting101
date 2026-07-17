@@ -6,8 +6,9 @@ using Accounting101.ModuleKit.Api;
 namespace Accounting101.Payroll.Api;
 
 /// <summary>Installs the payroll module into the host: module identity + collection manifest, the
-/// document-store-backed stores and service, the config-backed accounts provider, and the loopback
-/// ledger HttpClient. Payroll is the third installed module — the live test of N-module host
+/// document-store-backed stores and service, the store-backed accounts provider (per-client posting
+/// accounts, with config fallback), and the loopback ledger HttpClient. Payroll is the third installed
+/// module — the live test of N-module host
 /// composition (each module's document store is keyed by its own module key, so their manifests do
 /// not clobber one another).</summary>
 public static class PayrollServiceExtensions
@@ -23,7 +24,7 @@ public static class PayrollServiceExtensions
         services.AddScoped<IPayrollRunStore>(sp => new DocumentPayrollRunStore(sp.GetRequiredKeyedService<IDocumentStore>("payroll")));
         services.AddScoped<ITaxRemittanceStore>(sp => new DocumentTaxRemittanceStore(sp.GetRequiredKeyedService<IDocumentStore>("payroll")));
         services.AddScoped<PayrollService>();
-        services.AddSingleton<IPayrollAccountsProvider, ConfiguredPayrollAccountsProvider>();
+        services.AddScoped<IPayrollAccountsProvider, StoreBackedPayrollAccountsProvider>();
         services.AddScoped<PayrollChartRequirements>();
 
         // Use an explicit name to avoid a short-name collision with the other modules' ILedgerClient

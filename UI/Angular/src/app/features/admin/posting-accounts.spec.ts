@@ -78,6 +78,27 @@ describe('PostingAccountsScreen', () => {
     expect(selectedText).toContain('Business Checking');
   });
 
+  it('omits an unset slot from the PUT for a multi-slot module', () => {
+    seed('admin.postingAccounts'); http = TestBed.inject(HttpTestingController);
+    const f = TestBed.createComponent(PostingAccountsScreen);
+    f.detectChanges();
+    const twoSlots = [
+      { moduleKey: 'payroll', slotKey: 'Cash', label: 'Cash', expectedType: 'Asset', requiredDimensions: [], currentAccountId: null },
+      { moduleKey: 'payroll', slotKey: 'SalariesExpense', label: 'Salaries Expense', expectedType: 'Expense', requiredDimensions: [], currentAccountId: null },
+    ];
+    http.expectOne(`${base}/posting-accounts`).flush({ slots: twoSlots });
+    http.expectOne(`${base}/accounts`).flush(accounts);
+    f.detectChanges();
+
+    const c = f.componentInstance as PostingAccountsScreen;
+    c.selectAccount('payroll', 'Cash', 'a1');   // set Cash; leave SalariesExpense at default
+    c.save('payroll');
+    const req = http.expectOne(`${base}/posting-accounts/payroll`);
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ slots: { Cash: 'a1' } });   // SalariesExpense omitted
+    req.flush({ moduleKey: 'payroll', slots: { Cash: 'a1' } });
+  });
+
   it('shows only the error when the slots GET fails, hiding the loading indicator', () => {
     seed('admin.postingAccounts'); http = TestBed.inject(HttpTestingController);
     const f = TestBed.createComponent(PostingAccountsScreen);
