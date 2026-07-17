@@ -87,6 +87,31 @@ public sealed class CapabilitiesTests(ApiFixture fixture) : IClassFixture<ApiFix
     }
 
     [Fact]
+    public async Task Capabilities_reports_the_clients_approval_mode_default_two_person()
+    {
+        // SeedClientAsync bypasses the /admin/clients Unspecified->TwoPerson normalization and stores
+        // ApprovalMode as-is; requireSod:true drives the same legacy-fallback path ApprovalPolicy.ModeOf
+        // resolves to TwoPerson (see ApprovalPolicyEndpointTests.Get_resolves_legacy_client_to_two_person).
+        SeededClient c = await fixture.SeedClientAsync(role: LedgerRole.Controller, requireSod: true);
+        CapabilitiesResponse body = (await c.Http.GetFromJsonAsync<CapabilitiesResponse>(
+            $"/clients/{c.ClientId}/me/capabilities"))!;
+        Assert.Equal(ApprovalMode.TwoPerson, body.ApprovalMode);
+    }
+
+    [Fact]
+    public async Task Capabilities_reflects_auto_approve_when_the_client_is_set_to_it()
+    {
+        SeededClient c = await fixture.SeedClientAsync(role: LedgerRole.Controller);
+        ClientRegistration reg = (await fixture.Control().GetClientAsync(c.ClientId, default))!;
+        reg.ApprovalMode = ApprovalMode.AutoApprove;
+        await fixture.Control().RegisterClientAsync(reg, default);
+
+        CapabilitiesResponse body = (await c.Http.GetFromJsonAsync<CapabilitiesResponse>(
+            $"/clients/{c.ClientId}/me/capabilities"))!;
+        Assert.Equal(ApprovalMode.AutoApprove, body.ApprovalMode);
+    }
+
+    [Fact]
     public async Task A_non_member_is_forbidden()
     {
         SeededClient c = await fixture.SeedClientAsync();

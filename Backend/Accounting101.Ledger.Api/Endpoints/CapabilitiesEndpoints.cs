@@ -34,6 +34,7 @@ public static class CapabilitiesEndpoints
             membership.Capabilities,
             membership.GrantedRoles.Select(r => r.ToString()).ToList(),
             deploymentAdmin,
-            client?.EnabledModules ?? []));
+            client?.EnabledModules ?? [],
+            client is null ? ApprovalMode.TwoPerson : ApprovalPolicy.ModeOf(client)));
     }
 }
