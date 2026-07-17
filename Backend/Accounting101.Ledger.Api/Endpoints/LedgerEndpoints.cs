@@ -36,6 +36,7 @@ public static class LedgerEndpoints
         clients.MapPost("/entries/{originalId:guid}/revise", ReviseEntry);
         clients.MapPost("/entries/{originalId:guid}/reverse", ReverseEntry);
         clients.MapPost("/periods/close", ClosePeriod);
+        clients.MapGet("/periods/status", GetPeriodStatus);
         clients.MapPost("/periods/close-year", CloseYear);
         clients.MapPost("/periods/reopen", Reopen).RequireAuthorization(StepUpAuthorizationHandler.Policy);
         clients.MapPut("/accounts/{accountId:guid}", UpsertAccount);
@@ -479,6 +480,18 @@ public static class LedgerEndpoints
         {
             return Conflict(ex.Message);
         }
+    }
+
+    private static async Task<IResult> GetPeriodStatus(
+        Guid clientId, LedgerGateway gateway, ControlStore control, ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        LedgerContext ctx = await gateway.ResolveAsync(user, clientId, Permission.Read, cancellationToken);
+        if (ctx.Failed) return ctx.Error;
+
+        DateOnly? closedThrough = await ctx.Ledger.Service.GetClosedThroughAsync(clientId, cancellationToken);
+        ClientRegistration? client = await control.GetClientAsync(clientId, cancellationToken);
+        int fiscalMonth = client is null ? 12 : FiscalYear.MonthOf(client);
+        return Results.Ok(new PeriodStatusResponse(closedThrough, fiscalMonth));
     }
 
     private static async Task<IResult> Reopen(

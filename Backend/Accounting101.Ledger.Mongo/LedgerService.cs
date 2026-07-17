@@ -484,6 +484,10 @@ public sealed class LedgerService
                 $"Period is closed through {through:yyyy-MM-dd}; entry dated {effectiveDate:yyyy-MM-dd} is in a closed period.");
     }
 
+    /// <summary>The date the client's ledger is frozen through, or null if no period has been closed.</summary>
+    public Task<DateOnly?> GetClosedThroughAsync(Guid clientId, CancellationToken cancellationToken = default)
+        => _checkpoints.GetClosedThroughAsync(clientId, cancellationToken);
+
     /// <summary>
     /// Freeze guard read through <paramref name="session"/> — the authoritative in-transaction check. After a
     /// write-conflict retry (against a concurrent close), this re-reads the now-current freeze on a fresh
