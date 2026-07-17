@@ -5,8 +5,8 @@ namespace Accounting101.Ledger.Api.Control;
 public sealed record PostingAccountSlot(
     string ModuleKey, string SlotKey, string Label, string ExpectedType, IReadOnlyList<string> RequiredDimensions);
 
-/// <summary>The declared posting-account slots, per module (cash, payroll, payables, fixedassets wired).
-/// Remaining modules fan out here (sourced from each module's *ChartRequirements).</summary>
+/// <summary>The declared posting-account slots, per module (cash, payroll, payables, fixedassets, inventory
+/// wired). Remaining modules fan out here (sourced from each module's *ChartRequirements).</summary>
 public static class PostingAccountSlots
 {
     public static readonly IReadOnlyList<PostingAccountSlot> All =
@@ -26,6 +26,10 @@ public static class PostingAccountSlots
         new("fixedassets", "DisposalProceeds",        "Disposal Proceeds",         "Asset",   []),
         new("fixedassets", "GainOnDisposal",          "Gain on Disposal",          "Revenue", []),
         new("fixedassets", "LossOnDisposal",          "Loss on Disposal",          "Expense", []),
+        new("inventory", "InventoryAsset",      "Inventory Asset",      "Asset",     ["Item"]),
+        new("inventory", "Cogs",                "Cost of Goods Sold",   "Expense",   []),
+        new("inventory", "GrniClearing",        "GRNI Clearing",        "Liability", []),
+        new("inventory", "InventoryAdjustment", "Inventory Adjustment", "Expense",   []),
     ];
 
     public static IReadOnlyList<PostingAccountSlot> ForModule(string moduleKey) =>

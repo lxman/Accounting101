@@ -153,4 +153,28 @@ public sealed class PostingAccountEndpointTests(ApiFixture fixture) : IClassFixt
             new SetPostingAccountsRequest(new Dictionary<string, Guid> { ["Nope"] = Guid.NewGuid() }));
         Assert.Equal(HttpStatusCode.UnprocessableEntity, bad.StatusCode);
     }
+
+    [Fact]
+    public async Task Get_lists_the_four_inventory_slots_and_PUT_validates_them()
+    {
+        SeededClient c = await fixture.SeedClientAsync("PostAcctInventory");
+        await fixture.Control().SetClientModulesAsync(c.ClientId, new[] { "inventory" });
+        Guid userId = Guid.NewGuid();
+        await fixture.Control().SetMembershipAsync(userId, c.ClientId, [], new[] { Capabilities.AdminPostingAccounts, Capabilities.GlRead });
+        HttpClient http = fixture.ClientFor(userId, "Member");
+
+        PostingAccountsResponse got = (await http.GetFromJsonAsync<PostingAccountsResponse>(
+            $"/clients/{c.ClientId}/posting-accounts"))!;
+        Assert.Equal(4, got.Slots.Count(s => s.ModuleKey == "inventory"));
+
+        HttpResponseMessage ok = await http.PutAsJsonAsync(
+            $"/clients/{c.ClientId}/posting-accounts/inventory",
+            new SetPostingAccountsRequest(new Dictionary<string, Guid> { ["InventoryAsset"] = Guid.NewGuid() }));
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+
+        HttpResponseMessage bad = await http.PutAsJsonAsync(
+            $"/clients/{c.ClientId}/posting-accounts/inventory",
+            new SetPostingAccountsRequest(new Dictionary<string, Guid> { ["Nope"] = Guid.NewGuid() }));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, bad.StatusCode);
+    }
 }
