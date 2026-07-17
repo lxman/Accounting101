@@ -8,8 +8,8 @@ namespace Accounting101.FixedAssets.Api;
 
 /// <summary>Installs the fixed-assets module: identity + manifest (reference "assets" + evidentiary
 /// "depreciation-runs"), the document-store-backed stores, the depreciation strategies + selector, the
-/// config-backed posting-accounts provider, the run service, and the loopback ledger HttpClient (FA-2 is
-/// the first slice that posts).</summary>
+/// store-backed posting-accounts provider (per-client, config fallback), the run service, and the loopback
+/// ledger HttpClient (FA-2 is the first slice that posts).</summary>
 public static class FixedAssetsServiceExtensions
 {
     public static IServiceCollection AddFixedAssets(this IServiceCollection services, IConfiguration configuration)
@@ -35,7 +35,7 @@ public static class FixedAssetsServiceExtensions
         services.AddSingleton<IDepreciationMethod, StraightLineDepreciation>();
         services.AddSingleton<IDepreciationMethod, DecliningBalanceDepreciation>();
         services.AddSingleton(sp => new DepreciationMethodSelector(sp.GetServices<IDepreciationMethod>()));
-        services.AddSingleton<IFixedAssetsAccountsProvider, ConfiguredFixedAssetsAccountsProvider>();
+        services.AddScoped<IFixedAssetsAccountsProvider, StoreBackedFixedAssetsAccountsProvider>();
         services.AddScoped<FixedAssetsChartRequirements>();
 
         // Explicit client name to avoid the ILedgerClient short-name collision across modules.

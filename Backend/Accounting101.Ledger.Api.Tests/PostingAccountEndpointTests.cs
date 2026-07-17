@@ -129,4 +129,28 @@ public sealed class PostingAccountEndpointTests(ApiFixture fixture) : IClassFixt
             new SetPostingAccountsRequest(new Dictionary<string, Guid> { ["Nope"] = Guid.NewGuid() }));
         Assert.Equal(HttpStatusCode.UnprocessableEntity, bad.StatusCode);
     }
+
+    [Fact]
+    public async Task Get_lists_the_six_fixed_assets_slots_and_PUT_validates_them()
+    {
+        SeededClient c = await fixture.SeedClientAsync("PostAcctFixedAssets");
+        await fixture.Control().SetClientModulesAsync(c.ClientId, new[] { "fixedassets" });
+        Guid userId = Guid.NewGuid();
+        await fixture.Control().SetMembershipAsync(userId, c.ClientId, [], new[] { Capabilities.AdminPostingAccounts, Capabilities.GlRead });
+        HttpClient http = fixture.ClientFor(userId, "Member");
+
+        PostingAccountsResponse got = (await http.GetFromJsonAsync<PostingAccountsResponse>(
+            $"/clients/{c.ClientId}/posting-accounts"))!;
+        Assert.Equal(6, got.Slots.Count(s => s.ModuleKey == "fixedassets"));
+
+        HttpResponseMessage ok = await http.PutAsJsonAsync(
+            $"/clients/{c.ClientId}/posting-accounts/fixedassets",
+            new SetPostingAccountsRequest(new Dictionary<string, Guid> { ["AccumulatedDepreciation"] = Guid.NewGuid() }));
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+
+        HttpResponseMessage bad = await http.PutAsJsonAsync(
+            $"/clients/{c.ClientId}/posting-accounts/fixedassets",
+            new SetPostingAccountsRequest(new Dictionary<string, Guid> { ["Nope"] = Guid.NewGuid() }));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, bad.StatusCode);
+    }
 }
