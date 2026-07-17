@@ -20,7 +20,7 @@ import { HlmPaginationImports } from '@spartan-ng/helm/pagination';
   // padding so scrolled rows don't peek beneath the pinned footer.
   styles: `.paginator-bar { box-shadow: 0 2rem 0 0 var(--background); }`,
   template: `
-    <div class="paginator-bar sticky bottom-0 z-10 flex items-center justify-between gap-4 border-t border-border bg-background py-2 text-sm text-muted-foreground">
+    <div class="paginator-bar sticky bottom-0 z-10 flex h-14 shrink-0 items-center justify-between gap-4 border-t border-border bg-background text-sm text-muted-foreground">
       <span class="whitespace-nowrap">Page {{ currentPage() }} of {{ pageCount() }}</span>
       <div class="flex items-center gap-4">
         <label class="flex items-center gap-2 whitespace-nowrap">
