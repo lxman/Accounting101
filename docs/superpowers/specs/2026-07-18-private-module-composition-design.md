@@ -91,6 +91,13 @@ public static class ModuleCompositionDiscovery
 implementor, and a load failure on a project library that has no loadable assembly is skipped,
 not fatal.)
 
+**Accepted fail-loud behavior:** a composition class without a public parameterless constructor
+(`MissingMethodException`) or a loaded module assembly with a missing transitive dependency
+(`ReflectionTypeLoadException` from `GetExportedTypes`) takes the whole host down at startup.
+Deliberate: a half-loadable module is a deployment fault to surface, not an endpoint to silently
+drop. Also noted: discovery requires a deps.json — single-file/trimmed publish would silently
+break it; the deployment model is standard framework-dependent `dotnet publish`.
+
 Host convenience extensions (also ModuleKit.Api), discovered list computed ONCE and shared by
 both phases:
 
