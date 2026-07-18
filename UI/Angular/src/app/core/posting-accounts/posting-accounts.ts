@@ -16,3 +16,9 @@ export interface PostingAccounts {
 // Reuse the real chart-of-accounts wire shape (core/accounts/account.ts) rather than
 // redefining a parallel DTO — GET /clients/{id}/accounts returns AccountResponse[].
 export type ChartAccount = AccountResponse;
+
+export interface RevenueCategories {
+  moduleKey: string;
+  categories: Record<string, string>;
+  source: 'stored' | 'config';
+}

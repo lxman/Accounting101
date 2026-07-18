@@ -201,4 +201,83 @@ public sealed class PostingAccountEndpointTests(ApiFixture fixture) : IClassFixt
             new SetPostingAccountsRequest(new Dictionary<string, Guid> { ["Nope"] = Guid.NewGuid() }));
         Assert.Equal(HttpStatusCode.UnprocessableEntity, bad.StatusCode);
     }
+
+    [Fact]
+    public async Task Revenue_categories_get_falls_back_to_config_until_a_map_is_stored()
+    {
+        (Guid clientId, HttpClient http) = await MemberWithCashEnabledAsync(Capabilities.AdminPostingAccounts, Capabilities.GlRead);
+
+        RevenueCategoriesResponse before = (await http.GetFromJsonAsync<RevenueCategoriesResponse>(
+            $"/clients/{clientId}/posting-accounts/receivables/revenue-categories"))!;
+        Assert.Equal("config", before.Source);
+        Assert.Equal(ApiFixture.ConfigRevenueCategoryAccount, Assert.Single(before.Categories).Value);
+        Assert.Equal("FixtureCategory", Assert.Single(before.Categories).Key);
+
+        Guid consulting = Guid.NewGuid();
+        HttpResponseMessage put = await http.PutAsJsonAsync(
+            $"/clients/{clientId}/posting-accounts/receivables/revenue-categories",
+            new SetRevenueCategoriesRequest(new Dictionary<string, Guid> { ["Consulting"] = consulting }));
+        Assert.Equal(HttpStatusCode.OK, put.StatusCode);
+        RevenueCategoriesResponse echoed = (await put.Content.ReadFromJsonAsync<RevenueCategoriesResponse>())!;
+        Assert.Equal("stored", echoed.Source);
+
+        RevenueCategoriesResponse after = (await http.GetFromJsonAsync<RevenueCategoriesResponse>(
+            $"/clients/{clientId}/posting-accounts/receivables/revenue-categories"))!;
+        Assert.Equal("stored", after.Source);
+        Assert.Equal(consulting, after.Categories["Consulting"]);
+        Assert.DoesNotContain("FixtureCategory", after.Categories.Keys);   // wholesale, not merged
+    }
+
+    [Fact]
+    public async Task Revenue_categories_stored_empty_map_wins_over_config()
+    {
+        (Guid clientId, HttpClient http) = await MemberWithCashEnabledAsync(Capabilities.AdminPostingAccounts, Capabilities.GlRead);
+
+        HttpResponseMessage put = await http.PutAsJsonAsync(
+            $"/clients/{clientId}/posting-accounts/receivables/revenue-categories",
+            new SetRevenueCategoriesRequest(new Dictionary<string, Guid>()));
+        Assert.Equal(HttpStatusCode.OK, put.StatusCode);
+
+        RevenueCategoriesResponse got = (await http.GetFromJsonAsync<RevenueCategoriesResponse>(
+            $"/clients/{clientId}/posting-accounts/receivables/revenue-categories"))!;
+        Assert.Equal("stored", got.Source);
+        Assert.Empty(got.Categories);   // the fixture config category is suppressed
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("Prof.Services")]
+    [InlineData("$bad")]
+    [InlineData("nul\0char")]
+    public async Task Revenue_categories_put_rejects_invalid_category_names(string badName)
+    {
+        (Guid clientId, HttpClient http) = await MemberWithCashEnabledAsync(Capabilities.AdminPostingAccounts, Capabilities.GlRead);
+        HttpResponseMessage put = await http.PutAsJsonAsync(
+            $"/clients/{clientId}/posting-accounts/receivables/revenue-categories",
+            new SetRevenueCategoriesRequest(new Dictionary<string, Guid> { [badName] = Guid.NewGuid() }));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, put.StatusCode);
+    }
+
+    [Fact]
+    public async Task Revenue_categories_reject_modules_without_category_map_support()
+    {
+        (Guid clientId, HttpClient http) = await MemberWithCashEnabledAsync(Capabilities.AdminPostingAccounts, Capabilities.GlRead);
+
+        HttpResponseMessage get = await http.GetAsync($"/clients/{clientId}/posting-accounts/cash/revenue-categories");
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, get.StatusCode);
+
+        HttpResponseMessage put = await http.PutAsJsonAsync(
+            $"/clients/{clientId}/posting-accounts/cash/revenue-categories",
+            new SetRevenueCategoriesRequest(new Dictionary<string, Guid> { ["Consulting"] = Guid.NewGuid() }));
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, put.StatusCode);
+    }
+
+    [Fact]
+    public async Task Member_without_cap_is_forbidden_for_revenue_categories()
+    {
+        (Guid clientId, HttpClient http) = await MemberWithCashEnabledAsync(Capabilities.GlRead);
+        HttpResponseMessage resp = await http.GetAsync($"/clients/{clientId}/posting-accounts/receivables/revenue-categories");
+        Assert.Equal(HttpStatusCode.Forbidden, resp.StatusCode);
+    }
 }

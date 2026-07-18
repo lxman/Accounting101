@@ -10,6 +10,7 @@ const MODULE_LABELS: Record<string, string> = {
 };
 
 interface ModuleGroup { moduleKey: string; label: string; slots: PostingAccountSlot[]; }
+interface CategoryRow { name: string; accountId: string; }
 
 @Component({
   selector: 'app-posting-accounts',
@@ -51,6 +52,47 @@ interface ModuleGroup { moduleKey: string; label: string; slots: PostingAccountS
                   </select>
                 </label>
               }
+              @if (g.moduleKey === 'receivables') {
+                <div class="mt-4 border-t border-border pt-3" data-testid="revenue-categories">
+                  <h3 class="text-sm font-medium">Revenue by category</h3>
+                  <p class="text-xs text-muted-foreground mb-2">Invoice lines whose revenue category matches a row credit that account;
+                     unmatched lines credit the Revenue account above.</p>
+                  @if (categoryError()) { <p class="text-red-600 text-sm mb-2">{{ categoryError() }}</p> }
+                  @if (categoriesLoaded()) {
+                    @if (categorySource() === 'config') {
+                      <p class="text-xs text-muted-foreground mb-2">Showing deployment defaults — saving stores a map for this client.</p>
+                    }
+                    @for (row of categoryRows(); track $index) {
+                      <div class="flex items-center gap-2 mb-2">
+                        <input type="text" placeholder="Category" aria-label="Category name"
+                               class="w-48 rounded border border-border bg-background px-3 py-2 text-sm"
+                               [value]="row.name" (input)="onCategoryName($index, $event)"
+                               [attr.data-testid]="'category-name-' + $index" />
+                        <select class="w-96 rounded border border-border bg-background px-3 py-2 text-sm" aria-label="Revenue account"
+                                (change)="onCategoryAccount($index, $event)"
+                                [attr.data-testid]="'category-account-' + $index">
+                          <option value="" [selected]="row.accountId === ''">— choose account —</option>
+                          @for (a of postableAccounts(); track a.id) {
+                            <option [value]="a.id" [selected]="a.id === row.accountId">{{ a.number }} · {{ a.name }} ({{ a.type }})</option>
+                          }
+                        </select>
+                        <button type="button" class="text-sm text-muted-foreground hover:text-red-600"
+                                (click)="removeCategory($index)" [attr.data-testid]="'category-delete-' + $index"
+                                aria-label="Remove category">✕</button>
+                      </div>
+                    }
+                    <button type="button" hlmBtn variant="outline" (click)="addCategory()" data-testid="category-add">Add category</button>
+                    @if (categoryValidation(); as msg) { <p class="text-red-600 text-sm mt-1">{{ msg }}</p> }
+                    @if (categoriesSaved()) { <p class="text-green-600 text-sm mt-1">Categories saved.</p> }
+                    <div class="mt-2">
+                      <button *appCan="'admin.postingAccounts'" hlmBtn [disabled]="categoryValidation() !== null"
+                              (click)="saveCategories()" data-testid="category-save">Save revenue categories</button>
+                    </div>
+                  } @else if (!categoryError()) {
+                    <p class="text-sm text-muted-foreground">Loading…</p>
+                  }
+                </div>
+              }
               @if (savedModule() === g.moduleKey) { <p class="text-green-600 text-sm">Saved.</p> }
               <button *appCan="'admin.postingAccounts'" hlmBtn (click)="save(g.moduleKey)">Save {{ g.label }}</button>
             </div>
@@ -76,6 +118,22 @@ export class PostingAccountsScreen {
   private readonly chosenMap = signal<Record<string, string>>({});
   readonly chosen = this.chosenMap.asReadonly();
 
+  // "Revenue by category" (receivables only) — the one intentionally non-slot-driven part of the screen.
+  readonly categoryRows = signal<CategoryRow[]>([]);
+  readonly categorySource = signal<'stored' | 'config' | null>(null);
+  readonly categoriesLoaded = signal(false);
+  readonly categoriesSaved = signal(false);
+  readonly categoryError = signal<string | null>(null);
+  readonly categoryValidation = computed<string | null>(() => {
+    const rows = this.categoryRows();
+    const names = rows.map((r) => r.name);
+    if (names.some((n) => n.trim() === '')) return 'Category names cannot be blank.';
+    if (names.some((n) => n.includes('.') || n.startsWith('$'))) return 'Category names cannot contain "." or start with "$".';
+    if (new Set(names).size !== names.length) return 'Category names must be unique.';
+    if (rows.some((r) => !r.accountId)) return 'Choose an account for every category.';
+    return null;
+  });
+
   readonly groups = computed<ModuleGroup[]>(() => {
     const byModule = new Map<string, PostingAccountSlot[]>();
     for (const s of this.slots()) {
@@ -95,6 +153,16 @@ export class PostingAccountsScreen {
         this.chosenMap.set(Object.fromEntries(
           p.slots.map((s) => [this.key(s.moduleKey, s.slotKey), s.currentAccountId ?? ''])));
         this.slotsLoaded.set(true);
+        if (p.slots.some((s) => s.moduleKey === 'receivables')) {
+          this.service.revenueCategories().subscribe({
+            next: (rc) => {
+              this.categoryRows.set(Object.entries(rc.categories).map(([name, accountId]) => ({ name, accountId })));
+              this.categorySource.set(rc.source);
+              this.categoriesLoaded.set(true);
+            },
+            error: () => this.categoryError.set('Could not load revenue categories.'),
+          });
+        }
       },
       error: () => this.error.set('Could not load posting accounts.'),
     });
@@ -125,6 +193,45 @@ export class PostingAccountsScreen {
     this.service.setModule(moduleKey, slots).subscribe({
       next: () => this.savedModule.set(moduleKey),
       error: (e) => this.error.set(e?.error?.detail ?? 'Save failed.'),
+    });
+  }
+
+  addCategory(): void {
+    this.categoryRows.update((rows) => [...rows, { name: '', accountId: '' }]);
+    this.categoriesSaved.set(false);
+  }
+
+  removeCategory(index: number): void {
+    this.categoryRows.update((rows) => rows.filter((_, i) => i !== index));
+    this.categoriesSaved.set(false);
+  }
+
+  setCategoryName(index: number, name: string): void {
+    this.categoryRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, name } : r)));
+    this.categoriesSaved.set(false);
+  }
+
+  setCategoryAccount(index: number, accountId: string): void {
+    this.categoryRows.update((rows) => rows.map((r, i) => (i === index ? { ...r, accountId } : r)));
+    this.categoriesSaved.set(false);
+  }
+
+  onCategoryName(index: number, event: Event): void {
+    this.setCategoryName(index, (event.target as HTMLInputElement).value);
+  }
+
+  onCategoryAccount(index: number, event: Event): void {
+    this.setCategoryAccount(index, (event.target as HTMLSelectElement).value);
+  }
+
+  saveCategories(): void {
+    if (this.categoryValidation() !== null) return;
+    this.categoryError.set(null);
+    const categories: Record<string, string> = {};
+    for (const r of this.categoryRows()) categories[r.name] = r.accountId;
+    this.service.setRevenueCategories(categories).subscribe({
+      next: () => { this.categoriesSaved.set(true); this.categorySource.set('stored'); },
+      error: (e) => this.categoryError.set(e?.error?.detail ?? 'Save failed.'),
     });
   }
 }
