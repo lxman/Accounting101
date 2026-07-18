@@ -24,6 +24,10 @@ public sealed class ApiFixture : IAsyncLifetime
     public string ControlDatabase { get; } = "control_" + Guid.NewGuid().ToString("N");
     public string PlatformDatabase { get; } = "platform_" + Guid.NewGuid().ToString("N");
 
+    /// <summary>Seeded into the host config as Receivables:Accounts:RevenueByCategory:FixtureCategory —
+    /// lets endpoint tests observe the config-fallback path of the revenue-categories GET.</summary>
+    public static readonly Guid ConfigRevenueCategoryAccount = Guid.Parse("0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0");
+
     public async Task InitializeAsync()
     {
         IMongoRunner runner = await SharedMongo.InstanceAsync();
@@ -34,7 +38,8 @@ public sealed class ApiFixture : IAsyncLifetime
             b.UseSetting("Mongo:ConnectionString", connectionString)
              .UseSetting("Mongo:ControlDatabase", ControlDatabase)
              .UseSetting("Mongo:PlatformDatabase", PlatformDatabase)
-             .UseSetting("Tenancy:Platform:Enabled", "true"));
+             .UseSetting("Tenancy:Platform:Enabled", "true")
+             .UseSetting("Receivables:Accounts:RevenueByCategory:FixtureCategory", ConfigRevenueCategoryAccount.ToString()));
     }
 
     public Task DisposeAsync()
