@@ -10,6 +10,11 @@ public sealed class PostingAccountsDoc
 {
     public Guid ClientId { get; set; }
     public Dictionary<string, Dictionary<string, Guid>> Accounts { get; set; } = new();
+
+    /// <summary>Per-module dynamic category maps ({moduleKey → {category → account id}}). Parallel to
+    /// <see cref="Accounts"/>; only receivables uses it today (invoice revenue-by-category). A stored
+    /// entry — even an empty one — is the complete per-client truth and wins over process config.</summary>
+    public Dictionary<string, Dictionary<string, Guid>> CategoryMaps { get; set; } = new();
 }
 
 public sealed class PostingAccountStore
@@ -38,6 +43,21 @@ public sealed class PostingAccountStore
         await _accounts.UpdateOneAsync(
             d => d.ClientId == clientId,
             Builders<PostingAccountsDoc>.Update.Set($"Accounts.{moduleKey}", new Dictionary<string, Guid>(slots)),
+            new UpdateOptions { IsUpsert = true },
+            cancellationToken);
+    }
+
+    /// <summary>Upsert the client's category map for one module, replacing it wholesale (other modules
+    /// and the slot accounts untouched).</summary>
+    public async Task SetCategoryMapAsync(
+        Guid clientId, string moduleKey, IReadOnlyDictionary<string, Guid> map, CancellationToken cancellationToken = default)
+    {
+        // Same targeted-update shape as SetModuleAsync: writes only CategoryMaps.<moduleKey>, so
+        // concurrent writes to slots or other modules' maps cannot clobber it. Upsert seeds ClientId
+        // from the filter on insert.
+        await _accounts.UpdateOneAsync(
+            d => d.ClientId == clientId,
+            Builders<PostingAccountsDoc>.Update.Set($"CategoryMaps.{moduleKey}", new Dictionary<string, Guid>(map)),
             new UpdateOptions { IsUpsert = true },
             cancellationToken);
     }
