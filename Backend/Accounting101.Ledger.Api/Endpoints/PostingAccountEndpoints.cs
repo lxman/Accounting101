@@ -111,9 +111,9 @@ public static class PostingAccountEndpoints
                 statusCode: StatusCodes.Status422UnprocessableEntity);
 
         IReadOnlyDictionary<string, Guid> categories = request.Categories ?? new Dictionary<string, Guid>();
-        // Names become BSON element names under CategoryMaps.<moduleKey>; dot/dollar keys are unsafe there.
+        // Names become BSON element names under CategoryMaps.<moduleKey>; dot/dollar/NUL keys are unsafe there.
         if (categories.Keys.FirstOrDefault(k =>
-                string.IsNullOrWhiteSpace(k) || k.Contains('.') || k.StartsWith('$')) is { } bad)
+                string.IsNullOrWhiteSpace(k) || k.Contains('.') || k.StartsWith('$') || k.Contains('\0')) is { } bad)
             return Results.Problem(
                 $"Invalid revenue category name '{bad}': names must be non-blank and must not contain '.' or start with '$'.",
                 statusCode: StatusCodes.Status422UnprocessableEntity);

@@ -64,11 +64,11 @@ interface CategoryRow { name: string; accountId: string; }
                     }
                     @for (row of categoryRows(); track $index) {
                       <div class="flex items-center gap-2 mb-2">
-                        <input type="text" placeholder="Category"
+                        <input type="text" placeholder="Category" aria-label="Category name"
                                class="w-48 rounded border border-border bg-background px-3 py-2 text-sm"
                                [value]="row.name" (input)="onCategoryName($index, $event)"
                                [attr.data-testid]="'category-name-' + $index" />
-                        <select class="w-96 rounded border border-border bg-background px-3 py-2 text-sm"
+                        <select class="w-96 rounded border border-border bg-background px-3 py-2 text-sm" aria-label="Revenue account"
                                 (change)="onCategoryAccount($index, $event)"
                                 [attr.data-testid]="'category-account-' + $index">
                           <option value="" [selected]="row.accountId === ''">— choose account —</option>

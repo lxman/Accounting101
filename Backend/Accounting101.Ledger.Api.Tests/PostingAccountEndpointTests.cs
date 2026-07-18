@@ -249,6 +249,7 @@ public sealed class PostingAccountEndpointTests(ApiFixture fixture) : IClassFixt
     [InlineData("   ")]
     [InlineData("Prof.Services")]
     [InlineData("$bad")]
+    [InlineData("nul\0char")]
     public async Task Revenue_categories_put_rejects_invalid_category_names(string badName)
     {
         (Guid clientId, HttpClient http) = await MemberWithCashEnabledAsync(Capabilities.AdminPostingAccounts, Capabilities.GlRead);
