@@ -1,27 +1,15 @@
-using Accounting101.Receivables.Api;
 using Accounting101.Ledger.Api.Endpoints;
 using Accounting101.Ledger.Api.Hosting;
-using Accounting101.Payables.Api;
-using Accounting101.Payroll.Api;
-using Accounting101.Banking.Cash.Api;
-using Accounting101.Banking.Reconciliation.Api;
 using Accounting101.Ledger.Api.Platform;
-using Accounting101.FixedAssets.Api;
-using Accounting101.Inventory.Api;
 using Accounting101.ModuleKit.Api;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
-// The engine. Installed modules add themselves here too — e.g. builder.Services.AddReceivables() —
-// which is also where each module's identity gets stamped. "Installed" = its line is present.
+// The engine. Installed modules compose themselves via discovery: every project-referenced Api
+// assembly's IModuleComposition is found and added here. "Installed" = the module's Api project
+// is referenced by Host.csproj (the Modules/ list, or a Modules.Private/ overlay).
 builder.Services.AddLedgerEngine(builder.Configuration);
-builder.Services.AddReceivables(builder.Configuration);
-builder.Services.AddPayables(builder.Configuration);
-builder.Services.AddPayroll(builder.Configuration);
-builder.Services.AddCash(builder.Configuration);
-builder.Services.AddReconciliation(builder.Configuration);
-builder.Services.AddFixedAssets(builder.Configuration);
-builder.Services.AddInventory(builder.Configuration);
+builder.AddDiscoveredModules();
 
 // Dev-only: let the Angular dev server (localhost:4200) call the API cross-origin.
 // Not registered outside Development, so production is unaffected.
@@ -106,13 +94,7 @@ app.MapCapabilityCatalogEndpoints();
 app.MapCapabilitySetEndpoints();
 app.MapAdminAuditEndpoints();
 app.MapPlatformEndpoints();
-app.MapReceivablesEndpoints();
-app.MapPayablesEndpoints();
-app.MapPayrollEndpoints();
-app.MapCashEndpoints();
-app.MapReconciliationEndpoints();
-app.MapFixedAssetsEndpoints();
-app.MapInventoryEndpoints();
+app.MapDiscoveredModuleEndpoints();
 
 app.Run();
 
