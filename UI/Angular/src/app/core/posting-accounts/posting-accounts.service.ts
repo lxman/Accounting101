@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { EMPTY, Observable } from 'rxjs';
 import { environment } from '../api/environment';
 import { ClientContextService } from '../client/client-context.service';
-import { PostingAccounts, ChartAccount } from './posting-accounts';
+import { PostingAccounts, ChartAccount, RevenueCategories } from './posting-accounts';
 
 @Injectable({ providedIn: 'root' })
 export class PostingAccountsService {
@@ -27,5 +27,15 @@ export class PostingAccountsService {
   setModule(moduleKey: string, slots: Record<string, string>): Observable<unknown> {
     if (!this.client.clientId()) return EMPTY;
     return this.http.put(`${this.clientBase()}/posting-accounts/${moduleKey}`, { slots });
+  }
+
+  revenueCategories(): Observable<RevenueCategories> {
+    if (!this.client.clientId()) return EMPTY;
+    return this.http.get<RevenueCategories>(`${this.clientBase()}/posting-accounts/receivables/revenue-categories`);
+  }
+
+  setRevenueCategories(categories: Record<string, string>): Observable<unknown> {
+    if (!this.client.clientId()) return EMPTY;
+    return this.http.put(`${this.clientBase()}/posting-accounts/receivables/revenue-categories`, { categories });
   }
 }
