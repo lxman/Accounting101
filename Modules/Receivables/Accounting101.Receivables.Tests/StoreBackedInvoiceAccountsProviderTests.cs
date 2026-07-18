@@ -4,10 +4,13 @@ using Microsoft.Extensions.Configuration;
 
 namespace Accounting101.Receivables.Tests;
 
-file sealed class FakeSource(Dictionary<string, Guid> map) : IPostingAccountsSource
+file sealed class FakeSource(Dictionary<string, Guid> map, Dictionary<string, Guid>? categories = null) : IPostingAccountsSource
 {
     public Task<IReadOnlyDictionary<string, Guid>> GetAsync(Guid clientId, string moduleKey, CancellationToken ct = default) =>
         Task.FromResult<IReadOnlyDictionary<string, Guid>>(map);
+
+    public Task<IReadOnlyDictionary<string, Guid>?> GetCategoryMapAsync(Guid clientId, string moduleKey, CancellationToken ct = default) =>
+        Task.FromResult<IReadOnlyDictionary<string, Guid>?>(categories);
 }
 
 public sealed class StoreBackedInvoiceAccountsProviderTests
@@ -80,5 +83,43 @@ public sealed class StoreBackedInvoiceAccountsProviderTests
         InvoicePostingAccounts got = await provider.GetAsync(Guid.NewGuid());
         Assert.Equal(license, got.RevenueAccountsByCategory["License"]);
         Assert.Single(got.RevenueAccountsByCategory);
+    }
+
+    [Fact]
+    public async Task Stored_category_map_wins_wholesale_over_config()
+    {
+        Guid stored = Guid.NewGuid();
+        Dictionary<string, string?> cfg = Keys.ToDictionary(k => $"Receivables:Accounts:{k}", k => (string?)Guid.NewGuid().ToString());
+        cfg["Receivables:Accounts:RevenueByCategory:License"] = Guid.NewGuid().ToString();   // config has a DIFFERENT key
+        var provider = new StoreBackedInvoiceAccountsProvider(
+            new FakeSource(new(), new Dictionary<string, Guid> { ["Consulting"] = stored }), Config(cfg));
+
+        InvoicePostingAccounts got = await provider.GetAsync(Guid.NewGuid());
+        Assert.Equal(stored, got.RevenueAccountsByCategory["Consulting"]);
+        Assert.Single(got.RevenueAccountsByCategory);   // "License" from config is NOT merged in
+    }
+
+    [Fact]
+    public async Task Stored_empty_category_map_suppresses_config_categories()
+    {
+        Dictionary<string, string?> cfg = Keys.ToDictionary(k => $"Receivables:Accounts:{k}", k => (string?)Guid.NewGuid().ToString());
+        cfg["Receivables:Accounts:RevenueByCategory:License"] = Guid.NewGuid().ToString();
+        var provider = new StoreBackedInvoiceAccountsProvider(new FakeSource(new(), new Dictionary<string, Guid>()), Config(cfg));
+
+        InvoicePostingAccounts got = await provider.GetAsync(Guid.NewGuid());
+        Assert.Empty(got.RevenueAccountsByCategory);
+    }
+
+    [Fact]
+    public async Task Fixed_slot_resolution_is_unaffected_by_a_stored_category_map()
+    {
+        Guid revenue = Guid.NewGuid();
+        Dictionary<string, string?> cfg = Keys.ToDictionary(k => $"Receivables:Accounts:{k}", k => (string?)Guid.NewGuid().ToString());
+        cfg["Receivables:Accounts:Revenue"] = revenue.ToString();
+        var provider = new StoreBackedInvoiceAccountsProvider(
+            new FakeSource(new(), new Dictionary<string, Guid> { ["Consulting"] = Guid.NewGuid() }), Config(cfg));
+
+        InvoicePostingAccounts got = await provider.GetAsync(Guid.NewGuid());
+        Assert.Equal(revenue, got.DefaultRevenueAccountId);   // still resolved store→config, independent of the map
     }
 }

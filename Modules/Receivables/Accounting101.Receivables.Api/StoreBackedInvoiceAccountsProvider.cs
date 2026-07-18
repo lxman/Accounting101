@@ -5,20 +5,22 @@ namespace Accounting101.Receivables.Api;
 /// <summary>Resolves the invoice posting accounts per client: each fixed account is the one configured on
 /// the posting-accounts admin screen if set, else the process config value (<c>Receivables:Accounts:*</c>)
 /// — so behavior is unchanged until a per-client account is chosen. The dynamic
-/// <c>RevenueAccountsByCategory</c> map is NOT per-client-configurable; it is still read from config
-/// (<c>Receivables:Accounts:RevenueByCategory</c>) unchanged.</summary>
+/// <c>RevenueAccountsByCategory</c> map is the client's stored map when one exists (wholesale — a stored
+/// EMPTY map deliberately suppresses the config categories), else the config section
+/// (<c>Receivables:Accounts:RevenueByCategory</c>).</summary>
 public sealed class StoreBackedInvoiceAccountsProvider(IPostingAccountsSource source, IConfiguration configuration)
     : IInvoiceAccountsProvider
 {
     public async Task<InvoicePostingAccounts> GetAsync(Guid clientId, CancellationToken cancellationToken = default)
     {
         IReadOnlyDictionary<string, Guid> stored = await source.GetAsync(clientId, "receivables", cancellationToken);
+        IReadOnlyDictionary<string, Guid>? categoryMap = await source.GetCategoryMapAsync(clientId, "receivables", cancellationToken);
         return new InvoicePostingAccounts
         {
             ReceivableAccountId       = Resolve(stored, "Receivable"),
             DefaultRevenueAccountId   = Resolve(stored, "Revenue"),
             SalesTaxPayableAccountId  = Resolve(stored, "SalesTaxPayable"),
-            RevenueAccountsByCategory = ReadCategoryMap("Receivables:Accounts:RevenueByCategory"),
+            RevenueAccountsByCategory = categoryMap ?? ReadCategoryMap("Receivables:Accounts:RevenueByCategory"),
         };
     }
 
