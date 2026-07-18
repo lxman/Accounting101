@@ -486,3 +486,6 @@ $RECYCLE.BIN/
 
 # Local dev only — disposable replica-set Mongo data + scripts (never committed)
 .localdev/
+
+# Proprietary add-on module checkouts composed into the Host via the Modules.Private overlay glob.
+Modules.Private/
