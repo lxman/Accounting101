@@ -10,6 +10,12 @@ public sealed class Iso4217CurrenciesTests
     [InlineData("GBP")]
     [InlineData("JPY")]
     [InlineData("CAD")]
+    [InlineData("XAF")] // real circulating supranational currency (CFA Franc BEAC), not a non-currency X-code
+    [InlineData("XCD")] // real circulating supranational currency (East Caribbean Dollar)
+    [InlineData("XOF")] // real circulating supranational currency (CFA Franc BCEAO)
+    [InlineData("XPF")] // real circulating supranational currency (CFP Franc)
+    [InlineData("BTN")] // Bhutanese Ngultrum
+    [InlineData("SHP")] // Saint Helena Pound
     public void Known_real_currencies_are_recognized(string code) =>
         Assert.True(Iso4217Currencies.IsKnown(code));
 
