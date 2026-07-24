@@ -37,6 +37,12 @@ public sealed class ClientRegistration
     /// before this field existed deserialize to 0; readers normalize via <see cref="FiscalYear.MonthOf"/>.</summary>
     public int FiscalYearEndMonth { get; set; } = 12;
 
+    /// <summary>The ISO 4217 code of the single currency this client's books are kept in (e.g. "USD",
+    /// "EUR", "GBP"). Set once at provisioning and immutable thereafter — changing it would
+    /// re-denominate all history. Host policy stored in the control DB, like ApprovalMode; the engine
+    /// never sees it. A legacy document stored before this field existed deserializes to "USD".</summary>
+    public string BaseCurrency { get; set; } = "USD";
+
     /// <summary>Lifecycle state. Defaults to <see cref="ClientStatus.Active"/>; a missing field on a legacy
     /// document also deserializes to Active. Archiving stops the meter but keeps the ledger DB.</summary>
     [BsonRepresentation(BsonType.String)]
