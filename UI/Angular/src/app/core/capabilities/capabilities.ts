@@ -6,8 +6,10 @@ export interface CapabilitiesResponse {
   deploymentAdmin: boolean;
   enabledModules: string[];
   approvalMode: ApprovalMode;
+  baseCurrency: string;
 }
 
 export const EMPTY_CAPABILITIES: CapabilitiesResponse = {
   capabilities: [], roles: [], deploymentAdmin: false, enabledModules: [], approvalMode: 'TwoPerson',
+  baseCurrency: 'USD',
 };

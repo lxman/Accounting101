@@ -2,7 +2,11 @@ import { FormatProfile } from './format-profile';
 
 export interface MoneyFormatOptions { symbol?: boolean; }
 
-const SYMBOLS: Record<string, string> = { USD: '$' };
+const SYMBOLS: Record<string, string> = {
+  USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥', INR: '₹', KRW: '₩', RUB: '₽',
+  BRL: 'R$', ZAR: 'R', TRY: '₺', ILS: '₪', THB: '฿', PHP: '₱', VND: '₫', NGN: '₦',
+  UAH: '₴', PLN: 'zł', CZK: 'Kč', AUD: '$', CAD: '$', NZD: '$', HKD: '$', SGD: '$', MXN: '$',
+};
 
 export const isNegativeAmount = (amount: number): boolean => amount < 0;
 
