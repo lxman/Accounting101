@@ -36,6 +36,13 @@ public static class AdminEndpoints
         if (request.FiscalYearEndMonth is < 1 or > 12)
             return Results.Problem("FiscalYearEndMonth must be between 1 and 12.", statusCode: StatusCodes.Status400BadRequest);
 
+        string baseCurrency = string.IsNullOrWhiteSpace(request.BaseCurrency)
+            ? "USD"
+            : request.BaseCurrency.Trim().ToUpperInvariant();
+        if (!Iso4217Currencies.IsKnown(baseCurrency))
+            return Results.Problem($"Unknown or ineligible currency '{request.BaseCurrency}'.",
+                statusCode: StatusCodes.Status422UnprocessableEntity);
+
         Guid id = Guid.NewGuid();
         string database = string.IsNullOrWhiteSpace(request.DatabaseName)
             ? "client_" + id.ToString("N")
@@ -52,13 +59,14 @@ public static class AdminEndpoints
             DatabaseName = database,
             ApprovalMode = mode,
             FiscalYearEndMonth = request.FiscalYearEndMonth,
+            BaseCurrency = baseCurrency,
         };
         await control.RegisterClientAsync(registration, cancellationToken);
 
         return Results.Created(
             $"/admin/clients/{id}",
             new ClientRegistrationResponse(id, registration.Name, registration.DatabaseName,
-                ApprovalPolicy.ModeOf(registration), FiscalYear.MonthOf(registration)));
+                ApprovalPolicy.ModeOf(registration), FiscalYear.MonthOf(registration), registration.BaseCurrency));
     }
 
     private static async Task<IResult> GetFiscalYearEnd(
@@ -95,14 +103,15 @@ public static class AdminEndpoints
         await control.RegisterClientAsync(registration, cancellationToken);
 
         return Results.Ok(new ClientRegistrationResponse(registration.Id, registration.Name, registration.DatabaseName,
-            ApprovalPolicy.ModeOf(registration), FiscalYear.MonthOf(registration)));
+            ApprovalPolicy.ModeOf(registration), FiscalYear.MonthOf(registration), registration.BaseCurrency));
     }
 
     private static async Task<IResult> ListClients(ControlStore control, CancellationToken cancellationToken)
     {
         IReadOnlyList<ClientRegistration> clients = await control.ListClientsAsync(cancellationToken);
         return Results.Ok(clients
-            .Select(c => new ClientRegistrationResponse(c.Id, c.Name, c.DatabaseName, ApprovalPolicy.ModeOf(c), FiscalYear.MonthOf(c)))
+            .Select(c => new ClientRegistrationResponse(c.Id, c.Name, c.DatabaseName,
+                ApprovalPolicy.ModeOf(c), FiscalYear.MonthOf(c), c.BaseCurrency))
             .ToList());
     }
 
