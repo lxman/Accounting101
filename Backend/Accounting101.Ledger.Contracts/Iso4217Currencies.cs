@@ -6,12 +6,28 @@ public sealed record CurrencyInfo(string Code, string Symbol, string Name);
 
 /// <summary>The active ISO 4217 circulating currencies — real national currencies only; the X-codes
 /// (no-currency XXX, testing XTS, precious metals XAU/XAG/XPT/XPD, fund/bond codes) are deliberately
-/// excluded. Single source of truth for the base-currency allowlist and the display-symbol catalog.
+/// excluded. The intended single source of truth for the base-currency allowlist and the
+/// display-symbol catalog — the one committed exception is a temporary hand-maintained mirror of
+/// <see cref="Symbols"/> in the frontend's money-formatter.ts (see the note there), kept only until
+/// that UI slice seeds itself from GET /currencies/catalog instead.
 /// To add a currency, add a row to <see cref="All"/> (and a glyph to Symbols if it has a well-known
-/// one); tests assert behavior on a sample, not an exact count, so extension is safe.</summary>
+/// one); tests assert behavior on a sample, not an exact count, so extension is safe.
+///
+/// <para><b>Removal is a one-way door.</b> BaseCurrency is validated only at provisioning and is
+/// immutable thereafter, so removing a code from the active table makes it permanently unselectable
+/// for future provisioning with no operator override — the bar for removing a row is higher than for
+/// adding one. It cannot, however, break an already-provisioned client: nothing re-validates a
+/// stored BaseCurrency on read, and <see cref="Find"/> returning null degrades to code-as-symbol
+/// display.</para>
+/// </summary>
 public static class Iso4217Currencies
 {
     // Well-known single-glyph symbols. Currencies not listed here fall back to their code as the symbol.
+    //
+    // Temporary frontend mirror: UI/Angular/src/app/core/format/money-formatter.ts's SYMBOLS map
+    // duplicates this table by hand — the frontend has no wiring yet to consume GET /currencies/catalog
+    // at runtime (a deferred UI slice). Keep the two in sync until that slice lands and the mirror
+    // is retired.
     private static readonly IReadOnlyDictionary<string, string> Symbols = new Dictionary<string, string>
     {
         ["USD"] = "$", ["EUR"] = "€", ["GBP"] = "£", ["JPY"] = "¥", ["CNY"] = "¥",

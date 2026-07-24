@@ -45,7 +45,11 @@ public sealed class ControlStore
         return Resolve(m, catalog);
     }
 
-    /// <summary>Register (or update) a client and the database that holds its ledger.</summary>
+    /// <summary>Register (or update) a client and the database that holds its ledger. This is a
+    /// full-document replace (upsert on Id) — always pass a registration read back from
+    /// <see cref="GetClientAsync"/>, never a freshly constructed one, or every field you didn't
+    /// explicitly carry forward (BaseCurrency, ApprovalMode, EnabledModules, …) silently resets to
+    /// its default.</summary>
     public Task RegisterClientAsync(ClientRegistration registration, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(registration);
