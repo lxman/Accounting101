@@ -91,6 +91,7 @@ app.MapMemberEndpoints();
 app.MapApprovalPolicyEndpoints();
 app.MapPostingAccountEndpoints();
 app.MapCapabilityCatalogEndpoints();
+app.MapCurrencyCatalogEndpoints();
 app.MapCapabilitySetEndpoints();
 app.MapAdminAuditEndpoints();
 app.MapPlatformEndpoints();

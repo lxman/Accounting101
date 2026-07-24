@@ -58,6 +58,7 @@ export class CapabilityService {
   readonly deploymentAdmin: Signal<boolean> = computed(() => this.current().deploymentAdmin);
   readonly enabledModules: Signal<ReadonlySet<string>> = computed(() => new Set(this.current().enabledModules));
   readonly approvalMode: Signal<ApprovalMode> = computed(() => this.current().approvalMode);
+  readonly baseCurrency: Signal<string> = computed(() => this.current().baseCurrency);
 
   has(capability: string): boolean { return this.capabilities().has(capability); }
 

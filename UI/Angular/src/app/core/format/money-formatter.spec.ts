@@ -47,4 +47,17 @@ describe('formatMoney', () => {
     expect(formatMoney(0, 'USD', D)).toBe('0.00');
     expect(formatMoney(0, 'USD', P({ zeroDisplay: 'dash' }))).toBe('—');
   });
+  it('renders known non-USD symbols', () => {
+    expect(formatMoney(1234, 'EUR', P({ currencySymbol: 'every' }))).toBe('€1,234.00');
+    expect(formatMoney(50, 'GBP', P({ currencySymbol: 'every' }))).toBe('£50.00');
+    expect(formatMoney(1000, 'JPY', P({ currencySymbol: 'every' }))).toBe('¥1,000.00');
+  });
+  it('falls back to the code for a currency with no glyph', () => {
+    expect(formatMoney(10, 'CHF', P({ currencySymbol: 'every' }))).toBe('CHF 10.00');
+  });
+  it('an unknown/prototype-ish key falls through to the code fallback, not Object.prototype', () => {
+    expect(formatMoney(10, 'constructor', P({ currencySymbol: 'every' }))).toBe('constructor 10.00');
+    expect(formatMoney(10, 'toString', P({ currencySymbol: 'every' }))).toBe('toString 10.00');
+    expect(formatMoney(10, '__proto__', P({ currencySymbol: 'every' }))).toBe('__proto__ 10.00');
+  });
 });

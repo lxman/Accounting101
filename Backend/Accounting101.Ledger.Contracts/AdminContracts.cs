@@ -9,10 +9,15 @@ public sealed record CreateClientRequest
     public ApprovalMode ApprovalMode { get; init; }
     /// <summary>Month (1-12) the fiscal year ends; defaults to December.</summary>
     public int FiscalYearEndMonth { get; init; } = 12;
+    /// <summary>ISO 4217 code of the books' base currency. Omitted → "USD". Validated against the
+    /// ISO 4217 currency allowlist; unknown/ineligible codes are rejected (422). Immutable after
+    /// provisioning — there is no setter.</summary>
+    public string? BaseCurrency { get; init; }
 }
 
 public sealed record ClientRegistrationResponse(
-    Guid Id, string Name, string DatabaseName, ApprovalMode ApprovalMode, int FiscalYearEndMonth);
+    Guid Id, string Name, string DatabaseName, ApprovalMode ApprovalMode, int FiscalYearEndMonth,
+    string BaseCurrency);
 
 /// <summary>Change a client's fiscal-year-end month (1-12), forward-only. Already-closed years are
 /// immutable; this affects only future closes.</summary>
@@ -29,11 +34,11 @@ public sealed record MembershipResponse(
     IReadOnlyList<Guid>? GrantedSetIds = null, IReadOnlyList<string>? SetNames = null);
 
 /// <summary>The acting user's resolved capabilities on a client, the role preset(s) granted,
-/// whether they hold the deployment-admin claim (a separate authorization axis), and the client's
-/// enabled module keys (drives frontend nav filtering).</summary>
+/// whether they hold the deployment-admin claim (a separate authorization axis), the client's
+/// enabled module keys (drives frontend nav filtering), and the client's base currency.</summary>
 public sealed record CapabilitiesResponse(
     IReadOnlyList<string> Capabilities, IReadOnlyList<string> Roles, bool DeploymentAdmin,
-    IReadOnlyList<string> EnabledModules, ApprovalMode ApprovalMode);
+    IReadOnlyList<string> EnabledModules, ApprovalMode ApprovalMode, string BaseCurrency);
 
 /// <summary>Add a member to a client with an explicit role preset list and capability set.</summary>
 public sealed record AddClientMemberRequest(Guid UserId, IReadOnlyList<string> Roles, IReadOnlyList<string> Capabilities);

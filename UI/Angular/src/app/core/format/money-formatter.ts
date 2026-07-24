@@ -2,7 +2,21 @@ import { FormatProfile } from './format-profile';
 
 export interface MoneyFormatOptions { symbol?: boolean; }
 
-const SYMBOLS: Record<string, string> = { USD: '$' };
+// Temporary mirror of Iso4217Currencies.Symbols
+// (Backend/Accounting101.Ledger.Contracts/Iso4217Currencies.cs), which documents itself as the
+// intended single symbol source. This hand-maintained copy exists only because no UI slice yet
+// threads a server-supplied currency through formatMoney's call sites (every call site today still
+// passes the literal 'USD'). Keep the two in sync until that deferred slice seeds this map from
+// GET /currencies/catalog instead and this mirror is retired.
+//
+// Built prototype-less (Object.create(null)) so a lookup of an untrusted/prototype-ish key (e.g.
+// 'constructor', 'toString') can never resolve through Object.prototype — it must fall through to
+// the `?? currency + ' '` code fallback below, same as any other unknown code.
+const SYMBOLS: Record<string, string> = Object.assign(Object.create(null) as Record<string, string>, {
+  USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥', INR: '₹', KRW: '₩', RUB: '₽',
+  BRL: 'R$', ZAR: 'R', TRY: '₺', ILS: '₪', THB: '฿', PHP: '₱', VND: '₫', NGN: '₦',
+  UAH: '₴', PLN: 'zł', CZK: 'Kč', AUD: '$', CAD: '$', NZD: '$', HKD: '$', SGD: '$', MXN: '$',
+});
 
 export const isNegativeAmount = (amount: number): boolean => amount < 0;
 

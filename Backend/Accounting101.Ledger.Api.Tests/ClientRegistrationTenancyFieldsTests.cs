@@ -83,4 +83,34 @@ public sealed class ClientRegistrationTenancyFieldsTests
         Assert.Empty(reg.EnabledModules);
         Assert.Null(reg.ArchivedUtc);
     }
+
+    [Fact]
+    public async Task BaseCurrency_round_trips()
+    {
+        ControlStore control = new(await FreshDbAsync());
+        Guid id = Guid.NewGuid();
+        await control.RegisterClientAsync(new ClientRegistration
+        {
+            Id = id, Name = "Eurofirm", DatabaseName = "client_eu", BaseCurrency = "EUR",
+        });
+
+        ClientRegistration reg = (await control.GetClientAsync(id))!;
+        Assert.Equal("EUR", reg.BaseCurrency);
+    }
+
+    [Fact]
+    public async Task Legacy_document_without_base_currency_deserializes_to_USD()
+    {
+        IMongoDatabase db = await FreshDbAsync();
+        Guid id = Guid.NewGuid();
+        // Write a raw document with NO baseCurrency field, mimicking a pre-field registration.
+        await db.GetCollection<BsonDocument>("clients").InsertOneAsync(new BsonDocument
+        {
+            ["_id"] = new BsonBinaryData(id, GuidRepresentation.Standard),
+            ["Name"] = "Legacy", ["DatabaseName"] = "client_legacy",
+        });
+
+        ClientRegistration reg = (await new ControlStore(db).GetClientAsync(id))!;
+        Assert.Equal("USD", reg.BaseCurrency);
+    }
 }

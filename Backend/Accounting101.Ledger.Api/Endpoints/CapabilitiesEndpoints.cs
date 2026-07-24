@@ -35,6 +35,7 @@ public static class CapabilitiesEndpoints
             membership.GrantedRoles.Select(r => r.ToString()).ToList(),
             deploymentAdmin,
             client?.EnabledModules ?? [],
-            client is null ? ApprovalMode.TwoPerson : ApprovalPolicy.ModeOf(client)));
+            client is null ? ApprovalMode.TwoPerson : ApprovalPolicy.ModeOf(client),
+            client?.BaseCurrency ?? "USD"));
     }
 }
