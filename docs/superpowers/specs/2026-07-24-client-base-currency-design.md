@@ -33,6 +33,29 @@ without an FX conversion event — nonsense. So it behaves like `DatabaseName` (
 not like `ApprovalMode` (mutable policy). Immutability is **structural**: there is no setter
 contract and no update endpoint. The create-client handler is the sole writer.
 
+## Amended during planning
+
+Implementation deviated from this spec as originally written in the ways below (kept as shipped,
+not reverted — every mention of the changed items elsewhere in this document has been corrected to
+match):
+
+- **Catalog endpoint:** shipped as `GET /currencies/catalog`, not `GET /admin/currencies`, and
+  gated behind plain "any authenticated user" authorization rather than the deployment-admin
+  policy — non-admin amount-display screens need to resolve symbols too, not just the admin
+  creation flow.
+- **Whitespace-only `BaseCurrency` (e.g. `"   "`) is treated as omission**, defaulting to `"USD"`,
+  rather than rejected with 422 as the Testing section originally enumerated. The handler's
+  `IsNullOrWhiteSpace` check already answers "was anything supplied at all," so a whitespace string
+  reads identically to `null`/absent. This is the shipped, intentional behavior; the corresponding
+  test bullet below has been corrected.
+- **UI items deferred, not built:** no client-provisioning UI exists anywhere in the codebase
+  (provisioning is API-only via `POST /admin/clients`), so the creation dropdown has no screen to
+  live on yet. Pervasive symbol-based amount rendering was also deferred — switching every
+  `formatMoney` call site to the client's currency is a broad re-threading not required by the
+  actual consumer (the e-invoicing module reads `BaseCurrency` straight from the backend). Both
+  remain a documented follow-on UI slice; only the backend data and the frontend symbol vocabulary
+  shipped (see the plan's "Scope adjustments discovered during planning").
+
 ## Approach
 
 ### Data model — one field on `ClientRegistration`
@@ -71,8 +94,11 @@ public static class Iso4217Currencies
 ```
 
 Currencies with no well-known single-glyph symbol carry the code itself as `Symbol` (e.g.
-`CHF → "CHF"`), so display always has something to show. This is the **only** symbol source; the
-frontend does not maintain a parallel map.
+`CHF → "CHF"`), so display always has something to show. This is the intended **only** symbol
+source; today's implementation keeps one committed exception — a temporary hand-maintained mirror
+in the frontend's `money-formatter.ts` (see the doc comments on `Iso4217Currencies` and on that
+file's `SYMBOLS` map) — retired once the deferred symbol-rendering UI slice seeds itself from
+`GET /currencies/catalog` instead.
 
 ### Provisioning — set-once wiring
 
@@ -111,12 +137,13 @@ value.
   already fetches this per-client to drive nav filtering and approval UX; it is the natural channel
   for the app to learn how to label amounts. The frontend resolves the symbol from the currency
   catalog (below).
-- **`GET /admin/currencies`** → the `Iso4217Currencies.All` catalog (code, symbol, name), for the
-  creation dropdown. Mirrors `CapabilityCatalogResponse` ("backend truth for the admin editor").
+- **`GET /currencies/catalog`** → the `Iso4217Currencies.All` catalog (code, symbol, name), for the
+  creation dropdown. Any authenticated user may read it (see Amended note above); mirrors
+  `CapabilityCatalogResponse` ("backend truth for the admin editor").
 
 ### UI
 
-- **Client-creation screen:** a base-currency dropdown, populated from `GET /admin/currencies`,
+- **Client-creation screen:** a base-currency dropdown, populated from `GET /currencies/catalog`,
   defaulting to USD. Part of the one-time provisioning form.
 - **Client settings:** base currency shown **read-only**, with a "set at setup, cannot be changed"
   note.
@@ -142,8 +169,9 @@ Control-plane / API tests (the natural home is the existing client-registration 
   `ClientRegistration.BaseCurrency` is `"EUR"`; `ClientRegistrationResponse` echoes `"EUR"`.
 - **Omission defaults to USD:** create with `BaseCurrency = null` → stored `"USD"`.
 - **Case normalization:** `"eur"` → stored `"EUR"`.
-- **Unknown / ineligible code rejected:** `"XXX"`, `"XAU"`, `"ZZZ"`, `""`-with-whitespace,
-  `"US"` → **422**; no client created.
+- **Unknown / ineligible code rejected:** `"XXX"`, `"XAU"`, `"ZZZ"`, `"US"` → **422**; no client
+  created. A whitespace-only string (e.g. `"   "`) is treated as omission, not rejected — see the
+  "Amended during planning" note above.
 - **Legacy document → USD:** a `ClientRegistration` BSON doc without the field deserializes to
   `BaseCurrency = "USD"`.
 - **Immutability — no mutation path:** there is no endpoint/contract that changes `BaseCurrency`;
@@ -151,7 +179,7 @@ Control-plane / API tests (the natural home is the existing client-registration 
   archive) leaves `BaseCurrency` unchanged (the field-scoped-update guarantee).
 - **`CapabilitiesResponse` carries it:** `GET …/capabilities` for a EUR client returns
   `BaseCurrency = "EUR"`.
-- **Catalog endpoint:** `GET /admin/currencies` returns a non-empty list including USD/EUR/GBP,
+- **Catalog endpoint:** `GET /currencies/catalog` returns a non-empty list including USD/EUR/GBP,
   each with a non-empty symbol, and **excludes** the X-codes.
 
 Contracts unit tests (`Iso4217Currencies`):
@@ -166,7 +194,7 @@ an amount renders with the expected symbol. (Depth per the repo's existing front
 
 **In scope:** the `BaseCurrency` field on `ClientRegistration`; the `Iso4217Currencies` table;
 `CreateClientRequest` / `ClientRegistrationResponse` / `CapabilitiesResponse` additions; the
-create-handler validation; `GET /admin/currencies`; the creation dropdown, read-only settings
+create-handler validation; `GET /currencies/catalog`; the creation dropdown, read-only settings
 display, and symbol-based amount rendering; the tests above.
 
 **Out of scope (documented):**
