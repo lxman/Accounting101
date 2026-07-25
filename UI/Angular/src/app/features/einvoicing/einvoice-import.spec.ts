@@ -1,0 +1,111 @@
+import { TestBed } from '@angular/core/testing';
+import { provideZonelessChangeDetection } from '@angular/core';
+import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { EInvoiceImport } from './einvoice-import';
+import { ClientContextService } from '../../core/client/client-context.service';
+import { provideCapabilities } from '../../core/capabilities/capability.testing';
+
+const PREVIEW_URL = 'http://localhost:5000/clients/C1/einvoicing/inbound/preview';
+
+export function xmlFile(name = 'invoice.xml'): File {
+  return new File(['<xml/>'], name, { type: 'text/xml' });
+}
+
+export function blocked(ruleId = 'BR-06', message = 'Seller name is missing.') {
+  return {
+    syntax: 'Ubl', profile: 'urn:cen.eu:en16931:2017', canImport: false,
+    findings: [{ ruleId, severity: 'Error', message, businessTerm: 'BT-27', location: null }],
+    proposal: null, vendorMatch: { vendorId: null, vendorName: null, sellerName: 'Acme Parts' },
+  };
+}
+
+export function boot() {
+  TestBed.configureTestingModule({
+    providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(),
+      provideHttpClientTesting(), provideCapabilities('ap.write')],
+  });
+  TestBed.inject(ClientContextService).select('C1');
+  const fixture = TestBed.createComponent(EInvoiceImport);
+  fixture.detectChanges();
+  const ctrl = TestBed.inject(HttpTestingController);
+  // The screen loads vendors and accounts on construction (used from Task 6 onwards).
+  ctrl.match(r => r.url.endsWith('/vendors')).forEach(r => r.flush([]));
+  ctrl.match(r => r.url.endsWith('/accounts')).forEach(r => r.flush([]));
+  fixture.detectChanges();
+  return { fixture, ctrl, cmp: fixture.componentInstance };
+}
+
+describe('EInvoiceImport', () => {
+  it('uploads the file and moves to the preview stage', () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    const req = ctrl.expectOne(PREVIEW_URL);
+    expect((req.request.body as FormData).get('file')).toBeInstanceOf(File);
+    req.flush(blocked());
+    fixture.detectChanges();
+    expect(cmp.stage()).toBe('preview');
+    ctrl.verify();
+  });
+
+  it('shows error findings verbatim and no form when the document cannot be imported', () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(blocked());
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('BR-06');
+    expect(text).toContain('Seller name is missing.');
+    expect(text).toContain('EN 16931');                    // profile badge
+    expect(text).toContain('Choose another file');
+    expect(text).not.toContain('Create draft bill');
+    ctrl.verify();
+  });
+
+  it('surfaces a 403 as a message and stays on the upload stage', () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(
+      { detail: 'The e-invoicing module is not enabled for this client.' },
+      { status: 403, statusText: 'Forbidden' });
+    fixture.detectChanges();
+    expect(cmp.stage()).toBe('upload');
+    expect(cmp.message()).toContain('not enabled');
+    ctrl.verify();
+  });
+
+  it('rejects an oversized file client-side without making a request', () => {
+    const { ctrl, cmp } = boot();
+    const big = new File(['x'], 'huge.pdf', { type: 'application/pdf' });
+    Object.defineProperty(big, 'size', { value: 16 * 1024 * 1024 });
+    cmp.file.set(big);
+    cmp.upload();
+    expect(cmp.message()).toContain('15 MB');
+    ctrl.verify();                                          // no request was made
+  });
+
+  it('collapses advisory findings behind a count', () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush({
+      syntax: 'Cii', profile: 'En16931', canImport: false,
+      findings: [
+        { ruleId: 'BR-CO-10', severity: 'Warning', message: 'Sum of line amounts differs.', businessTerm: null, location: null },
+        { ruleId: 'einvoicing-note', severity: 'Information', message: 'Detail lines reconciled.', businessTerm: null, location: null },
+      ],
+      proposal: null, vendorMatch: { vendorId: null, vendorName: null, sellerName: 'Acme Parts' },
+    });
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).not.toContain('BR-CO-10');
+    cmp.showOtherFindings.set(true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('BR-CO-10');
+    expect(fixture.nativeElement.textContent).toContain('einvoicing-note');
+    ctrl.verify();
+  });
+});
