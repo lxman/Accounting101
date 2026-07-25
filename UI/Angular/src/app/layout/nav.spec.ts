@@ -18,8 +18,9 @@ describe('nav', () => {
       '/audit', '/audit/trail', '/audit/verify', '/audit/reconciliations',
       '/reports', '/reports/budgets',
       '/admin/users', '/admin/access/sets', '/admin/firm', '/admin/client', '/admin/approval-policy', '/admin/fiscal', '/admin/posting-accounts',
+      '/payables/bills/import',
     ]));
-    expect(paths.length).toBe(27);
+    expect(paths.length).toBe(28);
   });
 
   it('nests Bank Reconciliation under Cash & Banking', () => {

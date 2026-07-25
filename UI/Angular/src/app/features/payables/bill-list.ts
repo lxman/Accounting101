@@ -13,6 +13,7 @@ import { VendorSelect } from '../../shared/vendor-select';
 import { SettlementBadge } from '../../shared/settlement-badge';
 import { extractProblem } from '../../core/api/problem-details';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { CapabilityService } from '../../core/capabilities/capability.service';
 import { PaginationPrefsService } from '../../core/pagination/pagination-prefs.service';
 import { Paginator } from '../../shared/paginator';
 import { TruncateDirective } from '../../shared/truncate.directive';
@@ -35,8 +36,14 @@ import { TruncateDirective } from '../../shared/truncate.directive';
             <hlm-select-item value="paid">Paid</hlm-select-item>
           </hlm-select-content>
         </div>
-        <a *appCan="'ap.write'" hlmBtn size="sm" class="ms-auto" routerLink="/payables/bills/new"
-           [class.pointer-events-none]="!vendorId()" [class.opacity-50]="!vendorId()">New bill</a>
+        <div class="ms-auto flex items-center gap-2">
+          @if (caps.moduleEnabled('einvoicing')) {
+            <a *appCan="'ap.write'" hlmBtn size="sm" variant="outline"
+               routerLink="/payables/bills/import">Import e-invoice</a>
+          }
+          <a *appCan="'ap.write'" hlmBtn size="sm" routerLink="/payables/bills/new"
+             [class.pointer-events-none]="!vendorId()" [class.opacity-50]="!vendorId()">New bill</a>
+        </div>
       </div>
 
       @if (svc.vendors().length === 0) {
@@ -80,6 +87,7 @@ import { TruncateDirective } from '../../shared/truncate.directive';
 })
 export class BillList {
   readonly svc = inject(PayablesService);
+  protected readonly caps = inject(CapabilityService);
   private readonly router = inject(Router);
   private readonly prefs = inject(PaginationPrefsService);
 

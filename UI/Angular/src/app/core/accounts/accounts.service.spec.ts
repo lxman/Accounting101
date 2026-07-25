@@ -101,4 +101,23 @@ describe('AccountsService', () => {
     expect(saved).toEqual(resp);
     expect(svc.accounts().find(x => x.id === 'A1')).toEqual(resp);
   });
+
+  it('exposes only postable, active expense accounts for line coding', () => {
+    const expenseFixtures: AccountResponse[] = [
+      { id: 'a1', number: '6000', name: 'Rent', type: 'Expense', parentId: null,
+        postable: true, requiredDimension: null, requiredDimensions: [], cashFlowActivity: null,
+        isRetainedEarnings: false, active: true, normalSide: 'Debit', isTemporary: true },
+      { id: 'a2', number: '6100', name: 'Occupancy (header)', type: 'Expense', parentId: null,
+        postable: false, requiredDimension: null, requiredDimensions: [], cashFlowActivity: null,
+        isRetainedEarnings: false, active: true, normalSide: 'Debit', isTemporary: true },
+      { id: 'a3', number: '6200', name: 'Retired', type: 'Expense', parentId: null,
+        postable: true, requiredDimension: null, requiredDimensions: [], cashFlowActivity: null,
+        isRetainedEarnings: false, active: false, normalSide: 'Debit', isTemporary: true },
+      ...mockAccounts,                                    // an Asset and a Revenue, both postable
+    ];
+    clientCtx.select(clientId);
+    service.load();
+    ctrl.expectOne(`${environment.apiBaseUrl}/clients/${clientId}/accounts`).flush(expenseFixtures);
+    expect(service.expenseAccounts().map(a => a.id)).toEqual(['a1']);
+  });
 });

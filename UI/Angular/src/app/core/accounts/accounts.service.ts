@@ -13,6 +13,10 @@ export class AccountsService {
   readonly accounts = this._accounts.asReadonly();
   readonly byId = computed(() => new Map(this._accounts().map(a => [a.id, a])));
 
+  /** The codeable set for bill and e-invoice lines: postable, active expense accounts. */
+  readonly expenseAccounts = computed(() =>
+    this._accounts().filter(a => a.type === 'Expense' && a.postable && a.active));
+
   load(): void {
     const id = this.client.clientId(); if (!id) return;
     this.http.get<AccountResponse[]>(`${environment.apiBaseUrl}/clients/${id}/accounts`)

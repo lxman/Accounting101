@@ -6,7 +6,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { BillList } from './bill-list';
 import { PayablesService } from '../../core/payables/payables.service';
 import { ClientContextService } from '../../core/client/client-context.service';
-import { provideCapabilities } from '../../core/capabilities/capability.testing';
+import { provideCapabilities, StubCapabilityService } from '../../core/capabilities/capability.testing';
+import { CapabilityService } from '../../core/capabilities/capability.service';
 import { vi } from 'vitest';
 
 describe('BillList', () => {
@@ -81,5 +82,31 @@ describe('BillList', () => {
     ctrl.expectOne('http://localhost:5000/clients/C1/vendors').flush([{ id: 'v1', name: 'Acme Parts', email: null }]);
     f.detectChanges();
     expect((f.nativeElement as HTMLElement).textContent).not.toContain('New bill');
+  });
+
+  it('offers the e-invoice import only when the module is enabled', () => {
+    // Earlier tests in this file select vendor 'v1' for client C1 via PayablesService, which
+    // persists to localStorage (survives-reload behavior, by design). Clear it so this test's
+    // "no vendor selected yet" premise holds regardless of run order.
+    localStorage.removeItem('a101.pay.vendor.C1');
+    const caps = new StubCapabilityService();
+    caps.set(['ap.write']);
+    caps.setEnabledModules([]);
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(),
+        provideHttpClientTesting(), { provide: CapabilityService, useValue: caps }],
+    });
+    TestBed.inject(ClientContextService).select('C1');
+    const ctrl = TestBed.inject(HttpTestingController);
+    const f = TestBed.createComponent(BillList);
+    f.detectChanges();
+    ctrl.expectOne('http://localhost:5000/clients/C1/vendors').flush([{ id: 'v1', name: 'Acme Parts', email: null }]);
+    f.detectChanges();
+    expect(f.nativeElement.textContent).not.toContain('Import e-invoice');
+
+    caps.setEnabledModules(['einvoicing']);
+    f.detectChanges();
+    expect(f.nativeElement.textContent).toContain('Import e-invoice');
+    ctrl.verify();
   });
 });
