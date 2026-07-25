@@ -1,4 +1,4 @@
-import { Vendor, Bill } from '../payables/payables';
+import { Vendor } from '../payables/payables';
 
 // ── Wire models ──────────────────────────────────────────────────────────────
 // Mirrors of the DTOs in Accounting101.EInvoicing.Api/EInvoicingContracts.cs.
@@ -47,14 +47,6 @@ export function matchVendor(sellerName: string | null | undefined, vendors: read
   const needle = sellerName.trim().toLowerCase();
   const hits = vendors.filter(v => (v.name ?? '').trim().toLowerCase() === needle);
   return hits.length === 1 ? hits[0] : null;
-}
-
-/** Existing bills for the same vendor carrying the same vendor reference. Voided bills never
- *  count — they are exactly the case where re-entering the invoice is correct. */
-export function findDuplicates(reference: string | null | undefined, bills: readonly Bill[]): Bill[] {
-  if (!reference || !reference.trim()) return [];
-  const needle = reference.trim().toLowerCase();
-  return bills.filter(b => b.status !== 'Void' && (b.vendorReference ?? '').trim().toLowerCase() === needle);
 }
 
 const PROFILE_ENUM_LABELS: Record<string, string> = {

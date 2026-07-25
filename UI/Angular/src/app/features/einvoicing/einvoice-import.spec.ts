@@ -142,7 +142,7 @@ describe('EInvoiceImport', () => {
     ctrl.expectOne(PREVIEW_URL).flush(importable());
     fixture.detectChanges();
     expect(cmp.vendorId()).toBe('v1');
-    ctrl.match(r => r.url.endsWith('/bills')).forEach(r => r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
+    ctrl.match(r => r.url.endsWith('/bills/duplicates')).forEach(r => r.flush([]));
     ctrl.verify();
   });
 
@@ -172,7 +172,7 @@ describe('EInvoiceImport', () => {
     fixture.detectChanges();
     expect(cmp.vendorId()).toBe('v1');                        // the effect fills it once vendors arrive
 
-    ctrl.match(r => r.url.endsWith('/bills')).forEach(r => r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
+    ctrl.match(r => r.url.endsWith('/bills/duplicates')).forEach(r => r.flush([]));
     ctrl.verify();
   });
 
@@ -188,8 +188,7 @@ describe('EInvoiceImport', () => {
     cmp.addLine();
     cmp.patchLine(1, { description: 'Utilities', amount: 500, expenseAccountId: 'a2' });
     fixture.detectChanges();
-    ctrl.match(r => r.url.endsWith('/bills') && r.method === 'GET').forEach(r =>
-      r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
+    ctrl.match(r => r.url.endsWith('/bills/duplicates')).forEach(r => r.flush([]));
 
     expect(cmp.canConfirm()).toBe(true);
     cmp.confirm();
@@ -220,8 +219,7 @@ describe('EInvoiceImport', () => {
     cmp.vendorId.set('v1');
     cmp.patchLine(0, { amount: 900, expenseAccountId: 'a1' });
     fixture.detectChanges();
-    ctrl.match(r => r.url.endsWith('/bills') && r.method === 'GET').forEach(r =>
-      r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
+    ctrl.match(r => r.url.endsWith('/bills/duplicates')).forEach(r => r.flush([]));
     fixture.detectChanges();
 
     expect(cmp.totalDrift()).toBe(-300);
@@ -244,8 +242,7 @@ describe('EInvoiceImport', () => {
     req.flush({ id: 'v7', name: 'Acme Parts', email: null });
     fixture.detectChanges();
     expect(cmp.vendorId()).toBe('v7');
-    ctrl.match(r => r.url.endsWith('/bills') && r.method === 'GET').forEach(r =>
-      r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
+    ctrl.match(r => r.url.endsWith('/bills/duplicates')).forEach(r => r.flush([]));
     ctrl.verify();
   });
 
@@ -259,8 +256,7 @@ describe('EInvoiceImport', () => {
     cmp.vendorId.set('v1');
     cmp.patchLine(0, { amount: 1200, expenseAccountId: 'a1' });
     fixture.detectChanges();
-    ctrl.match(r => r.url.endsWith('/bills') && r.method === 'GET').forEach(r =>
-      r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
+    ctrl.match(r => r.url.endsWith('/bills/duplicates')).forEach(r => r.flush([]));
 
     cmp.confirm();
     const staleReq = ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/bills' && r.method === 'POST');
@@ -270,8 +266,7 @@ describe('EInvoiceImport', () => {
     cmp.upload();
     ctrl.expectOne(PREVIEW_URL).flush(importable({ vendorReference: 'INV-2', memo: 'Second doc' }));
     fixture.detectChanges();
-    ctrl.match(r => r.url.endsWith('/bills') && r.method === 'GET').forEach(r =>
-      r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
+    ctrl.match(r => r.url.endsWith('/bills/duplicates')).forEach(r => r.flush([]));
 
     staleReq.flush({ id: 'STALE', vendorId: 'v1', number: 'B-1', billDate: '2026-07-01', dueDate: '2026-07-31',
       vendorReference: 'INV-9', memo: 'Q3 services', status: 'Draft', lines: [] });
@@ -310,8 +305,7 @@ describe('EInvoiceImport', () => {
       vendorMatch: { vendorId: null, vendorName: null, sellerName: 'Other Co' },
     });
     fixture.detectChanges();
-    ctrl.match(r => r.url.endsWith('/bills') && r.method === 'GET').forEach(r =>
-      r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
+    ctrl.match(r => r.url.endsWith('/bills/duplicates')).forEach(r => r.flush([]));
 
     staleReq.flush({ id: 'v-stale', name: 'Acme Parts', email: null });
     fixture.detectChanges();
@@ -331,23 +325,19 @@ describe('EInvoiceImport', () => {
     cmp.vendorId.set('v1');
     fixture.detectChanges();
     const req = ctrl.expectOne(r =>
-      r.url === 'http://localhost:5000/clients/C1/bills' && r.params.get('vendorId') === 'v1');
-    expect(req.request.params.get('limit')).toBe('200');
-    expect(req.request.params.get('order')).toBe('desc');
-    req.flush({ items: [
-      { bill: { id: 'b1', vendorId: 'v1', number: 'B-1', billDate: '2026-06-01', dueDate: null,
-        vendorReference: 'INV-9', memo: null, status: 'Entered', lines: [] },
-        openBalance: 0, settlementStatus: 'Paid' },
-    ], total: 1, skip: 0, limit: 200 });
+      r.url === 'http://localhost:5000/clients/C1/bills/duplicates'
+      && r.params.get('vendorId') === 'v1'
+      && r.params.get('reference') === 'INV-9');
+    req.flush([{ id: 'b1', vendorId: 'v1', number: 'BILL-00001', billDate: '2026-03-01', dueDate: null,
+      vendorReference: 'INV-9', memo: null, status: 'Entered', lines: [] }]);
     fixture.detectChanges();
 
     expect(cmp.duplicates().map(b => b.id)).toEqual(['b1']);
     expect(fixture.nativeElement.textContent).toContain('already has a bill');
-    expect(cmp.canConfirm()).toBe(false);                    // no accounts coded yet, not because of the warning
     ctrl.verify();
   });
 
-  it('says what it actually checked when the scan is bounded', () => {
+  it('warns about a duplicate that is still a draft', () => {
     const { fixture, ctrl, cmp } = boot();
     cmp.file.set(xmlFile());
     cmp.upload();
@@ -356,12 +346,14 @@ describe('EInvoiceImport', () => {
 
     cmp.vendorId.set('v1');
     fixture.detectChanges();
-    ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/bills')
-      .flush({ items: [], total: 512, skip: 0, limit: 200 });
+    ctrl.expectOne(r => r.url.endsWith('/bills/duplicates')).flush([
+      { id: 'b1', vendorId: 'v1', number: null, billDate: '2026-03-01', dueDate: null,
+        vendorReference: 'INV-9', memo: null, status: 'Draft', lines: [] },
+    ]);
     fixture.detectChanges();
 
-    expect(cmp.duplicates()).toEqual([]);
-    expect(fixture.nativeElement.textContent).toContain('200 most recent');
+    expect(cmp.duplicates().map(b => b.id)).toEqual(['b1']);
+    expect(fixture.nativeElement.textContent).toContain('Draft');
     ctrl.verify();
   });
 
@@ -374,7 +366,28 @@ describe('EInvoiceImport', () => {
     cmp.vendorId.set('v1');
     fixture.detectChanges();
     expect(cmp.duplicateChecked()).toBe(false);
-    ctrl.verify();                                            // no /bills request at all
+    ctrl.verify();                                            // no duplicates request at all
+  });
+
+  it('a duplicate never blocks the confirm', () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(importable());
+    fixture.detectChanges();
+
+    cmp.vendorId.set('v1');
+    cmp.patchLine(0, { expenseAccountId: 'a1' });             // fully coded, so nothing else gates it
+    fixture.detectChanges();
+    ctrl.expectOne(r => r.url.endsWith('/bills/duplicates')).flush([
+      { id: 'b1', vendorId: 'v1', number: 'BILL-00001', billDate: '2026-03-01', dueDate: null,
+        vendorReference: 'INV-9', memo: null, status: 'Entered', lines: [] },
+    ]);
+    fixture.detectChanges();
+
+    expect(cmp.duplicates().length).toBe(1);
+    expect(cmp.canConfirm()).toBe(true);                      // a warning, not a gate
+    ctrl.verify();
   });
 
   it('clears a stale duplicate strip when a vendor change is followed by a failed re-scan', () => {
@@ -387,12 +400,11 @@ describe('EInvoiceImport', () => {
     cmp.vendorId.set('v1');
     fixture.detectChanges();
     const firstReq = ctrl.expectOne(r =>
-      r.url === 'http://localhost:5000/clients/C1/bills' && r.params.get('vendorId') === 'v1');
-    firstReq.flush({ items: [
-      { bill: { id: 'b1', vendorId: 'v1', number: 'B-1', billDate: '2026-06-01', dueDate: null,
+      r.url === 'http://localhost:5000/clients/C1/bills/duplicates' && r.params.get('vendorId') === 'v1');
+    firstReq.flush([
+      { id: 'b1', vendorId: 'v1', number: 'B-1', billDate: '2026-06-01', dueDate: null,
         vendorReference: 'INV-9', memo: null, status: 'Entered', lines: [] },
-        openBalance: 0, settlementStatus: 'Paid' },
-    ], total: 1, skip: 0, limit: 200 });
+    ]);
     fixture.detectChanges();
     expect(cmp.duplicates().map(b => b.id)).toEqual(['b1']);
     expect(fixture.nativeElement.textContent).toContain('already has a bill');
@@ -406,7 +418,7 @@ describe('EInvoiceImport', () => {
     expect(fixture.nativeElement.textContent).not.toContain('already has a bill');
 
     const secondReq = ctrl.expectOne(r =>
-      r.url === 'http://localhost:5000/clients/C1/bills' && r.params.get('vendorId') === 'v2');
+      r.url === 'http://localhost:5000/clients/C1/bills/duplicates' && r.params.get('vendorId') === 'v2');
     secondReq.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
 
@@ -426,23 +438,22 @@ describe('EInvoiceImport', () => {
     cmp.vendorId.set('v1');                                   // slow scan, will resolve last
     fixture.detectChanges();
     const slowReq = ctrl.expectOne(r =>
-      r.url === 'http://localhost:5000/clients/C1/bills' && r.params.get('vendorId') === 'v1');
+      r.url === 'http://localhost:5000/clients/C1/bills/duplicates' && r.params.get('vendorId') === 'v1');
 
     cmp.vendorId.set('v2');                                   // fast scan, clean, resolves first
     fixture.detectChanges();
     const fastReq = ctrl.expectOne(r =>
-      r.url === 'http://localhost:5000/clients/C1/bills' && r.params.get('vendorId') === 'v2');
-    fastReq.flush({ items: [], total: 0, skip: 0, limit: 200 });
+      r.url === 'http://localhost:5000/clients/C1/bills/duplicates' && r.params.get('vendorId') === 'v2');
+    fastReq.flush([]);
     fixture.detectChanges();
     expect(cmp.duplicateChecked()).toBe(true);
     expect(cmp.duplicates()).toEqual([]);
 
     // Vendor A's slow response lands last — it must not overwrite vendor B's already-clean result.
-    slowReq.flush({ items: [
-      { bill: { id: 'b1', vendorId: 'v1', number: 'B-1', billDate: '2026-06-01', dueDate: null,
+    slowReq.flush([
+      { id: 'b1', vendorId: 'v1', number: 'B-1', billDate: '2026-06-01', dueDate: null,
         vendorReference: 'INV-9', memo: null, status: 'Entered', lines: [] },
-        openBalance: 0, settlementStatus: 'Paid' },
-    ], total: 1, skip: 0, limit: 200 });
+    ]);
     fixture.detectChanges();
 
     expect(cmp.duplicates()).toEqual([]);

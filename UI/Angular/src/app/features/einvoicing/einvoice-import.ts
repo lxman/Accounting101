@@ -7,9 +7,9 @@ import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { EInvoicingService } from '../../core/einvoicing/einvoicing.service';
-import { FindingDto, InboundPreviewResponse, findDuplicates, matchVendor, profileLabel } from '../../core/einvoicing/einvoicing';
+import { FindingDto, InboundPreviewResponse, matchVendor, profileLabel } from '../../core/einvoicing/einvoicing';
 import { PayablesService } from '../../core/payables/payables.service';
-import { Bill, BillListQuery, DraftBillRequest, billTotal } from '../../core/payables/payables';
+import { Bill, DraftBillRequest, billTotal } from '../../core/payables/payables';
 import { AccountsService } from '../../core/accounts/accounts.service';
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney, displayDate } from '../../core/format/display';
@@ -18,11 +18,6 @@ import { CanDirective } from '../../core/capabilities/can.directive';
 import { ClientContextService } from '../../core/client/client-context.service';
 
 type Stage = 'upload' | 'preview';
-
-/** How many of the vendor's most recent bills the duplicate check scans. Payables exposes no
- *  server-side vendorReference filter, so this is a bounded client-side scan — the warning text
- *  says so rather than implying a clean bill of health. */
-const DUPLICATE_SCAN_LIMIT = 200;
 
 /** One editable proposal line. The document supplies description and amount; the operator supplies
  *  the expense account, which is the one thing a proposal can never carry. */
@@ -197,10 +192,6 @@ interface EditableLine { lineId: string; description: string; amount: number; ex
                   Re-issues and corrections are legitimate — this is a warning, not a block.
                 </p>
               </div>
-            } @else if (duplicateChecked() && duplicateScanBounded()) {
-              <p class="text-xs text-muted-foreground">
-                No duplicate among this vendor's {{ duplicateScanLimit }} most recent bills.
-              </p>
             }
 
             @if (expenseAccounts().length === 0) {
@@ -324,10 +315,7 @@ export class EInvoiceImport {
   readonly creatingVendor = signal(false);
 
   readonly duplicates = signal<Bill[]>([]);
-  readonly duplicateScanTotal = signal(0);
   readonly duplicateChecked = signal(false);
-  readonly duplicateScanLimit = DUPLICATE_SCAN_LIMIT;
-  readonly duplicateScanBounded = computed(() => this.duplicateScanTotal() > DUPLICATE_SCAN_LIMIT);
 
   /** Guards the effect below against re-running for a vendor/reference pair it already scanned. */
   #lastDuplicateKey: string | null = null;
@@ -375,36 +363,31 @@ export class EInvoiceImport {
       const key = `${vendorId}|${reference}`;
       if (this.#lastDuplicateKey === key) return;
       this.#lastDuplicateKey = key;
-      // Clear stale results before issuing the new scan — otherwise a vendor change that goes
-      // straight into a failing/slow scan leaves the previous vendor's duplicates (and their
+      // Clear stale results before issuing the new lookup — otherwise a vendor change that goes
+      // straight into a failing/slow lookup leaves the previous vendor's duplicates (and their
       // live bill links) on screen, now misattributed to the new vendor.
       this.duplicates.set([]);
       this.duplicateChecked.set(false);
-      this.duplicateScanTotal.set(0);
       // Captured for the same reason confirm()/createVendor() capture it: a response that outlives
       // a reset() — the operator moved on to a different document before it arrived — must not
       // write duplicate state for a document that's no longer on screen. The #lastDuplicateKey
       // guard above only prevents redundant refetches for an unchanged pair; it does nothing once
       // reset() has already cleared vendorId/proposal out from under an in-flight request.
       const gen = this.generation;
-      const query: BillListQuery = { vendorId, skip: 0, limit: DUPLICATE_SCAN_LIMIT, order: 'desc' };
-      this.pay.listBills(query).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-        next: page => {
-          // The generation guard discards a scan whose document was reset(); the key guard
-          // discards a scan whose vendor was superseded by a later one before this one landed —
+      this.pay.billDuplicates(vendorId, reference).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: matches => {
+          // The generation guard discards a lookup whose document was reset(); the key guard
+          // discards one whose vendor was superseded by a later lookup before this one landed —
           // distinct races, both needed (see the "switch vendors mid-scan" regression test).
           if (gen !== this.generation || this.#lastDuplicateKey !== key) return;
-          this.duplicates.set(findDuplicates(reference, page.items.map(v => v.bill)));
-          this.duplicateScanTotal.set(page.total);
+          this.duplicates.set(matches);
           this.duplicateChecked.set(true);
         },
-        // A failed scan is not a failed import — say nothing rather than claim a clean result.
-        // Also not a clean result: leave no duplicates/total behind from a superseded scan.
+        // A failed lookup is not a failed import — say nothing rather than claim a clean result.
         error: () => {
           if (gen !== this.generation || this.#lastDuplicateKey !== key) return;
           this.duplicates.set([]);
           this.duplicateChecked.set(false);
-          this.duplicateScanTotal.set(0);
         },
       });
     });
@@ -544,7 +527,6 @@ export class EInvoiceImport {
     this.busy.set(false);
     this.duplicates.set([]);
     this.duplicateChecked.set(false);
-    this.duplicateScanTotal.set(0);
     this.#lastDuplicateKey = null;
   }
 
