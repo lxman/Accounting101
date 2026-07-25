@@ -6,9 +6,9 @@ import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { EInvoicingService } from '../../core/einvoicing/einvoicing.service';
-import { FindingDto, InboundPreviewResponse, matchVendor, profileLabel } from '../../core/einvoicing/einvoicing';
+import { FindingDto, InboundPreviewResponse, findDuplicates, matchVendor, profileLabel } from '../../core/einvoicing/einvoicing';
 import { PayablesService } from '../../core/payables/payables.service';
-import { DraftBillRequest, billTotal } from '../../core/payables/payables';
+import { Bill, BillListQuery, DraftBillRequest, billTotal } from '../../core/payables/payables';
 import { AccountsService } from '../../core/accounts/accounts.service';
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney, displayDate } from '../../core/format/display';
@@ -16,6 +16,11 @@ import { CurrencyInput } from '../../shared/currency-input';
 import { CanDirective } from '../../core/capabilities/can.directive';
 
 type Stage = 'upload' | 'preview';
+
+/** How many of the vendor's most recent bills the duplicate check scans. Payables exposes no
+ *  server-side vendorReference filter, so this is a bounded client-side scan — the warning text
+ *  says so rather than implying a clean bill of health. */
+const DUPLICATE_SCAN_LIMIT = 200;
 
 /** One editable proposal line. The document supplies description and amount; the operator supplies
  *  the expense account, which is the one thing a proposal can never carry. */
@@ -156,6 +161,29 @@ interface EditableLine { lineId: string; description: string; amount: number; ex
               <dt class="text-muted-foreground">Memo</dt><dd>{{ prop.memo ?? '—' }}</dd>
             </dl>
 
+            @if (duplicates().length) {
+              <div class="border border-amber-400 rounded p-3 text-sm flex flex-col gap-1">
+                <p class="font-semibold">This vendor already has a bill with reference
+                  {{ prop.vendorReference }}</p>
+                <ul class="list-disc ps-5">
+                  @for (d of duplicates(); track d.id) {
+                    <li>
+                      <a [routerLink]="['/payables/bills', d.id]" class="text-primary hover:underline">
+                        {{ d.number ?? d.id }}</a>
+                      · {{ date(d.billDate) }} · {{ d.status }}
+                    </li>
+                  }
+                </ul>
+                <p class="text-xs text-muted-foreground">
+                  Re-issues and corrections are legitimate — this is a warning, not a block.
+                </p>
+              </div>
+            } @else if (duplicateChecked() && duplicateScanBounded()) {
+              <p class="text-xs text-muted-foreground">
+                No duplicate among this vendor's {{ duplicateScanLimit }} most recent bills.
+              </p>
+            }
+
             @if (expenseAccounts().length === 0) {
               <p class="text-sm text-destructive">
                 No postable expense accounts exist yet —
@@ -260,6 +288,15 @@ export class EInvoiceImport {
   readonly createdBillId = signal<string | null>(null);
   readonly creatingVendor = signal(false);
 
+  readonly duplicates = signal<Bill[]>([]);
+  readonly duplicateScanTotal = signal(0);
+  readonly duplicateChecked = signal(false);
+  readonly duplicateScanLimit = DUPLICATE_SCAN_LIMIT;
+  readonly duplicateScanBounded = computed(() => this.duplicateScanTotal() > DUPLICATE_SCAN_LIMIT);
+
+  /** Guards the effect below against re-running for a vendor/reference pair it already scanned. */
+  #lastDuplicateKey: string | null = null;
+
   readonly expenseAccounts = this.accounts.expenseAccounts;
   readonly proposal = computed(() => this.preview()?.proposal ?? null);
   readonly sellerName = computed(() => this.preview()?.vendorMatch.sellerName ?? '');
@@ -288,6 +325,38 @@ export class EInvoiceImport {
       if (!r || this.vendorId() || vendors.length === 0) return;
       const hit = matchVendor(r.vendorMatch.sellerName, vendors);
       if (hit) this.vendorId.set(hit.id);
+    });
+
+    // Re-runs whenever the vendor or the document changes — including after an inline create.
+    effect(() => {
+      const vendorId = this.vendorId();
+      const reference = this.proposal()?.vendorReference ?? null;
+      if (!vendorId || !reference) {
+        this.#lastDuplicateKey = null;
+        this.duplicates.set([]);
+        this.duplicateChecked.set(false);
+        return;
+      }
+      const key = `${vendorId}|${reference}`;
+      if (this.#lastDuplicateKey === key) return;
+      this.#lastDuplicateKey = key;
+      // Captured for the same reason confirm()/createVendor() capture it: a response that outlives
+      // a reset() — the operator moved on to a different document before it arrived — must not
+      // write duplicate state for a document that's no longer on screen. The #lastDuplicateKey
+      // guard above only prevents redundant refetches for an unchanged pair; it does nothing once
+      // reset() has already cleared vendorId/proposal out from under an in-flight request.
+      const gen = this.generation;
+      const query: BillListQuery = { vendorId, skip: 0, limit: DUPLICATE_SCAN_LIMIT, order: 'desc' };
+      this.pay.listBills(query).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: page => {
+          if (gen !== this.generation) return;
+          this.duplicates.set(findDuplicates(reference, page.items.map(v => v.bill)));
+          this.duplicateScanTotal.set(page.total);
+          this.duplicateChecked.set(true);
+        },
+        // A failed scan is not a failed import — say nothing rather than claim a clean result.
+        error: () => { if (gen !== this.generation) return; this.duplicateChecked.set(false); },
+      });
     });
   }
 
@@ -398,6 +467,9 @@ export class EInvoiceImport {
     // for a discarded generation, so reset() must clear both itself rather than relying on that
     // callback to self-heal them.
     this.busy.set(false);
+    this.duplicates.set([]);
+    this.duplicateChecked.set(false);
+    this.duplicateScanTotal.set(0);
   }
 
   private tooLarge(): string { return 'That file is larger than the 15 MB limit.'; }

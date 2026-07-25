@@ -289,4 +289,60 @@ describe('EInvoiceImport', () => {
     expect(cmp.creatingVendor()).toBe(false);
     ctrl.verify();
   });
+
+  it('warns when the vendor already has a bill with the same reference', () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(importable());
+    fixture.detectChanges();
+
+    cmp.vendorId.set('v1');
+    fixture.detectChanges();
+    const req = ctrl.expectOne(r =>
+      r.url === 'http://localhost:5000/clients/C1/bills' && r.params.get('vendorId') === 'v1');
+    expect(req.request.params.get('limit')).toBe('200');
+    expect(req.request.params.get('order')).toBe('desc');
+    req.flush({ items: [
+      { bill: { id: 'b1', vendorId: 'v1', number: 'B-1', billDate: '2026-06-01', dueDate: null,
+        vendorReference: 'INV-9', memo: null, status: 'Entered', lines: [] },
+        openBalance: 0, settlementStatus: 'Paid' },
+    ], total: 1, skip: 0, limit: 200 });
+    fixture.detectChanges();
+
+    expect(cmp.duplicates().map(b => b.id)).toEqual(['b1']);
+    expect(fixture.nativeElement.textContent).toContain('already has a bill');
+    expect(cmp.canConfirm()).toBe(false);                    // no accounts coded yet, not because of the warning
+    ctrl.verify();
+  });
+
+  it('says what it actually checked when the scan is bounded', () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(importable());
+    fixture.detectChanges();
+
+    cmp.vendorId.set('v1');
+    fixture.detectChanges();
+    ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/bills')
+      .flush({ items: [], total: 512, skip: 0, limit: 200 });
+    fixture.detectChanges();
+
+    expect(cmp.duplicates()).toEqual([]);
+    expect(fixture.nativeElement.textContent).toContain('200 most recent');
+    ctrl.verify();
+  });
+
+  it('does not check when the document carries no vendor reference', () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(importable({ vendorReference: null }));
+    fixture.detectChanges();
+    cmp.vendorId.set('v1');
+    fixture.detectChanges();
+    expect(cmp.duplicateChecked()).toBe(false);
+    ctrl.verify();                                            // no /bills request at all
+  });
 });
