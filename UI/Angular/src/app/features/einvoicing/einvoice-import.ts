@@ -226,7 +226,8 @@ interface EditableLine { lineId: string; description: string; amount: number; ex
             <div class="flex items-center gap-2">
               <button *appCan="'ap.write'" hlmBtn type="button" (click)="confirm()"
                       [disabled]="!canConfirm() || busy()">Create draft bill</button>
-              <button hlmBtn type="button" variant="outline" (click)="reset()">Choose another file</button>
+              <button hlmBtn type="button" variant="outline" [disabled]="busy() || creatingVendor()"
+                      (click)="reset()">Choose another file</button>
             </div>
           }
         }
@@ -237,6 +238,12 @@ interface EditableLine { lineId: string; description: string; amount: number; ex
 export class EInvoiceImport {
   private readonly svc = inject(EInvoicingService);
   private readonly destroyRef = inject(DestroyRef);
+
+  /** Bumped by `reset()` only. `confirm()`/`createVendor()` capture it before subscribing and
+   *  check it in every callback, so a response that outlives a `reset()` — the operator moved on
+   *  to a different document before it arrived — becomes an inert no-op instead of clobbering the
+   *  new document's `vendorId`/`createdBillId`. */
+  private generation = 0;
 
   readonly stage = signal<Stage>('upload');
   readonly file = signal<File | null>(null);
@@ -300,9 +307,10 @@ export class EInvoiceImport {
     if (!name || this.creatingVendor()) return;
     this.creatingVendor.set(true);
     this.message.set(null);
+    const gen = this.generation;
     this.pay.create(name, null).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: v => { this.vendorId.set(v.id); this.creatingVendor.set(false); },
-      error: e => { this.message.set(extractProblem(e).detail); this.creatingVendor.set(false); },
+      next: v => { if (gen !== this.generation) return; this.vendorId.set(v.id); this.creatingVendor.set(false); },
+      error: e => { if (gen !== this.generation) return; this.message.set(extractProblem(e).detail); this.creatingVendor.set(false); },
     });
   }
 
@@ -321,9 +329,10 @@ export class EInvoiceImport {
         description: l.description, amount: l.amount, expenseAccountId: l.expenseAccountId!,
       })),
     };
+    const gen = this.generation;
     this.pay.draftBill(req).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: b => { this.createdBillId.set(b.id); this.busy.set(false); },
-      error: e => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
+      next: b => { if (gen !== this.generation) return; this.createdBillId.set(b.id); this.busy.set(false); },
+      error: e => { if (gen !== this.generation) return; this.message.set(extractProblem(e).detail); this.busy.set(false); },
     });
   }
 
@@ -373,6 +382,9 @@ export class EInvoiceImport {
   }
 
   reset(): void {
+    // Bumping generation makes any confirm()/createVendor() response already in flight for the
+    // document being discarded a no-op wherever it lands — see the field comment above.
+    this.generation++;
     this.stage.set('upload');
     this.preview.set(null);
     this.file.set(null);
@@ -381,6 +393,11 @@ export class EInvoiceImport {
     this.lines.set([]);
     this.vendorId.set('');
     this.createdBillId.set(null);
+    this.creatingVendor.set(false);
+    // The generation guard now also skips the in-flight callback's own busy/creatingVendor reset
+    // for a discarded generation, so reset() must clear both itself rather than relying on that
+    // callback to self-heal them.
+    this.busy.set(false);
   }
 
   private tooLarge(): string { return 'That file is larger than the 15 MB limit.'; }

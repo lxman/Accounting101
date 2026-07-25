@@ -217,4 +217,76 @@ describe('EInvoiceImport', () => {
       r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
     ctrl.verify();
   });
+
+  it('does not let a stale confirm() response clobber a document opened after reset()', () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(importable());
+    fixture.detectChanges();
+
+    cmp.vendorId.set('v1');
+    cmp.patchLine(0, { amount: 1200, expenseAccountId: 'a1' });
+    fixture.detectChanges();
+    ctrl.match(r => r.url.endsWith('/bills') && r.method === 'GET').forEach(r =>
+      r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
+
+    cmp.confirm();
+    const staleReq = ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/bills' && r.method === 'POST');
+
+    cmp.reset();                                              // operator abandons this document
+    cmp.file.set(xmlFile('invoice2.xml'));
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(importable({ vendorReference: 'INV-2', memo: 'Second doc' }));
+    fixture.detectChanges();
+    ctrl.match(r => r.url.endsWith('/bills') && r.method === 'GET').forEach(r =>
+      r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
+
+    staleReq.flush({ id: 'STALE', vendorId: 'v1', number: 'B-1', billDate: '2026-07-01', dueDate: '2026-07-31',
+      vendorReference: 'INV-9', memo: 'Q3 services', status: 'Draft', lines: [] });
+    fixture.detectChanges();
+
+    expect(cmp.createdBillId()).toBeNull();
+    expect(cmp.proposal()?.vendorReference).toBe('INV-2');
+    expect(fixture.nativeElement.textContent).not.toContain('Draft bill created');
+    ctrl.verify();
+  });
+
+  it('does not let a stale createVendor() response clobber a document opened after reset()', () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(importable());
+    fixture.detectChanges();
+    expect(cmp.vendorId()).toBe('');
+
+    cmp.createVendor();
+    const staleReq = ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/vendors' && r.method === 'POST');
+
+    cmp.reset();                                              // operator abandons this document
+    cmp.file.set(xmlFile('invoice2.xml'));
+    cmp.upload();
+    // A different seller than the abandoned document's, so PayablesService.create()'s own tap()
+    // adding the stale vendor to the shared list can't legitimately auto-match this one by name —
+    // isolates the generation-guard fix from the (correct, separate) vendor-match effect.
+    ctrl.expectOne(PREVIEW_URL).flush({
+      syntax: 'Cii', profile: 'En16931', canImport: true, findings: [],
+      proposal: {
+        suggestedVendorId: null, sellerName: 'Other Co', billDate: '2026-08-01', dueDate: '2026-08-31',
+        vendorReference: 'INV-2', memo: 'Second doc', lines: [{ description: 'Freight', amount: 400 }],
+        total: 400, linesAreDetail: true,
+      },
+      vendorMatch: { vendorId: null, vendorName: null, sellerName: 'Other Co' },
+    });
+    fixture.detectChanges();
+    ctrl.match(r => r.url.endsWith('/bills') && r.method === 'GET').forEach(r =>
+      r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
+
+    staleReq.flush({ id: 'v-stale', name: 'Acme Parts', email: null });
+    fixture.detectChanges();
+
+    expect(cmp.vendorId()).toBe('');
+    expect(cmp.creatingVendor()).toBe(false);
+    ctrl.verify();
+  });
 });
