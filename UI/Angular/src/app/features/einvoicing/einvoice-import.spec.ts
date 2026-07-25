@@ -146,6 +146,36 @@ describe('EInvoiceImport', () => {
     ctrl.verify();
   });
 
+  it('matches the vendor via the constructor effect when vendors load after the preview', () => {
+    // Unlike the test above, /vendors is deliberately left unflushed until after the preview
+    // lands, so seed()'s own matchVendor() call sees an empty vendor list and cannot match —
+    // this exercises the constructor's vendor-match effect, not seed().
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(),
+        provideHttpClientTesting(), provideCapabilities('ap.write')],
+    });
+    TestBed.inject(ClientContextService).select('C1');
+    const fixture = TestBed.createComponent(EInvoiceImport);
+    fixture.detectChanges();
+    const ctrl = TestBed.inject(HttpTestingController);
+    const cmp = fixture.componentInstance;
+
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(importable());
+    fixture.detectChanges();
+    expect(cmp.vendorId()).toBe('');                          // no vendors loaded yet — seed() alone can't match
+
+    ctrl.match(r => r.url.endsWith('/vendors')).forEach(r =>
+      r.flush([{ id: 'v1', name: 'Acme Parts', email: null }]));
+    ctrl.match(r => r.url.endsWith('/accounts')).forEach(r => r.flush([]));
+    fixture.detectChanges();
+    expect(cmp.vendorId()).toBe('v1');                        // the effect fills it once vendors arrive
+
+    ctrl.match(r => r.url.endsWith('/bills')).forEach(r => r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
+    ctrl.verify();
+  });
+
   it('posts a draft bill carrying the document header and the edited lines', () => {
     const { fixture, ctrl, cmp } = boot();
     cmp.file.set(xmlFile());
@@ -345,6 +375,80 @@ describe('EInvoiceImport', () => {
     fixture.detectChanges();
     expect(cmp.duplicateChecked()).toBe(false);
     ctrl.verify();                                            // no /bills request at all
+  });
+
+  it('clears a stale duplicate strip when a vendor change is followed by a failed re-scan', () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(importable());
+    fixture.detectChanges();
+
+    cmp.vendorId.set('v1');
+    fixture.detectChanges();
+    const firstReq = ctrl.expectOne(r =>
+      r.url === 'http://localhost:5000/clients/C1/bills' && r.params.get('vendorId') === 'v1');
+    firstReq.flush({ items: [
+      { bill: { id: 'b1', vendorId: 'v1', number: 'B-1', billDate: '2026-06-01', dueDate: null,
+        vendorReference: 'INV-9', memo: null, status: 'Entered', lines: [] },
+        openBalance: 0, settlementStatus: 'Paid' },
+    ], total: 1, skip: 0, limit: 200 });
+    fixture.detectChanges();
+    expect(cmp.duplicates().map(b => b.id)).toEqual(['b1']);
+    expect(fixture.nativeElement.textContent).toContain('already has a bill');
+
+    // Operator realises the seller is a different vendor (Globex, not Acme) and switches.
+    cmp.vendorId.set('v2');
+    fixture.detectChanges();
+    // The stale strip — and its live link to Acme's bill — must be gone immediately, before the
+    // new scan even resolves, not just once the new scan happens to succeed.
+    expect(cmp.duplicates()).toEqual([]);
+    expect(fixture.nativeElement.textContent).not.toContain('already has a bill');
+
+    const secondReq = ctrl.expectOne(r =>
+      r.url === 'http://localhost:5000/clients/C1/bills' && r.params.get('vendorId') === 'v2');
+    secondReq.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+
+    expect(cmp.duplicates()).toEqual([]);
+    expect(cmp.duplicateChecked()).toBe(false);
+    expect(fixture.nativeElement.textContent).not.toContain('already has a bill');
+    ctrl.verify();
+  });
+
+  it("does not let a superseded vendor's slow scan overwrite a later vendor's clean result", () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(importable());
+    fixture.detectChanges();
+
+    cmp.vendorId.set('v1');                                   // slow scan, will resolve last
+    fixture.detectChanges();
+    const slowReq = ctrl.expectOne(r =>
+      r.url === 'http://localhost:5000/clients/C1/bills' && r.params.get('vendorId') === 'v1');
+
+    cmp.vendorId.set('v2');                                   // fast scan, clean, resolves first
+    fixture.detectChanges();
+    const fastReq = ctrl.expectOne(r =>
+      r.url === 'http://localhost:5000/clients/C1/bills' && r.params.get('vendorId') === 'v2');
+    fastReq.flush({ items: [], total: 0, skip: 0, limit: 200 });
+    fixture.detectChanges();
+    expect(cmp.duplicateChecked()).toBe(true);
+    expect(cmp.duplicates()).toEqual([]);
+
+    // Vendor A's slow response lands last — it must not overwrite vendor B's already-clean result.
+    slowReq.flush({ items: [
+      { bill: { id: 'b1', vendorId: 'v1', number: 'B-1', billDate: '2026-06-01', dueDate: null,
+        vendorReference: 'INV-9', memo: null, status: 'Entered', lines: [] },
+        openBalance: 0, settlementStatus: 'Paid' },
+    ], total: 1, skip: 0, limit: 200 });
+    fixture.detectChanges();
+
+    expect(cmp.duplicates()).toEqual([]);
+    expect(cmp.duplicateChecked()).toBe(true);
+    expect(fixture.nativeElement.textContent).not.toContain('already has a bill');
+    ctrl.verify();
   });
 
   it('creates a blob URL for a PDF upload and revokes it on reset', () => {

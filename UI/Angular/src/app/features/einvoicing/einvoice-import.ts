@@ -121,6 +121,7 @@ interface EditableLine { lineId: string; description: string; amount: number; ex
                       @if (f.businessTerm) {
                         <span class="text-muted-foreground text-xs ms-1">({{ f.businessTerm }})</span>
                       }
+                      @if (f.location) { <div class="text-muted-foreground text-xs">{{ f.location }}</div> }
                     </li>
                   }
                 </ul>
@@ -374,6 +375,12 @@ export class EInvoiceImport {
       const key = `${vendorId}|${reference}`;
       if (this.#lastDuplicateKey === key) return;
       this.#lastDuplicateKey = key;
+      // Clear stale results before issuing the new scan — otherwise a vendor change that goes
+      // straight into a failing/slow scan leaves the previous vendor's duplicates (and their
+      // live bill links) on screen, now misattributed to the new vendor.
+      this.duplicates.set([]);
+      this.duplicateChecked.set(false);
+      this.duplicateScanTotal.set(0);
       // Captured for the same reason confirm()/createVendor() capture it: a response that outlives
       // a reset() — the operator moved on to a different document before it arrived — must not
       // write duplicate state for a document that's no longer on screen. The #lastDuplicateKey
@@ -383,13 +390,22 @@ export class EInvoiceImport {
       const query: BillListQuery = { vendorId, skip: 0, limit: DUPLICATE_SCAN_LIMIT, order: 'desc' };
       this.pay.listBills(query).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
         next: page => {
-          if (gen !== this.generation) return;
+          // The generation guard discards a scan whose document was reset(); the key guard
+          // discards a scan whose vendor was superseded by a later one before this one landed —
+          // distinct races, both needed (see the "switch vendors mid-scan" regression test).
+          if (gen !== this.generation || this.#lastDuplicateKey !== key) return;
           this.duplicates.set(findDuplicates(reference, page.items.map(v => v.bill)));
           this.duplicateScanTotal.set(page.total);
           this.duplicateChecked.set(true);
         },
         // A failed scan is not a failed import — say nothing rather than claim a clean result.
-        error: () => { if (gen !== this.generation) return; this.duplicateChecked.set(false); },
+        // Also not a clean result: leave no duplicates/total behind from a superseded scan.
+        error: () => {
+          if (gen !== this.generation || this.#lastDuplicateKey !== key) return;
+          this.duplicates.set([]);
+          this.duplicateChecked.set(false);
+          this.duplicateScanTotal.set(0);
+        },
       });
     });
 
@@ -480,9 +496,20 @@ export class EInvoiceImport {
     if (f.size > EInvoicingService.maxUploadBytes) { this.message.set(this.tooLarge()); return; }
     this.busy.set(true);
     this.message.set(null);
+    // Captured for the same reason confirm()/createVendor()/the duplicate scan capture it: today
+    // this can only outlive a reset() from a client switch mid-upload (no in-app client switcher
+    // exists yet), but the client-switch effect's whole purpose is to stop a stale result landing
+    // under another client's name, and a preview in flight was the one write path it didn't cover.
+    const gen = this.generation;
     this.svc.previewInbound(f).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: r => { this.preview.set(r); this.seed(r); this.stage.set('preview'); this.busy.set(false); },
-      error: e => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
+      next: r => {
+        if (gen !== this.generation) return;
+        this.preview.set(r); this.seed(r); this.stage.set('preview'); this.busy.set(false);
+      },
+      error: e => {
+        if (gen !== this.generation) return;
+        this.message.set(extractProblem(e).detail); this.busy.set(false);
+      },
     });
   }
 
@@ -518,6 +545,7 @@ export class EInvoiceImport {
     this.duplicates.set([]);
     this.duplicateChecked.set(false);
     this.duplicateScanTotal.set(0);
+    this.#lastDuplicateKey = null;
   }
 
   private tooLarge(): string { return 'That file is larger than the 15 MB limit.'; }
