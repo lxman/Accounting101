@@ -9,7 +9,6 @@ import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { PayablesService } from '../../core/payables/payables.service';
 import { Bill, DraftBillRequest, billTotal } from '../../core/payables/payables';
 import { AccountsService } from '../../core/accounts/accounts.service';
-import { AccountResponse } from '../../core/accounts/account';
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney } from '../../core/format/display';
 import { CurrencyInput } from '../../shared/currency-input';
@@ -133,8 +132,7 @@ export class BillEditor {
     applyEach(p.lines, (l) => { required(l.description); required(l.expenseAccountId); });
   });
 
-  readonly expenseAccounts = computed<AccountResponse[]>(() =>
-    this.accountsSvc.accounts().filter(a => a.type === 'Expense' && a.postable && a.active));
+  readonly expenseAccounts = this.accountsSvc.expenseAccounts;
 
   readonly total = computed(() => billTotal(this.model().lines.map(l => ({ amount: l.amount }))));
   readonly canSave = computed(() =>
