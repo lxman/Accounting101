@@ -365,7 +365,19 @@ describe('EInvoiceImport', () => {
     fixture.detectChanges();
     cmp.vendorId.set('v1');
     fixture.detectChanges();
-    expect(cmp.duplicateChecked()).toBe(false);
+    expect(cmp.duplicates()).toEqual([]);
+    ctrl.verify();                                            // no duplicates request at all
+  });
+
+  it('does not check when the vendor reference is whitespace-only', () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(importable({ vendorReference: '   ' }));
+    fixture.detectChanges();
+    cmp.vendorId.set('v1');
+    fixture.detectChanges();
+    expect(cmp.duplicates()).toEqual([]);
     ctrl.verify();                                            // no duplicates request at all
   });
 
@@ -423,7 +435,6 @@ describe('EInvoiceImport', () => {
     fixture.detectChanges();
 
     expect(cmp.duplicates()).toEqual([]);
-    expect(cmp.duplicateChecked()).toBe(false);
     expect(fixture.nativeElement.textContent).not.toContain('already has a bill');
     ctrl.verify();
   });
@@ -446,7 +457,6 @@ describe('EInvoiceImport', () => {
       r.url === 'http://localhost:5000/clients/C1/bills/duplicates' && r.params.get('vendorId') === 'v2');
     fastReq.flush([]);
     fixture.detectChanges();
-    expect(cmp.duplicateChecked()).toBe(true);
     expect(cmp.duplicates()).toEqual([]);
 
     // Vendor A's slow response lands last — it must not overwrite vendor B's already-clean result.
@@ -457,7 +467,6 @@ describe('EInvoiceImport', () => {
     fixture.detectChanges();
 
     expect(cmp.duplicates()).toEqual([]);
-    expect(cmp.duplicateChecked()).toBe(true);
     expect(fixture.nativeElement.textContent).not.toContain('already has a bill');
     ctrl.verify();
   });

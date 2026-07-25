@@ -315,7 +315,6 @@ export class EInvoiceImport {
   readonly creatingVendor = signal(false);
 
   readonly duplicates = signal<Bill[]>([]);
-  readonly duplicateChecked = signal(false);
 
   /** Guards the effect below against re-running for a vendor/reference pair it already scanned. */
   #lastDuplicateKey: string | null = null;
@@ -354,10 +353,13 @@ export class EInvoiceImport {
     effect(() => {
       const vendorId = this.vendorId();
       const reference = this.proposal()?.vendorReference ?? null;
-      if (!vendorId || !reference) {
+      // A whitespace-only reference must be treated the same as an absent one: the endpoint 400s on
+      // IsNullOrWhiteSpace, but BillService.FindDuplicatesAsync itself returns [] for it, so issuing
+      // the request here would only ever surface a spurious error for an input the server-side rule
+      // considers "nothing to match". `!reference` alone misses this — "   " is truthy in JS.
+      if (!vendorId || !reference?.trim()) {
         this.#lastDuplicateKey = null;
         this.duplicates.set([]);
-        this.duplicateChecked.set(false);
         return;
       }
       const key = `${vendorId}|${reference}`;
@@ -367,7 +369,6 @@ export class EInvoiceImport {
       // straight into a failing/slow lookup leaves the previous vendor's duplicates (and their
       // live bill links) on screen, now misattributed to the new vendor.
       this.duplicates.set([]);
-      this.duplicateChecked.set(false);
       // Captured for the same reason confirm()/createVendor() capture it: a response that outlives
       // a reset() — the operator moved on to a different document before it arrived — must not
       // write duplicate state for a document that's no longer on screen. The #lastDuplicateKey
@@ -381,13 +382,15 @@ export class EInvoiceImport {
           // distinct races, both needed (see the "switch vendors mid-scan" regression test).
           if (gen !== this.generation || this.#lastDuplicateKey !== key) return;
           this.duplicates.set(matches);
-          this.duplicateChecked.set(true);
         },
-        // A failed lookup is not a failed import — say nothing rather than claim a clean result.
+        // A failed lookup is not a failed import — leave the screen with no duplicates rather than
+        // claim a clean result. (There used to be a `duplicateChecked` signal distinguishing "not
+        // asked" from "asked, found none" here; nothing rendered the distinction, so it was removed
+        // — see the design doc amendment. The behaviour this comment protects is unchanged: a failed
+        // lookup still clears `duplicates`, it just no longer flags itself as having "completed".)
         error: () => {
           if (gen !== this.generation || this.#lastDuplicateKey !== key) return;
           this.duplicates.set([]);
-          this.duplicateChecked.set(false);
         },
       });
     });
@@ -526,7 +529,6 @@ export class EInvoiceImport {
     // callback to self-heal them.
     this.busy.set(false);
     this.duplicates.set([]);
-    this.duplicateChecked.set(false);
     this.#lastDuplicateKey = null;
   }
 

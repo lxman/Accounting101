@@ -154,7 +154,10 @@ with a link each, still says re-issues are legitimate, and still never blocks th
 **Kept:** the `generation` guard on that subscription. It still writes component state after an
 await, and the parked same-key re-issue race is unaffected by moving the query server-side.
 
-`duplicateChecked` remains, because "not yet asked" and "asked, found none" still render differently.
+`duplicateChecked` is removed. It was written for a template branch — `@else if (duplicateChecked() &&
+duplicateScanBounded())` — that the bounded-scan deletion above already removes; with that branch gone,
+the template renders nothing for any of "not asked", "asked, found none", or "lookup failed", so the
+signal has no reader left to justify keeping it.
 
 ## Testing
 

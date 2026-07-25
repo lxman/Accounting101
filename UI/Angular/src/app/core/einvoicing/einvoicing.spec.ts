@@ -1,12 +1,7 @@
 import { matchVendor, profileLabel } from './einvoicing';
-import { Vendor, Bill } from '../payables/payables';
+import { Vendor } from '../payables/payables';
 
 const vendor = (id: string, name: string): Vendor => ({ id, name, email: null });
-
-const bill = (id: string, vendorReference: string | null, status: Bill['status'] = 'Entered'): Bill => ({
-  id, vendorId: 'v1', number: null, billDate: '2026-07-01', dueDate: null,
-  vendorReference, memo: null, status, lines: [],
-});
 
 describe('matchVendor', () => {
   const vendors = [vendor('v1', 'Acme Parts'), vendor('v2', 'Globex')];
