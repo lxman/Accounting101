@@ -68,6 +68,15 @@ export class PayablesService {
     return this.http.get<PagedResponse<BillView>>(this.base('/bills'), { params });
   }
 
+  /** Bills this vendor already has carrying `reference`. Server-side and complete — unlike a scan over
+   *  listBills, it sees drafts, which is the case that matters: the likeliest duplicate is an invoice
+   *  imported twice while the first is still a draft. Advisory; nothing blocks on it. */
+  billDuplicates(vendorId: string, reference: string): Observable<Bill[]> {
+    const id = this.client.clientId(); if (!id) return EMPTY;
+    const params = new HttpParams().set('vendorId', vendorId).set('reference', reference);
+    return this.http.get<Bill[]>(this.base('/bills/duplicates'), { params });
+  }
+
   getBill(id: string): Observable<BillView> {
     const clientId = this.client.clientId(); if (!clientId) return EMPTY;
     return this.http.get<BillView>(this.base(`/bills/${id}`));

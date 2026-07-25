@@ -4,6 +4,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { PayablesService } from './payables.service';
 import { ClientContextService } from '../client/client-context.service';
+import { Bill } from './payables';
 
 describe('PayablesService', () => {
   function setup() {
@@ -120,6 +121,44 @@ describe('PayablesService', () => {
       vendor: { id: 'v1', name: 'Acme Parts', email: null }, apBalance: 800, creditBalance: 200,
       aging: { current: 0, d1To30: 0, d31To60: 800, d61To90: 0, d90Plus: 0 },
       openBills: [], statementLines: [], creditLines: [] });
+    ctrl.verify();
+  });
+
+  it('fetches bill duplicates for a vendor and reference', () => {
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection(), provideHttpClient(), provideHttpClientTesting()],
+    });
+    TestBed.inject(ClientContextService).select('C1');
+    const svc = TestBed.inject(PayablesService);
+    const ctrl = TestBed.inject(HttpTestingController);
+
+    let got: Bill[] | undefined;
+    svc.billDuplicates('v1', 'INV-9').subscribe(r => (got = r));
+
+    const req = ctrl.expectOne(r =>
+      r.url === 'http://localhost:5000/clients/C1/bills/duplicates'
+      && r.params.get('vendorId') === 'v1'
+      && r.params.get('reference') === 'INV-9');
+    expect(req.request.method).toBe('GET');
+    req.flush([{ id: 'b1', vendorId: 'v1', number: 'BILL-00001', billDate: '2026-03-01', dueDate: null,
+      vendorReference: 'INV-9', memo: null, status: 'Draft', lines: [] }]);
+
+    expect(got?.length).toBe(1);
+    expect(got?.[0].status).toBe('Draft');
+    ctrl.verify();
+  });
+
+  it('makes no duplicates request when no client is selected', () => {
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection(), provideHttpClient(), provideHttpClientTesting()],
+    });
+    const svc = TestBed.inject(PayablesService);
+    const ctrl = TestBed.inject(HttpTestingController);
+
+    let emitted = false;
+    svc.billDuplicates('v1', 'INV-9').subscribe({ next: () => (emitted = true) });
+
+    expect(emitted).toBe(false);
     ctrl.verify();
   });
 });
