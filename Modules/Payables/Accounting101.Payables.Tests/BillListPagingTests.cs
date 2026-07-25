@@ -70,6 +70,28 @@ public sealed class BillListPagingTests(PayablesHostFixture fixture) : IClassFix
         Assert.DoesNotContain(page2.Items[0].Bill.Id, page1.Items.Select(v => v.Bill.Id));
     }
 
+    /// <summary>The bill list is a settlement view, so it shows only Entered bills — drafts have no
+    /// A/P balance to settle. This is deliberate, and it is why the duplicate lookup is a separate
+    /// read rather than a filter over this one: a duplicate that is still a draft is invisible here.
+    /// If you are about to "fix" one of these two reads to match the other, read this first.</summary>
+    [Fact]
+    public async Task Bill_list_shows_only_entered_bills_by_design()
+    {
+        (Guid clientId, HttpClient controller, HttpClient clerk, _) = await fixture.SeedSodClientAsync();
+        await BillSettlementScenario.SetUpChartAsync(controller, clientId, fixture);
+        Guid vendorId = await BillSettlementScenario.CreateVendorAsync(clerk, clientId);
+
+        // A draft, deliberately left un-entered.
+        DraftBillRequest req = new(vendorId, new DateOnly(2026, 3, 1), null, "REF", null,
+            [new BillLineBody("Rent", 1000m, fixture.RentExpenseAccountId)]);
+        (await clerk.PostAsJsonAsync($"/clients/{clientId}/bills", req)).EnsureSuccessStatusCode();
+
+        PagedResponse<BillView> page = (await clerk.GetFromJsonAsync<PagedResponse<BillView>>(
+            $"/clients/{clientId}/bills?vendorId={vendorId}"))!;
+
+        Assert.Equal(0, page.Total);       // the draft exists, but this read cannot see it
+    }
+
     private static async Task EnterAsync(HttpClient clerk, Guid clientId, Guid vendorId, Guid expenseAccountId)
     {
         DraftBillRequest req = new(vendorId, new DateOnly(2026, 3, 1), null, "REF", null,
