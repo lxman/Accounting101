@@ -93,21 +93,19 @@ matching `ListBills`' existing treatment of a missing `vendorId`.
 
 ### Response
 
-```csharp
-/// <summary>One existing bill that carries the reference being checked. The endpoint returns these
-/// as a bare array: the result is complete by construction — the query reads the vendor's bills
-/// directly, with no paging and no cap — so there is nothing to qualify.</summary>
-public sealed record DuplicateBillMatch(Guid BillId, string? Number, DateOnly BillDate, string Status);
-```
+A bare `IReadOnlyList<Bill>` — the domain type, per the module's stated convention: *"Responses are the
+domain types; only the request bodies are DTOs"* (`PayablesEndpoints.cs:8-9`). No new DTO, and the
+Angular `Bill` interface already exists, so the duplicate strip keeps rendering `number`, `billDate`
+and `status` unchanged.
 
-A bare `IReadOnlyList<DuplicateBillMatch>`, matching `ListVendors` and `ListBillPayments` rather than
-the paged `ListBills`. No wrapper and no completeness flag: the principle's "states its own
-completeness" clause binds a lookup that *is* bounded, and this one never is. A wrapper record whose
-sole field is the list, with completeness expressed only in a comment, would not state anything at
-runtime either — it would just be machinery. A future bounded lookup introduces its own response type
-carrying the disclosure.
+Bare array, matching `ListVendors` and `ListBillPayments` rather than the paged `ListBills`. No wrapper
+and no completeness flag: the principle's "states its own completeness" clause binds a lookup that *is*
+bounded, and this one never is. A wrapper whose sole field is the list, with completeness expressed
+only in a comment, would state nothing at runtime either — it would just be machinery. A future
+bounded lookup introduces its own response type carrying the disclosure.
 
-`Status` is the `BillStatus` name as a string, matching how `Bill` already serialises.
+Matches carry their `Lines`, which the caller does not need. That is the cost of returning the domain
+type, and it is not worth a projection: matches number in the low single digits.
 
 ### The rule
 
