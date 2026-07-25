@@ -1,12 +1,7 @@
-import { matchVendor, findDuplicates, profileLabel } from './einvoicing';
-import { Vendor, Bill } from '../payables/payables';
+import { matchVendor, profileLabel } from './einvoicing';
+import { Vendor } from '../payables/payables';
 
 const vendor = (id: string, name: string): Vendor => ({ id, name, email: null });
-
-const bill = (id: string, vendorReference: string | null, status: Bill['status'] = 'Entered'): Bill => ({
-  id, vendorId: 'v1', number: null, billDate: '2026-07-01', dueDate: null,
-  vendorReference, memo: null, status, lines: [],
-});
 
 describe('matchVendor', () => {
   const vendors = [vendor('v1', 'Acme Parts'), vendor('v2', 'Globex')];
@@ -30,25 +25,6 @@ describe('matchVendor', () => {
   it('returns null for a null or blank seller name', () => {
     expect(matchVendor(null, vendors)).toBeNull();
     expect(matchVendor('   ', vendors)).toBeNull();
-  });
-});
-
-describe('findDuplicates', () => {
-  it('finds a bill with the same vendor reference', () => {
-    const hits = findDuplicates('INV-9', [bill('b1', 'INV-9'), bill('b2', 'INV-8')]);
-    expect(hits.map(b => b.id)).toEqual(['b1']);
-  });
-
-  it('ignores case and whitespace', () => {
-    expect(findDuplicates(' inv-9 ', [bill('b1', 'INV-9')]).length).toBe(1);
-  });
-
-  it('excludes voided bills', () => {
-    expect(findDuplicates('INV-9', [bill('b1', 'INV-9', 'Void')])).toEqual([]);
-  });
-
-  it('checks nothing when the document has no reference', () => {
-    expect(findDuplicates(null, [bill('b1', 'INV-9')])).toEqual([]);
   });
 });
 

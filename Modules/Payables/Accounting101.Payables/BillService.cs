@@ -86,6 +86,36 @@ public sealed class BillService(
     public Task<Bill?> GetAsync(Guid clientId, Guid billId, CancellationToken ct = default) =>
         bills.GetAsync(clientId, billId, ct);
 
+    /// <summary>
+    /// Bills already on file for this vendor carrying the same vendor reference — the lookup behind the
+    /// import screen's duplicate warning. Advisory only: nothing in this module consults it, because
+    /// re-issues, corrections and annual repeats are all legitimate and only a human can tell.
+    ///
+    /// Includes drafts as well as entered bills. That is the point: the likeliest duplicate is an
+    /// invoice imported twice while the first is still a draft, and the bill list cannot see those
+    /// (<see cref="BillPaymentService.ListBillViewsAsync"/> filters to Entered). Voided bills are
+    /// excluded, because a voided bill is exactly when re-entering the invoice is correct.
+    ///
+    /// Complete by construction: reads the vendor's bills directly, no paging and no cap. A draft and
+    /// its entered successor never both appear — <see cref="EnterAsync"/> deletes the draft.
+    /// </summary>
+    public async Task<IReadOnlyList<Bill>> FindDuplicatesAsync(
+        Guid clientId, Guid vendorId, string reference, CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(reference)) return [];
+
+        string needle = reference.Trim();
+        IReadOnlyList<Bill> all = await bills.GetByVendorAsync(clientId, vendorId, ct);
+
+        return
+        [
+            .. all
+                .Where(b => b.Status != BillStatus.Void
+                            && string.Equals(b.VendorReference?.Trim(), needle, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(b => b.BillDate)
+        ];
+    }
+
     private async Task<Bill> RequireAsync(Guid clientId, Guid billId, CancellationToken ct) =>
         await bills.GetAsync(clientId, billId, ct) ?? throw new InvalidOperationException($"Bill {billId} not found.");
 }

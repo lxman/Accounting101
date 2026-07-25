@@ -25,14 +25,37 @@ replacement is appended. To undo one you void it, or reverse it into an open per
 product. There is no destructive update anywhere in the system — nothing posted is ever overwritten or
 deleted.
 
-## 3. Make illegal states unrepresentable
+## 3. Duplicate submissions are two different questions
+
+Two different questions live here, and conflating them is why our answers diverged. They get
+different mechanisms and neither borrows the other's.
+
+**A retry is invisible.** The same operation delivered twice — a network retry, a double-click, a
+redelivery — must produce one result. Where a repeat moves money, the write accepts a caller-supplied
+id: same id and same content replays the existing document; same id and different content is a 422.
+With no key there is no protection, and that is the caller's choice, not a defect.
+
+**A business duplicate is a human decision.** A genuinely new submission that *resembles* something
+already recorded — the same invoice number from the same vendor — is never auto-resolved. Re-issues,
+corrections and annual repeats are all legitimate. The system reports what it found, links to it, and
+lets the operator decide. It does not block.
+
+**The module that owns the documents answers the question.** Duplicate lookup is a server-side query
+on the owning module, never a scan assembled by a caller from a list endpoint. A caller cannot know
+what a list is not showing it, and a bounded scan that reports "none found" is a lie of omission. The
+lookup states its own completeness.
+
+**We do not police untidiness.** Duplicate vendor records, duplicate customers, a customer invoiced
+twice — the cost is embarrassment, not money. Detecting those is hand-holding and we don't do it.
+
+## 4. Make illegal states unrepresentable
 
 The entry factory refuses to yield anything that doesn't balance, so an unbalanced entry has no
 representation that can reach the database. This is the general rule, not a one-off: prefer a design where
 the bad state *cannot be constructed* over one that validates against it after the fact. Money is
 `decimal`, never floating point — a float price is an illegal state we don't allow to exist.
 
-## 4. The engine enforces the irreducible minimum; policy lives upstream
+## 5. The engine enforces the irreducible minimum; policy lives upstream
 
 The engine enforces only the invariants that must *always* hold, for every client, forever: entries
 balance, closed periods are frozen, and concurrent lifecycle edits are resolved by optimistic
@@ -43,7 +66,7 @@ permission matrix, segregation of duties, step-up re-auth on dangerous actions. 
 deployment and customer; invariants do not. We do not hard-wire into the database any rule that isn't
 absolutely irreducible. When in doubt, a rule is policy, and policy goes up.
 
-## 5. Two orthogonal sources of truth
+## 6. Two orthogonal sources of truth
 
 There are exactly two, and conflating them is a category error:
 
@@ -55,7 +78,7 @@ Classification lives on the chart and is **never a stored value on a journal lin
 journal-derived numbers are values. An account being an asset is not a fact about any transaction; it's a
 fact about the account. Keep them separate and the statements articulate by construction.
 
-## 6. The statements articulate by construction
+## 7. The statements articulate by construction
 
 Net income on the income statement *is* the equity movement on the balance sheet. The cash-flow
 statement's ending cash *is* the balance sheet's cash. The cash-flow statement ties on the double-entry
@@ -63,7 +86,7 @@ identity itself, so it stays balanced even when an account is classified wrong. 
 figure two ways and hope they agree; we derive each once from the shared journal and chart so they cannot
 disagree.
 
-## 7. Tamper-evidence is structural
+## 8. Tamper-evidence is structural
 
 The audit log is hash-chained and append-only. Replaying it reproduces the journal; replaying the journal
 reproduces the checkpoint. Divergence gets caught, not absorbed. Integrity is a property of the data
@@ -71,7 +94,7 @@ structure, not a process someone has to remember to run.
 
 ---
 
-## 8. The product is a module platform
+## 9. The product is a module platform
 
 Accounting101 is a **modular monolith**: separate projects in one solution, modules sold separately and
 wired into one deployable host. The shape is deliberate and load-bearing:
@@ -102,11 +125,11 @@ Layering, each tier depending only on the one beneath it:
 
 ---
 
-## 9. Subledgers are folds, never stores — the ledger-first invariant
+## 10. Subledgers are folds, never stores — the ledger-first invariant
 
 A subledger — accounts receivable by customer, accounts payable by vendor, inventory by item, the
 fixed-asset register — is a **view of the journal, not a second set of books**. This is the sharpest
-consequence of §1 and §8 taken together, and it is load-bearing enough to state on its own.
+consequence of §1 and §9 taken together, and it is load-bearing enough to state on its own.
 
 A module stores only the immutable business **document**: the invoice, the bill, the asset, the payroll
 run — a frozen snapshot of what was agreed, with its own lifecycle. It never stores a balance and never
@@ -133,7 +156,7 @@ hold correct, not seven.
 
 ---
 
-## 10. The contract is UI-agnostic — any front end must be able to ship against it
+## 11. The contract is UI-agnostic — any front end must be able to ship against it
 
 A core product principle: you could put an Angular, Vue, React, plain-HTML, WPF, WinForms, Qt, X11, or CLI
 front end on this system and ship it. The front end is a swappable consumer; the value is the contract.
@@ -183,21 +206,21 @@ None of the above is ad hoc, and none of it is a Gang-of-Four pattern — those 
 collaborate, one level below this. What these principles compose into is an **architectural stack**, and
 it is worth naming so the vocabulary is shared:
 
-- **Event sourcing** is the core (§1, §2, §7). The journal is an append-only, immutable event log; every
+- **Event sourcing** is the core (§1, §2, §8). The journal is an append-only, immutable event log; every
   balance, subledger total, trial balance, and statement is a fold over it, and nothing derived is stored
   as gospel. This is not a pattern we imposed — double-entry bookkeeping *is* event sourcing, and it
   predates computing by five centuries. We recognized that the domain already was one and refused to
   fight it.
-- **CQRS** is the read/write asymmetry (§1, §6). Writes flow in as recipes that append balanced events;
+- **CQRS** is the read/write asymmetry (§1, §7). Writes flow in as recipes that append balanced events;
   reads come back as projections — folds, the `$inc` cache, checkpoints. The path in and the path out are
   shaped differently on purpose.
-- **Hexagonal (ports and adapters)** is the contract boundary (§10). The engine is a view-ignorant core
+- **Hexagonal (ports and adapters)** is the contract boundary (§11). The engine is a view-ignorant core
   exposing one REST/JSON port; every front end — Angular, WPF, CLI — is an interchangeable adapter. The
   server owns numbers and semantics; the adapter owns presentation. The engine never knows who is calling.
-- **Domain-Driven Design with bounded contexts** is the module story (§8). The ledger is the domain core
+- **Domain-Driven Design with bounded contexts** is the module story (§9). The ledger is the domain core
   and shared kernel; each module (A/R, A/P, Payroll, Fixed Assets, …) is a bounded context with its own
   documents and language, integrating through the published **Contracts** and nothing else.
-- **Modular monolith** is the packaging (§8). Bounded contexts as separate projects, one deployable host
+- **Modular monolith** is the packaging (§9). Bounded contexts as separate projects, one deployable host
   today, HTTP-shaped seams so a context can split into its own service tomorrow without a rewrite.
 
 In one breath: an **event-sourced double-entry ledger, exposed through a hexagonal port to
@@ -207,13 +230,13 @@ modular monolith.**
 These are five names for one discipline. Every principle in this document is that same rule seen from a
 different side: **a fact is immutable and owned in exactly one place, and everything else is a projection
 of it.** Event sourcing says it about time; the single-source-of-truth journal says it about storage; the
-ledger-first subledger invariant (§9) says it about modules; "classification is never a value" says it about
+ledger-first subledger invariant (§10) says it about modules; "classification is never a value" says it about
 the chart; UI-agnosticism says it about the client. When a design decision is hard, resolve it by asking
 which thing is the fact and where it lives — the rest is a view.
 
 ---
 
-## 11. How the system is built
+## 12. How the system is built
 
 These are practices, not product invariants, but they are how the principles above stay true over time:
 

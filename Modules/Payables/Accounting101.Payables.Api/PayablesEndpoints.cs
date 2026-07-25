@@ -22,6 +22,7 @@ public static class PayablesEndpoints
         clients.MapPost("/bills/{billId:guid}/void", VoidBill);
         clients.MapGet("/bills/{billId:guid}", GetBill);
         clients.MapGet("/bills", ListBills);
+        clients.MapGet("/bills/duplicates", FindDuplicateBills);
         clients.MapPost("/bill-payments", RecordPayment);
         clients.MapGet("/bill-payments", ListBillPayments);
         clients.MapGet("/bill-payments/{paymentId:guid}", GetBillPayment);
@@ -153,6 +154,20 @@ public static class PayablesEndpoints
             ? all.OrderByDescending(v => v.Bill.Number) : all.OrderBy(v => v.Bill.Number);
         List<BillView> items = ordered.Skip(Math.Max(0, skip ?? 0)).Take(Math.Clamp(limit ?? 50, 1, 200)).ToList();
         return Results.Ok(new PagedResponse<BillView>(items, all.Count, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200)));
+    }
+
+    /// <summary>Bills this vendor already has carrying the given reference. Advisory: the caller decides
+    /// what to do about them. Returns the domain type per this class's convention.</summary>
+    private static async Task<IResult> FindDuplicateBills(
+        Guid clientId, Guid? vendorId, string? reference, BillService service, CancellationToken cancellationToken)
+    {
+        if (vendorId is null || vendorId == Guid.Empty)
+            return Results.Problem("vendorId query parameter is required.", statusCode: StatusCodes.Status400BadRequest);
+
+        if (string.IsNullOrWhiteSpace(reference))
+            return Results.Problem("reference query parameter is required.", statusCode: StatusCodes.Status400BadRequest);
+
+        return Results.Ok(await service.FindDuplicatesAsync(clientId, vendorId.Value, reference, cancellationToken));
     }
 
     private static bool TryOrder(string? order, out bool descending)
