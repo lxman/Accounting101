@@ -102,8 +102,9 @@ Payables, so it could be lifted into a private overlay later without archaeology
   (`type === 'Expense' && postable && active`), currently inline in `bill-editor.ts:136-137`, becomes
   an `expenseAccounts` computed on `AccountsService`; `bill-editor.ts` and this screen both read it.
   A targeted cleanup in code this work touches, not a general refactor.
-- **`core/capabilities/capability.testing.ts`** — an additive `capabilityStub()` factory for
-  module-aware specs. See Testing below; no existing spec changes.
+No test-support changes are needed: `provideCapabilities(...)` only takes capability strings, but
+specs that need to set enabled modules construct `StubCapabilityService` directly and provide it —
+which `route-sentinel.service.spec.ts:13-25` already does. `capability.testing.ts` is untouched.
 
 ## The screen
 
@@ -244,11 +245,10 @@ Repo idiom throughout: `TestBed` with `provideZonelessChangeDetection`, `provide
 | `route-sentinel.spec.ts` (extend) | Redirects when `requiredModule` leaves `enabledModules`, alongside the existing capability case. |
 | `bill-list.spec.ts` (extend) | Import button absent when the module is disabled, present when enabled. |
 
-**One test-support addition.** `provideCapabilities(...caps)` takes only capability strings, so
-there is no way to set enabled modules without casting the injected service back to the stub in
-every spec. Rather than change that signature — many existing specs use it — this adds an exported
-`capabilityStub()` factory returning `{ provider, stub }`, giving module-aware specs a typed handle.
-Purely additive; no existing spec is touched.
+**Setting enabled modules in specs.** `provideCapabilities(...caps)` takes only capability strings,
+so module-aware specs construct `StubCapabilityService` directly, call `setEnabledModules([...])`,
+and provide it for `CapabilityService` — the pattern `route-sentinel.service.spec.ts:13-25` already
+uses. No test-support change is needed.
 
 **Not tested:** the PDF pane's rendering. It is a browser `<object>` on a blob URL; the spec asserts
 the URL is created for a PDF, not created for XML, and revoked on reset. The rendering is the
@@ -257,7 +257,7 @@ browser's job.
 ## Scope
 
 **In scope:** the new and edited files listed above — four production files plus their four specs,
-six edited files, and two extended specs; the upload/preview/confirm flow; vendor
+five edited files, and two extended specs; the upload/preview/confirm flow; vendor
 matching and inline create; per-line expense-account coding and line editing; findings display;
 duplicate warning; the module route guard and sentinel extension; the tests above.
 
