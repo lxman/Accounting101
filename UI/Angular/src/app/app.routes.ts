@@ -81,10 +81,12 @@ import { MovementDetail } from './features/inventory/movement-detail';
 import { AuditTrail } from './features/audit/audit-trail';
 import { VerifyIntegrity } from './features/audit/verify-integrity';
 import { SubledgerReconciliations } from './features/audit/subledger-reconciliations';
+import { EInvoiceImport } from './features/einvoicing/einvoice-import';
 import { navLeafPaths } from './layout/nav';
 import { canWrite } from './core/capabilities/can.guard';
 import { deploymentAdminGuard } from './core/capabilities/deployment-admin.guard';
 import { hideWhenAutoApproveGuard } from './core/capabilities/hide-when-autoapprove.guard';
+import { moduleEnabled } from './core/capabilities/module.guard';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
@@ -136,6 +138,8 @@ export const routes: Routes = [
     { path: '', pathMatch: 'full', redirectTo: 'bills' },
     { path: 'bills', component: BillList },
     { path: 'bills/new', component: BillEditor, canActivate: [canWrite], data: { requiredCapability: 'ap.write', fallback: '/payables/bills' } },
+    { path: 'bills/import', component: EInvoiceImport, canActivate: [canWrite, moduleEnabled],
+      data: { requiredCapability: 'ap.write', requiredModule: 'einvoicing', fallback: '/payables/bills' } },
     { path: 'bills/:id/edit', component: BillEditor, canActivate: [canWrite], data: { requiredCapability: 'ap.write', fallback: '/payables/bills' } },
     { path: 'bills/:id', component: BillDetail },
     { path: 'payments', component: BillPaymentList },

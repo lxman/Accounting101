@@ -15,7 +15,9 @@ export const NAV: NavSection[] = [
   ] },
   { label: 'Subledgers', items: [
     { label: 'Receivables', path: '/receivables', area: 'ar', moduleKey: 'receivables' },
-    { label: 'Payables', path: '/payables', area: 'ap', moduleKey: 'payables' },
+    { label: 'Payables', path: '/payables', area: 'ap', moduleKey: 'payables', children: [
+      { label: 'Import e-invoice', path: '/payables/bills/import', area: 'ap', moduleKey: 'einvoicing' },
+    ] },
     { label: 'Payroll', path: '/payroll', area: 'payroll', moduleKey: 'payroll' },
     { label: 'Cash & Banking', path: '/cash', area: 'cash', moduleKey: 'cash', children: [
       { label: 'Bank Reconciliation', path: '/cash/reconciliation', area: 'bankrec', moduleKey: 'reconciliation' },
