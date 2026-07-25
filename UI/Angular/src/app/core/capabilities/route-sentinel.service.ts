@@ -4,11 +4,11 @@ import { NavigationEnd, Router } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { CapabilityService } from './capability.service';
 
-interface RouteCap { requiredCapability?: string; fallback?: string; }
+interface RouteCap { requiredCapability?: string; fallback?: string; requiredModule?: string; }
 
-/** Redirects the user off the current page the instant its required capability leaves the caps
- * signal — the reactive complement to the navigation-time canWrite guard. Root-level; started by
- * being injected at bootstrap (see app.ts). */
+/** Redirects the user off the current page the instant its required capability or module leaves the
+ * caps signal — the reactive complement to the navigation-time canWrite/moduleEnabled guards.
+ * Root-level; started by being injected at bootstrap (see app.ts). */
 @Injectable({ providedIn: 'root' })
 export class RouteSentinelService {
   private readonly router = inject(Router);
@@ -29,11 +29,12 @@ export class RouteSentinelService {
 
   constructor() {
     effect(() => {
-      const { requiredCapability, fallback } = this.activeCap();
-      if (!requiredCapability || !this.caps.loaded()) return;
-      if (!this.caps.has(requiredCapability)) {
-        void this.router.navigateByUrl(fallback ?? '/dashboard');
-      }
+      const { requiredCapability, fallback, requiredModule } = this.activeCap();
+      if (!this.caps.loaded()) return;
+      const lost =
+        (!!requiredCapability && !this.caps.has(requiredCapability)) ||
+        (!!requiredModule && !this.caps.moduleEnabled(requiredModule));
+      if (lost) void this.router.navigateByUrl(fallback ?? '/dashboard');
     });
   }
 }

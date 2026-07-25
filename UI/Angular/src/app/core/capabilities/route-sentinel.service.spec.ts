@@ -20,6 +20,7 @@ function setup() {
       provideRouter([
         { path: 'list', component: List },
         { path: 'edit', component: Editor, data: { requiredCapability: 'ar.write', fallback: '/list' } },
+        { path: 'import', component: Editor, data: { requiredModule: 'einvoicing', fallback: '/list' } },
       ]),
     ],
   });
@@ -50,6 +51,23 @@ describe('RouteSentinelService', () => {
     for (let i = 0; i < 20 && TestBed.inject(Router).url !== '/list'; i++) {
       await new Promise((resolve) => setTimeout(resolve, 0));
       TestBed.flushEffects?.();
+    }
+    expect(TestBed.inject(Router).url).toBe('/list');
+  });
+
+  it('redirects off the page the moment the required module is disabled', async () => {
+    const caps = setup();
+    caps.setEnabledModules(['einvoicing']);
+    TestBed.inject(RouteSentinelService);
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/import');
+    TestBed.flushEffects?.();
+    expect(TestBed.inject(Router).url).toBe('/import');
+
+    caps.setEnabledModules([]);                          // entitlement lapsed mid-session
+    TestBed.flushEffects?.();
+    for (let i = 0; i < 20 && TestBed.inject(Router).url !== '/list'; i++) {
+      await new Promise((r) => setTimeout(r, 0));
     }
     expect(TestBed.inject(Router).url).toBe('/list');
   });
