@@ -21,6 +21,18 @@ export function blocked(ruleId = 'BR-06', message = 'Seller name is missing.') {
   };
 }
 
+export function importable(overrides: Record<string, unknown> = {}) {
+  return {
+    syntax: 'Cii', profile: 'En16931', canImport: true, findings: [],
+    proposal: {
+      suggestedVendorId: null, sellerName: 'Acme Parts', billDate: '2026-07-01', dueDate: '2026-07-31',
+      vendorReference: 'INV-9', memo: 'Q3 services', lines: [{ description: 'Consulting', amount: 1200 }],
+      total: 1200, linesAreDetail: true, ...overrides,
+    },
+    vendorMatch: { vendorId: null, vendorName: null, sellerName: 'Acme Parts' },
+  };
+}
+
 export function boot() {
   TestBed.configureTestingModule({
     providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(),
@@ -106,6 +118,103 @@ describe('EInvoiceImport', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('BR-CO-10');
     expect(fixture.nativeElement.textContent).toContain('einvoicing-note');
+    ctrl.verify();
+  });
+
+  it('prefills the vendor from the seller name once vendors have loaded', () => {
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection(), provideRouter([]), provideHttpClient(),
+        provideHttpClientTesting(), provideCapabilities('ap.write')],
+    });
+    TestBed.inject(ClientContextService).select('C1');
+    const fixture = TestBed.createComponent(EInvoiceImport);
+    fixture.detectChanges();
+    const ctrl = TestBed.inject(HttpTestingController);
+    ctrl.match(r => r.url.endsWith('/vendors')).forEach(r =>
+      r.flush([{ id: 'v1', name: 'Acme Parts', email: null }]));
+    ctrl.match(r => r.url.endsWith('/accounts')).forEach(r => r.flush([]));
+    fixture.detectChanges();
+
+    const cmp = fixture.componentInstance;
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(importable());
+    fixture.detectChanges();
+    expect(cmp.vendorId()).toBe('v1');
+    ctrl.match(r => r.url.endsWith('/bills')).forEach(r => r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
+    ctrl.verify();
+  });
+
+  it('posts a draft bill carrying the document header and the edited lines', () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(importable());
+    fixture.detectChanges();
+
+    cmp.vendorId.set('v1');
+    cmp.patchLine(0, { amount: 700, expenseAccountId: 'a1' });
+    cmp.addLine();
+    cmp.patchLine(1, { description: 'Utilities', amount: 500, expenseAccountId: 'a2' });
+    fixture.detectChanges();
+    ctrl.match(r => r.url.endsWith('/bills') && r.method === 'GET').forEach(r =>
+      r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
+
+    expect(cmp.canConfirm()).toBe(true);
+    cmp.confirm();
+    const req = ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/bills' && r.method === 'POST');
+    expect(req.request.body).toEqual({
+      vendorId: 'v1', billDate: '2026-07-01', dueDate: '2026-07-31',
+      vendorReference: 'INV-9', memo: 'Q3 services',
+      lines: [
+        { description: 'Consulting', amount: 700, expenseAccountId: 'a1' },
+        { description: 'Utilities', amount: 500, expenseAccountId: 'a2' },
+      ],
+    });
+    req.flush({ id: 'b9', vendorId: 'v1', number: 'B-9', billDate: '2026-07-01', dueDate: '2026-07-31',
+      vendorReference: 'INV-9', memo: 'Q3 services', status: 'Draft', lines: [] });
+    fixture.detectChanges();
+    expect(cmp.createdBillId()).toBe('b9');
+    expect(fixture.nativeElement.textContent).toContain('Draft bill created');
+    ctrl.verify();
+  });
+
+  it('warns on total drift without blocking the confirm', () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(importable());
+    fixture.detectChanges();
+
+    cmp.vendorId.set('v1');
+    cmp.patchLine(0, { amount: 900, expenseAccountId: 'a1' });
+    fixture.detectChanges();
+    ctrl.match(r => r.url.endsWith('/bills') && r.method === 'GET').forEach(r =>
+      r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
+    fixture.detectChanges();
+
+    expect(cmp.totalDrift()).toBe(-300);
+    expect(fixture.nativeElement.textContent).toContain('document says');
+    expect(cmp.canConfirm()).toBe(true);                    // a warning, not a gate
+    ctrl.verify();
+  });
+
+  it('creates the vendor inline from the seller name and selects it', () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(importable());
+    fixture.detectChanges();
+    expect(cmp.vendorId()).toBe('');
+
+    cmp.createVendor();
+    const req = ctrl.expectOne(r => r.url === 'http://localhost:5000/clients/C1/vendors' && r.method === 'POST');
+    expect(req.request.body).toEqual({ name: 'Acme Parts', email: null });
+    req.flush({ id: 'v7', name: 'Acme Parts', email: null });
+    fixture.detectChanges();
+    expect(cmp.vendorId()).toBe('v7');
+    ctrl.match(r => r.url.endsWith('/bills') && r.method === 'GET').forEach(r =>
+      r.flush({ items: [], total: 0, skip: 0, limit: 200 }));
     ctrl.verify();
   });
 });
