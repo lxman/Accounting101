@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
+import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser';
 import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmButton } from '@spartan-ng/helm/button';
@@ -14,6 +15,7 @@ import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney, displayDate } from '../../core/format/display';
 import { CurrencyInput } from '../../shared/currency-input';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { ClientContextService } from '../../core/client/client-context.service';
 
 type Stage = 'upload' | 'preview';
 
@@ -68,6 +70,22 @@ interface EditableLine { lineId: string; description: string; amount: number; ex
             <span class="rounded border border-border px-2 py-0.5 text-xs">{{ p.syntax }}</span>
             <span class="rounded border border-border px-2 py-0.5 text-xs">{{ profile() }}</span>
           </div>
+
+          @if (safePdfUrl(); as url) {
+            <div class="flex flex-col gap-1">
+              <button hlmBtn type="button" variant="ghost" size="sm" class="self-start"
+                      (click)="showPdf.set(!showPdf())">
+                {{ showPdf() ? 'Hide' : 'Show' }} source document
+              </button>
+              @if (showPdf()) {
+                <object [data]="url" type="application/pdf" class="w-full h-[32rem] border border-border rounded">
+                  <p class="p-3 text-sm text-muted-foreground">
+                    Your browser can't display this PDF inline.
+                  </p>
+                </object>
+              }
+            </div>
+          }
 
           @if (errors().length) {
             <div class="border border-destructive rounded p-3 flex flex-col gap-2">
@@ -266,6 +284,8 @@ interface EditableLine { lineId: string; description: string; amount: number; ex
 export class EInvoiceImport {
   private readonly svc = inject(EInvoicingService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly client = inject(ClientContextService);
+  private readonly sanitizer = inject(DomSanitizer);
 
   /** Bumped by `reset()` only. `confirm()`/`createVendor()` capture it before subscribing and
    *  check it in every callback, so a response that outlives a `reset()` — the operator moved on
@@ -279,6 +299,20 @@ export class EInvoiceImport {
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
   readonly showOtherFindings = signal(false);
+
+  readonly pdfUrl = signal<string | null>(null);
+  readonly showPdf = signal(true);
+
+  /** Angular treats `<object data>` as a RESOURCE_URL context and throws on a plain string. The
+   *  bypass is safe: this is a blob URL the app itself minted from a file the operator just picked. */
+  readonly safePdfUrl = computed<SafeResourceUrl | null>(() => {
+    const url = this.pdfUrl();
+    return url ? this.sanitizer.bypassSecurityTrustResourceUrl(url) : null;
+  });
+
+  /** Tracks the client this screen's state belongs to. `undefined` means "not yet observed", which
+   *  is distinct from a genuinely null client id. */
+  #knownClient: string | null | undefined = undefined;
 
   protected readonly pay = inject(PayablesService);
   private readonly accounts = inject(AccountsService);
@@ -358,6 +392,16 @@ export class EInvoiceImport {
         error: () => { if (gen !== this.generation) return; this.duplicateChecked.set(false); },
       });
     });
+
+    // A proposal on screen under a different client's name is worth preventing outright — posting
+    // would fail anyway (the old vendorId does not exist under the new client), but silently.
+    effect(() => {
+      const id = this.client.clientId();
+      if (this.#knownClient === undefined) { this.#knownClient = id; return; }
+      if (id !== this.#knownClient) { this.#knownClient = id; this.reset(); }
+    });
+
+    this.destroyRef.onDestroy(() => this.revokePdf());
   }
 
   addLine(): void {
@@ -425,6 +469,9 @@ export class EInvoiceImport {
     this.preview.set(null);
     this.showOtherFindings.set(false);
     this.message.set(picked && picked.size > EInvoicingService.maxUploadBytes ? this.tooLarge() : null);
+    this.revokePdf();
+    if (picked && this.isPdf(picked)) this.pdfUrl.set(URL.createObjectURL(picked));
+    this.showPdf.set(true);
   }
 
   upload(): void {
@@ -451,6 +498,7 @@ export class EInvoiceImport {
   }
 
   reset(): void {
+    this.revokePdf();
     // Bumping generation makes any confirm()/createVendor() response already in flight for the
     // document being discarded a no-op wherever it lands — see the field comment above.
     this.generation++;
@@ -473,4 +521,14 @@ export class EInvoiceImport {
   }
 
   private tooLarge(): string { return 'That file is larger than the 15 MB limit.'; }
+
+  private revokePdf(): void {
+    const url = this.pdfUrl();
+    if (url) URL.revokeObjectURL(url);
+    this.pdfUrl.set(null);
+  }
+
+  private isPdf(f: File): boolean {
+    return f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf');
+  }
 }

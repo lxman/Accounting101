@@ -3,6 +3,7 @@ import { provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { vi } from 'vitest';
 import { EInvoiceImport } from './einvoice-import';
 import { ClientContextService } from '../../core/client/client-context.service';
 import { provideCapabilities } from '../../core/capabilities/capability.testing';
@@ -344,5 +345,48 @@ describe('EInvoiceImport', () => {
     fixture.detectChanges();
     expect(cmp.duplicateChecked()).toBe(false);
     ctrl.verify();                                            // no /bills request at all
+  });
+
+  it('creates a blob URL for a PDF upload and revokes it on reset', () => {
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
+    const revoke = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const { fixture, cmp } = boot();
+
+    const pdf = new File(['%PDF-1.7'], 'invoice.pdf', { type: 'application/pdf' });
+    cmp.onFile({ target: { files: [pdf] } } as unknown as Event);
+    fixture.detectChanges();
+    expect(create).toHaveBeenCalledWith(pdf);
+    expect(cmp.pdfUrl()).toBe('blob:fake');
+
+    cmp.reset();
+    expect(revoke).toHaveBeenCalledWith('blob:fake');
+    expect(cmp.pdfUrl()).toBeNull();
+    create.mockRestore();
+    revoke.mockRestore();
+  });
+
+  it('creates no blob URL for an XML upload', () => {
+    const create = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
+    const { cmp } = boot();
+    cmp.onFile({ target: { files: [xmlFile()] } } as unknown as Event);
+    expect(create).not.toHaveBeenCalled();
+    expect(cmp.pdfUrl()).toBeNull();
+    create.mockRestore();
+  });
+
+  it('resets to the upload stage when the active client changes', () => {
+    const { fixture, ctrl, cmp } = boot();
+    cmp.file.set(xmlFile());
+    cmp.upload();
+    ctrl.expectOne(PREVIEW_URL).flush(importable());
+    fixture.detectChanges();
+    expect(cmp.stage()).toBe('preview');
+
+    TestBed.inject(ClientContextService).select('C2');
+    fixture.detectChanges();
+    expect(cmp.stage()).toBe('upload');
+    expect(cmp.preview()).toBeNull();
+    ctrl.match(() => true).forEach(r => r.flush([]));        // vendors/accounts refetch for C2
+    ctrl.verify();
   });
 });
