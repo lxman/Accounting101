@@ -23,7 +23,16 @@ public sealed class InventoryMovementService(
     /// taken. The replay branch is wider here than on any other retry-key endpoint: this path derives what
     /// it posts from mutable state (the pending-inclusive fold), so re-running it on a replay would
     /// re-apply the movement's own effect to on-hand and value — a double-count the ledger's
-    /// divergent-content 422 could NOT catch, because the composed entry would be identical.</summary>
+    /// divergent-content 422 could NOT catch, because the composed entry would be identical.
+    ///
+    /// KNOWN NARROWING of the divergent-content 422 versus every other retry-key endpoint. A Receipt or an
+    /// overage Adjustment costs at the unit cost ON THE REQUEST, so its extended cost is recomputed on a
+    /// replay and a retry that changed the quantity or the unit cost still reaches the entry and still
+    /// 422s. An Issue or a shrinkage Adjustment costs at the FOLDED weighted average, so its extended cost
+    /// is frozen from the stored movement (see <see cref="CostsFromTheRequest"/>) — for those two, a retry
+    /// under the same key with a different quantity composes a byte-identical entry, is NOT detected, and
+    /// returns the ORIGINAL movement with 200. Date, movement type and item still divergence-check on
+    /// every type.</summary>
     public async Task<(StockMovement Movement, bool Replayed)> RecordAsync(
         Guid clientId, RecordMovement request, CancellationToken ct = default)
     {
@@ -43,24 +52,21 @@ public sealed class InventoryMovementService(
         // fails before any side effect — and now does so a little earlier than before.
         InventoryPostingAccounts postingAccounts = await accounts.GetAccountsAsync(clientId, ct);
 
-        // 3. The extended cost is DERIVED, not carried on the request: an issue/shrinkage costs at the
-        // folded weighted average. On a replay it must come from the STORED movement — recomputing it from
-        // a fold that already contains this movement yields a different cost (or zero on a fold that has
-        // gone to zero on-hand, or a spurious block-negative 409), which would turn a legitimate retry into
-        // a 422. Every other field of the entry is still composed from the REQUEST, so a key reused for
-        // different financial content is still arbitrated by the ledger.
-        decimal extendedCost = known?.ExtendedCost ?? 0m;
+        // Assigned on both branches below — never defaulted, so a later refactor cannot silently feed a
+        // placeholder cost into Compose (which would surface as an opaque 422).
+        StockMovement movement;
+        decimal extendedCost;
 
         if (!replayed)
         {
-            // 4. Resolve item; must exist and be active. State-dependent — an item can be deactivated
+            // 3. Resolve item; must exist and be active. State-dependent — an item can be deactivated
             // between the original call and a later replay, and a replay must not be refused for that.
             Item item = await items.GetAsync(clientId, request.ItemId, ct)
                 ?? throw new KeyNotFoundException($"Item {request.ItemId} not found.");
             if (item.Status != ItemStatus.Active)
                 throw new InvalidOperationException("Item is inactive; reactivate it before recording movements.");
 
-            // 5. Compute the effect (may throw InvalidOperationException for block-negative → 409).
+            // 4. Compute the effect (may throw InvalidOperationException for block-negative → 409).
             // Current valuation is the pending-inclusive fold (writes see pending claims), NOT the stored item.
             // State-dependent in the strongest sense: after the original call landed, this fold ALREADY
             // contains this movement.
@@ -82,11 +88,30 @@ public sealed class InventoryMovementService(
 
             extendedCost = effect.ExtendedCost;
 
-            // 6. Persist the numbered movement under the caller's id. No valuation snapshot is stored —
+            // 5. Persist the numbered movement under the caller's id. No valuation snapshot is stored —
             // on-hand and value are derived on read from the ledger fold + movement projection.
-            known = await movements.RecordAsync(clientId, id, new StockMovementBody(
+            movement = await movements.RecordAsync(clientId, id, new StockMovementBody(
                 request.ItemId, request.Type, request.EffectiveDate, request.Memo,
                 request.Quantity, effect.AppliedUnitCost, effect.ExtendedCost), ct);
+        }
+        else
+        {
+            movement = known!;
+
+            // 6. The extended cost is the ONLY part of the entry a replay cannot always take from the
+            // request. Where it costs from the request (Receipt, overage Adjustment) recompute it, so a
+            // retry that changed the quantity or the unit cost still diverges and still 422s. Where it
+            // costs from the fold (Issue, shrinkage Adjustment) freeze it from the stored movement: that
+            // fold now already contains this movement, so recomputing would yield a different cost, a zero
+            // cost (issue-to-zero → 422), or a spurious block-negative 409 on a legitimate retry.
+            extendedCost = CostsFromTheRequest(request)
+                ? RequestExtendedCost(request)
+                : movement.ExtendedCost;
+
+            // Same rejection the create branch makes at step 4, for the recomputed arm: a retry re-sent
+            // with a zero unit cost must be the module's own 422, not an opaque throw out of Compose.
+            if (extendedCost <= 0m)
+                throw new ArgumentException("Movement extended cost must be positive.");
         }
 
         // 7. Compose from the request and post one PendingApproval entry on BOTH branches — the ledger
@@ -96,8 +121,27 @@ public sealed class InventoryMovementService(
             request.Type, request.Quantity, id, request.ItemId, extendedCost, request.EffectiveDate, request.Memo, postingAccounts);
         await ledger.PostAsync(clientId, entry, ct);
 
-        return (known!, replayed);
+        return (movement, replayed);
     }
+
+    /// <summary>True when this movement's extended cost is a pure function of the REQUEST — a Receipt or an
+    /// overage Adjustment, both of which cost at <c>Round(quantity × unitCost)</c> and never read the
+    /// current valuation (<see cref="InventoryValuation.Receipt"/> and the positive arm of
+    /// <see cref="InventoryValuation.Adjustment"/>). False for an Issue or a shrinkage Adjustment, which
+    /// cost at the folded weighted average and can also block-negative off it. This is exactly the line
+    /// between "safe to recompute on a replay" and "must be frozen from the stored movement".</summary>
+    private static bool CostsFromTheRequest(RecordMovement r) =>
+        r.Type is MovementType.Receipt || (r.Type is MovementType.Adjustment && r.Quantity > 0m);
+
+    /// <summary>The request-derived extended cost, computed through the SAME
+    /// <see cref="InventoryValuation"/> arms the create branch uses so the rounding cannot drift apart.
+    /// The zero valuation passed as <c>current</c> is inert: neither arm reads it to produce
+    /// <see cref="MovementEffect.ExtendedCost"/>. Only ever called when
+    /// <see cref="CostsFromTheRequest"/> holds, so the unit cost is present (ValidateShape guarantees it).</summary>
+    private static decimal RequestExtendedCost(RecordMovement r) =>
+        (r.Type is MovementType.Receipt
+            ? InventoryValuation.Receipt(new Valuation(0m, 0m), r.Quantity, r.UnitCost!.Value)
+            : InventoryValuation.Adjustment(new Valuation(0m, 0m), r.Quantity, r.UnitCost)).ExtendedCost;
 
     /// <summary>Voids the most-recent stock movement for its item — LIFO enforced: only the latest
     /// non-void movement for the item may be voided, never an earlier one while a later one still stands.
