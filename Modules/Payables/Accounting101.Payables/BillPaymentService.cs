@@ -36,7 +36,14 @@ public sealed class BillPaymentService(
             // State-dependent: allocations are checked against each bill's REMAINING balance, which this
             // very payment reduces. Re-running it on a replay would reject the retry it exists to permit.
             await ValidateAllocationsAsync(clientId, command.VendorId, command.Allocations, ct);
-            known = await payments.RecordPaymentAsync(clientId, id, body, ct);
+
+            // The pre-check above is inherently TOCTOU under concurrency: two callers racing the same id
+            // can both see "not found" and both reach here. The store's own atomic create is the actual
+            // arbiter — only its result tells a caller whether IT created the document or lost the race
+            // and is really replaying. Trust that over the pre-check for this response's status.
+            (BillPayment Payment, bool Created) result = await payments.RecordPaymentAsync(clientId, id, body, ct);
+            known = result.Payment;
+            replayed = !result.Created;
         }
 
         // Composed from the REQUEST, never from the stored document — that is what lets the ledger see a

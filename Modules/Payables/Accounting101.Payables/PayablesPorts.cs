@@ -18,7 +18,14 @@ public interface IBillStore
 /// by the engine's document store. Voided is derived from the document lifecycle.</summary>
 public interface IBillPaymentStore
 {
-    Task<BillPayment> RecordPaymentAsync(Guid clientId, Guid id, BillPaymentBody body, CancellationToken ct = default);
+    /// <summary>Records the payment under <paramref name="id"/>. <c>Created</c> is <c>true</c> only for the
+    /// caller that actually won the underlying atomic create (the engine's insert-only document create);
+    /// under two concurrent callers racing the SAME id, exactly one gets <c>Created: true</c> and the other
+    /// <c>Created: false</c> — the loser still gets back the winner's persisted payment, but must report its
+    /// own call as a replay, not a second creation. This is the store's authoritative signal for that
+    /// distinction; a caller cannot safely infer it from an earlier existence check alone (a classic TOCTOU
+    /// race under concurrency).</summary>
+    Task<(BillPayment Payment, bool Created)> RecordPaymentAsync(Guid clientId, Guid id, BillPaymentBody body, CancellationToken ct = default);
     Task<VendorCreditApplication> RecordCreditApplicationAsync(Guid clientId, Guid id, VendorCreditApplicationBody body, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid paymentId, CancellationToken ct = default);
     Task<BillPayment?> GetPaymentAsync(Guid clientId, Guid paymentId, CancellationToken ct = default);

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Accounting101.Ledger.Contracts;
+using Accounting101.ModuleKit;
 
 namespace Accounting101.Payables.Tests;
 
@@ -13,14 +14,27 @@ internal sealed class FakeLedgerClient : ILedgerClient
     private readonly Dictionary<Guid, IReadOnlyList<PostLineRequest>> _linesById = new();
     private readonly List<PostEntryRequest> _posted = [];
 
+    // Maps a caller-supplied PostEntryRequest.Id (e.g. EntryIdentity.ForSource(...)) to the journal entry
+    // actually assigned to it — mirrors the real engine's idempotent-post arbitration (see the
+    // 2026-06-25-idempotent-entry-post design): a second PostAsync carrying the SAME request Id is a
+    // retry/replay of the same operation and must not mint a second entry or double-count the fold.
+    private readonly Dictionary<Guid, Guid> _entryIdByRequestId = new();
+
     public IReadOnlyList<PostEntryRequest> Posted => _posted;
 
     public Task<PostEntryResponse> PostAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
     {
+        if (entry.Id is { } requestId && _entryIdByRequestId.TryGetValue(requestId, out Guid existingId))
+        {
+            EntryResponse existing = _entries[existingId];
+            return Task.FromResult(new PostEntryResponse(existing.Id, existing.Status, existing.Posting));
+        }
+
         _posted.Add(entry);
         var id = Guid.NewGuid();
         _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "PendingApproval", reversalOf: null, lines: entry.Lines);
         _linesById[id] = entry.Lines;
+        if (entry.Id is { } rid) _entryIdByRequestId[rid] = id;
         return Task.FromResult(new PostEntryResponse(id, "Active", "PendingApproval"));
     }
 
@@ -133,6 +147,52 @@ internal sealed class FakeLedgerClient : ILedgerClient
     }
 }
 
+/// <summary>
+/// Wraps a real <see cref="FakeLedgerClient"/> but makes the FIRST <see cref="PostAsync"/> call throw
+/// <see cref="LedgerClientException"/> (simulating a transient ledger failure) and every subsequent call
+/// delegate to the inner fake normally. Used by <see cref="BillPaymentRetryKeyDepthTests"/> to prove that a
+/// retry after a failed post completes the entry the first attempt never landed — the document is created
+/// (or already known) before the post is attempted, so the first failure leaves an orphan the retry repairs.
+/// </summary>
+internal sealed class FirstPostFailsLedgerClient(FakeLedgerClient inner) : ILedgerClient
+{
+    public int PostAttempts { get; private set; }
+
+    public Task<PostEntryResponse> PostAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
+    {
+        PostAttempts++;
+        if (PostAttempts == 1)
+            throw new LedgerClientException(500, "boom");
+        return inner.PostAsync(clientId, entry, cancellationToken);
+    }
+
+    public Task<EntryResponse> ApproveAsync(Guid clientId, Guid entryId, CancellationToken cancellationToken = default) =>
+        inner.ApproveAsync(clientId, entryId, cancellationToken);
+
+    public Task<EntryResponse> ReverseAsync(Guid clientId, Guid entryId, ReverseRequest request, CancellationToken cancellationToken = default) =>
+        inner.ReverseAsync(clientId, entryId, request, cancellationToken);
+
+    public Task<EntryResponse> VoidAsync(Guid clientId, Guid entryId, VoidRequest request, CancellationToken cancellationToken = default) =>
+        inner.VoidAsync(clientId, entryId, request, cancellationToken);
+
+    public Task ValidateAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default) =>
+        inner.ValidateAsync(clientId, entry, cancellationToken);
+
+    public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default) =>
+        inner.GetEntriesBySourceRefAsync(clientId, sourceRef, cancellationToken);
+
+    public Task<IReadOnlyList<AccountResponse>> GetAccountsAsync(Guid clientId, CancellationToken cancellationToken = default) =>
+        inner.GetAccountsAsync(clientId, cancellationToken);
+
+    public Task<CapabilitiesResponse> GetMyCapabilitiesAsync(Guid clientId, CancellationToken cancellationToken = default) =>
+        inner.GetMyCapabilitiesAsync(clientId, cancellationToken);
+
+    public Task<IReadOnlyList<SubledgerLineResponse>> GetSubledgerAsync(
+        Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default,
+        bool includePending = false) =>
+        inner.GetSubledgerAsync(clientId, account, dimension, asOf, cancellationToken, includePending);
+}
+
 internal sealed class InMemoryVendorStore : IVendorStore
 {
     private readonly ConcurrentDictionary<(Guid, Guid), Vendor> _store = new();
@@ -234,7 +294,7 @@ internal sealed class InMemoryBillPaymentStore : IBillPaymentStore
     private readonly ConcurrentDictionary<(Guid, Guid), BillPayment> _payments = new();
     private readonly ConcurrentDictionary<(Guid, Guid), VendorCreditApplication> _credits = new();
 
-    public Task<BillPayment> RecordPaymentAsync(Guid clientId, Guid id, BillPaymentBody body, CancellationToken ct = default)
+    public Task<(BillPayment Payment, bool Created)> RecordPaymentAsync(Guid clientId, Guid id, BillPaymentBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         BillPayment p = new()
@@ -242,8 +302,11 @@ internal sealed class InMemoryBillPaymentStore : IBillPaymentStore
             Id = id, VendorId = body.VendorId, Date = body.Date, Amount = body.Amount,
             Method = body.Method, Voided = false,
         };
-        _payments[(clientId, p.Id)] = p;
-        return Task.FromResult(p);
+        // TryAdd, not an unconditional set: mirrors the real store's insert-only create, so a fake-backed
+        // caller racing an id it doesn't yet know about gets an honest Created signal too.
+        bool created = _payments.TryAdd((clientId, id), p);
+        BillPayment stored = created ? p : _payments[(clientId, id)];
+        return Task.FromResult((stored, created));
     }
 
     public Task<VendorCreditApplication> RecordCreditApplicationAsync(Guid clientId, Guid id, VendorCreditApplicationBody body, CancellationToken ct = default)
