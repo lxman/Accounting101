@@ -53,6 +53,14 @@ public static class ModuleHostingExtensions
             Enabled = true,
         });
 
+        // The installation half of "availability = installed ∩ entitled". TryAdd, so the FIRST
+        // AddModule registers this factory and every later call is a no-op — but the factory does not
+        // RUN until first resolution, at request time, long after every AddModule has completed. So the
+        // single instance sees ALL modules, not just the first. Do NOT "fix" this by computing the key
+        // set eagerly here: that would capture only the modules registered so far.
+        services.TryAddSingleton(sp => new InstalledModules(
+            sp.GetServices<ModuleRegistration>().Select(m => m.Key)));
+
         // One registrar regardless of how many modules install themselves — it upserts every
         // contributed ModuleRegistration on startup. TryAddEnumerable dedupes by implementation type.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ModuleRegistrar>());
