@@ -6,7 +6,7 @@ namespace Accounting101.Payroll;
 /// store. One-step record (finalize immediately) / void lifecycle; no draft phase.</summary>
 public interface IPayrollRunStore
 {
-    Task<PayrollRun> RecordAsync(Guid clientId, PayrollRunBody body, CancellationToken ct = default);
+    Task<PayrollRun> RecordAsync(Guid clientId, Guid id, PayrollRunBody body, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid runId, CancellationToken ct = default);
     Task<PayrollRun?> GetAsync(Guid clientId, Guid runId, CancellationToken ct = default);
     Task<IReadOnlyList<PayrollRun>> GetByClientAsync(Guid clientId, CancellationToken ct = default);
@@ -17,7 +17,7 @@ public interface IPayrollRunStore
 /// store. One-step record / void lifecycle; no draft phase.</summary>
 public interface ITaxRemittanceStore
 {
-    Task<TaxRemittance> RecordAsync(Guid clientId, TaxRemittanceBody body, CancellationToken ct = default);
+    Task<TaxRemittance> RecordAsync(Guid clientId, Guid id, TaxRemittanceBody body, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid remittanceId, CancellationToken ct = default);
     Task<TaxRemittance?> GetAsync(Guid clientId, Guid remittanceId, CancellationToken ct = default);
     Task<IReadOnlyList<TaxRemittance>> GetByClientAsync(Guid clientId, CancellationToken ct = default);

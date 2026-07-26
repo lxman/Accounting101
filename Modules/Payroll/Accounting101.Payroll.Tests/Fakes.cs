@@ -72,12 +72,12 @@ internal sealed class InMemoryPayrollRunStore : IPayrollRunStore
     private readonly ConcurrentDictionary<(Guid, Guid), PayrollRun> _store = new();
     private int _next;
 
-    public Task<PayrollRun> RecordAsync(Guid clientId, PayrollRunBody body, CancellationToken ct = default)
+    public Task<PayrollRun> RecordAsync(Guid clientId, Guid id, PayrollRunBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         PayrollRun run = new()
         {
-            Id = Guid.NewGuid(),
+            Id = id,
             Number = $"PR-{Interlocked.Increment(ref _next):D5}",
             Gross = body.Gross,
             EmployeeFica = body.EmployeeFica,
@@ -121,12 +121,12 @@ internal sealed class InMemoryTaxRemittanceStore : ITaxRemittanceStore
     private readonly ConcurrentDictionary<(Guid, Guid), TaxRemittance> _store = new();
     private int _next;
 
-    public Task<TaxRemittance> RecordAsync(Guid clientId, TaxRemittanceBody body, CancellationToken ct = default)
+    public Task<TaxRemittance> RecordAsync(Guid clientId, Guid id, TaxRemittanceBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         TaxRemittance remittance = new()
         {
-            Id = Guid.NewGuid(),
+            Id = id,
             Number = $"TR-{Interlocked.Increment(ref _next):D5}",
             WithholdingsAmount = body.WithholdingsAmount,
             TaxesAmount = body.TaxesAmount,

@@ -12,12 +12,13 @@ public sealed class DocumentTaxRemittanceStore(IDocumentStore documents) : ITaxR
 {
     private const string Collection = "tax-remittances";
 
-    public async Task<TaxRemittance> RecordAsync(Guid clientId, TaxRemittanceBody body, CancellationToken ct = default)
+    public async Task<TaxRemittance> RecordAsync(Guid clientId, Guid id, TaxRemittanceBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        // Evidentiary: create draft then immediately finalize to assign the sequence number.
-        Guid id = await documents.CreateAsync(clientId, Collection, body, Tags(), ct);
-        await documents.FinalizeAsync(clientId, Collection, id, ct);
+        // Evidentiary: create then finalize to assign the sequence number — but only the caller that
+        // actually created it finalizes, so a replay burns no number and cannot race a concurrent creator.
+        if (await documents.CreateWithIdAsync(clientId, Collection, id, body, Tags(), ct))
+            await documents.FinalizeAsync(clientId, Collection, id, ct);
         DocumentResult<TaxRemittanceBody>? result = await documents.GetAsync<TaxRemittanceBody>(clientId, Collection, id, ct);
         return Map(result!);
     }
