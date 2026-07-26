@@ -104,20 +104,52 @@ is unrelated to it. The handler signature must not shadow one with the other.
 `IDocumentStore` gains one method beside `CreateAsync`:
 
 ```csharp
-Task CreateWithIdAsync<T>(Guid clientId, string collection, Guid id, T body,
+Task<bool> CreateWithIdAsync<T>(Guid clientId, string collection, Guid id, T body,
     IReadOnlyDictionary<string, string> tags, CancellationToken cancellationToken = default);
 ```
 
 A separate method rather than an optional parameter on `CreateAsync`, because the contract differs:
-this one can *fail* when the id is taken. It refuses rather than overwrites.
-`ScopedDocumentStore.CreateAsync` writes through `PutAsync`, which is an upsert; an id-addressable
-upsert would let any caller with write capability clobber a finalized payment by supplying its id.
-`CreateAsync` itself is untouched, so callers outside these thirteen are unaffected.
+this one reports whether it wrote. It returns `false` when the id is taken, leaving the existing
+document untouched — it never overwrites. `ScopedDocumentStore.CreateAsync` writes through
+`PutAsync`, which is an upsert; an id-addressable upsert would let any caller with write capability
+clobber a finalized payment by supplying its id. `CreateAsync` itself is untouched, so callers outside
+these thirteen are unaffected.
 
-Each module store's record method takes the id and becomes create-or-complete: create when absent
-(swallowing the "id taken" refusal that a concurrent caller can produce), then finalize only when the
-document is still `Draft`. The stores can see that — `DocumentResult<T>.State` is already in hand
-where they map (`DocumentBillPaymentStore.cs:18-19`).
+**A bool rather than an exception**, for two reasons. The id being taken is the *expected* outcome of
+a retry, not an error, and control flow through exceptions would be a smell. More concretely,
+`ModuleDocumentException` lives in `Accounting101.Ledger.Api.Documents` while modules reference only
+`Accounting101.Ledger.Contracts` — a module store could not catch it if we threw one.
+
+Underneath, `MongoDocumentStore` gains `InsertIfAbsentAsync`, which uses `InsertOneAsync` and converts
+the duplicate-key write error into `false`. `ModuleDocument.Id` is `[BsonId]`, so the unique index on
+`_id` is the arbiter and the operation is genuinely atomic: two concurrent callers cannot both receive
+`true`. This is the same `ServerErrorCategory.DuplicateKey` check the ledger already uses
+(`LedgerEndpoints.cs:108`).
+
+Each module store's record method takes the id, and **only the caller that actually created the
+document finalizes it**:
+
+```csharp
+if (await documents.CreateWithIdAsync(clientId, BillPayments, id, body, Tags(body.VendorId), ct))
+    await documents.FinalizeAsync(clientId, BillPayments, id, ct);
+DocumentResult<BillPaymentBody>? result = await documents.GetAsync<BillPaymentBody>(clientId, BillPayments, id, ct);
+return MapPayment(result!);
+```
+
+Gating the finalize on the create is what keeps two concurrent same-key callers from both finalizing:
+`ScopedDocumentStore.FinalizeAsync` throws on a document that is no longer `Draft`, that throw is a
+deliberately pinned invariant (`DocumentStoreEvidentiaryTests.cs:101`), and the exception type is
+again one modules cannot catch. It also means **no sequence number is burned on a replay**, since the
+replaying caller never reaches the finalize.
+
+**Known limit, accepted rather than papered over.** If a process dies between the create and the
+finalize, the document is left `Draft` with no sequence number, and a later retry — which gets `false`
+from the create — will not finalize it either. Repairing that would mean finalizing a `Draft` we did
+not create, which reintroduces exactly the double-finalize race the gate removes. The window is the
+few milliseconds between two calls, and the consequence is a document missing its gapless number
+rather than wrong money: the ledger entry still posts, because the service posts on both branches. We
+take the race-free version and log the limit here instead of claiming a repair the code does not
+perform.
 
 ### In each service
 
@@ -174,15 +206,15 @@ That is the same stance the ledger already takes on `reference`/`memo`, and it i
 key identifies the operation and descriptive text does not redefine it. It also means a divergent
 retry is caught on the things that move money, allocations included.
 
-**A retry repairs; it does not merely refuse.** The replay branch re-runs both the finalize and the
-ledger post, so each of these converges on one correct outcome instead of an orphan:
+**A retry repairs; it does not merely refuse.** The replay branch re-runs the ledger post, so both of
+these converge on one correct outcome instead of an orphan:
 
-- document written, process died before finalize → the retry finalizes it
-- document finalized, ledger post failed → the retry posts the entry
+- document written, ledger post failed → the retry posts the entry, and there is one document and one
+  entry at the end
 - both succeeded, response lost → the retry changes nothing and returns 200
 
-`FinalizeAsync` runs only when the document is still `Draft`, so **no sequence number is burned on a
-replay** and the gapless numbering its transaction guarantees is unaffected.
+The retry does **not** repair a document abandoned in `Draft` — see the known limit above. No sequence
+number is burned on a replay, since the replaying caller never reaches the finalize.
 
 **A replayed key on a voided document returns the voided document and does not resurrect it.** The
 operation happened and was reversed; re-sending the key must be invisible, which means reporting what
@@ -264,13 +296,13 @@ worth writing.
 
 - orphan repair: a fake ledger throws on the first post; the retry completes it, and there is one
   document and one entry at the end
-- interrupted-finalize repair: a document left `Draft` is finalized by the retry
 - replay of a voided document returns the voided document and creates nothing
 - two concurrent identical posts yield one document and one entry
 - no sequence number is burned on a replay
 
-**Unit tests on `CreateWithIdAsync`**: writes under the supplied id; refuses when the id is taken;
-never overwrites an existing body.
+**Unit tests on `CreateWithIdAsync`**: writes under the supplied id and returns `true`; returns
+`false` when the id is taken; never overwrites the existing body; and the replay path leaves the
+collection's gapless counter untouched.
 
 **One contract test** asserting the exact 422 detail string the shared Angular helper matches on.
 
