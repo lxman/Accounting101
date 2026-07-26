@@ -11,10 +11,10 @@ namespace Accounting101.Payables.Tests;
 /// time-of-check-to-time-of-use: two callers racing one key can both see "not found". The store's
 /// atomic create is the real arbiter, and the service must trust it over its own pre-check.
 ///
-/// WHY THIS TEST EXISTS AND WHAT MAKES IT VALID: revert
-/// <c>replayed = !result.Created;</c> to <c>replayed = known is not null;</c> in
-/// <c>BillPaymentService.RecordPaymentAsync</c> and both racers claim a create, so
-/// <c>Assert.Single(..., r =&gt; !r.Replayed)</c> sees two and fails. Its sibling
+/// WHY THIS TEST EXISTS AND WHAT MAKES IT VALID: delete the
+/// <c>replayed = !result.Created;</c> line (leaving <c>replayed</c> at its earlier,
+/// pre-check-derived value) in <c>BillPaymentService.RecordPaymentAsync</c> and both racers claim
+/// a create, so <c>Assert.Single(..., r =&gt; !r.Replayed)</c> sees two and fails. Its sibling
 /// <c>BillPaymentRetryKeyDepthTests.Two_concurrent_posts_with_the_same_key_yield_one_document_and_one_entry</c>
 /// does NOT have that property — two real HTTP posts usually serialize, so the second one's pre-check
 /// finds the document and returns 200 and that test passes even against the broken shape.
@@ -77,9 +77,14 @@ public sealed class BillPaymentRaceTests
         Assert.Single(results, r => !r.Replayed);
         Assert.Single(results, r => r.Replayed);
 
-        // Both racers get back the same persisted document — the loser gets the winner's, not its own body.
+        // Both racers echo the same key as their own request Id — unremarkable on its own, since
+        // identical commands echo the same Id whether or not a second document actually exists.
         Assert.Equal(key, results[0].Payment.Id);
         Assert.Equal(key, results[1].Payment.Id);
+
+        // THE claim the Id assertions above cannot carry: exactly one document was ever persisted
+        // under this key, not two identical ones — the loser really did get the winner's row back,
+        // not its own.
         Assert.Single(await inner.GetPaymentsByVendorAsync(clientId, vendorId));
     }
 
@@ -149,10 +154,13 @@ public sealed class BillPaymentRaceTests
         Assert.Single(await inner.GetCreditApplicationsByVendorAsync(clientId, vendorId));
     }
 
-    /// <summary>A voided credit application stays in the vendor list (greyed by the consumer), rather
-    /// than vanishing — matching GetPaymentsByVendorAsync, whose identical fix shipped with retry keys.</summary>
+    /// <summary>A recorded credit application appears in its vendor's list. NOTE: this fake has no void
+    /// concept (<see cref="InMemoryBillPaymentStore"/> tracks no Voided flag and offers no way to set
+    /// one), so this does NOT exercise voided-inclusion — see
+    /// <c>BillPaymentRetryKeyDepthTests.A_voided_credit_application_still_appears_in_the_vendor_list</c>
+    /// for that, which voids a real document through the engine-backed store.</summary>
     [Fact]
-    public async Task A_voided_credit_application_still_appears_in_the_vendor_list()
+    public async Task Recording_a_credit_application_makes_it_appear_in_the_vendor_list()
     {
         Guid clientId = Guid.NewGuid();
         Guid vendorId = Guid.NewGuid();

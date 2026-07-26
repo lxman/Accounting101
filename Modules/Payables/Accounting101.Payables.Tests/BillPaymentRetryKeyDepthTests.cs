@@ -194,4 +194,42 @@ public sealed class BillPaymentRetryKeyDepthTests(PayablesHostFixture httpFixtur
         Assert.NotNull(seqB.Sequence);
         Assert.Equal(seqA.Sequence!.Value + 1, seqB.Sequence!.Value); // the replay of A consumed no sequence number
     }
+
+    /// <summary>
+    /// <see cref="DocumentBillPaymentStore.GetCreditApplicationsByVendorAsync"/> passes
+    /// <c>includeVoided: true</c> to the underlying query — a real, user-visible behaviour (the Credits
+    /// list greys out voided applications rather than hiding them; see
+    /// <c>BillPaymentService.GetCreditApplicationsWithAllocationsByVendorAsync</c>'s own doc comment).
+    /// This proves it against the real engine-backed document store, not a fake: record a credit
+    /// application, void the underlying document directly (there is no module-level void for a credit
+    /// application today — only payments have one, via <c>BillPaymentService.VoidPaymentAsync</c> — so
+    /// this goes straight at the same "vendor-credit-applications" collection the store itself writes
+    /// to), then confirm it still comes back from the by-vendor list instead of vanishing.
+    ///
+    /// DISCRIMINATOR: temporarily remove <c>includeVoided: true</c> from
+    /// <c>DocumentBillPaymentStore.GetCreditApplicationsByVendorAsync</c> (falling back to the
+    /// <c>QueryAsync</c> default of <c>false</c>) and this test goes red — the voided application
+    /// disappears from the list instead of appearing greyed. That is the property
+    /// <c>BillPaymentRaceTests.Recording_a_credit_application_makes_it_appear_in_the_vendor_list</c>
+    /// (the fake-backed sibling) cannot prove: its fake has no void concept at all.
+    /// </summary>
+    [Fact]
+    public async Task A_voided_credit_application_still_appears_in_the_vendor_list()
+    {
+        Guid clientId = docStoreFixture.ClientId;
+        Guid vendorId = Guid.NewGuid();
+        DocumentBillPaymentStore store = new(docStoreFixture.Store);
+
+        Guid id = Guid.NewGuid();
+        (VendorCreditApplication recorded, bool created) = await store.RecordCreditApplicationAsync(
+            clientId, id, new VendorCreditApplicationBody(vendorId, new DateOnly(2026, 3, 1)));
+        Assert.True(created);
+        Assert.False(recorded.Voided);
+
+        await docStoreFixture.Store.VoidAsync(clientId, "vendor-credit-applications", id);
+
+        IReadOnlyList<VendorCreditApplication> byVendor = await store.GetCreditApplicationsByVendorAsync(clientId, vendorId);
+        VendorCreditApplication voided = Assert.Single(byVendor);
+        Assert.True(voided.Voided);
+    }
 }
