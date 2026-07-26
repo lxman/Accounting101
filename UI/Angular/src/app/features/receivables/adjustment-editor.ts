@@ -133,8 +133,10 @@ export class AdjustmentEditor {
 
   // A caller-supplied retry key: the same key across retries of a FAILED save makes the server replay
   // instead of recording the adjustment twice. Re-minted after a success so the next adjustment is a new
-  // operation. All three modes below send this same key — safe because credit notes, write-offs and credit
-  // applications write to different server-side collections, so a shared Guid cannot collide across them.
+  // operation, and also re-minted on a mode switch (see setType) — the ledger's sourceRef lookup is not
+  // scoped by source type, so two documents sharing a Guid across collections would post two entries
+  // under the same SourceRef, and the void/relief paths (FirstOrDefault by SourceRef) could resolve to
+  // the wrong one.
   private retryKey = crypto.randomUUID();
 
   readonly total = computed(() =>
@@ -175,7 +177,7 @@ export class AdjustmentEditor {
     this.svc.creditBalance(this.customerId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(b => this.creditBalance.set(b));
   }
 
-  setType(t: CreditType): void { this.type.set(t); }
+  setType(t: CreditType): void { this.type.set(t); this.retryKey = crypto.randomUUID(); }
 
   toggleRow(i: number, included: boolean): void {
     this.rows.update(rs => rs.map((r, idx) => idx === i

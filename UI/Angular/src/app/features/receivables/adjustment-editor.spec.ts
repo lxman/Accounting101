@@ -187,4 +187,36 @@ describe('AdjustmentEditor', () => {
     expect(req.request.body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
     req.flush({});
   });
+
+  it('sends a truthy retry key for credit-application too', () => {
+    const ctrl = setup('cu1');
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(AdjustmentEditor); f.detectChanges();
+    loadInvoices(ctrl, f, [{ id: 'inv1', number: '1001', open: 100 }], 100);
+    const c = f.componentInstance;
+    c.setType('credit-application'); c.toggleRow(0, true); f.detectChanges();
+    c.save();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/credit-applications');
+    expect(req.request.body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    req.flush({});
+  });
+
+  it('mints a fresh key on a mode switch, since a different mode writes to a different collection ' +
+     'and the ledger cannot tell two documents with the same id apart across collections', () => {
+    const ctrl = setup('cu1');
+    const f = TestBed.createComponent(AdjustmentEditor); f.detectChanges();
+    loadInvoices(ctrl, f, [{ id: 'inv1', number: '1001', open: 100 }]);
+    const c = f.componentInstance;
+    c.toggleRow(0, true); f.detectChanges();
+    c.save();
+    const post1 = ctrl.expectOne('http://localhost:5000/clients/C1/credit-notes');
+    const key1 = post1.request.body.id;
+    post1.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+
+    c.setType('write-off'); f.detectChanges();
+    c.save();
+    const post2 = ctrl.expectOne('http://localhost:5000/clients/C1/write-offs');
+    expect(post2.request.body.id).not.toBe(key1);
+    post2.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+  });
 });

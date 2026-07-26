@@ -259,9 +259,11 @@ record several adjustments in a row, and reusing the key would make the second o
 and silently return the first adjustment. One uniform rule is safe everywhere and removes the need to
 reason about which editors navigate. The key deliberately survives an *error*, which is the point.
 
-`adjustment-editor.ts` posts to one of three endpoints depending on mode; one key per component
-instance is still correct, since the three write to different collections and a shared Guid cannot
-collide across them.
+`adjustment-editor.ts` posts to one of three endpoints depending on mode, and re-mints the key on
+every mode switch, not just on init and on success: the ledger's `sourceRef` lookup is not scoped
+by source type, so a Guid shared across a mode switch would produce two entries with the same
+`SourceRef` and the void/relief paths (`FirstOrDefault` by `SourceRef`) could resolve to the wrong
+one.
 
 `crypto.randomUUID()` requires a secure context — https in production, localhost in dev. Both hold.
 
