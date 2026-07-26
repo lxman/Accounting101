@@ -25,6 +25,34 @@ public sealed class ReconciliationService(
     public Task<IReadOnlyList<BankStatement>> ListStatementsAsync(Guid clientId, Guid cashAccountId, CancellationToken ct = default) =>
         statements.GetByAccountAsync(clientId, cashAccountId, ct);
 
+    /// <summary>
+    /// Statements already on file for this cash account bearing the same statement date — the lookup behind
+    /// the import and editor screens' duplicate warning. Advisory only: nothing in this module consults it,
+    /// because re-issued and corrected statements are legitimate and only a human can tell.
+    ///
+    /// Complete by construction: reads the account's statements directly, with no paging and no cap. The
+    /// paged <see cref="ListStatementsAsync"/> is a different read — a caller assembling its own scan over
+    /// that list would be clamped to 200 and could report "none found" without knowing it.
+    ///
+    /// The Status filter is belt-and-braces, not the load-bearing exclusion. Two facts already keep voided
+    /// statements out: <see cref="IBankStatementStore.GetByAccountAsync"/> queries the document store with
+    /// its default includeVoided:false, which excludes Voided/Superseded/Inactive; and nothing voids a bank
+    /// statement in the first place — the store exposes no void method and the collection is registered
+    /// Evidentiary. The filter keeps this read correct if either fact ever changes.
+    /// </summary>
+    public async Task<IReadOnlyList<BankStatement>> FindDuplicateStatementsAsync(
+        Guid clientId, Guid cashAccountId, DateOnly statementDate, CancellationToken ct = default)
+    {
+        IReadOnlyList<BankStatement> all = await statements.GetByAccountAsync(clientId, cashAccountId, ct);
+
+        return
+        [
+            .. all
+                .Where(s => s.Status != BankStatementStatus.Void && s.StatementDate == statementDate)
+                .OrderByDescending(s => s.Number)
+        ];
+    }
+
     public async Task<Reconciliation> StartReconciliationAsync(Guid clientId, Guid bankStatementId, CancellationToken ct = default)
     {
         BankStatement statement = await statements.GetAsync(clientId, bankStatementId, ct)
