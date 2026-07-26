@@ -17,4 +17,4 @@ public sealed record BillPaymentCommand(
 public sealed record VendorCreditApplicationBody(Guid VendorId, DateOnly Date);
 
 public sealed record VendorCreditApplicationCommand(
-    Guid VendorId, DateOnly Date, IReadOnlyList<Allocation> Allocations);
+    Guid VendorId, DateOnly Date, IReadOnlyList<Allocation> Allocations, Guid? Id = null);

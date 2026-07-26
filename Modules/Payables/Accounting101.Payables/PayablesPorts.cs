@@ -19,7 +19,7 @@ public interface IBillStore
 public interface IBillPaymentStore
 {
     Task<BillPayment> RecordPaymentAsync(Guid clientId, Guid id, BillPaymentBody body, CancellationToken ct = default);
-    Task<VendorCreditApplication> RecordCreditApplicationAsync(Guid clientId, VendorCreditApplicationBody body, CancellationToken ct = default);
+    Task<VendorCreditApplication> RecordCreditApplicationAsync(Guid clientId, Guid id, VendorCreditApplicationBody body, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid paymentId, CancellationToken ct = default);
     Task<BillPayment?> GetPaymentAsync(Guid clientId, Guid paymentId, CancellationToken ct = default);
     Task<IReadOnlyList<BillPayment>> GetPaymentsByVendorAsync(Guid clientId, Guid vendorId, CancellationToken ct = default);

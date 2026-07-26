@@ -120,8 +120,8 @@ public sealed class BillPaymentServiceTests
         Bill second = await h.BillStore.PromoteDraftAsync(clientId, draft2.Id);
         PostBillApCredit(h.Ledger, vendorId, second);
 
-        VendorCreditApplication applied = await h.Payments.RecordCreditApplicationAsync(clientId,
-            new VendorCreditApplicationCommand(vendorId, new DateOnly(2026, 4, 2), [new Allocation(second.Id, 50m)]));
+        VendorCreditApplication applied = (await h.Payments.RecordCreditApplicationAsync(clientId,
+            new VendorCreditApplicationCommand(vendorId, new DateOnly(2026, 4, 2), [new Allocation(second.Id, 50m)]))).Application;
 
         // VendorCreditApplication no longer carries an Allocations array (or an Applied accessor derived
         // from one) — prove the 50 applied by folding it from the document's own posted entry instead.

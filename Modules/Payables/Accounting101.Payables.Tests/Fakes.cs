@@ -246,12 +246,12 @@ internal sealed class InMemoryBillPaymentStore : IBillPaymentStore
         return Task.FromResult(p);
     }
 
-    public Task<VendorCreditApplication> RecordCreditApplicationAsync(Guid clientId, VendorCreditApplicationBody body, CancellationToken ct = default)
+    public Task<VendorCreditApplication> RecordCreditApplicationAsync(Guid clientId, Guid id, VendorCreditApplicationBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         VendorCreditApplication c = new()
         {
-            Id = Guid.NewGuid(), VendorId = body.VendorId, Date = body.Date, Voided = false,
+            Id = id, VendorId = body.VendorId, Date = body.Date, Voided = false,
         };
         _credits[(clientId, c.Id)] = c;
         return Task.FromResult(c);

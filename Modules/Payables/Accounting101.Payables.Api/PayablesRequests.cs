@@ -22,6 +22,7 @@ public sealed record RecordBillPaymentRequest(
     Guid VendorId, DateOnly Date, decimal Amount, string? Method, IReadOnlyList<Allocation> Allocations,
     Guid? Id = null);
 
-/// <summary>Apply a vendor's existing credit to bills.</summary>
+/// <summary>Apply a vendor's existing credit to bills. <paramref name="Id"/> is an optional
+/// caller-supplied retry key — same key and same content replays, different content is a 422.</summary>
 public sealed record VendorCreditApplicationRequest(
-    Guid VendorId, DateOnly Date, IReadOnlyList<Allocation> Allocations);
+    Guid VendorId, DateOnly Date, IReadOnlyList<Allocation> Allocations, Guid? Id = null);

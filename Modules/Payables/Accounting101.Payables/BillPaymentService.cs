@@ -49,25 +49,41 @@ public sealed class BillPaymentService(
         return (known!, replayed);
     }
 
-    public async Task<VendorCreditApplication> RecordCreditApplicationAsync(Guid clientId, VendorCreditApplicationCommand command, CancellationToken ct = default)
+    public async Task<(VendorCreditApplication Application, bool Replayed)> RecordCreditApplicationAsync(
+        Guid clientId, VendorCreditApplicationCommand command, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+
+        // Stateless guard — runs on both branches.
         if (command.Allocations.Count == 0 || command.Allocations.Any(a => a.Amount <= 0m))
             throw new InvalidOperationException("A credit application needs positive allocations.");
 
-        decimal applying = command.Allocations.Sum(a => a.Amount);
-        decimal available = await GetVendorCreditBalanceAsync(clientId, command.VendorId, ct);
-        if (applying > available)
-            throw new InvalidOperationException($"Credit application of {applying} exceeds available credit {available}.");
-
-        await ValidateAllocationsAsync(clientId, command.VendorId, command.Allocations, ct);
+        Guid id = command.Id ?? Guid.NewGuid();
+        VendorCreditApplication? known = command.Id is not null
+            ? await payments.GetCreditApplicationAsync(clientId, id, ct)
+            : null;
+        bool replayed = known is not null;
 
         VendorCreditApplicationBody body = new(command.VendorId, command.Date);
-        VendorCreditApplication recorded = await payments.RecordCreditApplicationAsync(clientId, body, ct);
+
+        if (!replayed)
+        {
+            // Both of these are state-dependent: the available credit balance and each bill's remaining
+            // balance are reduced by this very application, so a replay must not re-check them.
+            decimal applying = command.Allocations.Sum(a => a.Amount);
+            decimal available = await GetVendorCreditBalanceAsync(clientId, command.VendorId, ct);
+            if (applying > available)
+                throw new InvalidOperationException($"Credit application of {applying} exceeds available credit {available}.");
+
+            await ValidateAllocationsAsync(clientId, command.VendorId, command.Allocations, ct);
+            known = await payments.RecordCreditApplicationAsync(clientId, id, body, ct);
+        }
+
         BillPaymentPostingAccounts posting = await accounts.GetPaymentAccountsAsync(clientId, ct);
-        PostEntryRequest entry = BillPosting.ComposeVendorCreditApplication(recorded.Id, body, command.Allocations, posting);
+        PostEntryRequest entry = BillPosting.ComposeVendorCreditApplication(id, body, command.Allocations, posting);
         await ledger.PostAsync(clientId, entry, ct);
-        return recorded;
+
+        return (known!, replayed);
     }
 
     public async Task<BillPayment> VoidPaymentAsync(Guid clientId, Guid paymentId, string? reason = null, CancellationToken ct = default)

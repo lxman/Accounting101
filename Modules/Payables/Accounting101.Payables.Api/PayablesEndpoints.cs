@@ -232,9 +232,12 @@ public static class PayablesEndpoints
     {
         try
         {
-            VendorCreditApplication applied = await service.RecordCreditApplicationAsync(clientId,
-                new VendorCreditApplicationCommand(request.VendorId, request.Date, request.Allocations), cancellationToken);
-            return Results.Created($"/clients/{clientId}/vendor-credit-applications/{applied.Id}", applied);
+            (VendorCreditApplication applied, bool replayed) = await service.RecordCreditApplicationAsync(clientId,
+                new VendorCreditApplicationCommand(request.VendorId, request.Date, request.Allocations, request.Id),
+                cancellationToken);
+            return replayed
+                ? Results.Ok(applied)
+                : Results.Created($"/clients/{clientId}/vendor-credit-applications/{applied.Id}", applied);
         }
         catch (InvalidOperationException ex)
         {
