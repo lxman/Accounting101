@@ -489,3 +489,9 @@ $RECYCLE.BIN/
 
 # Proprietary add-on module checkouts composed into the Host via the Modules.Private overlay glob.
 Modules.Private/
+
+# Local working solution: Accounting101.slnx plus the Modules.Private/ overlay projects, so the
+# private suites build and run alongside everything else. Cannot be committed — .slnx takes literal
+# paths with no conditional support, so a private path here would break the solution build on any
+# checkout without the overlay. Same idiom as Directory.Build.props.local.
+Accounting101.Local.slnx

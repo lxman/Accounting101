@@ -21,10 +21,20 @@ for that module. This branch redefined what that payload contains. The suite was
 the final fix wave (77/77 green, the intersection is a no-op there because the Host globs the overlay
 in), but nothing automatic would have caught a regression.
 
-The overlay is gitignored, so it cannot simply be added to the committed solution file. Options worth
-weighing: a conditional `.slnf`/solution filter, a build-script step that runs the private suite when
-the overlay is present, or accepting manual runs and documenting the trigger. Whatever is chosen, the
-gate should be that a change to `CapabilitiesResponse` cannot merge without the private suite running.
+**Partially resolved 2026-07-26.** A gitignored `Accounting101.Local.slnx` now carries everything in
+the committed `Accounting101.slnx` plus the three `Modules.Private/Accounting101.EInvoicing/`
+projects, so `dotnet test Accounting101.Local.slnx` runs all 1571 tests including the private 77 in
+one command, and Rider opens it as the working solution. The committed solution is untouched and the
+public repo still builds standalone — `.slnx` takes literal paths with no conditional support, so a
+private path there would break every clone lacking the overlay. (The Host csproj gets away with
+`Modules.Private\**\*.Api.csproj` only because an MSBuild glob resolves to nothing when the directory
+is absent.)
+
+**Still open:** that is convenience, not enforcement. Nothing *stops* a change to
+`CapabilitiesResponse` merging without the private suite having run — it only makes running it the
+path of least resistance, and only for someone who has the local solution. A real gate would be a
+committed script that runs the main solution and then any private suite it finds present, or CI that
+does the same. Worth doing if the overlay count grows beyond one.
 
 ## 2. Angular `auth.interceptor.spec.ts` fails (598/599)
 
