@@ -309,15 +309,18 @@ internal sealed class InMemoryBillPaymentStore : IBillPaymentStore
         return Task.FromResult((stored, created));
     }
 
-    public Task<VendorCreditApplication> RecordCreditApplicationAsync(Guid clientId, Guid id, VendorCreditApplicationBody body, CancellationToken ct = default)
+    public Task<(VendorCreditApplication Application, bool Created)> RecordCreditApplicationAsync(Guid clientId, Guid id, VendorCreditApplicationBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         VendorCreditApplication c = new()
         {
             Id = id, VendorId = body.VendorId, Date = body.Date, Voided = false,
         };
-        _credits[(clientId, c.Id)] = c;
-        return Task.FromResult(c);
+        // TryAdd, not an unconditional set: mirrors the real store's insert-only create, so a fake-backed
+        // caller racing an id it doesn't yet know about gets an honest Created signal too.
+        bool created = _credits.TryAdd((clientId, id), c);
+        VendorCreditApplication stored = created ? c : _credits[(clientId, id)];
+        return Task.FromResult((stored, created));
     }
 
     public Task VoidAsync(Guid clientId, Guid paymentId, CancellationToken ct = default)

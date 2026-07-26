@@ -25,7 +25,7 @@ internal sealed class RendezvousBillPaymentStore(InMemoryBillPaymentStore inner,
         Guid clientId, Guid id, BillPaymentBody body, CancellationToken ct = default) =>
         inner.RecordPaymentAsync(clientId, id, body, ct);
 
-    public Task<VendorCreditApplication> RecordCreditApplicationAsync(
+    public Task<(VendorCreditApplication Application, bool Created)> RecordCreditApplicationAsync(
         Guid clientId, Guid id, VendorCreditApplicationBody body, CancellationToken ct = default) =>
         inner.RecordCreditApplicationAsync(clientId, id, body, ct);
 
@@ -40,7 +40,11 @@ internal sealed class RendezvousBillPaymentStore(InMemoryBillPaymentStore inner,
         Guid clientId, Guid vendorId, CancellationToken ct = default) =>
         inner.GetCreditApplicationsByVendorAsync(clientId, vendorId, ct);
 
-    public Task<VendorCreditApplication?> GetCreditApplicationAsync(
-        Guid clientId, Guid creditApplicationId, CancellationToken ct = default) =>
-        inner.GetCreditApplicationAsync(clientId, creditApplicationId, ct);
+    public async Task<VendorCreditApplication?> GetCreditApplicationAsync(
+        Guid clientId, Guid creditApplicationId, CancellationToken ct = default)
+    {
+        VendorCreditApplication? found = await inner.GetCreditApplicationAsync(clientId, creditApplicationId, ct);
+        await rendezvous.ArriveAndWaitAsync(ct);
+        return found;
+    }
 }
