@@ -72,7 +72,7 @@ internal sealed class InMemoryCashDisbursementStore : ICashDisbursementStore
     private readonly ConcurrentDictionary<(Guid, Guid), CashDisbursement> _store = new();
     private int _next;
 
-    public Task<CashDisbursement> RecordAsync(Guid clientId, Guid id, CashDisbursementBody body, CancellationToken ct = default)
+    public Task<(CashDisbursement Disbursement, bool Created)> RecordAsync(Guid clientId, Guid id, CashDisbursementBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         CashDisbursement doc = new()
@@ -85,8 +85,11 @@ internal sealed class InMemoryCashDisbursementStore : ICashDisbursementStore
             Memo = body.Memo,
             Status = CashDisbursementStatus.Posted,
         };
-        _store[(clientId, doc.Id)] = doc;
-        return Task.FromResult(doc);
+        // TryAdd, not an unconditional set: mirrors the real store's insert-only create, so a fake-backed
+        // caller racing an id it doesn't yet know about gets an honest Created signal too.
+        bool created = _store.TryAdd((clientId, doc.Id), doc);
+        CashDisbursement stored = created ? doc : _store[(clientId, doc.Id)];
+        return Task.FromResult((stored, created));
     }
 
     public Task VoidAsync(Guid clientId, Guid id, CancellationToken ct = default)
@@ -118,7 +121,7 @@ internal sealed class InMemoryCashDepositStore : ICashDepositStore
     private readonly ConcurrentDictionary<(Guid, Guid), CashDeposit> _store = new();
     private int _next;
 
-    public Task<CashDeposit> RecordAsync(Guid clientId, Guid id, CashDepositBody body, CancellationToken ct = default)
+    public Task<(CashDeposit Deposit, bool Created)> RecordAsync(Guid clientId, Guid id, CashDepositBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         CashDeposit doc = new()
@@ -131,8 +134,11 @@ internal sealed class InMemoryCashDepositStore : ICashDepositStore
             Memo = body.Memo,
             Status = CashDepositStatus.Posted,
         };
-        _store[(clientId, doc.Id)] = doc;
-        return Task.FromResult(doc);
+        // TryAdd, not an unconditional set: mirrors the real store's insert-only create, so a fake-backed
+        // caller racing an id it doesn't yet know about gets an honest Created signal too.
+        bool created = _store.TryAdd((clientId, doc.Id), doc);
+        CashDeposit stored = created ? doc : _store[(clientId, doc.Id)];
+        return Task.FromResult((stored, created));
     }
 
     public Task VoidAsync(Guid clientId, Guid id, CancellationToken ct = default)

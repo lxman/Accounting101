@@ -57,7 +57,7 @@ public sealed class CashPagingTests
         Guid clientId = Guid.NewGuid();
         CashLine line = new(Guid.NewGuid(), 100m);
 
-        CashDeposit d1 = await store.RecordAsync(clientId, Guid.NewGuid(), new CashDepositBody([line], new DateOnly(2026, 1, 1), null, null));
+        CashDeposit d1 = (await store.RecordAsync(clientId, Guid.NewGuid(), new CashDepositBody([line], new DateOnly(2026, 1, 1), null, null))).Deposit;
         await store.RecordAsync(clientId, Guid.NewGuid(), new CashDepositBody([line], new DateOnly(2026, 1, 2), null, null));
         await store.RecordAsync(clientId, Guid.NewGuid(), new CashDepositBody([line], new DateOnly(2026, 1, 3), null, null));
         await store.VoidAsync(clientId, d1.Id);
@@ -129,7 +129,7 @@ public sealed class CashPagingTests
         Guid clientId = Guid.NewGuid();
         CashLine line = new(Guid.NewGuid(), 500m);
 
-        CashDisbursement d1 = await store.RecordAsync(clientId, Guid.NewGuid(), new CashDisbursementBody([line], new DateOnly(2026, 1, 1), null, null));
+        CashDisbursement d1 = (await store.RecordAsync(clientId, Guid.NewGuid(), new CashDisbursementBody([line], new DateOnly(2026, 1, 1), null, null))).Disbursement;
         await store.RecordAsync(clientId, Guid.NewGuid(), new CashDisbursementBody([line], new DateOnly(2026, 1, 2), null, null));
         await store.RecordAsync(clientId, Guid.NewGuid(), new CashDisbursementBody([line], new DateOnly(2026, 1, 3), null, null));
         await store.VoidAsync(clientId, d1.Id);
