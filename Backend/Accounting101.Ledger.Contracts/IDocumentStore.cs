@@ -48,6 +48,20 @@ public interface IDocumentStore
     // Evidentiary
     Task<Guid> CreateAsync<T>(Guid clientId, string collection, T body,
         IReadOnlyDictionary<string, string> tags, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Create an evidentiary document under a caller-supplied id. Returns <c>true</c> when it wrote and
+    /// <c>false</c> when that id is already taken, leaving the existing document untouched — it never
+    /// overwrites. Callers read <c>false</c> as "this operation is already known", which is the basis of
+    /// caller-declared retry keys on money-moving writes.
+    /// <para>
+    /// A bool rather than an exception on the taken path: the collision is the expected outcome of a
+    /// retry, and the store's exception types live in the Api assembly where module callers cannot see
+    /// them.
+    /// </para></summary>
+    Task<bool> CreateWithIdAsync<T>(Guid clientId, string collection, Guid id, T body,
+        IReadOnlyDictionary<string, string> tags, CancellationToken cancellationToken = default);
+
     Task UpdateAsync<T>(Guid clientId, string collection, Guid id, T body,
         IReadOnlyDictionary<string, string> tags, CancellationToken cancellationToken = default);
     Task<long> FinalizeAsync(Guid clientId, string collection, Guid id, CancellationToken cancellationToken = default);
