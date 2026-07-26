@@ -20,23 +20,71 @@ internal sealed class FakeLedgerClient : ILedgerClient
     // retry/replay of the same operation and must not mint a second entry or double-count the fold.
     private readonly Dictionary<Guid, Guid> _entryIdByRequestId = new();
 
+    // Maps a SourceRef to the request that first posted under it, and to the entry that request minted —
+    // a second layer alongside _entryIdByRequestId above: that dictionary arbitrates a caller-supplied
+    // PostEntryRequest.Id (the real engine's idempotency key); this one arbitrates by SourceRef for the
+    // (more common in these unit tests) case where Id is left null. Mirrors
+    // EntryComparison.SameFinancialContent: a second PostAsync carrying the SAME SourceRef is either a
+    // replay of the same operation (return the existing entry, don't double-count the fold) or a key
+    // reused for different content (422 in production; an exception here).
+    private readonly Dictionary<Guid, PostEntryRequest> _bySourceRef = new();
+    private readonly Dictionary<Guid, Guid> _entryIdBySourceRef = new();
+
+    // PostAsync is now the target of a per-key (Id, then SourceRef) check-then-act over plain
+    // (non-concurrent) collections, and this project's race tests genuinely drive two racers through
+    // it concurrently past their store-side rendezvous. A lock here is minimal and keeps this fake's
+    // long-standing plain-Dictionary/List design everywhere else (see the 2026-07-26
+    // toctou-status-code plan's Task 9 cross-cutting finding).
+    private readonly object _postLock = new();
+
     public IReadOnlyList<PostEntryRequest> Posted => _posted;
 
     public Task<PostEntryResponse> PostAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
     {
-        if (entry.Id is { } requestId && _entryIdByRequestId.TryGetValue(requestId, out Guid existingId))
+        lock (_postLock)
         {
-            EntryResponse existing = _entries[existingId];
-            return Task.FromResult(new PostEntryResponse(existing.Id, existing.Status, existing.Posting));
-        }
+            if (entry.Id is { } requestId && _entryIdByRequestId.TryGetValue(requestId, out Guid existingId))
+            {
+                EntryResponse existing = _entries[existingId];
+                return Task.FromResult(new PostEntryResponse(existing.Id, existing.Status, existing.Posting));
+            }
 
-        _posted.Add(entry);
-        var id = Guid.NewGuid();
-        _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "PendingApproval", reversalOf: null, lines: entry.Lines);
-        _linesById[id] = entry.Lines;
-        if (entry.Id is { } rid) _entryIdByRequestId[rid] = id;
-        return Task.FromResult(new PostEntryResponse(id, "Active", "PendingApproval"));
+            if (entry.SourceRef is { } sourceRef && _bySourceRef.TryGetValue(sourceRef, out PostEntryRequest? seen))
+            {
+                // Production answers 422 when a key is reused for different content. Mirror that here, or every
+                // divergent-retry test written against this fake passes vacuously.
+                if (!SameContent(seen, entry))
+                    throw new InvalidOperationException(
+                        $"Entry for SourceRef {sourceRef} already exists with different content.");
+
+                EntryResponse existingBySourceRef = _entries[_entryIdBySourceRef[sourceRef]];
+                return Task.FromResult(new PostEntryResponse(existingBySourceRef.Id, existingBySourceRef.Status, existingBySourceRef.Posting));
+            }
+
+            _posted.Add(entry);
+            var id = Guid.NewGuid();
+            _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "PendingApproval", reversalOf: null, lines: entry.Lines);
+            _linesById[id] = entry.Lines;
+            if (entry.Id is { } rid) _entryIdByRequestId[rid] = id;
+            if (entry.SourceRef is { } sr)
+            {
+                _bySourceRef[sr] = entry;
+                _entryIdBySourceRef[sr] = id;
+            }
+            return Task.FromResult(new PostEntryResponse(id, "Active", "PendingApproval"));
+        }
     }
+
+    private static bool SameContent(PostEntryRequest a, PostEntryRequest b) =>
+        a.EffectiveDate == b.EffectiveDate
+        && a.Reference == b.Reference
+        && a.Memo == b.Memo
+        && a.SourceType == b.SourceType
+        && a.Lines.Count == b.Lines.Count
+        && a.Lines.Zip(b.Lines).All(p =>
+            p.First.AccountId == p.Second.AccountId
+            && p.First.Direction == p.Second.Direction
+            && p.First.Amount == p.Second.Amount);
 
     /// <summary>
     /// Seed a Posted (on-the-books) entry directly into the fold WITHOUT recording it in <see cref="Posted"/>.

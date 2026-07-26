@@ -12,6 +12,21 @@ internal sealed class FakeLedgerClient : ILedgerClient
     private readonly Dictionary<Guid, IReadOnlyList<PostLineRequest>> _linesById = new();
     private readonly List<PostEntryRequest> _posted = [];
 
+    // Maps a SourceRef to the request that first posted under it, and to the entry that request minted —
+    // mirrors the real engine's idempotent-post arbitration (LedgerEndpoints.PostEntry /
+    // EntryComparison.SameFinancialContent): a second PostAsync carrying the SAME SourceRef is either a
+    // replay of the same operation (return the existing entry, don't double-count the fold) or a key
+    // reused for different content (422 in production; an exception here).
+    private readonly Dictionary<Guid, PostEntryRequest> _bySourceRef = new();
+    private readonly Dictionary<Guid, Guid> _entryIdBySourceRef = new();
+
+    // PostAsync is now the target of a per-SourceRef check-then-act over plain (non-concurrent)
+    // collections. This module's InMemoryStockMovementStore already guards its own mutable state with
+    // a lock for exactly this reason (concurrent race-test racers); PostAsync gets the same minimal
+    // treatment rather than a broader rewrite (see the 2026-07-26 toctou-status-code plan's Task 9
+    // cross-cutting finding).
+    private readonly object _postLock = new();
+
     public IReadOnlyList<PostEntryRequest> Posted => _posted;
     public bool ReversedOrWithdrawn { get; private set; }
     public bool ReturnNoEntries { get; set; }
@@ -23,12 +38,43 @@ internal sealed class FakeLedgerClient : ILedgerClient
 
     public Task<PostEntryResponse> PostAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
     {
-        _posted.Add(entry);
-        var id = Guid.NewGuid();
-        _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "PendingApproval", reversalOf: null, lines: entry.Lines);
-        _linesById[id] = entry.Lines;
-        return Task.FromResult(new PostEntryResponse(id, "Active", "PendingApproval"));
+        lock (_postLock)
+        {
+            if (entry.SourceRef is { } sourceRef && _bySourceRef.TryGetValue(sourceRef, out PostEntryRequest? seen))
+            {
+                // Production answers 422 when a key is reused for different content. Mirror that here, or every
+                // divergent-retry test written against this fake passes vacuously.
+                if (!SameContent(seen, entry))
+                    throw new InvalidOperationException(
+                        $"Entry for SourceRef {sourceRef} already exists with different content.");
+
+                EntryResponse existing = _entries[_entryIdBySourceRef[sourceRef]];
+                return Task.FromResult(new PostEntryResponse(existing.Id, existing.Status, existing.Posting));
+            }
+
+            _posted.Add(entry);
+            var id = Guid.NewGuid();
+            _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "PendingApproval", reversalOf: null, lines: entry.Lines);
+            _linesById[id] = entry.Lines;
+            if (entry.SourceRef is { } sr)
+            {
+                _bySourceRef[sr] = entry;
+                _entryIdBySourceRef[sr] = id;
+            }
+            return Task.FromResult(new PostEntryResponse(id, "Active", "PendingApproval"));
+        }
     }
+
+    private static bool SameContent(PostEntryRequest a, PostEntryRequest b) =>
+        a.EffectiveDate == b.EffectiveDate
+        && a.Reference == b.Reference
+        && a.Memo == b.Memo
+        && a.SourceType == b.SourceType
+        && a.Lines.Count == b.Lines.Count
+        && a.Lines.Zip(b.Lines).All(p =>
+            p.First.AccountId == p.Second.AccountId
+            && p.First.Direction == p.Second.Direction
+            && p.First.Amount == p.Second.Amount);
 
     /// <summary>Test helper: approve every pending entry so posted-only reads see them.</summary>
     public void ApproveAll()

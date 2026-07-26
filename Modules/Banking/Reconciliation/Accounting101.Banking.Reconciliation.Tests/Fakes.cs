@@ -92,11 +92,49 @@ internal sealed class FakePostingLedger : ILedgerClient
     public string EntryPosting { get; set; } = "PendingApproval";   // set "Posted" to simulate an approved entry
     private readonly Guid _entryId = Guid.NewGuid();
 
+    // Maps a SourceRef to the request that first posted under it — mirrors the real engine's idempotent-
+    // post arbitration (LedgerEndpoints.PostEntry / EntryComparison.SameFinancialContent), scaled down to
+    // this fake's single-slot design (it has no per-entry history, only the most recent Posted). A second
+    // PostAsync carrying the SAME SourceRef is a replay when content matches (silently accepted — there is
+    // no separate entry to return, unlike the richer per-module fakes) or a key reused for different
+    // content (422 in production; an exception here), so a divergent-retry test written against this fake
+    // is not vacuous.
+    private readonly Dictionary<Guid, PostEntryRequest> _bySourceRef = new();
+
+    // PostAsync is now a check-then-act over a plain (non-concurrent) Dictionary, and this project's
+    // AdjustmentRaceTests genuinely drive two racers through it concurrently past their store-side
+    // rendezvous. A lock here is minimal (see the 2026-07-26 toctou-status-code plan's Task 9
+    // cross-cutting finding).
+    private readonly object _postLock = new();
+
     public Task<PostEntryResponse> PostAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
     {
-        Posted = entry;
-        return Task.FromResult(new PostEntryResponse(_entryId, "Active", EntryPosting));
+        lock (_postLock)
+        {
+            if (entry.SourceRef is { } sourceRef
+                && _bySourceRef.TryGetValue(sourceRef, out PostEntryRequest? seen)
+                && !SameContent(seen, entry))
+            {
+                throw new InvalidOperationException(
+                    $"Entry for SourceRef {sourceRef} already exists with different content.");
+            }
+
+            if (entry.SourceRef is { } sr) _bySourceRef[sr] = entry;
+            Posted = entry;
+            return Task.FromResult(new PostEntryResponse(_entryId, "Active", EntryPosting));
+        }
     }
+
+    private static bool SameContent(PostEntryRequest a, PostEntryRequest b) =>
+        a.EffectiveDate == b.EffectiveDate
+        && a.Reference == b.Reference
+        && a.Memo == b.Memo
+        && a.SourceType == b.SourceType
+        && a.Lines.Count == b.Lines.Count
+        && a.Lines.Zip(b.Lines).All(p =>
+            p.First.AccountId == p.Second.AccountId
+            && p.First.Direction == p.Second.Direction
+            && p.First.Amount == p.Second.Amount);
     public Task<EntryResponse> ReverseAsync(Guid clientId, Guid entryId, ReverseRequest request, CancellationToken cancellationToken = default)
     { Reversed = true; return Task.FromResult(StubEntry()); }
     public Task<EntryResponse> VoidAsync(Guid clientId, Guid entryId, VoidRequest request, CancellationToken cancellationToken = default)
