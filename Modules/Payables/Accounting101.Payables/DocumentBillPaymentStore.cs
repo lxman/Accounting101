@@ -10,11 +10,15 @@ public sealed class DocumentBillPaymentStore(IDocumentStore documents) : IBillPa
     private const string BillPayments = "bill-payments";
     private const string VendorCreditApplications = "vendor-credit-applications";
 
-    public async Task<BillPayment> RecordPaymentAsync(Guid clientId, BillPaymentBody body, CancellationToken ct = default)
+    public async Task<BillPayment> RecordPaymentAsync(Guid clientId, Guid id, BillPaymentBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        Guid id = await documents.CreateAsync(clientId, BillPayments, body, Tags(body.VendorId), ct);
-        await documents.FinalizeAsync(clientId, BillPayments, id, ct);
+        // Only the caller that actually created the document finalizes it. FinalizeAsync throws on a
+        // document that is no longer Draft (a deliberately pinned invariant), and that exception type
+        // lives in the engine's Api assembly where this module cannot catch it — so we must not race.
+        // This also means a replay burns no sequence number.
+        if (await documents.CreateWithIdAsync(clientId, BillPayments, id, body, Tags(body.VendorId), ct))
+            await documents.FinalizeAsync(clientId, BillPayments, id, ct);
         DocumentResult<BillPaymentBody>? result = await documents.GetAsync<BillPaymentBody>(clientId, BillPayments, id, ct);
         return MapPayment(result!);
     }

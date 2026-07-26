@@ -18,7 +18,7 @@ public interface IBillStore
 /// by the engine's document store. Voided is derived from the document lifecycle.</summary>
 public interface IBillPaymentStore
 {
-    Task<BillPayment> RecordPaymentAsync(Guid clientId, BillPaymentBody body, CancellationToken ct = default);
+    Task<BillPayment> RecordPaymentAsync(Guid clientId, Guid id, BillPaymentBody body, CancellationToken ct = default);
     Task<VendorCreditApplication> RecordCreditApplicationAsync(Guid clientId, VendorCreditApplicationBody body, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid paymentId, CancellationToken ct = default);
     Task<BillPayment?> GetPaymentAsync(Guid clientId, Guid paymentId, CancellationToken ct = default);

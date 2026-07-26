@@ -200,10 +200,12 @@ public static class PayablesEndpoints
     {
         try
         {
-            BillPayment recorded = await service.RecordPaymentAsync(clientId,
-                new BillPaymentCommand(request.VendorId, request.Date, request.Amount, request.Method, request.Allocations),
+            (BillPayment recorded, bool replayed) = await service.RecordPaymentAsync(clientId,
+                new BillPaymentCommand(request.VendorId, request.Date, request.Amount, request.Method, request.Allocations, request.Id),
                 cancellationToken);
-            return Results.Created($"/clients/{clientId}/bill-payments/{recorded.Id}", recorded);
+            return replayed
+                ? Results.Ok(recorded)
+                : Results.Created($"/clients/{clientId}/bill-payments/{recorded.Id}", recorded);
         }
         catch (InvalidOperationException ex)
         {

@@ -234,12 +234,12 @@ internal sealed class InMemoryBillPaymentStore : IBillPaymentStore
     private readonly ConcurrentDictionary<(Guid, Guid), BillPayment> _payments = new();
     private readonly ConcurrentDictionary<(Guid, Guid), VendorCreditApplication> _credits = new();
 
-    public Task<BillPayment> RecordPaymentAsync(Guid clientId, BillPaymentBody body, CancellationToken ct = default)
+    public Task<BillPayment> RecordPaymentAsync(Guid clientId, Guid id, BillPaymentBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         BillPayment p = new()
         {
-            Id = Guid.NewGuid(), VendorId = body.VendorId, Date = body.Date, Amount = body.Amount,
+            Id = id, VendorId = body.VendorId, Date = body.Date, Amount = body.Amount,
             Method = body.Method, Voided = false,
         };
         _payments[(clientId, p.Id)] = p;
