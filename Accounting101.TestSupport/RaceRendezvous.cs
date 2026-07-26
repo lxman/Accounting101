@@ -21,10 +21,30 @@ public sealed class RaceRendezvous(int participants, TimeSpan? timeout = null)
         if (Interlocked.Increment(ref _arrived) >= participants)
             _allArrived.TrySetResult();
 
-        Task completed = await Task.WhenAny(_allArrived.Task, Task.Delay(_timeout, ct));
-        if (completed != _allArrived.Task)
+        // Linked so the delay timer is torn down as soon as THIS call resolves, whichever way —
+        // otherwise every call leaves a live _timeout-duration Timer running for its full duration
+        // even after arrival already won, and if the caller's ct were ever cancelled while waiting,
+        // Task.Delay(_timeout, ct) would fault/cancel and Task.WhenAny would return it unobserved,
+        // misreporting a real cancellation as a generic "only N arrived" timeout.
+        using CancellationTokenSource linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        try
+        {
+            Task delay = Task.Delay(_timeout, linkedCts.Token);
+            Task completed = await Task.WhenAny(_allArrived.Task, delay);
+            if (completed == _allArrived.Task)
+                return;
+
+            // The delay "completed" first. If the caller's own token is what triggered it, surface
+            // that honestly as a cancellation instead of a misleading timeout.
+            ct.ThrowIfCancellationRequested();
+
             throw new TimeoutException(
                 $"RaceRendezvous timed out after {_timeout.TotalSeconds:0.#}s: expected {participants} " +
                 $"participants, only {Volatile.Read(ref _arrived)} arrived.");
+        }
+        finally
+        {
+            linkedCts.Cancel();
+        }
     }
 }
