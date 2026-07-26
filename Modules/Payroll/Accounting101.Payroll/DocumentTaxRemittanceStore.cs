@@ -12,15 +12,20 @@ public sealed class DocumentTaxRemittanceStore(IDocumentStore documents) : ITaxR
 {
     private const string Collection = "tax-remittances";
 
-    public async Task<TaxRemittance> RecordAsync(Guid clientId, Guid id, TaxRemittanceBody body, CancellationToken ct = default)
+    public async Task<(TaxRemittance Remittance, bool Created)> RecordAsync(Guid clientId, Guid id, TaxRemittanceBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         // Evidentiary: create then finalize to assign the sequence number — but only the caller that
         // actually created it finalizes, so a replay burns no number and cannot race a concurrent creator.
-        if (await documents.CreateWithIdAsync(clientId, Collection, id, body, Tags(), ct))
+        //
+        // That bool is also the ONLY reliable created-vs-replayed signal: two concurrent callers can both
+        // see "not found" on an earlier existence check (inherently TOCTOU), but this create is atomic, so
+        // exactly one gets true. The service trusts this over its own pre-check.
+        bool created = await documents.CreateWithIdAsync(clientId, Collection, id, body, Tags(), ct);
+        if (created)
             await documents.FinalizeAsync(clientId, Collection, id, ct);
         DocumentResult<TaxRemittanceBody>? result = await documents.GetAsync<TaxRemittanceBody>(clientId, Collection, id, ct);
-        return Map(result!);
+        return (Map(result!), created);
     }
 
     public Task VoidAsync(Guid clientId, Guid remittanceId, CancellationToken ct = default) =>

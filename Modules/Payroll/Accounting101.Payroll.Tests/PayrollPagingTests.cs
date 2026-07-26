@@ -59,7 +59,7 @@ public sealed class PayrollPagingTests
         InMemoryPayrollRunStore store = new();
         Guid clientId = Guid.NewGuid();
 
-        PayrollRun r1 = await store.RecordAsync(clientId, Guid.NewGuid(), MakeRunBody(1));
+        PayrollRun r1 = (await store.RecordAsync(clientId, Guid.NewGuid(), MakeRunBody(1))).Run;
         await store.RecordAsync(clientId, Guid.NewGuid(), MakeRunBody(2));
         await store.RecordAsync(clientId, Guid.NewGuid(), MakeRunBody(3));
         await store.VoidAsync(clientId, r1.Id);
@@ -129,7 +129,7 @@ public sealed class PayrollPagingTests
         InMemoryTaxRemittanceStore store = new();
         Guid clientId = Guid.NewGuid();
 
-        TaxRemittance r1 = await store.RecordAsync(clientId, Guid.NewGuid(), MakeRemittanceBody(1));
+        TaxRemittance r1 = (await store.RecordAsync(clientId, Guid.NewGuid(), MakeRemittanceBody(1))).Remittance;
         await store.RecordAsync(clientId, Guid.NewGuid(), MakeRemittanceBody(2));
         await store.RecordAsync(clientId, Guid.NewGuid(), MakeRemittanceBody(3));
         await store.VoidAsync(clientId, r1.Id);

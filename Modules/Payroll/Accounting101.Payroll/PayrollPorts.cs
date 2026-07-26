@@ -6,7 +6,12 @@ namespace Accounting101.Payroll;
 /// store. One-step record (finalize immediately) / void lifecycle; no draft phase.</summary>
 public interface IPayrollRunStore
 {
-    Task<PayrollRun> RecordAsync(Guid clientId, Guid id, PayrollRunBody body, CancellationToken ct = default);
+    /// <summary>Records the payroll run under <paramref name="id"/>. <c>Created</c> is <c>true</c> only for
+    /// the caller that won the underlying atomic create; under two concurrent callers racing the SAME id
+    /// exactly one gets <c>true</c>, and the loser still gets back the winner's persisted document but must
+    /// report its own call as a replay. A caller cannot infer this from an earlier existence check — that
+    /// check is TOCTOU under concurrency.</summary>
+    Task<(PayrollRun Run, bool Created)> RecordAsync(Guid clientId, Guid id, PayrollRunBody body, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid runId, CancellationToken ct = default);
     Task<PayrollRun?> GetAsync(Guid clientId, Guid runId, CancellationToken ct = default);
     Task<IReadOnlyList<PayrollRun>> GetByClientAsync(Guid clientId, CancellationToken ct = default);
@@ -17,7 +22,12 @@ public interface IPayrollRunStore
 /// store. One-step record / void lifecycle; no draft phase.</summary>
 public interface ITaxRemittanceStore
 {
-    Task<TaxRemittance> RecordAsync(Guid clientId, Guid id, TaxRemittanceBody body, CancellationToken ct = default);
+    /// <summary>Records the tax remittance under <paramref name="id"/>. <c>Created</c> is <c>true</c> only
+    /// for the caller that won the underlying atomic create; under two concurrent callers racing the SAME id
+    /// exactly one gets <c>true</c>, and the loser still gets back the winner's persisted document but must
+    /// report its own call as a replay. A caller cannot infer this from an earlier existence check — that
+    /// check is TOCTOU under concurrency.</summary>
+    Task<(TaxRemittance Remittance, bool Created)> RecordAsync(Guid clientId, Guid id, TaxRemittanceBody body, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid remittanceId, CancellationToken ct = default);
     Task<TaxRemittance?> GetAsync(Guid clientId, Guid remittanceId, CancellationToken ct = default);
     Task<IReadOnlyList<TaxRemittance>> GetByClientAsync(Guid clientId, CancellationToken ct = default);

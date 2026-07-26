@@ -72,7 +72,7 @@ internal sealed class InMemoryPayrollRunStore : IPayrollRunStore
     private readonly ConcurrentDictionary<(Guid, Guid), PayrollRun> _store = new();
     private int _next;
 
-    public Task<PayrollRun> RecordAsync(Guid clientId, Guid id, PayrollRunBody body, CancellationToken ct = default)
+    public Task<(PayrollRun Run, bool Created)> RecordAsync(Guid clientId, Guid id, PayrollRunBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         PayrollRun run = new()
@@ -88,8 +88,11 @@ internal sealed class InMemoryPayrollRunStore : IPayrollRunStore
             Memo = body.Memo,
             Status = PayrollRunStatus.Posted,
         };
-        _store[(clientId, run.Id)] = run;
-        return Task.FromResult(run);
+        // TryAdd, not an unconditional set: mirrors the real store's insert-only create, so a fake-backed
+        // caller racing an id it doesn't yet know about gets an honest Created signal too.
+        bool created = _store.TryAdd((clientId, run.Id), run);
+        PayrollRun stored = created ? run : _store[(clientId, run.Id)];
+        return Task.FromResult((stored, created));
     }
 
     public Task VoidAsync(Guid clientId, Guid runId, CancellationToken ct = default)
@@ -121,7 +124,7 @@ internal sealed class InMemoryTaxRemittanceStore : ITaxRemittanceStore
     private readonly ConcurrentDictionary<(Guid, Guid), TaxRemittance> _store = new();
     private int _next;
 
-    public Task<TaxRemittance> RecordAsync(Guid clientId, Guid id, TaxRemittanceBody body, CancellationToken ct = default)
+    public Task<(TaxRemittance Remittance, bool Created)> RecordAsync(Guid clientId, Guid id, TaxRemittanceBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         TaxRemittance remittance = new()
@@ -134,8 +137,11 @@ internal sealed class InMemoryTaxRemittanceStore : ITaxRemittanceStore
             Memo = body.Memo,
             Status = TaxRemittanceStatus.Posted,
         };
-        _store[(clientId, remittance.Id)] = remittance;
-        return Task.FromResult(remittance);
+        // TryAdd, not an unconditional set: mirrors the real store's insert-only create, so a fake-backed
+        // caller racing an id it doesn't yet know about gets an honest Created signal too.
+        bool created = _store.TryAdd((clientId, remittance.Id), remittance);
+        TaxRemittance stored = created ? remittance : _store[(clientId, remittance.Id)];
+        return Task.FromResult((stored, created));
     }
 
     public Task VoidAsync(Guid clientId, Guid remittanceId, CancellationToken ct = default)

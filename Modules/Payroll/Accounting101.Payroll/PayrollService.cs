@@ -25,7 +25,14 @@ public sealed class PayrollService(
 
         // 1. Persist the evidentiary document (finalized immediately — no draft phase).
         if (!replayed)
-            known = await runs.RecordAsync(clientId, id, body, ct);
+        {
+            // The pre-check above is inherently TOCTOU under concurrency: two callers racing the same id
+            // can both see "not found" and both reach here. The store's atomic create is the actual
+            // arbiter — trust it over the pre-check for this response's status.
+            (PayrollRun Run, bool Created) result = await runs.RecordAsync(clientId, id, body, ct);
+            known = result.Run;
+            replayed = !result.Created;
+        }
 
         // 2. Compose from the request body and post on both branches — the ledger arbitrates a replay
         //    versus a key reused for different content, and a retry repairs a post that never landed.
@@ -78,7 +85,14 @@ public sealed class PayrollService(
 
         // 1. Persist the evidentiary document (finalized immediately — no draft phase).
         if (!replayed)
-            known = await remittances.RecordAsync(clientId, id, body, ct);
+        {
+            // The pre-check above is inherently TOCTOU under concurrency: two callers racing the same id
+            // can both see "not found" and both reach here. The store's atomic create is the actual
+            // arbiter — trust it over the pre-check for this response's status.
+            (TaxRemittance Remittance, bool Created) result = await remittances.RecordAsync(clientId, id, body, ct);
+            known = result.Remittance;
+            replayed = !result.Created;
+        }
 
         // 2. Compose from the request body and post on both branches — the ledger arbitrates a replay
         //    versus a key reused for different content, and a retry repairs a post that never landed.
