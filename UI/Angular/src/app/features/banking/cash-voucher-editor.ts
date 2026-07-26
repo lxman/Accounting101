@@ -8,7 +8,7 @@ import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { BankingService } from '../../core/banking/banking.service';
 import { CashKind, CashLine, RecordCashVoucherRequest } from '../../core/banking/banking';
 import { AccountsService } from '../../core/accounts/accounts.service';
-import { extractProblem } from '../../core/api/problem-details';
+import { extractProblem, retryKeyConflictMessage } from '../../core/api/problem-details';
 import { money as fmtMoney } from '../../core/format/display';
 import { CanDirective } from '../../core/capabilities/can.directive';
 
@@ -97,6 +97,10 @@ export class CashVoucherEditor {
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
 
+  // A caller-supplied retry key: the same key across retries of a FAILED save makes the server replay
+  // instead of recording the voucher twice. Re-minted after a success so the next voucher is a new operation.
+  private retryKey = crypto.randomUUID();
+
   readonly postableAccounts = computed(() => this.accounts.accounts().filter(a => a.postable));
   readonly total = computed(() => this.lines().reduce((s, l) => s + (l.amount ?? 0), 0));
   readonly canSave = computed(() =>
@@ -119,10 +123,18 @@ export class CashVoucherEditor {
   save(): void {
     if (!this.canSave()) return;
     this.busy.set(true); this.message.set(null);
-    const call = this.isDeposit() ? this.svc.recordDeposit(this.toRequest()) : this.svc.recordDisbursement(this.toRequest());
+    const req = { ...this.toRequest(), id: this.retryKey };
+    const call = this.isDeposit() ? this.svc.recordDeposit(req) : this.svc.recordDisbursement(req);
     call.pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (v) => { this.busy.set(false); void this.router.navigate(['/cash/cash', v.id]); },
-      error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
+      next: (v) => {
+        this.retryKey = crypto.randomUUID();
+        this.busy.set(false);
+        void this.router.navigate(['/cash/cash', v.id]);
+      },
+      error: (e) => {
+        this.message.set(retryKeyConflictMessage(e) ?? extractProblem(e).detail);
+        this.busy.set(false);
+      },
     });
   }
 }

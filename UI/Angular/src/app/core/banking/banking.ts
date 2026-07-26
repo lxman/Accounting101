@@ -30,6 +30,7 @@ export interface CashVoucherView {
 
 export interface RecordCashVoucherRequest {
   lines: CashLine[]; date: string; reference?: string | null; memo?: string | null;
+  readonly id?: string;
 }
 
 // ── Bank statements ──────────────────────────────────────────────────────────
@@ -101,6 +102,7 @@ export interface BankAdjustment {
 }
 export interface RecordAdjustmentRequest {
   offsetAccountId: string; amount: number; kind: AdjustmentKind; date?: string | null; memo?: string | null;
+  readonly id?: string;
 }
 
 export interface BankingListQuery { skip: number; limit: number; order?: 'asc' | 'desc'; }

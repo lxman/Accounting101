@@ -7,7 +7,7 @@ import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { BankingService } from '../../core/banking/banking.service';
 import { BankAdjustment, AdjustmentKind, RecordAdjustmentRequest, adjustmentKindLabel } from '../../core/banking/banking';
 import { AccountsService } from '../../core/accounts/accounts.service';
-import { extractProblem } from '../../core/api/problem-details';
+import { extractProblem, retryKeyConflictMessage } from '../../core/api/problem-details';
 import { money as fmtMoney } from '../../core/format/display';
 import { CanDirective } from '../../core/capabilities/can.directive';
 
@@ -103,6 +103,12 @@ export class AdjustmentsPanel {
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
 
+  // A caller-supplied retry key: the same key across retries of a FAILED save makes the server replay
+  // instead of recording the adjustment twice. Re-minted after a success — this panel stays open and can
+  // record several adjustments in a row, so without the re-mint the next adjustment would silently replay
+  // this one.
+  private retryKey = crypto.randomUUID();
+
   readonly postableAccounts = computed(() => this.accounts.accounts().filter(a => a.postable));
   readonly canRecord = computed(() => !!this.offsetAccountId() && (this.amount() ?? 0) > 0);
 
@@ -124,10 +130,16 @@ export class AdjustmentsPanel {
   record(): void {
     if (!this.canRecord()) return;
     this.busy.set(true); this.message.set(null);
-    const req: RecordAdjustmentRequest = { offsetAccountId: this.offsetAccountId()!, amount: this.amount()!, kind: this.kind(), date: this.date(), memo: this.memo() };
+    const req: RecordAdjustmentRequest = { offsetAccountId: this.offsetAccountId()!, amount: this.amount()!, kind: this.kind(), date: this.date(), memo: this.memo(), id: this.retryKey };
     this.svc.recordAdjustment(this.reconciliationId(), req).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.amount.set(null); this.offsetAccountId.set(null); this.memo.set(null); this.date.set(null); this.busy.set(false); this.reload(this.reconciliationId()); this.changed.emit(); },
-      error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
+      next: () => {
+        this.retryKey = crypto.randomUUID();
+        this.amount.set(null); this.offsetAccountId.set(null); this.memo.set(null); this.date.set(null); this.busy.set(false); this.reload(this.reconciliationId()); this.changed.emit();
+      },
+      error: (e) => {
+        this.message.set(retryKeyConflictMessage(e) ?? extractProblem(e).detail);
+        this.busy.set(false);
+      },
     });
   }
 
