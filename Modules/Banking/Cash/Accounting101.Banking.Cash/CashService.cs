@@ -14,17 +14,26 @@ public sealed class CashService(
 {
     // ── Cash Disbursements ───────────────────────────────────────────────────
 
-    public async Task<CashDisbursement> RecordDisbursementAsync(Guid clientId, CashDisbursementBody body, CancellationToken ct = default)
+    public async Task<(CashDisbursement Disbursement, bool Replayed)> RecordDisbursementAsync(
+        Guid clientId, CashDisbursementBody body, Guid? retryKey = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
+
+        Guid id = retryKey ?? Guid.NewGuid();
+        CashDisbursement? known = retryKey is not null ? await disbursements.GetAsync(clientId, id, ct) : null;
+        bool replayed = known is not null;
+
         // 1. Persist the evidentiary document (finalized immediately — no draft phase).
-        CashDisbursement disbursement = await disbursements.RecordAsync(clientId, body, ct);
-        // 2. Resolve posting accounts and compose the balanced entry via the Task-1 recipe.
+        if (!replayed)
+            known = await disbursements.RecordAsync(clientId, id, body, ct);
+
+        // 2. Compose from the request body and post on both branches — the ledger arbitrates a replay
+        //    versus a key reused for different content, and a retry repairs a post that never landed.
         CashPostingAccounts postingAccounts = await accounts.GetAccountsAsync(clientId, ct);
-        PostEntryRequest entry = CashPosting.ComposeDisbursement(disbursement.Id, body, postingAccounts);
+        PostEntryRequest entry = CashPosting.ComposeDisbursement(id, body, postingAccounts);
         // 3. Post PendingApproval — the module never approves its own entries.
         await ledger.PostAsync(clientId, entry, ct);
-        return disbursement;
+        return (known!, replayed);
     }
 
     public async Task<CashDisbursement> VoidDisbursementAsync(Guid clientId, Guid id, string? reason = null, CancellationToken ct = default)
@@ -58,17 +67,26 @@ public sealed class CashService(
 
     // ── Cash Deposits ────────────────────────────────────────────────────────
 
-    public async Task<CashDeposit> RecordDepositAsync(Guid clientId, CashDepositBody body, CancellationToken ct = default)
+    public async Task<(CashDeposit Deposit, bool Replayed)> RecordDepositAsync(
+        Guid clientId, CashDepositBody body, Guid? retryKey = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
+
+        Guid id = retryKey ?? Guid.NewGuid();
+        CashDeposit? known = retryKey is not null ? await deposits.GetAsync(clientId, id, ct) : null;
+        bool replayed = known is not null;
+
         // 1. Persist the evidentiary document (finalized immediately — no draft phase).
-        CashDeposit deposit = await deposits.RecordAsync(clientId, body, ct);
-        // 2. Resolve posting accounts and compose the balanced entry via the Task-1 recipe.
+        if (!replayed)
+            known = await deposits.RecordAsync(clientId, id, body, ct);
+
+        // 2. Compose from the request body and post on both branches — the ledger arbitrates a replay
+        //    versus a key reused for different content, and a retry repairs a post that never landed.
         CashPostingAccounts postingAccounts = await accounts.GetAccountsAsync(clientId, ct);
-        PostEntryRequest entry = CashPosting.ComposeDeposit(deposit.Id, body, postingAccounts);
+        PostEntryRequest entry = CashPosting.ComposeDeposit(id, body, postingAccounts);
         // 3. Post PendingApproval — the module never approves its own entries.
         await ledger.PostAsync(clientId, entry, ct);
-        return deposit;
+        return (known!, replayed);
     }
 
     public async Task<CashDeposit> VoidDepositAsync(Guid clientId, Guid id, string? reason = null, CancellationToken ct = default)

@@ -109,4 +109,66 @@ describe('PaymentEditor', () => {
     expect(cmp.allocationWarning()).toBeNull();
     ctrl.verify();
   });
+
+  it('sends a retry key with the payment', () => {
+    const ctrl = setup({ customer: 'cu1' });
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(PaymentEditor); f.detectChanges();
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme', email: null }]);
+    ctrl.expectOne(r => r.url.endsWith('/clients/C1/invoices') && r.params.get('settlement') === 'open')
+      .flush({ items: [openInvoice('inv1', '1001', 105)], total: 1, skip: 0, limit: 200 });
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers/cu1/credit-balance').flush({ customerId: 'cu1', creditBalance: 0 });
+    f.detectChanges();
+    const cmp = f.componentInstance as PaymentEditor;
+    cmp.onAmount(100); f.detectChanges();
+    cmp.save();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/payments');
+    expect(req.request.body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    req.flush({ id: 'p1', customerId: 'cu1', date: cmp.date(), amount: 100, method: null, allocations: req.request.body.allocations, voided: false });
+    ctrl.verify();
+  });
+
+  it('reuses the same key when a failed save is retried', () => {
+    const ctrl = setup({ customer: 'cu1' });
+    const f = TestBed.createComponent(PaymentEditor); f.detectChanges();
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme', email: null }]);
+    ctrl.expectOne(r => r.url.endsWith('/clients/C1/invoices') && r.params.get('settlement') === 'open')
+      .flush({ items: [openInvoice('inv1', '1001', 105)], total: 1, skip: 0, limit: 200 });
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers/cu1/credit-balance').flush({ customerId: 'cu1', creditBalance: 0 });
+    f.detectChanges();
+    const cmp = f.componentInstance as PaymentEditor;
+    cmp.onAmount(100); f.detectChanges();
+    cmp.save();
+    const post1 = ctrl.expectOne('http://localhost:5000/clients/C1/payments');
+    const key1 = post1.request.body.id;
+    post1.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+    cmp.save();
+    const post2 = ctrl.expectOne('http://localhost:5000/clients/C1/payments');
+    expect(post2.request.body.id).toBe(key1);
+    post2.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+    ctrl.verify();
+  });
+
+  it('mints a fresh key after a successful save', () => {
+    const ctrl = setup({ customer: 'cu1' });
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(PaymentEditor); f.detectChanges();
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers').flush([{ id: 'cu1', name: 'Acme', email: null }]);
+    ctrl.expectOne(r => r.url.endsWith('/clients/C1/invoices') && r.params.get('settlement') === 'open')
+      .flush({ items: [openInvoice('inv1', '1001', 105)], total: 1, skip: 0, limit: 200 });
+    ctrl.expectOne('http://localhost:5000/clients/C1/customers/cu1/credit-balance').flush({ customerId: 'cu1', creditBalance: 0 });
+    f.detectChanges();
+    const cmp = f.componentInstance as PaymentEditor;
+    cmp.onAmount(100); f.detectChanges();
+    cmp.save();
+    const post1 = ctrl.expectOne('http://localhost:5000/clients/C1/payments');
+    const key1 = post1.request.body.id;
+    post1.flush({ id: 'p1', customerId: 'cu1', date: cmp.date(), amount: 100, method: null, allocations: post1.request.body.allocations, voided: false });
+    cmp.save();
+    const post2 = ctrl.expectOne('http://localhost:5000/clients/C1/payments');
+    expect(post2.request.body.id).not.toBe(key1);
+    post2.flush({ id: 'p2', customerId: 'cu1', date: cmp.date(), amount: 100, method: null, allocations: post2.request.body.allocations, voided: false });
+    expect(nav).toHaveBeenCalledWith(['/receivables']);
+    ctrl.verify();
+  });
 });

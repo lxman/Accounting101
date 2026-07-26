@@ -49,6 +49,30 @@ public sealed class MongoDocumentStore
             : c.ReplaceOneAsync(session, filter, document, options, cancellationToken);
     }
 
+    /// <summary>
+    /// Insert only when the id is free. Returns false on an <c>_id</c> collision instead of throwing — for
+    /// caller-declared retry keys a taken id is the expected outcome of a retry, not an error. Atomic: the
+    /// unique index on <c>_id</c> is the arbiter, so two concurrent callers cannot both receive true.
+    /// </summary>
+    public async Task<bool> InsertIfAbsentAsync(
+        string collection, ModuleDocument document, IClientSessionHandle? session = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        IMongoCollection<ModuleDocument> c = Collection(collection);
+        try
+        {
+            if (session is null)
+                await c.InsertOneAsync(document, null, cancellationToken);
+            else
+                await c.InsertOneAsync(session, document, null, cancellationToken);
+            return true;
+        }
+        catch (MongoWriteException ex) when (ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
+        {
+            return false;
+        }
+    }
+
     public Task DeleteAsync(
         string collection, Guid id, IClientSessionHandle? session = null, CancellationToken cancellationToken = default)
     {

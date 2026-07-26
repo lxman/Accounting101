@@ -42,4 +42,54 @@ describe('AdjustmentsPanel', () => {
     expect(emitted).toBe(true);
     ctrl.verify();
   });
+
+  it('sends a retry key with the adjustment', () => {
+    const { fixture, ctrl } = boot();
+    const cmp = fixture.componentInstance;
+    cmp.offsetAccountId.set('o1'); cmp.amount.set(12.5); cmp.kind.set('Charge');
+    cmp.record();
+    const post = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/reconciliations/r1/adjustments');
+    expect(post.request.body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    post.flush({ id: 'j1', number: 'ADJ-00001', reconciliationId: 'r1', cashAccountId: 'CA1', offsetAccountId: 'o1',
+      kind: 'Charge', amount: 12.5, date: '2026-03-31', memo: null, status: 'Posted' });
+    ctrl.expectOne(r => r.url.endsWith('/reconciliations/r1/adjustments')).flush({ items: [], total: 0, skip: 0, limit: 50 });
+    ctrl.verify();
+  });
+
+  it('reuses the same key when a failed save is retried', () => {
+    const { fixture, ctrl } = boot();
+    const cmp = fixture.componentInstance;
+    cmp.offsetAccountId.set('o1'); cmp.amount.set(12.5); cmp.kind.set('Charge');
+    cmp.record();
+    const post1 = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/reconciliations/r1/adjustments');
+    const key1 = post1.request.body.id;
+    post1.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+    cmp.record();
+    const post2 = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/reconciliations/r1/adjustments');
+    expect(post2.request.body.id).toBe(key1);
+    post2.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+    ctrl.verify();
+  });
+
+  it('mints a fresh key after each successful adjustment, so a second adjustment is not a replay of the first', () => {
+    const { fixture, ctrl } = boot();
+    const cmp = fixture.componentInstance;
+    cmp.offsetAccountId.set('o1'); cmp.amount.set(12.5); cmp.kind.set('Charge');
+    cmp.record();
+    const post1 = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/reconciliations/r1/adjustments');
+    const key1 = post1.request.body.id;
+    post1.flush({ id: 'j1', number: 'ADJ-00001', reconciliationId: 'r1', cashAccountId: 'CA1', offsetAccountId: 'o1',
+      kind: 'Charge', amount: 12.5, date: '2026-03-31', memo: null, status: 'Posted' });
+    ctrl.expectOne(r => r.url.endsWith('/reconciliations/r1/adjustments')).flush({ items: [], total: 0, skip: 0, limit: 50 });
+
+    // record() resets the form fields on success, so a second adjustment must re-enter them.
+    cmp.offsetAccountId.set('o1'); cmp.amount.set(20); cmp.kind.set('Charge');
+    cmp.record();
+    const post2 = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/reconciliations/r1/adjustments');
+    expect(post2.request.body.id).not.toBe(key1);
+    post2.flush({ id: 'j2', number: 'ADJ-00002', reconciliationId: 'r1', cashAccountId: 'CA1', offsetAccountId: 'o1',
+      kind: 'Charge', amount: 20, date: '2026-03-31', memo: null, status: 'Posted' });
+    ctrl.expectOne(r => r.url.endsWith('/reconciliations/r1/adjustments')).flush({ items: [], total: 0, skip: 0, limit: 50 });
+    ctrl.verify();
+  });
 });

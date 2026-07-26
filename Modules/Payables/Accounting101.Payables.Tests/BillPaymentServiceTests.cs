@@ -56,7 +56,7 @@ public sealed class BillPaymentServiceTests
         (Harness h, Guid clientId, Guid vendorId, Bill bill) = await SetupWithEnteredBillAsync(100m);
 
         BillPaymentCommand command = new(vendorId, new DateOnly(2026, 3, 31), 40m, null, [new Allocation(bill.Id, 40m)]);
-        BillPayment recorded = await h.Payments.RecordPaymentAsync(clientId, command);
+        BillPayment recorded = (await h.Payments.RecordPaymentAsync(clientId, command)).Payment;
 
         Assert.NotEqual(Guid.Empty, recorded.Id);
         PostEntryRequest entry = Assert.Single(h.Ledger.Posted);
@@ -120,8 +120,8 @@ public sealed class BillPaymentServiceTests
         Bill second = await h.BillStore.PromoteDraftAsync(clientId, draft2.Id);
         PostBillApCredit(h.Ledger, vendorId, second);
 
-        VendorCreditApplication applied = await h.Payments.RecordCreditApplicationAsync(clientId,
-            new VendorCreditApplicationCommand(vendorId, new DateOnly(2026, 4, 2), [new Allocation(second.Id, 50m)]));
+        VendorCreditApplication applied = (await h.Payments.RecordCreditApplicationAsync(clientId,
+            new VendorCreditApplicationCommand(vendorId, new DateOnly(2026, 4, 2), [new Allocation(second.Id, 50m)]))).Application;
 
         // VendorCreditApplication no longer carries an Allocations array (or an Applied accessor derived
         // from one) — prove the 50 applied by folding it from the document's own posted entry instead.
@@ -146,7 +146,7 @@ public sealed class BillPaymentServiceTests
     public async Task Voiding_a_payment_restores_the_bill_open_balance()
     {
         (Harness h, Guid clientId, Guid vendorId, Bill bill) = await SetupWithEnteredBillAsync(100m);
-        BillPayment p = await h.Payments.RecordPaymentAsync(clientId, new BillPaymentCommand(vendorId, new DateOnly(2026, 3, 31), 40m, null, [new Allocation(bill.Id, 40m)]));
+        BillPayment p = (await h.Payments.RecordPaymentAsync(clientId, new BillPaymentCommand(vendorId, new DateOnly(2026, 3, 31), 40m, null, [new Allocation(bill.Id, 40m)]))).Payment;
         Assert.Equal(60m, (await h.Payments.GetBillViewAsync(clientId, bill.Id))!.OpenBalance);
 
         await h.Payments.VoidPaymentAsync(clientId, p.Id);
@@ -261,8 +261,8 @@ public sealed class BillPaymentServiceTests
         (Harness h, Guid clientId, Guid vendorId, Bill bill) = await SetupWithEnteredBillAsync(100m);
 
         // Act: pay in full — must not throw.
-        BillPayment recorded = await h.Payments.RecordPaymentAsync(clientId,
-            new BillPaymentCommand(vendorId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(bill.Id, 100m)]));
+        BillPayment recorded = (await h.Payments.RecordPaymentAsync(clientId,
+            new BillPaymentCommand(vendorId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(bill.Id, 100m)]))).Payment;
 
         // Assert: payment recorded and settled.
         Assert.NotEqual(Guid.Empty, recorded.Id);
@@ -286,8 +286,8 @@ public sealed class BillPaymentServiceTests
     {
         (Harness h, Guid clientId, Guid vendorId, Bill bill1) = await SetupWithEnteredBillAsync(100m);
         // Overpay bill1 by 50 → $50 vendor credit.
-        BillPayment pay = await h.Payments.RecordPaymentAsync(clientId,
-            new BillPaymentCommand(vendorId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(bill1.Id, 100m)]));
+        BillPayment pay = (await h.Payments.RecordPaymentAsync(clientId,
+            new BillPaymentCommand(vendorId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(bill1.Id, 100m)]))).Payment;
         // Apply that $50 credit to a second bill → pool now 0.
         Bill bill2 = await EnterAnotherBillAsync(h, clientId, vendorId, 100m);
         await h.Payments.RecordCreditApplicationAsync(clientId,
@@ -304,8 +304,8 @@ public sealed class BillPaymentServiceTests
     public async Task Voiding_a_bill_payment_whose_credit_is_still_available_succeeds()
     {
         (Harness h, Guid clientId, Guid vendorId, Bill bill1) = await SetupWithEnteredBillAsync(100m);
-        BillPayment pay = await h.Payments.RecordPaymentAsync(clientId,
-            new BillPaymentCommand(vendorId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(bill1.Id, 100m)]));
+        BillPayment pay = (await h.Payments.RecordPaymentAsync(clientId,
+            new BillPaymentCommand(vendorId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(bill1.Id, 100m)]))).Payment;
 
         BillPayment voided = await h.Payments.VoidPaymentAsync(clientId, pay.Id);
 
@@ -317,8 +317,8 @@ public sealed class BillPaymentServiceTests
     public async Task Voiding_one_overpayment_is_allowed_when_other_vendor_credit_covers_the_spend()
     {
         (Harness h, Guid clientId, Guid vendorId, Bill bill1) = await SetupWithEnteredBillAsync(100m);
-        BillPayment payA = await h.Payments.RecordPaymentAsync(clientId,
-            new BillPaymentCommand(vendorId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(bill1.Id, 100m)]));
+        BillPayment payA = (await h.Payments.RecordPaymentAsync(clientId,
+            new BillPaymentCommand(vendorId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(bill1.Id, 100m)]))).Payment;
         Bill bill2 = await EnterAnotherBillAsync(h, clientId, vendorId, 100m);
         await h.Payments.RecordPaymentAsync(clientId,
             new BillPaymentCommand(vendorId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(bill2.Id, 100m)]));

@@ -200,10 +200,12 @@ public static class PayablesEndpoints
     {
         try
         {
-            BillPayment recorded = await service.RecordPaymentAsync(clientId,
-                new BillPaymentCommand(request.VendorId, request.Date, request.Amount, request.Method, request.Allocations),
+            (BillPayment recorded, bool replayed) = await service.RecordPaymentAsync(clientId,
+                new BillPaymentCommand(request.VendorId, request.Date, request.Amount, request.Method, request.Allocations, request.Id),
                 cancellationToken);
-            return Results.Created($"/clients/{clientId}/bill-payments/{recorded.Id}", recorded);
+            return replayed
+                ? Results.Ok(recorded)
+                : Results.Created($"/clients/{clientId}/bill-payments/{recorded.Id}", recorded);
         }
         catch (InvalidOperationException ex)
         {
@@ -230,9 +232,12 @@ public static class PayablesEndpoints
     {
         try
         {
-            VendorCreditApplication applied = await service.RecordCreditApplicationAsync(clientId,
-                new VendorCreditApplicationCommand(request.VendorId, request.Date, request.Allocations), cancellationToken);
-            return Results.Created($"/clients/{clientId}/vendor-credit-applications/{applied.Id}", applied);
+            (VendorCreditApplication applied, bool replayed) = await service.RecordCreditApplicationAsync(clientId,
+                new VendorCreditApplicationCommand(request.VendorId, request.Date, request.Allocations, request.Id),
+                cancellationToken);
+            return replayed
+                ? Results.Ok(applied)
+                : Results.Created($"/clients/{clientId}/vendor-credit-applications/{applied.Id}", applied);
         }
         catch (InvalidOperationException ex)
         {

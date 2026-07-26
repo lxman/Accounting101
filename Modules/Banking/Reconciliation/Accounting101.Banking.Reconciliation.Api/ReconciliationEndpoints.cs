@@ -109,14 +109,21 @@ public static class ReconciliationEndpoints
         catch (InvalidOperationException ex) { return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict); }
     }
 
+    // Note: the route's {id} is the RECONCILIATION's id, bound below as `reconciliationId` — never a bare
+    // `id` here — because `RecordAdjustmentRequest.Id` is a separate, unrelated retry key for the
+    // adjustment itself. Conflating the two would key every adjustment by its reconciliation.
     private static async Task<IResult> RecordAdjustment(
-        Guid clientId, Guid id, RecordAdjustmentRequest request, AdjustmentService service, CancellationToken ct)
+        Guid clientId, [FromRoute(Name = "id")] Guid reconciliationId, RecordAdjustmentRequest request,
+        AdjustmentService service, CancellationToken ct)
     {
         try
         {
-            BankAdjustment adjustment = await service.RecordAdjustmentAsync(clientId, id,
-                new RecordAdjustmentInput(request.OffsetAccountId, request.Amount, request.Kind, request.Date, request.Memo), ct);
-            return Results.Created($"/clients/{clientId}/reconciliations/{id}/adjustments/{adjustment.Id}", adjustment);
+            (BankAdjustment adjustment, bool replayed) = await service.RecordAdjustmentAsync(clientId, reconciliationId,
+                new RecordAdjustmentInput(request.OffsetAccountId, request.Amount, request.Kind, request.Date, request.Memo),
+                request.Id, ct);
+            return replayed
+                ? Results.Ok(adjustment)
+                : Results.Created($"/clients/{clientId}/reconciliations/{reconciliationId}/adjustments/{adjustment.Id}", adjustment);
         }
         catch (ArgumentException ex) // amount <= 0, offset == cash
         {

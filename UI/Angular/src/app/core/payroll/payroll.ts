@@ -35,6 +35,7 @@ export interface RecordPayrollRunRequest {
   incomeTaxWithheld: number;
   payDate: string;
   memo: string | null;
+  readonly id?: string;
 }
 
 export interface RecordTaxRemittanceRequest {
@@ -42,6 +43,7 @@ export interface RecordTaxRemittanceRequest {
   taxesAmount: number;
   payDate: string;
   memo: string | null;
+  readonly id?: string;
 }
 
 export interface PayrollListQuery {

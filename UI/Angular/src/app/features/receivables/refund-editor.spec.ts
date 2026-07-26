@@ -67,8 +67,49 @@ describe('RefundEditor', () => {
     f.componentInstance.save();
     const req = ctrl.expectOne('http://localhost:5000/clients/C1/refunds');
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ customerId: 'cu1', date: f.componentInstance.date(), amount: 50, memo: 'overpay' });
+    expect(req.request.body).toEqual({ customerId: 'cu1', date: f.componentInstance.date(), amount: 50, memo: 'overpay', id: expect.any(String) });
     req.flush({});
+    expect(nav).toHaveBeenCalledWith(['/receivables/refunds']);
+  });
+
+  it('sends a retry key with the refund', () => {
+    const ctrl = setup('cu1');
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(RefundEditor); f.detectChanges();
+    loadCreditBalance(ctrl, f, 75);
+    f.componentInstance.save();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/refunds');
+    expect(req.request.body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    req.flush({});
+  });
+
+  it('reuses the same key when a failed save is retried', () => {
+    const ctrl = setup('cu1');
+    const f = TestBed.createComponent(RefundEditor); f.detectChanges();
+    loadCreditBalance(ctrl, f, 75);
+    f.componentInstance.save();
+    const post1 = ctrl.expectOne('http://localhost:5000/clients/C1/refunds');
+    const key1 = post1.request.body.id;
+    post1.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+    f.componentInstance.save();
+    const post2 = ctrl.expectOne('http://localhost:5000/clients/C1/refunds');
+    expect(post2.request.body.id).toBe(key1);
+    post2.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+  });
+
+  it('mints a fresh key after a successful save', () => {
+    const ctrl = setup('cu1');
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(RefundEditor); f.detectChanges();
+    loadCreditBalance(ctrl, f, 75);
+    f.componentInstance.save();
+    const post1 = ctrl.expectOne('http://localhost:5000/clients/C1/refunds');
+    const key1 = post1.request.body.id;
+    post1.flush({});
+    f.componentInstance.save();
+    const post2 = ctrl.expectOne('http://localhost:5000/clients/C1/refunds');
+    expect(post2.request.body.id).not.toBe(key1);
+    post2.flush({});
     expect(nav).toHaveBeenCalledWith(['/receivables/refunds']);
   });
 

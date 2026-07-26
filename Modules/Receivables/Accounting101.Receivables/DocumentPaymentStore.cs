@@ -13,20 +13,24 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
     private const string CreditNotes = "credit-notes";
     private const string Refunds = "refunds";
 
-    public async Task<Payment> RecordPaymentAsync(Guid clientId, PaymentBody body, CancellationToken ct = default)
+    public async Task<Payment> RecordPaymentAsync(Guid clientId, Guid id, PaymentBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        Guid id = await documents.CreateAsync(clientId, Payments, body, Tags(body.CustomerId), ct);
-        await documents.FinalizeAsync(clientId, Payments, id, ct);
+        // Only the caller that actually created the document finalizes it. FinalizeAsync throws on a
+        // document that is no longer Draft (a deliberately pinned invariant), and that exception type
+        // lives in the engine's Api assembly where this module cannot catch it — so we must not race.
+        // This also means a replay burns no sequence number.
+        if (await documents.CreateWithIdAsync(clientId, Payments, id, body, Tags(body.CustomerId), ct))
+            await documents.FinalizeAsync(clientId, Payments, id, ct);
         DocumentResult<PaymentBody>? result = await documents.GetAsync<PaymentBody>(clientId, Payments, id, ct);
         return MapPayment(result!);
     }
 
-    public async Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, CreditApplicationBody body, CancellationToken ct = default)
+    public async Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, Guid id, CreditApplicationBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        Guid id = await documents.CreateAsync(clientId, CreditApplications, body, Tags(body.CustomerId), ct);
-        await documents.FinalizeAsync(clientId, CreditApplications, id, ct);
+        if (await documents.CreateWithIdAsync(clientId, CreditApplications, id, body, Tags(body.CustomerId), ct))
+            await documents.FinalizeAsync(clientId, CreditApplications, id, ct);
         DocumentResult<CreditApplicationBody>? result = await documents.GetAsync<CreditApplicationBody>(clientId, CreditApplications, id, ct);
         return MapCredit(result!);
     }
@@ -60,11 +64,12 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
         return r is null ? null : MapCredit(r);
     }
 
-    public async Task<WriteOff> RecordWriteOffAsync(Guid clientId, WriteOffBody body, CancellationToken ct = default)
+    public async Task<WriteOff> RecordWriteOffAsync(Guid clientId, Guid id, WriteOffBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        Guid id = await documents.CreateAsync(clientId, WriteOffs, body, Tags(body.CustomerId), ct);
-        await documents.FinalizeAsync(clientId, WriteOffs, id, ct);
+        // Only the caller that actually created the document finalizes it — see RecordPaymentAsync above.
+        if (await documents.CreateWithIdAsync(clientId, WriteOffs, id, body, Tags(body.CustomerId), ct))
+            await documents.FinalizeAsync(clientId, WriteOffs, id, ct);
         DocumentResult<WriteOffBody>? r = await documents.GetAsync<WriteOffBody>(clientId, WriteOffs, id, ct);
         return MapWriteOff(r!);
     }
@@ -84,11 +89,12 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
     public Task VoidWriteOffAsync(Guid clientId, Guid writeOffId, CancellationToken ct = default) =>
         documents.VoidAsync(clientId, WriteOffs, writeOffId, ct);
 
-    public async Task<CreditNote> RecordCreditNoteAsync(Guid clientId, CreditNoteBody body, CancellationToken ct = default)
+    public async Task<CreditNote> RecordCreditNoteAsync(Guid clientId, Guid id, CreditNoteBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        Guid id = await documents.CreateAsync(clientId, CreditNotes, body, Tags(body.CustomerId), ct);
-        await documents.FinalizeAsync(clientId, CreditNotes, id, ct);
+        // Only the caller that actually created the document finalizes it — see RecordPaymentAsync above.
+        if (await documents.CreateWithIdAsync(clientId, CreditNotes, id, body, Tags(body.CustomerId), ct))
+            await documents.FinalizeAsync(clientId, CreditNotes, id, ct);
         DocumentResult<CreditNoteBody>? r = await documents.GetAsync<CreditNoteBody>(clientId, CreditNotes, id, ct);
         return MapCreditNote(r!);
     }
@@ -108,11 +114,12 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
     public Task VoidCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default) =>
         documents.VoidAsync(clientId, CreditNotes, creditNoteId, ct);
 
-    public async Task<Refund> RecordRefundAsync(Guid clientId, RefundBody body, CancellationToken ct = default)
+    public async Task<Refund> RecordRefundAsync(Guid clientId, Guid id, RefundBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        Guid id = await documents.CreateAsync(clientId, Refunds, body, Tags(body.CustomerId), ct);
-        await documents.FinalizeAsync(clientId, Refunds, id, ct);
+        // Only the caller that actually created the document finalizes it — see RecordPaymentAsync above.
+        if (await documents.CreateWithIdAsync(clientId, Refunds, id, body, Tags(body.CustomerId), ct))
+            await documents.FinalizeAsync(clientId, Refunds, id, ct);
         DocumentResult<RefundBody>? r = await documents.GetAsync<RefundBody>(clientId, Refunds, id, ct);
         return MapRefund(r!);
     }

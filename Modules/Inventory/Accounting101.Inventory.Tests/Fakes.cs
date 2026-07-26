@@ -189,12 +189,15 @@ internal sealed class InMemoryStockMovementStore : IStockMovementStore
     private readonly List<StockMovement> _movements = [];
     private int _next;
 
-    public Task<StockMovement> RecordAsync(Guid clientId, StockMovementBody body, CancellationToken ct = default)
+    public Task<StockMovement> RecordAsync(Guid clientId, Guid id, StockMovementBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
+        // Insert-only, exactly like IDocumentStore.CreateWithIdAsync behind the real store: an id already
+        // taken is returned as-is — never overwritten, never re-numbered.
+        if (_movements.FirstOrDefault(m => m.Id == id) is { } existing) return Task.FromResult(existing);
         StockMovement movement = new()
         {
-            Id = Guid.NewGuid(),
+            Id = id,
             Number = $"MV-{Interlocked.Increment(ref _next):D5}",
             ItemId = body.ItemId,
             Type = body.Type,

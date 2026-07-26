@@ -42,10 +42,65 @@ describe('RunEditor', () => {
     cmp.save();
     const req = ctrl.expectOne('http://localhost:5000/clients/C1/payroll-runs');
     expect(req.request.body).toEqual({ gross: 1000, employeeFica: 76.5, employerFica: 76.5, deductions: 50,
-      incomeTaxWithheld: 120, payDate: '2026-06-30', memo: 'June' });
+      incomeTaxWithheld: 120, payDate: '2026-06-30', memo: 'June', id: expect.any(String) });
     req.flush({ id: 'r9', number: 'PR-9', gross: 1000, employeeFica: 76.5, employerFica: 76.5, deductions: 50,
       incomeTaxWithheld: 120, payDate: '2026-06-30', memo: 'June', status: 'Posted' });
     expect(nav).toHaveBeenCalledWith(['/payroll/runs', 'r9']);
+    ctrl.verify();
+  });
+
+  it('sends a retry key with the run', () => {
+    const ctrl = setup();
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(RunEditor); f.detectChanges();
+    const cmp = f.componentInstance;
+    cmp.gross.set(1000); cmp.employeeFica.set(76.5); cmp.employerFica.set(76.5);
+    cmp.deductions.set(50); cmp.incomeTaxWithheld.set(120); cmp.payDate.set('2026-06-30');
+    f.detectChanges();
+    cmp.save();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/payroll-runs');
+    expect(req.request.body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    req.flush({ id: 'r9', number: 'PR-9', gross: 1000, employeeFica: 76.5, employerFica: 76.5, deductions: 50,
+      incomeTaxWithheld: 120, payDate: '2026-06-30', memo: null, status: 'Posted' });
+    ctrl.verify();
+  });
+
+  it('reuses the same key when a failed save is retried', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(RunEditor); f.detectChanges();
+    const cmp = f.componentInstance;
+    cmp.gross.set(1000); cmp.employeeFica.set(76.5); cmp.employerFica.set(76.5);
+    cmp.deductions.set(50); cmp.incomeTaxWithheld.set(120); cmp.payDate.set('2026-06-30');
+    f.detectChanges();
+    cmp.save();
+    const req1 = ctrl.expectOne('http://localhost:5000/clients/C1/payroll-runs');
+    const key1 = req1.request.body.id;
+    req1.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+    cmp.save();
+    const req2 = ctrl.expectOne('http://localhost:5000/clients/C1/payroll-runs');
+    expect(req2.request.body.id).toBe(key1);
+    req2.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+    ctrl.verify();
+  });
+
+  it('mints a fresh key after a successful save', () => {
+    const ctrl = setup();
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(RunEditor); f.detectChanges();
+    const cmp = f.componentInstance;
+    cmp.gross.set(1000); cmp.employeeFica.set(76.5); cmp.employerFica.set(76.5);
+    cmp.deductions.set(50); cmp.incomeTaxWithheld.set(120); cmp.payDate.set('2026-06-30');
+    f.detectChanges();
+    cmp.save();
+    const req1 = ctrl.expectOne('http://localhost:5000/clients/C1/payroll-runs');
+    const key1 = req1.request.body.id;
+    req1.flush({ id: 'r9', number: 'PR-9', gross: 1000, employeeFica: 76.5, employerFica: 76.5, deductions: 50,
+      incomeTaxWithheld: 120, payDate: '2026-06-30', memo: null, status: 'Posted' });
+    cmp.save();
+    const req2 = ctrl.expectOne('http://localhost:5000/clients/C1/payroll-runs');
+    expect(req2.request.body.id).not.toBe(key1);
+    req2.flush({ id: 'r10', number: 'PR-10', gross: 1000, employeeFica: 76.5, employerFica: 76.5, deductions: 50,
+      incomeTaxWithheld: 120, payDate: '2026-06-30', memo: null, status: 'Posted' });
     ctrl.verify();
   });
 });

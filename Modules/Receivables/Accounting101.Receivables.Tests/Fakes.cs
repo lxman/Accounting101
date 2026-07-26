@@ -280,22 +280,22 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
     private readonly ConcurrentDictionary<(Guid, Guid), CreditNote> _creditNotes = new();
     private readonly ConcurrentDictionary<(Guid, Guid), Refund> _refunds = new();
 
-    public Task<Payment> RecordPaymentAsync(Guid clientId, PaymentBody body, CancellationToken ct = default)
+    public Task<Payment> RecordPaymentAsync(Guid clientId, Guid id, PaymentBody body, CancellationToken ct = default)
     {
         Payment p = new()
         {
-            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date, Amount = body.Amount,
+            Id = id, CustomerId = body.CustomerId, Date = body.Date, Amount = body.Amount,
             Method = body.Method, Voided = false,
         };
         _payments[(clientId, p.Id)] = p;
         return Task.FromResult(p);
     }
 
-    public Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, CreditApplicationBody body, CancellationToken ct = default)
+    public Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, Guid id, CreditApplicationBody body, CancellationToken ct = default)
     {
         CreditApplication c = new()
         {
-            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date, Voided = false,
+            Id = id, CustomerId = body.CustomerId, Date = body.Date, Voided = false,
         };
         _credits[(clientId, c.Id)] = c;
         return Task.FromResult(c);
@@ -320,11 +320,11 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
     public Task<CreditApplication?> GetCreditApplicationAsync(Guid clientId, Guid creditApplicationId, CancellationToken ct = default) =>
         Task.FromResult(_credits.GetValueOrDefault((clientId, creditApplicationId)));
 
-    public Task<WriteOff> RecordWriteOffAsync(Guid clientId, WriteOffBody body, CancellationToken ct = default)
+    public Task<WriteOff> RecordWriteOffAsync(Guid clientId, Guid id, WriteOffBody body, CancellationToken ct = default)
     {
         WriteOff w = new()
         {
-            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date,
+            Id = id, CustomerId = body.CustomerId, Date = body.Date,
             Memo = body.Memo, Voided = false,
         };
         _writeOffs[(clientId, w.Id)] = w;
@@ -344,11 +344,11 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
         return Task.CompletedTask;
     }
 
-    public Task<CreditNote> RecordCreditNoteAsync(Guid clientId, CreditNoteBody body, CancellationToken ct = default)
+    public Task<CreditNote> RecordCreditNoteAsync(Guid clientId, Guid id, CreditNoteBody body, CancellationToken ct = default)
     {
         CreditNote n = new()
         {
-            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date,
+            Id = id, CustomerId = body.CustomerId, Date = body.Date,
             Memo = body.Memo, Voided = false,
         };
         _creditNotes[(clientId, n.Id)] = n;
@@ -368,11 +368,11 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
         return Task.CompletedTask;
     }
 
-    public Task<Refund> RecordRefundAsync(Guid clientId, RefundBody body, CancellationToken ct = default)
+    public Task<Refund> RecordRefundAsync(Guid clientId, Guid id, RefundBody body, CancellationToken ct = default)
     {
         Refund r = new()
         {
-            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date,
+            Id = id, CustomerId = body.CustomerId, Date = body.Date,
             Amount = body.Amount, Voided = false,
         };
         _refunds[(clientId, r.Id)] = r;

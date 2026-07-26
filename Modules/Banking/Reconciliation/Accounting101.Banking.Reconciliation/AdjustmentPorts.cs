@@ -5,7 +5,7 @@ namespace Accounting101.Banking.Reconciliation;
 /// <summary>Bank adjustments as evidentiary documents (one-step record; voidable).</summary>
 public interface IBankAdjustmentStore
 {
-    Task<BankAdjustment> RecordAsync(Guid clientId, BankAdjustmentBody body, CancellationToken ct = default);
+    Task<BankAdjustment> RecordAsync(Guid clientId, Guid id, BankAdjustmentBody body, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid id, CancellationToken ct = default);
     Task<BankAdjustment?> GetAsync(Guid clientId, Guid id, CancellationToken ct = default);
     Task<IReadOnlyList<BankAdjustment>> GetByReconciliationAsync(Guid clientId, Guid reconciliationId, CancellationToken ct = default);

@@ -6,7 +6,7 @@ import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { PayrollService } from '../../core/payroll/payroll.service';
 import { netPay } from '../../core/payroll/payroll';
-import { extractProblem } from '../../core/api/problem-details';
+import { extractProblem, retryKeyConflictMessage } from '../../core/api/problem-details';
 import { money as fmtMoney } from '../../core/format/display';
 import { CurrencyInput } from '../../shared/currency-input';
 import { CanDirective } from '../../core/capabilities/can.directive';
@@ -79,6 +79,10 @@ export class RunEditor {
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
 
+  // A caller-supplied retry key: the same key across retries of a FAILED save makes the server replay
+  // instead of recording the run twice. Re-minted after a success so the next run is a new operation.
+  private retryKey = crypto.randomUUID();
+
   readonly net = computed(() => netPay({
     gross: this.gross(), employeeFica: this.employeeFica(),
     incomeTaxWithheld: this.incomeTaxWithheld(), deductions: this.deductions(),
@@ -98,9 +102,17 @@ export class RunEditor {
       gross: this.gross(), employeeFica: this.employeeFica(), employerFica: this.employerFica(),
       deductions: this.deductions(), incomeTaxWithheld: this.incomeTaxWithheld(),
       payDate: this.payDate(), memo: this.memo(),
+      id: this.retryKey,
     }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (run) => { this.busy.set(false); void this.router.navigate(['/payroll/runs', run.id]); },
-      error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
+      next: (run) => {
+        this.retryKey = crypto.randomUUID();
+        this.busy.set(false);
+        void this.router.navigate(['/payroll/runs', run.id]);
+      },
+      error: (e) => {
+        this.message.set(retryKeyConflictMessage(e) ?? extractProblem(e).detail);
+        this.busy.set(false);
+      },
     });
   }
 

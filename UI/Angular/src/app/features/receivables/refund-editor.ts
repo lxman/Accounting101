@@ -5,7 +5,7 @@ import { HlmInputImports } from '@spartan-ng/helm/input';
 import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { ReceivablesService } from '../../core/receivables/receivables.service';
-import { extractProblem } from '../../core/api/problem-details';
+import { extractProblem, retryKeyConflictMessage } from '../../core/api/problem-details';
 import { money as fmtMoney } from '../../core/format/display';
 import { CurrencyInput } from '../../shared/currency-input';
 import { CanDirective } from '../../core/capabilities/can.directive';
@@ -66,6 +66,10 @@ export class RefundEditor {
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
 
+  // A caller-supplied retry key: the same key across retries of a FAILED save makes the server replay
+  // instead of issuing the refund twice. Re-minted after a success so the next refund is a new operation.
+  private retryKey = crypto.randomUUID();
+
   readonly valid = computed(() => this.amount() > 0 && this.amount() <= this.creditBalance());
 
   constructor() {
@@ -80,11 +84,20 @@ export class RefundEditor {
   save(): void {
     if (!this.valid() || !this.customerId) return;
     this.busy.set(true); this.message.set(null);
-    this.svc.recordRefund({ customerId: this.customerId, date: this.date(), amount: this.amount(), memo: this.memo().trim() || null })
-      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-        next: () => { this.busy.set(false); void this.router.navigate(['/receivables/refunds']); },
-        error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
-      });
+    this.svc.recordRefund({
+      customerId: this.customerId, date: this.date(), amount: this.amount(), memo: this.memo().trim() || null,
+      id: this.retryKey,
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => {
+        this.retryKey = crypto.randomUUID();
+        this.busy.set(false);
+        void this.router.navigate(['/receivables/refunds']);
+      },
+      error: (e) => {
+        this.message.set(retryKeyConflictMessage(e) ?? extractProblem(e).detail);
+        this.busy.set(false);
+      },
+    });
   }
 
   money(n: number): string { return fmtMoney(n); }

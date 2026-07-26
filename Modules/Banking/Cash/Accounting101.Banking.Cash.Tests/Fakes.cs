@@ -72,12 +72,12 @@ internal sealed class InMemoryCashDisbursementStore : ICashDisbursementStore
     private readonly ConcurrentDictionary<(Guid, Guid), CashDisbursement> _store = new();
     private int _next;
 
-    public Task<CashDisbursement> RecordAsync(Guid clientId, CashDisbursementBody body, CancellationToken ct = default)
+    public Task<CashDisbursement> RecordAsync(Guid clientId, Guid id, CashDisbursementBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         CashDisbursement doc = new()
         {
-            Id = Guid.NewGuid(),
+            Id = id,
             Number = $"CD-{Interlocked.Increment(ref _next):D5}",
             Lines = body.Lines,
             Date = body.Date,
@@ -118,12 +118,12 @@ internal sealed class InMemoryCashDepositStore : ICashDepositStore
     private readonly ConcurrentDictionary<(Guid, Guid), CashDeposit> _store = new();
     private int _next;
 
-    public Task<CashDeposit> RecordAsync(Guid clientId, CashDepositBody body, CancellationToken ct = default)
+    public Task<CashDeposit> RecordAsync(Guid clientId, Guid id, CashDepositBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         CashDeposit doc = new()
         {
-            Id = Guid.NewGuid(),
+            Id = id,
             Number = $"CR-{Interlocked.Increment(ref _next):D5}",
             Lines = body.Lines,
             Date = body.Date,

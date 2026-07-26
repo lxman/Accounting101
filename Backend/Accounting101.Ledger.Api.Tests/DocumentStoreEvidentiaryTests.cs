@@ -124,4 +124,52 @@ public sealed class DocumentStoreEvidentiaryTests(ApiFixture fixture) : IClassFi
         await store.VoidAsync(clientId, "invoices", id);
         Assert.Equal(DocumentLifecycle.Voided, (await store.GetAsync<Invoice>(clientId, "invoices", id))!.State);
     }
+
+    [Fact]
+    public async Task CreateWithId_writes_under_the_supplied_id_and_returns_true()
+    {
+        (IDocumentStore store, Guid clientId) = await SetupAsync();
+        string cust = Guid.NewGuid().ToString();
+        Guid id = Guid.NewGuid();
+
+        bool created = await store.CreateWithIdAsync(clientId, "invoices", id, new Invoice(10m), Tags(cust, "Draft"));
+
+        Assert.True(created);
+        DocumentResult<Invoice>? found = await store.GetAsync<Invoice>(clientId, "invoices", id);
+        Assert.NotNull(found);
+        Assert.Equal(id, found!.Id);
+        Assert.Equal(DocumentLifecycle.Draft, found.State);
+    }
+
+    [Fact]
+    public async Task CreateWithId_returns_false_when_the_id_is_taken_and_does_not_overwrite()
+    {
+        (IDocumentStore store, Guid clientId) = await SetupAsync();
+        string cust = Guid.NewGuid().ToString();
+        Guid id = Guid.NewGuid();
+        await store.CreateWithIdAsync(clientId, "invoices", id, new Invoice(10m), Tags(cust, "Draft"));
+
+        bool second = await store.CreateWithIdAsync(clientId, "invoices", id, new Invoice(999m), Tags(cust, "Draft"));
+
+        Assert.False(second);
+        DocumentResult<Invoice>? found = await store.GetAsync<Invoice>(clientId, "invoices", id);
+        Assert.Equal(10m, found!.Body.Total); // the first body survived
+    }
+
+    [Fact]
+    public async Task CreateWithId_refusal_burns_no_sequence_number()
+    {
+        (IDocumentStore store, Guid clientId) = await SetupAsync();
+        string cust = Guid.NewGuid().ToString();
+        Guid first = Guid.NewGuid();
+        await store.CreateWithIdAsync(clientId, "invoices", first, new Invoice(10m), Tags(cust, "Draft"));
+        long firstNumber = await store.FinalizeAsync(clientId, "invoices", first);
+
+        // A refused create must not touch the counter.
+        await store.CreateWithIdAsync(clientId, "invoices", first, new Invoice(10m), Tags(cust, "Draft"));
+
+        Guid next = Guid.NewGuid();
+        await store.CreateWithIdAsync(clientId, "invoices", next, new Invoice(20m), Tags(cust, "Draft"));
+        Assert.Equal(firstNumber + 1, await store.FinalizeAsync(clientId, "invoices", next)); // gapless
+    }
 }

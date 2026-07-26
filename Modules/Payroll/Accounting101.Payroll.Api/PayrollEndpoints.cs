@@ -32,11 +32,14 @@ public static class PayrollEndpoints
     {
         try
         {
-            PayrollRun run = await service.RecordRunAsync(clientId,
+            (PayrollRun run, bool replayed) = await service.RecordRunAsync(clientId,
                 new PayrollRunBody(request.Gross, request.EmployeeFica, request.EmployerFica,
                     request.Deductions, request.IncomeTaxWithheld, request.PayDate, request.Memo),
+                request.Id,
                 cancellationToken);
-            return Results.Created($"/clients/{clientId}/payroll-runs/{run.Id}", run);
+            return replayed
+                ? Results.Ok(run)
+                : Results.Created($"/clients/{clientId}/payroll-runs/{run.Id}", run);
         }
         catch (ArgumentException ex) // negative derived net pay
         {
@@ -82,10 +85,13 @@ public static class PayrollEndpoints
     private static async Task<IResult> RecordRemittance(
         Guid clientId, RecordTaxRemittanceRequest request, PayrollService service, CancellationToken cancellationToken)
     {
-        TaxRemittance remittance = await service.RecordRemittanceAsync(clientId,
+        (TaxRemittance remittance, bool replayed) = await service.RecordRemittanceAsync(clientId,
             new TaxRemittanceBody(request.WithholdingsAmount, request.TaxesAmount, request.PayDate, request.Memo),
+            request.Id,
             cancellationToken);
-        return Results.Created($"/clients/{clientId}/tax-remittances/{remittance.Id}", remittance);
+        return replayed
+            ? Results.Ok(remittance)
+            : Results.Created($"/clients/{clientId}/tax-remittances/{remittance.Id}", remittance);
     }
 
     private static async Task<IResult> VoidRemittance(

@@ -39,7 +39,10 @@ public enum ReactivateResult { NotFound, AlreadyActive, Reactivated }
 /// connection.</summary>
 public interface IStockMovementStore
 {
-    Task<StockMovement> RecordAsync(Guid clientId, StockMovementBody body, CancellationToken ct = default);
+    /// <summary>Persists the movement under the CALLER-CHOSEN <paramref name="id"/> (the retry key, or a
+    /// fresh Guid when the caller supplied none). Insert-only: an id already taken is returned as-is,
+    /// never overwritten and never re-numbered.</summary>
+    Task<StockMovement> RecordAsync(Guid clientId, Guid id, StockMovementBody body, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid movementId, CancellationToken ct = default);
     Task<StockMovement?> GetAsync(Guid clientId, Guid movementId, CancellationToken ct = default);
     Task<PagedResponse<StockMovement>> GetByItemPagedAsync(

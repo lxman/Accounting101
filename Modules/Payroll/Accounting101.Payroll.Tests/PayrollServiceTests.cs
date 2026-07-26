@@ -40,7 +40,7 @@ public sealed class PayrollServiceTests
             Deductions: 200m, IncomeTaxWithheld: 1_500m,
             PayDate: new DateOnly(2026, 6, 30), Memo: "June payroll");
 
-        PayrollRun run = await h.Service.RecordRunAsync(clientId, body);
+        PayrollRun run = (await h.Service.RecordRunAsync(clientId, body)).Run;
 
         // Doc persisted and readable
         Assert.NotEqual(Guid.Empty, run.Id);
@@ -109,7 +109,7 @@ public sealed class PayrollServiceTests
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
         PayrollRunBody body = new(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, 6, 30), null);
-        PayrollRun run = await h.Service.RecordRunAsync(clientId, body);
+        PayrollRun run = (await h.Service.RecordRunAsync(clientId, body)).Run;
 
         // Entry is PendingApproval (fake never auto-approves) — so void should call VoidAsync on the client.
         PayrollRun voided = await h.Service.VoidRunAsync(clientId, run.Id, "mistake");
@@ -126,7 +126,7 @@ public sealed class PayrollServiceTests
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
         PayrollRunBody body = new(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, 6, 30), null);
-        PayrollRun run = await h.Service.RecordRunAsync(clientId, body);
+        PayrollRun run = (await h.Service.RecordRunAsync(clientId, body)).Run;
         await h.Service.VoidRunAsync(clientId, run.Id);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => h.Service.VoidRunAsync(clientId, run.Id));
@@ -142,7 +142,7 @@ public sealed class PayrollServiceTests
         TaxRemittanceBody body = new(WithholdingsAmount: 1_700m, TaxesAmount: 1_240m,
             PayDate: new DateOnly(2026, 7, 15), Memo: "Q2 taxes");
 
-        TaxRemittance remittance = await h.Service.RecordRemittanceAsync(clientId, body);
+        TaxRemittance remittance = (await h.Service.RecordRemittanceAsync(clientId, body)).Remittance;
 
         Assert.NotEqual(Guid.Empty, remittance.Id);
         Assert.Equal(TaxRemittanceStatus.Posted, remittance.Status);
@@ -196,7 +196,7 @@ public sealed class PayrollServiceTests
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
         TaxRemittanceBody body = new(1_700m, 1_240m, new DateOnly(2026, 7, 15), null);
-        TaxRemittance remittance = await h.Service.RecordRemittanceAsync(clientId, body);
+        TaxRemittance remittance = (await h.Service.RecordRemittanceAsync(clientId, body)).Remittance;
 
         TaxRemittance voided = await h.Service.VoidRemittanceAsync(clientId, remittance.Id, "error");
 
@@ -212,7 +212,7 @@ public sealed class PayrollServiceTests
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
         TaxRemittanceBody body = new(1_700m, 1_240m, new DateOnly(2026, 7, 15), null);
-        TaxRemittance remittance = await h.Service.RecordRemittanceAsync(clientId, body);
+        TaxRemittance remittance = (await h.Service.RecordRemittanceAsync(clientId, body)).Remittance;
         await h.Service.VoidRemittanceAsync(clientId, remittance.Id);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => h.Service.VoidRemittanceAsync(clientId, remittance.Id));
@@ -226,10 +226,10 @@ public sealed class PayrollServiceTests
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
 
-        PayrollRun run = await h.Service.RecordRunAsync(clientId,
-            new PayrollRunBody(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, 6, 30), null));
-        TaxRemittance remittance = await h.Service.RecordRemittanceAsync(clientId,
-            new TaxRemittanceBody(1_700m, 1_240m, new DateOnly(2026, 7, 15), null));
+        PayrollRun run = (await h.Service.RecordRunAsync(clientId,
+            new PayrollRunBody(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, 6, 30), null))).Run;
+        TaxRemittance remittance = (await h.Service.RecordRemittanceAsync(clientId,
+            new TaxRemittanceBody(1_700m, 1_240m, new DateOnly(2026, 7, 15), null))).Remittance;
 
         Assert.Equal(2, h.Ledger.Posted.Count);
         Assert.Contains(h.Ledger.Posted, e => e.SourceRef == run.Id && e.SourceType == PayrollPosting.PayrollRunSourceType);
@@ -243,8 +243,8 @@ public sealed class PayrollServiceTests
     {
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
-        PayrollRun run = await h.Service.RecordRunAsync(clientId,
-            new PayrollRunBody(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, 6, 30), null));
+        PayrollRun run = (await h.Service.RecordRunAsync(clientId,
+            new PayrollRunBody(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, 6, 30), null))).Run;
 
         Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, run.Id)).Id;
         await h.Ledger.VoidAsync(clientId, entryId, new VoidRequest("withdrawn directly"));
@@ -261,8 +261,8 @@ public sealed class PayrollServiceTests
     {
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
-        PayrollRun run = await h.Service.RecordRunAsync(clientId,
-            new PayrollRunBody(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, 6, 30), null));
+        PayrollRun run = (await h.Service.RecordRunAsync(clientId,
+            new PayrollRunBody(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, 6, 30), null))).Run;
 
         Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, run.Id)).Id;
         await h.Ledger.ReverseAsync(clientId, entryId, new ReverseRequest(new DateOnly(2026, 7, 1), "reversed directly"));
@@ -279,8 +279,8 @@ public sealed class PayrollServiceTests
     {
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
-        TaxRemittance remittance = await h.Service.RecordRemittanceAsync(clientId,
-            new TaxRemittanceBody(1_700m, 1_240m, new DateOnly(2026, 7, 15), null));
+        TaxRemittance remittance = (await h.Service.RecordRemittanceAsync(clientId,
+            new TaxRemittanceBody(1_700m, 1_240m, new DateOnly(2026, 7, 15), null))).Remittance;
 
         Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, remittance.Id)).Id;
         await h.Ledger.VoidAsync(clientId, entryId, new VoidRequest("withdrawn directly"));
@@ -297,8 +297,8 @@ public sealed class PayrollServiceTests
     {
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
-        TaxRemittance remittance = await h.Service.RecordRemittanceAsync(clientId,
-            new TaxRemittanceBody(1_700m, 1_240m, new DateOnly(2026, 7, 15), null));
+        TaxRemittance remittance = (await h.Service.RecordRemittanceAsync(clientId,
+            new TaxRemittanceBody(1_700m, 1_240m, new DateOnly(2026, 7, 15), null))).Remittance;
 
         Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, remittance.Id)).Id;
         await h.Ledger.ReverseAsync(clientId, entryId, new ReverseRequest(new DateOnly(2026, 7, 16), "reversed directly"));
@@ -318,10 +318,10 @@ public sealed class PayrollServiceTests
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
 
-        PayrollRun stayPosted = await h.Service.RecordRunAsync(clientId,
-            new PayrollRunBody(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, 6, 30), null));
-        PayrollRun goVoid = await h.Service.RecordRunAsync(clientId,
-            new PayrollRunBody(20_000m, 1_240m, 1_240m, 0m, 3_000m, new DateOnly(2026, 7, 31), null));
+        PayrollRun stayPosted = (await h.Service.RecordRunAsync(clientId,
+            new PayrollRunBody(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, 6, 30), null))).Run;
+        PayrollRun goVoid = (await h.Service.RecordRunAsync(clientId,
+            new PayrollRunBody(20_000m, 1_240m, 1_240m, 0m, 3_000m, new DateOnly(2026, 7, 31), null))).Run;
 
         Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, goVoid.Id)).Id;
         await h.Ledger.VoidAsync(clientId, entryId, new VoidRequest("withdrawn directly"));
@@ -338,10 +338,10 @@ public sealed class PayrollServiceTests
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
 
-        TaxRemittance stayPosted = await h.Service.RecordRemittanceAsync(clientId,
-            new TaxRemittanceBody(1_700m, 1_240m, new DateOnly(2026, 7, 15), null));
-        TaxRemittance goVoid = await h.Service.RecordRemittanceAsync(clientId,
-            new TaxRemittanceBody(900m, 500m, new DateOnly(2026, 8, 15), null));
+        TaxRemittance stayPosted = (await h.Service.RecordRemittanceAsync(clientId,
+            new TaxRemittanceBody(1_700m, 1_240m, new DateOnly(2026, 7, 15), null))).Remittance;
+        TaxRemittance goVoid = (await h.Service.RecordRemittanceAsync(clientId,
+            new TaxRemittanceBody(900m, 500m, new DateOnly(2026, 8, 15), null))).Remittance;
 
         Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, goVoid.Id)).Id;
         await h.Ledger.VoidAsync(clientId, entryId, new VoidRequest("withdrawn directly"));
@@ -392,8 +392,8 @@ public sealed class PayrollServiceTests
     {
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
-        PayrollRun run = await h.Service.RecordRunAsync(clientId,
-            new PayrollRunBody(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, 6, 30), null));
+        PayrollRun run = (await h.Service.RecordRunAsync(clientId,
+            new PayrollRunBody(10_000m, 620m, 620m, 200m, 1_500m, new DateOnly(2026, 6, 30), null))).Run;
 
         await h.Service.GetRunAsync(clientId, run.Id);
 
@@ -406,8 +406,8 @@ public sealed class PayrollServiceTests
     {
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
-        TaxRemittance remittance = await h.Service.RecordRemittanceAsync(clientId,
-            new TaxRemittanceBody(1_700m, 1_240m, new DateOnly(2026, 7, 15), null));
+        TaxRemittance remittance = (await h.Service.RecordRemittanceAsync(clientId,
+            new TaxRemittanceBody(1_700m, 1_240m, new DateOnly(2026, 7, 15), null))).Remittance;
 
         await h.Service.GetRemittanceAsync(clientId, remittance.Id);
 

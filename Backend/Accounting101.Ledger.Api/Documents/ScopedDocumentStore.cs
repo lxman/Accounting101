@@ -113,6 +113,15 @@ public sealed class ScopedDocumentStore(
         return id;
     }
 
+    public async Task<bool> CreateWithIdAsync<T>(Guid clientId, string collection, Guid id, T body,
+        IReadOnlyDictionary<string, string> tags, CancellationToken cancellationToken = default)
+    {
+        RequireEvidentiary(collection);
+        Ctx ctx = await EnterAsync(clientId, collection, ModuleAccessLevel.Write, cancellationToken);
+        ModuleDocument doc = BuildDoc(id, body, tags, DocumentState.Draft, 1, null);
+        return await ctx.Store.InsertIfAbsentAsync(ctx.Physical, doc, null, cancellationToken); // draft: no audit
+    }
+
     public async Task UpdateAsync<T>(Guid clientId, string collection, Guid id, T body,
         IReadOnlyDictionary<string, string> tags, CancellationToken cancellationToken = default)
     {

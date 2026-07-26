@@ -1,4 +1,4 @@
-import { extractProblem } from './problem-details';
+import { extractProblem, retryKeyConflictMessage } from './problem-details';
 import { HttpErrorResponse } from '@angular/common/http';
 
 describe('extractProblem', () => {
@@ -14,5 +14,31 @@ describe('extractProblem', () => {
   });
   it('falls back to a generic message', () => {
     expect(extractProblem(new HttpErrorResponse({ status: 500 })).detail).toBeTruthy();
+  });
+});
+
+describe('retryKeyConflictMessage', () => {
+  it('recognises the ledger\'s divergent-retry-key 422', () => {
+    const err = new HttpErrorResponse({
+      status: 422,
+      error: { detail: 'An entry with this id already exists with different content.' },
+    });
+
+    expect(retryKeyConflictMessage(err))
+      .toBe('This was already recorded, and differs from what you just submitted. Open the list and check it before retrying.');
+  });
+
+  it('returns null for an ordinary 422 so the caller shows the real message', () => {
+    const err = new HttpErrorResponse({
+      status: 422,
+      error: { detail: 'A payment amount must be greater than zero.' },
+    });
+
+    expect(retryKeyConflictMessage(err)).toBeNull();
+  });
+
+  it('returns null for a non-422', () => {
+    const err = new HttpErrorResponse({ status: 409, error: { detail: 'Period is closed.' } });
+    expect(retryKeyConflictMessage(err)).toBeNull();
   });
 });

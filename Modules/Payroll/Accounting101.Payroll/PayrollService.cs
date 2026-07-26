@@ -14,17 +14,26 @@ public sealed class PayrollService(
 {
     // ── Payroll Runs ────────────────────────────────────────────────────────
 
-    public async Task<PayrollRun> RecordRunAsync(Guid clientId, PayrollRunBody body, CancellationToken ct = default)
+    public async Task<(PayrollRun Run, bool Replayed)> RecordRunAsync(
+        Guid clientId, PayrollRunBody body, Guid? retryKey = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
+
+        Guid id = retryKey ?? Guid.NewGuid();
+        PayrollRun? known = retryKey is not null ? await runs.GetAsync(clientId, id, ct) : null;
+        bool replayed = known is not null;
+
         // 1. Persist the evidentiary document (finalized immediately — no draft phase).
-        PayrollRun run = await runs.RecordAsync(clientId, body, ct);
-        // 2. Resolve posting accounts and compose the balanced entry via the Task-1 recipe.
+        if (!replayed)
+            known = await runs.RecordAsync(clientId, id, body, ct);
+
+        // 2. Compose from the request body and post on both branches — the ledger arbitrates a replay
+        //    versus a key reused for different content, and a retry repairs a post that never landed.
         PayrollPostingAccounts postingAccounts = await accounts.GetAccountsAsync(clientId, ct);
-        PostEntryRequest entry = PayrollPosting.ComposePayrollRun(run.Id, body, postingAccounts);
+        PostEntryRequest entry = PayrollPosting.ComposePayrollRun(id, body, postingAccounts);
         // 3. Post PendingApproval — the module never approves its own entries.
         await ledger.PostAsync(clientId, entry, ct);
-        return run;
+        return (known!, replayed);
     }
 
     public async Task<PayrollRun> VoidRunAsync(Guid clientId, Guid runId, string? reason = null, CancellationToken ct = default)
@@ -58,17 +67,26 @@ public sealed class PayrollService(
 
     // ── Tax Remittances ─────────────────────────────────────────────────────
 
-    public async Task<TaxRemittance> RecordRemittanceAsync(Guid clientId, TaxRemittanceBody body, CancellationToken ct = default)
+    public async Task<(TaxRemittance Remittance, bool Replayed)> RecordRemittanceAsync(
+        Guid clientId, TaxRemittanceBody body, Guid? retryKey = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
+
+        Guid id = retryKey ?? Guid.NewGuid();
+        TaxRemittance? known = retryKey is not null ? await remittances.GetAsync(clientId, id, ct) : null;
+        bool replayed = known is not null;
+
         // 1. Persist the evidentiary document (finalized immediately — no draft phase).
-        TaxRemittance remittance = await remittances.RecordAsync(clientId, body, ct);
-        // 2. Resolve posting accounts and compose the balanced entry via the Task-1 recipe.
+        if (!replayed)
+            known = await remittances.RecordAsync(clientId, id, body, ct);
+
+        // 2. Compose from the request body and post on both branches — the ledger arbitrates a replay
+        //    versus a key reused for different content, and a retry repairs a post that never landed.
         PayrollPostingAccounts postingAccounts = await accounts.GetAccountsAsync(clientId, ct);
-        PostEntryRequest entry = PayrollPosting.ComposeTaxRemittance(remittance.Id, body, postingAccounts);
+        PostEntryRequest entry = PayrollPosting.ComposeTaxRemittance(id, body, postingAccounts);
         // 3. Post PendingApproval — the module never approves its own entries.
         await ledger.PostAsync(clientId, entry, ct);
-        return remittance;
+        return (known!, replayed);
     }
 
     public async Task<TaxRemittance> VoidRemittanceAsync(Guid clientId, Guid remittanceId, string? reason = null, CancellationToken ct = default)

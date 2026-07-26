@@ -10,9 +10,12 @@ namespace Accounting101.Payables;
 public sealed class BillPaymentService(
     IBillPaymentStore payments, IBillStore bills, IBillAccountsProvider accounts, ILedgerClient ledger)
 {
-    public async Task<BillPayment> RecordPaymentAsync(Guid clientId, BillPaymentCommand command, CancellationToken ct = default)
+    public async Task<(BillPayment Payment, bool Replayed)> RecordPaymentAsync(
+        Guid clientId, BillPaymentCommand command, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+
+        // Stateless guards run on both branches — they depend on nothing mutable.
         if (command.Amount <= 0m)
             throw new InvalidOperationException("A payment amount must be greater than zero.");
         if (command.Allocations.Any(a => a.Amount <= 0m))
@@ -20,35 +23,74 @@ public sealed class BillPaymentService(
         if (command.Allocations.Sum(a => a.Amount) > command.Amount)
             throw new InvalidOperationException("Allocations cannot exceed the payment amount.");
 
-        await ValidateAllocationsAsync(clientId, command.VendorId, command.Allocations, ct);
+        Guid id = command.Id ?? Guid.NewGuid();
+        BillPayment? known = command.Id is not null
+            ? await payments.GetPaymentAsync(clientId, id, ct)
+            : null;
+        bool replayed = known is not null;
 
         BillPaymentBody body = new(command.VendorId, command.Date, command.Amount, command.Method);
-        BillPayment recorded = await payments.RecordPaymentAsync(clientId, body, ct);
+
+        if (!replayed)
+        {
+            // State-dependent: allocations are checked against each bill's REMAINING balance, which this
+            // very payment reduces. Re-running it on a replay would reject the retry it exists to permit.
+            await ValidateAllocationsAsync(clientId, command.VendorId, command.Allocations, ct);
+
+            // The pre-check above is inherently TOCTOU under concurrency: two callers racing the same id
+            // can both see "not found" and both reach here. The store's own atomic create is the actual
+            // arbiter — only its result tells a caller whether IT created the document or lost the race
+            // and is really replaying. Trust that over the pre-check for this response's status.
+            (BillPayment Payment, bool Created) result = await payments.RecordPaymentAsync(clientId, id, body, ct);
+            known = result.Payment;
+            replayed = !result.Created;
+        }
+
+        // Composed from the REQUEST, never from the stored document — that is what lets the ledger see a
+        // divergent retry and answer 422. Posting on both branches also repairs an orphan: a retry after a
+        // failed post completes the entry that never landed.
         BillPaymentPostingAccounts posting = await accounts.GetPaymentAccountsAsync(clientId, ct);
-        PostEntryRequest entry = BillPosting.ComposeBillPayment(recorded.Id, body, command.Allocations, posting);
+        PostEntryRequest entry = BillPosting.ComposeBillPayment(id, body, command.Allocations, posting);
         await ledger.PostAsync(clientId, entry, ct);
-        return recorded;
+
+        return (known!, replayed);
     }
 
-    public async Task<VendorCreditApplication> RecordCreditApplicationAsync(Guid clientId, VendorCreditApplicationCommand command, CancellationToken ct = default)
+    public async Task<(VendorCreditApplication Application, bool Replayed)> RecordCreditApplicationAsync(
+        Guid clientId, VendorCreditApplicationCommand command, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(command);
+
+        // Stateless guard — runs on both branches.
         if (command.Allocations.Count == 0 || command.Allocations.Any(a => a.Amount <= 0m))
             throw new InvalidOperationException("A credit application needs positive allocations.");
 
-        decimal applying = command.Allocations.Sum(a => a.Amount);
-        decimal available = await GetVendorCreditBalanceAsync(clientId, command.VendorId, ct);
-        if (applying > available)
-            throw new InvalidOperationException($"Credit application of {applying} exceeds available credit {available}.");
-
-        await ValidateAllocationsAsync(clientId, command.VendorId, command.Allocations, ct);
+        Guid id = command.Id ?? Guid.NewGuid();
+        VendorCreditApplication? known = command.Id is not null
+            ? await payments.GetCreditApplicationAsync(clientId, id, ct)
+            : null;
+        bool replayed = known is not null;
 
         VendorCreditApplicationBody body = new(command.VendorId, command.Date);
-        VendorCreditApplication recorded = await payments.RecordCreditApplicationAsync(clientId, body, ct);
+
+        if (!replayed)
+        {
+            // Both of these are state-dependent: the available credit balance and each bill's remaining
+            // balance are reduced by this very application, so a replay must not re-check them.
+            decimal applying = command.Allocations.Sum(a => a.Amount);
+            decimal available = await GetVendorCreditBalanceAsync(clientId, command.VendorId, ct);
+            if (applying > available)
+                throw new InvalidOperationException($"Credit application of {applying} exceeds available credit {available}.");
+
+            await ValidateAllocationsAsync(clientId, command.VendorId, command.Allocations, ct);
+            known = await payments.RecordCreditApplicationAsync(clientId, id, body, ct);
+        }
+
         BillPaymentPostingAccounts posting = await accounts.GetPaymentAccountsAsync(clientId, ct);
-        PostEntryRequest entry = BillPosting.ComposeVendorCreditApplication(recorded.Id, body, command.Allocations, posting);
+        PostEntryRequest entry = BillPosting.ComposeVendorCreditApplication(id, body, command.Allocations, posting);
         await ledger.PostAsync(clientId, entry, ct);
-        return recorded;
+
+        return (known!, replayed);
     }
 
     public async Task<BillPayment> VoidPaymentAsync(Guid clientId, Guid paymentId, string? reason = null, CancellationToken ct = default)

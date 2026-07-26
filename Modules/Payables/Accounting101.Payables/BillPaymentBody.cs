@@ -7,12 +7,14 @@ namespace Accounting101.Payables;
 public sealed record BillPaymentBody(Guid VendorId, DateOnly Date, decimal Amount, string? Method);
 
 /// <summary>What RecordPaymentAsync accepts: BillPaymentBody plus the caller's per-bill allocations, consumed
-/// into ledger dimensions at compose time and never persisted.</summary>
+/// into ledger dimensions at compose time and never persisted. <paramref name="Id"/> is an optional
+/// caller-supplied retry key — see <see cref="BillPaymentService.RecordPaymentAsync"/>.</summary>
 public sealed record BillPaymentCommand(
-    Guid VendorId, DateOnly Date, decimal Amount, string? Method, IReadOnlyList<Allocation> Allocations);
+    Guid VendorId, DateOnly Date, decimal Amount, string? Method, IReadOnlyList<Allocation> Allocations,
+    Guid? Id = null);
 
 /// <summary>Stored body of a vendor-credit application — carries no allocation array; see command.</summary>
 public sealed record VendorCreditApplicationBody(Guid VendorId, DateOnly Date);
 
 public sealed record VendorCreditApplicationCommand(
-    Guid VendorId, DateOnly Date, IReadOnlyList<Allocation> Allocations);
+    Guid VendorId, DateOnly Date, IReadOnlyList<Allocation> Allocations, Guid? Id = null);

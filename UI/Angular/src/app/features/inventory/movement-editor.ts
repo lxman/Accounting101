@@ -7,7 +7,7 @@ import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { InventoryService } from '../../core/inventory/inventory.service';
 import { MovementType, RecordMovementRequest } from '../../core/inventory/inventory';
-import { extractProblem } from '../../core/api/problem-details';
+import { extractProblem, retryKeyConflictMessage } from '../../core/api/problem-details';
 import { CurrencyInput } from '../../shared/currency-input';
 import { CanDirective } from '../../core/capabilities/can.directive';
 
@@ -99,6 +99,10 @@ export class MovementEditor {
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
 
+  // A caller-supplied retry key: the same key across retries of a FAILED save makes the server replay
+  // instead of recording the movement twice. Re-minted after a success so the next movement is a new operation.
+  private retryKey = crypto.randomUUID();
+
   /** Unit-cost is meaningful for a Receipt (stock comes in at a cost) and for a positive
    *  Adjustment / overage (found stock is valued in); it's hidden for an Issue (costed by the
    *  engine's weighted-average) and for a negative Adjustment / shrinkage (no cost to apply). */
@@ -130,6 +134,7 @@ export class MovementEditor {
       unitCost: this.showUnitCost() ? this.unitCost() : null,
       effectiveDate: this.effectiveDate(),
       memo: this.memo(),
+      id: this.retryKey,
     };
   }
 
@@ -137,8 +142,15 @@ export class MovementEditor {
     if (!this.canSave()) return;
     this.busy.set(true); this.message.set(null);
     this.svc.recordMovement(this.body()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (m) => { this.busy.set(false); void this.router.navigate(['/inventory/movements', m.id]); },
-      error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
+      next: (m) => {
+        this.retryKey = crypto.randomUUID();
+        this.busy.set(false);
+        void this.router.navigate(['/inventory/movements', m.id]);
+      },
+      error: (e) => {
+        this.message.set(retryKeyConflictMessage(e) ?? extractProblem(e).detail);
+        this.busy.set(false);
+      },
     });
   }
 }

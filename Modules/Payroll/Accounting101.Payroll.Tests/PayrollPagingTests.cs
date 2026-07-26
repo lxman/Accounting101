@@ -26,7 +26,7 @@ public sealed class PayrollPagingTests
         Guid clientId = Guid.NewGuid();
 
         for (int i = 0; i < 3; i++)
-            await store.RecordAsync(clientId, MakeRunBody(i + 1));
+            await store.RecordAsync(clientId, Guid.NewGuid(), MakeRunBody(i + 1));
 
         PagedResponse<PayrollRun> page1 = await store.GetByClientPagedAsync(clientId, 0, 2, descending: false, includeVoided: false);
 
@@ -43,7 +43,7 @@ public sealed class PayrollPagingTests
         Guid clientId = Guid.NewGuid();
 
         for (int i = 0; i < 3; i++)
-            await store.RecordAsync(clientId, MakeRunBody(i + 1));
+            await store.RecordAsync(clientId, Guid.NewGuid(), MakeRunBody(i + 1));
 
         PagedResponse<PayrollRun> page1 = await store.GetByClientPagedAsync(clientId, 0, 2, descending: false, includeVoided: false);
         PagedResponse<PayrollRun> page2 = await store.GetByClientPagedAsync(clientId, 2, 2, descending: false, includeVoided: false);
@@ -59,9 +59,9 @@ public sealed class PayrollPagingTests
         InMemoryPayrollRunStore store = new();
         Guid clientId = Guid.NewGuid();
 
-        PayrollRun r1 = await store.RecordAsync(clientId, MakeRunBody(1));
-        await store.RecordAsync(clientId, MakeRunBody(2));
-        await store.RecordAsync(clientId, MakeRunBody(3));
+        PayrollRun r1 = await store.RecordAsync(clientId, Guid.NewGuid(), MakeRunBody(1));
+        await store.RecordAsync(clientId, Guid.NewGuid(), MakeRunBody(2));
+        await store.RecordAsync(clientId, Guid.NewGuid(), MakeRunBody(3));
         await store.VoidAsync(clientId, r1.Id);
 
         PagedResponse<PayrollRun> withoutVoided = await store.GetByClientPagedAsync(clientId, 0, 50, descending: false, includeVoided: false);
@@ -78,7 +78,7 @@ public sealed class PayrollPagingTests
         Guid clientId = Guid.NewGuid();
 
         for (int i = 0; i < 3; i++)
-            await store.RecordAsync(clientId, MakeRunBody(i + 1));
+            await store.RecordAsync(clientId, Guid.NewGuid(), MakeRunBody(i + 1));
 
         PagedResponse<PayrollRun> asc  = await store.GetByClientPagedAsync(clientId, 0, 3, descending: false, includeVoided: false);
         PagedResponse<PayrollRun> desc = await store.GetByClientPagedAsync(clientId, 0, 3, descending: true,  includeVoided: false);
@@ -96,7 +96,7 @@ public sealed class PayrollPagingTests
         Guid clientId = Guid.NewGuid();
 
         for (int i = 0; i < 3; i++)
-            await store.RecordAsync(clientId, MakeRemittanceBody(i + 1));
+            await store.RecordAsync(clientId, Guid.NewGuid(), MakeRemittanceBody(i + 1));
 
         PagedResponse<TaxRemittance> page1 = await store.GetByClientPagedAsync(clientId, 0, 2, descending: false, includeVoided: false);
 
@@ -113,7 +113,7 @@ public sealed class PayrollPagingTests
         Guid clientId = Guid.NewGuid();
 
         for (int i = 0; i < 3; i++)
-            await store.RecordAsync(clientId, MakeRemittanceBody(i + 1));
+            await store.RecordAsync(clientId, Guid.NewGuid(), MakeRemittanceBody(i + 1));
 
         PagedResponse<TaxRemittance> page1 = await store.GetByClientPagedAsync(clientId, 0, 2, descending: false, includeVoided: false);
         PagedResponse<TaxRemittance> page2 = await store.GetByClientPagedAsync(clientId, 2, 2, descending: false, includeVoided: false);
@@ -129,9 +129,9 @@ public sealed class PayrollPagingTests
         InMemoryTaxRemittanceStore store = new();
         Guid clientId = Guid.NewGuid();
 
-        TaxRemittance r1 = await store.RecordAsync(clientId, MakeRemittanceBody(1));
-        await store.RecordAsync(clientId, MakeRemittanceBody(2));
-        await store.RecordAsync(clientId, MakeRemittanceBody(3));
+        TaxRemittance r1 = await store.RecordAsync(clientId, Guid.NewGuid(), MakeRemittanceBody(1));
+        await store.RecordAsync(clientId, Guid.NewGuid(), MakeRemittanceBody(2));
+        await store.RecordAsync(clientId, Guid.NewGuid(), MakeRemittanceBody(3));
         await store.VoidAsync(clientId, r1.Id);
 
         PagedResponse<TaxRemittance> withoutVoided = await store.GetByClientPagedAsync(clientId, 0, 50, descending: false, includeVoided: false);

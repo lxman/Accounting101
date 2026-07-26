@@ -12,12 +12,13 @@ public sealed class DocumentPayrollRunStore(IDocumentStore documents) : IPayroll
 {
     private const string Collection = "payroll-runs";
 
-    public async Task<PayrollRun> RecordAsync(Guid clientId, PayrollRunBody body, CancellationToken ct = default)
+    public async Task<PayrollRun> RecordAsync(Guid clientId, Guid id, PayrollRunBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        // Evidentiary: create draft then immediately finalize to assign the sequence number.
-        Guid id = await documents.CreateAsync(clientId, Collection, body, Tags(), ct);
-        await documents.FinalizeAsync(clientId, Collection, id, ct);
+        // Evidentiary: create then finalize to assign the sequence number — but only the caller that
+        // actually created it finalizes, so a replay burns no number and cannot race a concurrent creator.
+        if (await documents.CreateWithIdAsync(clientId, Collection, id, body, Tags(), ct))
+            await documents.FinalizeAsync(clientId, Collection, id, ct);
         DocumentResult<PayrollRunBody>? result = await documents.GetAsync<PayrollRunBody>(clientId, Collection, id, ct);
         return Map(result!);
     }

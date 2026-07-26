@@ -43,6 +43,7 @@ export interface BillPaymentView { payment: BillPayment; allocations: BillAlloca
 export interface RecordBillPaymentRequest {
   vendorId: string; date: string; amount: number;
   method: string | null; allocations: PaymentAllocation[];
+  readonly id?: string;
 }
 
 /** One open bill the user can apply cash to in the payment editor. */
@@ -70,6 +71,7 @@ export interface VendorCreditView { credit: VendorCreditApplication; allocations
 
 export interface ApplyVendorCreditRequest {
   vendorId: string; date: string; allocations: PaymentAllocation[];
+  readonly id?: string;
 }
 
 export interface AgingBuckets { current: number; d1To30: number; d31To60: number; d61To90: number; d90Plus: number; }

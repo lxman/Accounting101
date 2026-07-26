@@ -56,10 +56,68 @@ describe('BillPaymentEditor', () => {
     cmp.save();
     const post = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/bill-payments');
     expect(post.request.body).toEqual({ vendorId: 'v1', date: cmp.date(), amount: 100, method: null,
-      allocations: [{ targetId: 'b1', amount: 100 }] });
+      allocations: [{ targetId: 'b1', amount: 100 }], id: expect.any(String) });
     post.flush({ id: 'p9', vendorId: 'v1', date: cmp.date(), amount: 100, method: null,
       allocations: [{ targetId: 'b1', amount: 100 }], voided: false });
     expect(nav).toHaveBeenCalledWith(['/payables/payments']);
+    ctrl.verify();
+  });
+
+  it('sends a retry key with the payment', () => {
+    const ctrl = setup();
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(BillPaymentEditor);
+    f.detectChanges();
+    flushInit(ctrl);
+    f.detectChanges();
+    const cmp = f.componentInstance;
+    cmp.onAmount(100);
+    cmp.save();
+    const post = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/bill-payments');
+    expect(post.request.body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    post.flush({ id: 'p9', vendorId: 'v1', date: cmp.date(), amount: 100, method: null,
+      allocations: [{ targetId: 'b1', amount: 100 }], voided: false });
+    ctrl.verify();
+  });
+
+  it('reuses the same key when a failed save is retried', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(BillPaymentEditor);
+    f.detectChanges();
+    flushInit(ctrl);
+    f.detectChanges();
+    const cmp = f.componentInstance;
+    cmp.onAmount(100);
+    cmp.save();
+    const post1 = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/bill-payments');
+    const key1 = post1.request.body.id;
+    post1.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+    cmp.save();
+    const post2 = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/bill-payments');
+    expect(post2.request.body.id).toBe(key1);
+    post2.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+    ctrl.verify();
+  });
+
+  it('mints a fresh key after a successful save', () => {
+    const ctrl = setup();
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(BillPaymentEditor);
+    f.detectChanges();
+    flushInit(ctrl);
+    f.detectChanges();
+    const cmp = f.componentInstance;
+    cmp.onAmount(100);
+    cmp.save();
+    const post1 = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/bill-payments');
+    const key1 = post1.request.body.id;
+    post1.flush({ id: 'p9', vendorId: 'v1', date: cmp.date(), amount: 100, method: null,
+      allocations: [{ targetId: 'b1', amount: 100 }], voided: false });
+    cmp.save();
+    const post2 = ctrl.expectOne(r => r.method === 'POST' && r.url === 'http://localhost:5000/clients/C1/bill-payments');
+    expect(post2.request.body.id).not.toBe(key1);
+    post2.flush({ id: 'p10', vendorId: 'v1', date: cmp.date(), amount: 100, method: null,
+      allocations: [{ targetId: 'b1', amount: 100 }], voided: false });
     ctrl.verify();
   });
 
