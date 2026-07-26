@@ -1,3 +1,6 @@
+using Accounting101.Ledger.Api.Control;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
 namespace Accounting101.Ledger.Api.Hosting;
 
 /// <summary>
@@ -24,4 +27,22 @@ public sealed class InstalledModules(IEnumerable<string> keys)
     public IReadOnlySet<string> Keys { get; } = keys.ToHashSet(StringComparer.Ordinal);
 
     public bool Has(string moduleKey) => Keys.Contains(moduleKey);
+}
+
+internal static class InstalledModulesRegistration
+{
+    /// <summary>
+    /// The one place the <see cref="InstalledModules"/> factory is defined — both <c>AddModule</c> and
+    /// <c>AddLedgerEngine</c> call this instead of registering their own copy, so the factory logic
+    /// (comparer, any future filter on <c>ModuleRegistration.Enabled</c>) can never drift between the
+    /// two call sites.
+    ///
+    /// Must stay TryAdd and must stay late-bound: the factory does not run until first resolution, at
+    /// request time, long after every <c>AddModule</c> call has completed, so the single resolved
+    /// instance sees every module composed into the host — not just whichever call registered it first.
+    /// Computing the key set eagerly here would capture only the modules registered so far.
+    /// </summary>
+    public static void TryAddInstalledModules(this IServiceCollection services) =>
+        services.TryAddSingleton(sp => new InstalledModules(
+            sp.GetServices<ModuleRegistration>().Select(m => m.Key)));
 }

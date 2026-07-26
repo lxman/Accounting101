@@ -120,6 +120,8 @@ public sealed class ModuleHostingTests(ApiFixture fixture) : IClassFixture<ApiFi
 
         using ServiceProvider provider = services.BuildServiceProvider();
 
-        Assert.Empty(provider.GetRequiredService<InstalledModules>().Keys);
+        InstalledModules installed = provider.GetRequiredService<InstalledModules>();
+        Assert.Empty(installed.Keys);
+        Assert.False(installed.Has("payables"));
     }
 }

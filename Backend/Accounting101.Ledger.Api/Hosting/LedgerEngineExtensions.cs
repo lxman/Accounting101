@@ -69,13 +69,12 @@ public static class LedgerEngineExtensions
         // either registration order is safe.
         services.TryAddScoped<IModuleAuthenticator, CredentialModuleAuthenticator>();
 
-        // Installed-module keys for "availability = installed ∩ entitled". AddModule registers this same
-        // TryAdd factory; registering it here too means a host that composes NO module still resolves an
-        // empty set instead of throwing. Both registrations are the identical late-bound factory over
-        // GetServices<ModuleRegistration>(), so first-wins ordering is irrelevant — the same reasoning as
-        // the TryAddScoped<IModuleAuthenticator> above.
-        services.TryAddSingleton(sp => new InstalledModules(
-            sp.GetServices<ModuleRegistration>().Select(m => m.Key)));
+        // Installed-module keys for "availability = installed ∩ entitled". AddModule calls this same
+        // TryAddInstalledModules; calling it here too means a host that composes NO module still
+        // resolves an empty set instead of throwing. Both call sites register the identical late-bound
+        // factory (see InstalledModulesRegistration), so first-wins ordering is irrelevant — the same
+        // reasoning as the TryAddScoped<IModuleAuthenticator> above.
+        services.TryAddInstalledModules();
 
         // Identity is IdP-agnostic: a dev-token scheme now; the claims → Actor mapping is ours and stable.
         services.AddSingleton<IActorFactory, ClaimsActorFactory>();
