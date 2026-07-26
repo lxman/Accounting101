@@ -6,7 +6,7 @@ import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { PayablesService } from '../../core/payables/payables.service';
 import { AllocRow, autoAllocate } from '../../core/payables/payables';
-import { extractProblem } from '../../core/api/problem-details';
+import { extractProblem, retryKeyConflictMessage } from '../../core/api/problem-details';
 import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
 import { CurrencyInput } from '../../shared/currency-input';
 import { CanDirective } from '../../core/capabilities/can.directive';
@@ -106,6 +106,10 @@ export class BillPaymentEditor {
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
 
+  // A caller-supplied retry key: the same key across retries of a FAILED save makes the server replay
+  // instead of paying the vendor twice. Re-minted after a success so the next payment is a new operation.
+  private retryKey = crypto.randomUUID();
+
   readonly allocated = computed(() => Math.round(this.rows().reduce((s, r) => s + r.allocation, 0) * 100) / 100);
   readonly unallocated = computed(() => Math.max(0, Math.round((this.amount() - this.allocated()) * 100) / 100));
   readonly valid = computed(() =>
@@ -152,9 +156,17 @@ export class BillPaymentEditor {
       vendorId: this.vendorId, date: this.date(), amount: this.amount(),
       method: this.method().trim() || null,
       allocations: this.rows().filter(r => r.allocation > 0).map(r => ({ targetId: r.billId, amount: r.allocation })),
+      id: this.retryKey,
     }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.busy.set(false); void this.router.navigate(['/payables/payments']); },
-      error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
+      next: () => {
+        this.retryKey = crypto.randomUUID();
+        this.busy.set(false);
+        void this.router.navigate(['/payables/payments']);
+      },
+      error: (e) => {
+        this.message.set(retryKeyConflictMessage(e) ?? extractProblem(e).detail);
+        this.busy.set(false);
+      },
     });
   }
 

@@ -6,7 +6,7 @@ import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { PayablesService } from '../../core/payables/payables.service';
 import { AllocRow, autoAllocate } from '../../core/payables/payables';
-import { extractProblem } from '../../core/api/problem-details';
+import { extractProblem, retryKeyConflictMessage } from '../../core/api/problem-details';
 import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
 import { CurrencyInput } from '../../shared/currency-input';
 import { CanDirective } from '../../core/capabilities/can.directive';
@@ -93,6 +93,10 @@ export class VendorCreditApplyEditor {
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
 
+  // A caller-supplied retry key: the same key across retries of a FAILED save makes the server replay
+  // instead of applying the credit twice. Re-minted after a success so the next application is a new operation.
+  private retryKey = crypto.randomUUID();
+
   readonly allocated = computed(() => Math.round(this.rows().reduce((s, r) => s + r.allocation, 0) * 100) / 100);
   readonly remaining = computed(() => Math.round((this.available() - this.allocated()) * 100) / 100);
   readonly valid = computed(() =>
@@ -134,9 +138,17 @@ export class VendorCreditApplyEditor {
     this.svc.applyVendorCredit({
       vendorId: this.vendorId, date: this.date(),
       allocations: this.rows().filter(r => r.allocation > 0).map(r => ({ targetId: r.billId, amount: r.allocation })),
+      id: this.retryKey,
     }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.busy.set(false); void this.router.navigate(['/payables/credits']); },
-      error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
+      next: () => {
+        this.retryKey = crypto.randomUUID();
+        this.busy.set(false);
+        void this.router.navigate(['/payables/credits']);
+      },
+      error: (e) => {
+        this.message.set(retryKeyConflictMessage(e) ?? extractProblem(e).detail);
+        this.busy.set(false);
+      },
     });
   }
 
