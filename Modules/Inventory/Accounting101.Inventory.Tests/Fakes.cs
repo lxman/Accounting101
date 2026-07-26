@@ -189,62 +189,84 @@ internal sealed class InMemoryStockMovementStore : IStockMovementStore
     private readonly List<StockMovement> _movements = [];
     private int _next;
 
-    public Task<StockMovement> RecordAsync(Guid clientId, Guid id, StockMovementBody body, CancellationToken ct = default)
+    public Task<(StockMovement Movement, bool Created)> RecordAsync(Guid clientId, Guid id, StockMovementBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        // Insert-only, exactly like IDocumentStore.CreateWithIdAsync behind the real store: an id already
-        // taken is returned as-is — never overwritten, never re-numbered.
-        if (_movements.FirstOrDefault(m => m.Id == id) is { } existing) return Task.FromResult(existing);
-        StockMovement movement = new()
+        lock (_movements)
         {
-            Id = id,
-            Number = $"MV-{Interlocked.Increment(ref _next):D5}",
-            ItemId = body.ItemId,
-            Type = body.Type,
-            EffectiveDate = body.EffectiveDate,
-            Memo = body.Memo,
-            Quantity = body.Quantity,
-            AppliedUnitCost = body.AppliedUnitCost,
-            ExtendedCost = body.ExtendedCost,
-            Status = MovementStatus.Posted,
-        };
-        _movements.Add(movement);
-        return Task.FromResult(movement);
+            // Insert-only, mirroring the real store's atomic create: a racer that loses gets back the
+            // winner's movement and an honest Created: false, rather than appending a second row.
+            StockMovement? existing = _movements.FirstOrDefault(m => m.Id == id);
+            if (existing is not null)
+                return Task.FromResult((existing, false));
+
+            StockMovement movement = new()
+            {
+                Id = id,
+                Number = $"MV-{Interlocked.Increment(ref _next):D5}",
+                ItemId = body.ItemId,
+                Type = body.Type,
+                EffectiveDate = body.EffectiveDate,
+                Memo = body.Memo,
+                Quantity = body.Quantity,
+                AppliedUnitCost = body.AppliedUnitCost,
+                ExtendedCost = body.ExtendedCost,
+                Status = MovementStatus.Posted,
+            };
+            _movements.Add(movement);
+            return Task.FromResult((movement, true));
+        }
     }
 
     public Task VoidAsync(Guid clientId, Guid movementId, CancellationToken ct = default)
     {
-        int index = _movements.FindIndex(m => m.Id == movementId);
-        if (index >= 0) _movements[index] = _movements[index] with { Status = MovementStatus.Void };
-        return Task.CompletedTask;
+        lock (_movements)
+        {
+            int index = _movements.FindIndex(m => m.Id == movementId);
+            if (index >= 0) _movements[index] = _movements[index] with { Status = MovementStatus.Void };
+            return Task.CompletedTask;
+        }
     }
 
-    public Task<StockMovement?> GetAsync(Guid clientId, Guid movementId, CancellationToken ct = default) =>
-        Task.FromResult(_movements.FirstOrDefault(m => m.Id == movementId));
+    public Task<StockMovement?> GetAsync(Guid clientId, Guid movementId, CancellationToken ct = default)
+    {
+        lock (_movements)
+            return Task.FromResult(_movements.FirstOrDefault(m => m.Id == movementId));
+    }
 
     public Task<PagedResponse<StockMovement>> GetByItemPagedAsync(
         Guid clientId, Guid itemId, int skip, int limit, bool descending, bool includeVoided, CancellationToken ct = default)
     {
-        IEnumerable<StockMovement> all = _movements.Where(m =>
-            m.ItemId == itemId && (includeVoided || m.Status != MovementStatus.Void));
-        List<StockMovement> ordered = (descending ? all.OrderByDescending(m => m.Number) : all.OrderBy(m => m.Number)).ToList();
-        List<StockMovement> items = ordered.Skip(Math.Max(0, skip)).Take(Math.Clamp(limit, 1, 200)).ToList();
-        return Task.FromResult(new PagedResponse<StockMovement>(items, ordered.Count, skip, limit));
+        lock (_movements)
+        {
+            IEnumerable<StockMovement> all = _movements.Where(m =>
+                m.ItemId == itemId && (includeVoided || m.Status != MovementStatus.Void));
+            List<StockMovement> ordered = (descending ? all.OrderByDescending(m => m.Number) : all.OrderBy(m => m.Number)).ToList();
+            List<StockMovement> items = ordered.Skip(Math.Max(0, skip)).Take(Math.Clamp(limit, 1, 200)).ToList();
+            return Task.FromResult(new PagedResponse<StockMovement>(items, ordered.Count, skip, limit));
+        }
     }
 
-    public Task<StockMovement?> GetLatestForItemAsync(Guid clientId, Guid itemId, CancellationToken ct = default) =>
-        Task.FromResult(_movements
-            .Where(m => m.ItemId == itemId && m.Status != MovementStatus.Void)
-            .OrderByDescending(m => m.Number)
-            .FirstOrDefault());
+    public Task<StockMovement?> GetLatestForItemAsync(Guid clientId, Guid itemId, CancellationToken ct = default)
+    {
+        lock (_movements)
+            return Task.FromResult(_movements
+                .Where(m => m.ItemId == itemId && m.Status != MovementStatus.Void)
+                .OrderByDescending(m => m.Number)
+                .FirstOrDefault());
+    }
 
-    public Task<IReadOnlyList<StockMovement>> GetAllByItemAsync(Guid clientId, Guid itemId, CancellationToken ct = default) =>
-        Task.FromResult<IReadOnlyList<StockMovement>>(_movements.Where(m => m.ItemId == itemId).ToList());
+    public Task<IReadOnlyList<StockMovement>> GetAllByItemAsync(Guid clientId, Guid itemId, CancellationToken ct = default)
+    {
+        lock (_movements)
+            return Task.FromResult<IReadOnlyList<StockMovement>>(_movements.Where(m => m.ItemId == itemId).ToList());
+    }
 
     public Task<IReadOnlyList<StockMovement>> GetAllByItemsAsync(Guid clientId, IReadOnlyList<Guid> itemIds, CancellationToken ct = default)
     {
         HashSet<Guid> ids = itemIds.ToHashSet();
-        return Task.FromResult<IReadOnlyList<StockMovement>>(_movements.Where(m => ids.Contains(m.ItemId)).ToList());
+        lock (_movements)
+            return Task.FromResult<IReadOnlyList<StockMovement>>(_movements.Where(m => ids.Contains(m.ItemId)).ToList());
     }
 }
 
