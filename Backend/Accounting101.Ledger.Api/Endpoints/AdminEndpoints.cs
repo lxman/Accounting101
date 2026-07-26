@@ -173,8 +173,13 @@ public static class AdminEndpoints
         return Results.Ok(new ClientModulesResponse(
             clientId,
             client.EnabledModules,
-            [.. installed.Keys.OrderBy(k => k, StringComparer.Ordinal)]));
+            SortedInstalledKeys(installed)));
     }
+
+    // Ordering exists purely so a support reader can eyeball the difference between sold and
+    // installed keys — it carries no meaning in the wire contract itself.
+    private static string[] SortedInstalledKeys(InstalledModules installed) =>
+        [.. installed.Keys.OrderBy(k => k, StringComparer.Ordinal)];
 
     private static async Task<IResult> SetClientModules(
         Guid clientId, SetClientModulesRequest request, ClaimsPrincipal user,
@@ -206,7 +211,6 @@ public static class AdminEndpoints
                 statusCode: StatusCodes.Status422UnprocessableEntity);
 
         await control.SetClientModulesAsync(clientId, keys, cancellationToken);
-        return Results.Ok(new ClientModulesResponse(
-            clientId, keys, [.. installed.Keys.OrderBy(k => k, StringComparer.Ordinal)]));
+        return Results.Ok(new ClientModulesResponse(clientId, keys, SortedInstalledKeys(installed)));
     }
 }

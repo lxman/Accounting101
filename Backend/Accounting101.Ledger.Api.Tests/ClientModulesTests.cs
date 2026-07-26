@@ -118,18 +118,22 @@ public sealed class ClientModulesTests(ApiFixture fixture) : IClassFixture<ApiFi
     [Fact]
     public async Task Admin_read_shows_raw_entitlement_beside_what_is_installed()
     {
-        SeededClient client = await fixture.SeedClientAsync(enabledModules: ["cash", "reconciliation"]);
-        // A deployment that sold both but composed only "cash" — the misconfiguration the UI hides.
+        SeededClient client = await fixture.SeedClientAsync(
+            enabledModules: ["cash", "reconciliation", "receivables"]);
+        // A deployment that sold all three but composed only two — the misconfiguration the UI hides.
+        // Installed is passed deliberately out of alphabetical order to prove the response sorts it
+        // (rather than merely happening to look sorted because the input already was).
         HttpClient admin = fixture.ClientWithInstalledModules(
-            Guid.NewGuid(), ["cash"], ("admin", "true"));
+            Guid.NewGuid(), ["reconciliation", "cash"], ("admin", "true"));
 
         ClientModulesResponse body = (await admin.GetFromJsonAsync<ClientModulesResponse>(
             $"/admin/clients/{client.ClientId}/modules"))!;
 
         Assert.Equal(client.ClientId, body.ClientId);
-        // Entitlement is NOT intersected here — support must see "sold but absent".
-        Assert.Equal(["cash", "reconciliation"], body.ModuleKeys);
-        Assert.Equal(["cash"], body.InstalledModuleKeys);
+        // Entitlement is NOT intersected here — support must see "sold but absent" ("receivables").
+        Assert.Equal(["cash", "reconciliation", "receivables"], body.ModuleKeys);
+        // Installed keys come back ordinally sorted regardless of input order.
+        Assert.Equal(["cash", "reconciliation"], body.InstalledModuleKeys);
     }
 
     [Fact]
