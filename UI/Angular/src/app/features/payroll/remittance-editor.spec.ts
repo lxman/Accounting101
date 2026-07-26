@@ -28,9 +28,58 @@ describe('RemittanceEditor', () => {
     expect(cmp.canSave()).toBe(true);
     cmp.save();
     const req = ctrl.expectOne('http://localhost:5000/clients/C1/tax-remittances');
-    expect(req.request.body).toEqual({ withholdingsAmount: 170, taxesAmount: 153, payDate: '2026-06-30', memo: 'Q2' });
+    expect(req.request.body).toEqual({ withholdingsAmount: 170, taxesAmount: 153, payDate: '2026-06-30', memo: 'Q2', id: expect.any(String) });
     req.flush({ id: 'm9', number: 'TR-9', withholdingsAmount: 170, taxesAmount: 153, payDate: '2026-06-30', memo: 'Q2', status: 'Posted' });
     expect(nav).toHaveBeenCalledWith(['/payroll/remittances', 'm9']);
+    ctrl.verify();
+  });
+
+  it('sends a retry key with the remittance', () => {
+    const ctrl = setup();
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(RemittanceEditor); f.detectChanges();
+    const cmp = f.componentInstance;
+    cmp.withholdingsAmount.set(170); cmp.taxesAmount.set(153); cmp.payDate.set('2026-06-30');
+    f.detectChanges();
+    cmp.save();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/tax-remittances');
+    expect(req.request.body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    req.flush({ id: 'm9', number: 'TR-9', withholdingsAmount: 170, taxesAmount: 153, payDate: '2026-06-30', memo: null, status: 'Posted' });
+    ctrl.verify();
+  });
+
+  it('reuses the same key when a failed save is retried', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(RemittanceEditor); f.detectChanges();
+    const cmp = f.componentInstance;
+    cmp.withholdingsAmount.set(170); cmp.taxesAmount.set(153); cmp.payDate.set('2026-06-30');
+    f.detectChanges();
+    cmp.save();
+    const req1 = ctrl.expectOne('http://localhost:5000/clients/C1/tax-remittances');
+    const key1 = req1.request.body.id;
+    req1.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+    cmp.save();
+    const req2 = ctrl.expectOne('http://localhost:5000/clients/C1/tax-remittances');
+    expect(req2.request.body.id).toBe(key1);
+    req2.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+    ctrl.verify();
+  });
+
+  it('mints a fresh key after a successful save', () => {
+    const ctrl = setup();
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(RemittanceEditor); f.detectChanges();
+    const cmp = f.componentInstance;
+    cmp.withholdingsAmount.set(170); cmp.taxesAmount.set(153); cmp.payDate.set('2026-06-30');
+    f.detectChanges();
+    cmp.save();
+    const req1 = ctrl.expectOne('http://localhost:5000/clients/C1/tax-remittances');
+    const key1 = req1.request.body.id;
+    req1.flush({ id: 'm9', number: 'TR-9', withholdingsAmount: 170, taxesAmount: 153, payDate: '2026-06-30', memo: null, status: 'Posted' });
+    cmp.save();
+    const req2 = ctrl.expectOne('http://localhost:5000/clients/C1/tax-remittances');
+    expect(req2.request.body.id).not.toBe(key1);
+    req2.flush({ id: 'm10', number: 'TR-10', withholdingsAmount: 170, taxesAmount: 153, payDate: '2026-06-30', memo: null, status: 'Posted' });
     ctrl.verify();
   });
 });

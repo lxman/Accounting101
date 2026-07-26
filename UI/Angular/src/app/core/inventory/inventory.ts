@@ -17,6 +17,7 @@ export interface SaveItemRequest { sku: string; name: string; description: strin
 export interface RecordMovementRequest {
   itemId: string; type: MovementType; quantity: number;
   unitCost: number | null; effectiveDate: string; memo: string | null;
+  readonly id?: string;
 }
 
 export interface InventoryListQuery { skip: number; limit: number; order?: 'asc' | 'desc'; includeInactive?: boolean; }

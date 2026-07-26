@@ -1,8 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
-import { provideRouter, ActivatedRoute } from '@angular/router';
+import { provideRouter, ActivatedRoute, Router } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { vi } from 'vitest';
 import { MovementEditor } from './movement-editor';
 import { ClientContextService } from '../../core/client/client-context.service';
 import { provideCapabilities } from '../../core/capabilities/capability.testing';
@@ -55,7 +56,7 @@ describe('MovementEditor', () => {
     c.save();
     const req = ctrl.expectOne('http://localhost:5000/clients/C1/movements');
     expect(req.request.method).toBe('POST');
-    expect(req.request.body).toEqual({ itemId: 'i1', type: 'Receipt', quantity: 10, unitCost: 5, effectiveDate: '2026-07-01', memo: null });
+    expect(req.request.body).toEqual({ itemId: 'i1', type: 'Receipt', quantity: 10, unitCost: 5, effectiveDate: '2026-07-01', memo: null, id: expect.any(String) });
     req.flush({ movement: { id: 'm1', number: 'MV-1', itemId: 'i1', type: 'Receipt', effectiveDate: '2026-07-01', memo: null,
       quantity: 10, appliedUnitCost: 5, extendedCost: 50, status: 'Posted' } });
     ctrl.verify();
@@ -69,7 +70,7 @@ describe('MovementEditor', () => {
     c.type.set('Issue'); c.quantityMagnitude.set(4); c.effectiveDate.set('2026-07-01');
     c.save();
     const req = ctrl.expectOne('http://localhost:5000/clients/C1/movements');
-    expect(req.request.body).toEqual({ itemId: 'i1', type: 'Issue', quantity: 4, unitCost: null, effectiveDate: '2026-07-01', memo: null });
+    expect(req.request.body).toEqual({ itemId: 'i1', type: 'Issue', quantity: 4, unitCost: null, effectiveDate: '2026-07-01', memo: null, id: expect.any(String) });
     req.flush({ movement: { id: 'm2', number: 'MV-2', itemId: 'i1', type: 'Issue', effectiveDate: '2026-07-01', memo: null,
       quantity: 4, appliedUnitCost: 5, extendedCost: 20, status: 'Posted' } });
     ctrl.verify();
@@ -83,7 +84,7 @@ describe('MovementEditor', () => {
     c.type.set('Adjustment'); c.direction.set('Shrinkage'); c.quantityMagnitude.set(2); c.effectiveDate.set('2026-07-01');
     c.save();
     const req = ctrl.expectOne('http://localhost:5000/clients/C1/movements');
-    expect(req.request.body).toEqual({ itemId: 'i1', type: 'Adjustment', quantity: -2, unitCost: null, effectiveDate: '2026-07-01', memo: null });
+    expect(req.request.body).toEqual({ itemId: 'i1', type: 'Adjustment', quantity: -2, unitCost: null, effectiveDate: '2026-07-01', memo: null, id: expect.any(String) });
     req.flush({ movement: { id: 'm3', number: 'MV-3', itemId: 'i1', type: 'Adjustment', effectiveDate: '2026-07-01', memo: null,
       quantity: -2, appliedUnitCost: 5, extendedCost: 10, status: 'Posted' } });
     ctrl.verify();
@@ -97,9 +98,61 @@ describe('MovementEditor', () => {
     c.type.set('Adjustment'); c.quantityMagnitude.set(3); c.unitCost.set(6); c.effectiveDate.set('2026-07-01');
     c.save();
     const req = ctrl.expectOne('http://localhost:5000/clients/C1/movements');
-    expect(req.request.body).toEqual({ itemId: 'i1', type: 'Adjustment', quantity: 3, unitCost: 6, effectiveDate: '2026-07-01', memo: null });
+    expect(req.request.body).toEqual({ itemId: 'i1', type: 'Adjustment', quantity: 3, unitCost: 6, effectiveDate: '2026-07-01', memo: null, id: expect.any(String) });
     req.flush({ movement: { id: 'm4', number: 'MV-4', itemId: 'i1', type: 'Adjustment', effectiveDate: '2026-07-01', memo: null,
       quantity: 3, appliedUnitCost: 6, extendedCost: 18, status: 'Posted' } });
+    ctrl.verify();
+  });
+
+  it('sends a retry key with the movement', () => {
+    const ctrl = setup();
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(MovementEditor);
+    f.detectChanges();
+    const c = f.componentInstance as unknown as Harness;
+    c.quantityMagnitude.set(10); c.unitCost.set(5); c.effectiveDate.set('2026-07-01');
+    c.save();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/movements');
+    expect(req.request.body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    req.flush({ movement: { id: 'm1', number: 'MV-1', itemId: 'i1', type: 'Receipt', effectiveDate: '2026-07-01', memo: null,
+      quantity: 10, appliedUnitCost: 5, extendedCost: 50, status: 'Posted' } });
+    ctrl.verify();
+  });
+
+  it('reuses the same key when a failed save is retried', () => {
+    const ctrl = setup();
+    const f = TestBed.createComponent(MovementEditor);
+    f.detectChanges();
+    const c = f.componentInstance as unknown as Harness;
+    c.quantityMagnitude.set(10); c.unitCost.set(5); c.effectiveDate.set('2026-07-01');
+    c.save();
+    const req1 = ctrl.expectOne('http://localhost:5000/clients/C1/movements');
+    const key1 = req1.request.body.id;
+    req1.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+    c.save();
+    const req2 = ctrl.expectOne('http://localhost:5000/clients/C1/movements');
+    expect(req2.request.body.id).toBe(key1);
+    req2.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+    ctrl.verify();
+  });
+
+  it('mints a fresh key after a successful save', () => {
+    const ctrl = setup();
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(MovementEditor);
+    f.detectChanges();
+    const c = f.componentInstance as unknown as Harness;
+    c.quantityMagnitude.set(10); c.unitCost.set(5); c.effectiveDate.set('2026-07-01');
+    c.save();
+    const req1 = ctrl.expectOne('http://localhost:5000/clients/C1/movements');
+    const key1 = req1.request.body.id;
+    req1.flush({ movement: { id: 'm1', number: 'MV-1', itemId: 'i1', type: 'Receipt', effectiveDate: '2026-07-01', memo: null,
+      quantity: 10, appliedUnitCost: 5, extendedCost: 50, status: 'Posted' } });
+    c.save();
+    const req2 = ctrl.expectOne('http://localhost:5000/clients/C1/movements');
+    expect(req2.request.body.id).not.toBe(key1);
+    req2.flush({ movement: { id: 'm5', number: 'MV-5', itemId: 'i1', type: 'Receipt', effectiveDate: '2026-07-01', memo: null,
+      quantity: 10, appliedUnitCost: 5, extendedCost: 50, status: 'Posted' } });
     ctrl.verify();
   });
 });
