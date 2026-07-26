@@ -28,7 +28,17 @@ public class FakeLedgerClientDivergenceTests
 
         await ledger.PostAsync(clientId, first);
 
-        PostEntryRequest divergent = first with { Memo = "changed" };
+        // A financially substantive divergence — a line Amount change — not Memo/Reference, which
+        // production (EntryComparison.SameFinancialContent) deliberately ignores as descriptive-only
+        // fields; a Memo/Reference-only retry is a successful replay in production, not a 422.
+        PostEntryRequest divergent = first with
+        {
+            Lines =
+            [
+                first.Lines[0] with { Amount = 200m },
+                first.Lines[1],
+            ],
+        };
 
         await Assert.ThrowsAnyAsync<Exception>(() => ledger.PostAsync(clientId, divergent));
     }

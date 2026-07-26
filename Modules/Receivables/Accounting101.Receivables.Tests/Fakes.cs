@@ -79,16 +79,37 @@ internal sealed class FakeLedgerClient : ILedgerClient
         }
     }
 
+    // Matches EntryComparison.SameFinancialContent (Backend/Accounting101.Ledger.Core/Journal/
+    // EntryComparison.cs) field-for-field, minus SourceRef (already guaranteed equal — the call site
+    // above only reaches this after keying on a matching SourceRef). Reference/Memo are deliberately
+    // NOT compared: production ignores them (EntryComparison.cs:5-7's own doc comment calls them
+    // "descriptive", and the implementation never reads them), so a Memo/Reference-only retry is a
+    // successful replay in production, not a 422 — comparing them here would make this fake STRICTER
+    // than production, which is exactly the wrong direction for a fidelity fake.
     private static bool SameContent(PostEntryRequest a, PostEntryRequest b) =>
         a.EffectiveDate == b.EffectiveDate
-        && a.Reference == b.Reference
-        && a.Memo == b.Memo
+        && a.Type == b.Type
         && a.SourceType == b.SourceType
         && a.Lines.Count == b.Lines.Count
         && a.Lines.Zip(b.Lines).All(p =>
             p.First.AccountId == p.Second.AccountId
             && p.First.Direction == p.Second.Direction
-            && p.First.Amount == p.Second.Amount);
+            && p.First.Amount == p.Second.Amount
+            && SameDimensions(p.First.Dimensions, p.Second.Dimensions));
+
+    // Ported from EntryComparison.SameDimensions (EntryComparison.cs:37-45), a value comparison (not
+    // reference equality) — extended only for PostLineRequest.Dimensions being nullable, unlike
+    // production's non-null Line.Dimensions; null and empty are treated as equivalent.
+    private static bool SameDimensions(IReadOnlyDictionary<string, Guid>? x, IReadOnlyDictionary<string, Guid>? y)
+    {
+        int xCount = x?.Count ?? 0;
+        int yCount = y?.Count ?? 0;
+        if (xCount != yCount) return false;
+        if (xCount == 0) return true;
+        foreach (KeyValuePair<string, Guid> kv in x!)
+            if (!y!.TryGetValue(kv.Key, out Guid v) || v != kv.Value) return false;
+        return true;
+    }
 
     /// <summary>
     /// Seed a Posted (on-the-books) entry directly into the fold WITHOUT recording it in <see cref="Posted"/>/

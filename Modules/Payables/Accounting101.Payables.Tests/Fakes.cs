@@ -14,10 +14,16 @@ internal sealed class FakeLedgerClient : ILedgerClient
     private readonly Dictionary<Guid, IReadOnlyList<PostLineRequest>> _linesById = new();
     private readonly List<PostEntryRequest> _posted = [];
 
-    // Maps a caller-supplied PostEntryRequest.Id (e.g. EntryIdentity.ForSource(...)) to the journal entry
-    // actually assigned to it — mirrors the real engine's idempotent-post arbitration (see the
-    // 2026-06-25-idempotent-entry-post design): a second PostAsync carrying the SAME request Id is a
-    // retry/replay of the same operation and must not mint a second entry or double-count the fold.
+    // Maps a caller-supplied PostEntryRequest.Id (e.g. EntryIdentity.ForSource(...)) to the request that
+    // first posted under it and to the journal entry actually assigned — mirrors the real engine's
+    // idempotent-post arbitration (see the 2026-06-25-idempotent-entry-post design, and
+    // LedgerEndpoints.cs:80-93/108-127): a second PostAsync carrying the SAME request Id is either a
+    // replay of the same operation (return the existing entry, don't double-count the fold) or an id
+    // reused for different content (422 in production; an exception here). This is the branch real
+    // Payables module code actually exercises — BillPosting.cs's three builders all set a deterministic
+    // Id via EntryIdentity.ForSource, so a real second post never falls through to the SourceRef-only
+    // check below.
+    private readonly Dictionary<Guid, PostEntryRequest> _byRequestId = new();
     private readonly Dictionary<Guid, Guid> _entryIdByRequestId = new();
 
     // Maps a SourceRef to the request that first posted under it, and to the entry that request minted —
@@ -45,6 +51,15 @@ internal sealed class FakeLedgerClient : ILedgerClient
         {
             if (entry.Id is { } requestId && _entryIdByRequestId.TryGetValue(requestId, out Guid existingId))
             {
+                // Production answers 422 when an id is reused for different content
+                // (LedgerEndpoints.cs:86-92, :121-122). Mirror that here — this is the branch real module
+                // code exercises (see the field comment above), so it needs the same guard as the
+                // SourceRef-only branch below, not just an unconditional replay.
+                PostEntryRequest seenByRequestId = _byRequestId[requestId];
+                if (!SameContent(seenByRequestId, entry))
+                    throw new InvalidOperationException(
+                        $"Entry with Id {requestId} already exists with different content.");
+
                 EntryResponse existing = _entries[existingId];
                 return Task.FromResult(new PostEntryResponse(existing.Id, existing.Status, existing.Posting));
             }
@@ -65,7 +80,11 @@ internal sealed class FakeLedgerClient : ILedgerClient
             var id = Guid.NewGuid();
             _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "PendingApproval", reversalOf: null, lines: entry.Lines);
             _linesById[id] = entry.Lines;
-            if (entry.Id is { } rid) _entryIdByRequestId[rid] = id;
+            if (entry.Id is { } rid)
+            {
+                _byRequestId[rid] = entry;
+                _entryIdByRequestId[rid] = id;
+            }
             if (entry.SourceRef is { } sr)
             {
                 _bySourceRef[sr] = entry;
@@ -75,16 +94,37 @@ internal sealed class FakeLedgerClient : ILedgerClient
         }
     }
 
+    // Matches EntryComparison.SameFinancialContent (Backend/Accounting101.Ledger.Core/Journal/
+    // EntryComparison.cs) field-for-field, minus SourceRef (already guaranteed equal — both call sites
+    // above only reach this after keying on a matching Id/SourceRef). Reference/Memo are deliberately
+    // NOT compared: production ignores them (EntryComparison.cs:5-7's own doc comment calls them
+    // "descriptive", and the implementation never reads them), so a Memo/Reference-only retry is a
+    // successful replay in production, not a 422 — comparing them here would make this fake STRICTER
+    // than production, which is exactly the wrong direction for a fidelity fake.
     private static bool SameContent(PostEntryRequest a, PostEntryRequest b) =>
         a.EffectiveDate == b.EffectiveDate
-        && a.Reference == b.Reference
-        && a.Memo == b.Memo
+        && a.Type == b.Type
         && a.SourceType == b.SourceType
         && a.Lines.Count == b.Lines.Count
         && a.Lines.Zip(b.Lines).All(p =>
             p.First.AccountId == p.Second.AccountId
             && p.First.Direction == p.Second.Direction
-            && p.First.Amount == p.Second.Amount);
+            && p.First.Amount == p.Second.Amount
+            && SameDimensions(p.First.Dimensions, p.Second.Dimensions));
+
+    // Ported from EntryComparison.SameDimensions (EntryComparison.cs:37-45), a value comparison (not
+    // reference equality) — extended only for PostLineRequest.Dimensions being nullable, unlike
+    // production's non-null Line.Dimensions; null and empty are treated as equivalent.
+    private static bool SameDimensions(IReadOnlyDictionary<string, Guid>? x, IReadOnlyDictionary<string, Guid>? y)
+    {
+        int xCount = x?.Count ?? 0;
+        int yCount = y?.Count ?? 0;
+        if (xCount != yCount) return false;
+        if (xCount == 0) return true;
+        foreach (KeyValuePair<string, Guid> kv in x!)
+            if (!y!.TryGetValue(kv.Key, out Guid v) || v != kv.Value) return false;
+        return true;
+    }
 
     /// <summary>
     /// Seed a Posted (on-the-books) entry directly into the fold WITHOUT recording it in <see cref="Posted"/>.
