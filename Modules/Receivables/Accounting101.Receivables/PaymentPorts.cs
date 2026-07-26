@@ -12,17 +12,17 @@ public interface IPaymentStore
     Task<IReadOnlyList<CreditApplication>> GetCreditApplicationsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default);
     Task<CreditApplication?> GetCreditApplicationAsync(Guid clientId, Guid creditApplicationId, CancellationToken ct = default);
 
-    Task<WriteOff> RecordWriteOffAsync(Guid clientId, WriteOffBody body, CancellationToken ct = default);
+    Task<WriteOff> RecordWriteOffAsync(Guid clientId, Guid id, WriteOffBody body, CancellationToken ct = default);
     Task<WriteOff?> GetWriteOffAsync(Guid clientId, Guid writeOffId, CancellationToken ct = default);
     Task<IReadOnlyList<WriteOff>> GetWriteOffsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default);
     Task VoidWriteOffAsync(Guid clientId, Guid writeOffId, CancellationToken ct = default);
 
-    Task<CreditNote> RecordCreditNoteAsync(Guid clientId, CreditNoteBody body, CancellationToken ct = default);
+    Task<CreditNote> RecordCreditNoteAsync(Guid clientId, Guid id, CreditNoteBody body, CancellationToken ct = default);
     Task<CreditNote?> GetCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default);
     Task<IReadOnlyList<CreditNote>> GetCreditNotesByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default);
     Task VoidCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default);
 
-    Task<Refund> RecordRefundAsync(Guid clientId, RefundBody body, CancellationToken ct = default);
+    Task<Refund> RecordRefundAsync(Guid clientId, Guid id, RefundBody body, CancellationToken ct = default);
     Task<Refund?> GetRefundAsync(Guid clientId, Guid refundId, CancellationToken ct = default);
     Task<IReadOnlyList<Refund>> GetRefundsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default);
     Task VoidRefundAsync(Guid clientId, Guid refundId, CancellationToken ct = default);

@@ -283,8 +283,8 @@ public sealed class PaymentServiceTests
         (PaymentService service, FakeLedgerClient ledger, Guid clientId, Guid customer, Guid invoice) =
             await SetupIssuedInvoiceAsync(total: 250m);
 
-        WriteOff wo = await service.RecordWriteOffAsync(clientId,
-            new WriteOffCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 250m)], "uncollectible"));
+        WriteOff wo = (await service.RecordWriteOffAsync(clientId,
+            new WriteOffCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 250m)], "uncollectible"))).WriteOff;
 
         InvoiceView view = (await service.GetInvoiceViewAsync(clientId, invoice))!;
         Assert.Equal(0m, view.OpenBalance);
@@ -322,8 +322,8 @@ public sealed class PaymentServiceTests
     {
         (PaymentService service, _, Guid clientId, Guid customer, Guid invoice) =
             await SetupIssuedInvoiceAsync(total: 250m);
-        WriteOff wo = await service.RecordWriteOffAsync(clientId,
-            new WriteOffCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 250m)], null));
+        WriteOff wo = (await service.RecordWriteOffAsync(clientId,
+            new WriteOffCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 250m)], null))).WriteOff;
 
         await service.VoidWriteOffAsync(clientId, wo.Id, "keyed in error");
 
@@ -346,8 +346,8 @@ public sealed class PaymentServiceTests
     {
         (PaymentService service, _, Guid clientId, Guid customer, Guid invoice) =
             await SetupIssuedInvoiceAsync(total: 100m);
-        CreditNote cn = await service.RecordCreditNoteAsync(clientId,
-            new CreditNoteCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 40m)], null));
+        CreditNote cn = (await service.RecordCreditNoteAsync(clientId,
+            new CreditNoteCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 40m)], null))).CreditNote;
         Assert.Equal(60m, (await service.GetInvoiceViewAsync(clientId, invoice))!.OpenBalance);
 
         await service.VoidCreditNoteAsync(clientId, cn.Id, "issued in error");
@@ -388,7 +388,7 @@ public sealed class PaymentServiceTests
             new PaymentCommand(customer, new DateOnly(2026, 3, 1), 140m, "wire", [new Allocation(invoice, 100m)]));
         Assert.Equal(40m, await service.GetCustomerCreditBalanceAsync(clientId, customer));
 
-        Refund refund = await service.RecordRefundAsync(clientId, new RefundBody(customer, new DateOnly(2026, 3, 2), 40m, "returned"));
+        Refund refund = (await service.RecordRefundAsync(clientId, new RefundBody(customer, new DateOnly(2026, 3, 2), 40m, "returned"))).Refund;
 
         Assert.Equal(0m, await service.GetCustomerCreditBalanceAsync(clientId, customer));
         Assert.Equal("Refund", ledger.LastPosted!.SourceType);
@@ -409,7 +409,7 @@ public sealed class PaymentServiceTests
         (PaymentService service, _, Guid clientId, Guid customer, Guid invoice) = await SetupIssuedInvoiceAsync(total: 100m);
         await service.RecordPaymentAsync(clientId,
             new PaymentCommand(customer, new DateOnly(2026, 3, 1), 140m, "wire", [new Allocation(invoice, 100m)]));
-        Refund refund = await service.RecordRefundAsync(clientId, new RefundBody(customer, new DateOnly(2026, 3, 2), 40m, null));
+        Refund refund = (await service.RecordRefundAsync(clientId, new RefundBody(customer, new DateOnly(2026, 3, 2), 40m, null))).Refund;
         Assert.Equal(0m, await service.GetCustomerCreditBalanceAsync(clientId, customer));
 
         await service.VoidRefundAsync(clientId, refund.Id, "reissued");
@@ -425,8 +425,8 @@ public sealed class PaymentServiceTests
         // Arrange: record write-off → approve its entry → flip to Posted branch.
         (PaymentService service, FakeLedgerClient ledger, Guid clientId, Guid customer, Guid invoice) =
             await SetupIssuedInvoiceAsync(total: 250m);
-        WriteOff wo = await service.RecordWriteOffAsync(clientId,
-            new WriteOffCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 250m)], null));
+        WriteOff wo = (await service.RecordWriteOffAsync(clientId,
+            new WriteOffCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 250m)], null))).WriteOff;
         IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, wo.Id);
         EntryResponse active = entries.Single(e => e.Status == "Active" && e.ReversalOf == null);
         await ledger.ApproveAsync(clientId, active.Id); // flip to Posted
@@ -446,8 +446,8 @@ public sealed class PaymentServiceTests
         // Arrange: record credit note → approve its entry → flip to Posted branch.
         (PaymentService service, FakeLedgerClient ledger, Guid clientId, Guid customer, Guid invoice) =
             await SetupIssuedInvoiceAsync(total: 100m);
-        CreditNote cn = await service.RecordCreditNoteAsync(clientId,
-            new CreditNoteCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 40m)], null));
+        CreditNote cn = (await service.RecordCreditNoteAsync(clientId,
+            new CreditNoteCommand(customer, new DateOnly(2026, 3, 1), [new Allocation(invoice, 40m)], null))).CreditNote;
         IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, cn.Id);
         EntryResponse active = entries.Single(e => e.Status == "Active" && e.ReversalOf == null);
         await ledger.ApproveAsync(clientId, active.Id); // flip to Posted
@@ -469,8 +469,8 @@ public sealed class PaymentServiceTests
             await SetupIssuedInvoiceAsync(total: 100m);
         await service.RecordPaymentAsync(clientId,
             new PaymentCommand(customer, new DateOnly(2026, 3, 1), 140m, "wire", [new Allocation(invoice, 100m)]));
-        Refund refund = await service.RecordRefundAsync(clientId,
-            new RefundBody(customer, new DateOnly(2026, 3, 2), 40m, null));
+        Refund refund = (await service.RecordRefundAsync(clientId,
+            new RefundBody(customer, new DateOnly(2026, 3, 2), 40m, null))).Refund;
         IReadOnlyList<EntryResponse> entries = await ledger.GetEntriesBySourceRefAsync(clientId, refund.Id);
         EntryResponse active = entries.Single(e => e.Status == "Active" && e.ReversalOf == null);
         await ledger.ApproveAsync(clientId, active.Id); // flip to Posted

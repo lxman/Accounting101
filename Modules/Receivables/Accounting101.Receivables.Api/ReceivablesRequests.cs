@@ -24,11 +24,17 @@ public sealed record RecordPaymentRequest(
 public sealed record CreditApplicationRequest(
     Guid CustomerId, DateOnly Date, IReadOnlyList<Allocation> Allocations, Guid? Id = null);
 
-/// <summary>Write off invoice balances to bad-debt expense.</summary>
-public sealed record WriteOffRequest(Guid CustomerId, DateOnly Date, IReadOnlyList<Allocation> Allocations, string? Memo);
+/// <summary>Write off invoice balances to bad-debt expense. <paramref name="Id"/> is an optional
+/// caller-supplied retry key — same key and same content replays, different content is a 422.</summary>
+public sealed record WriteOffRequest(
+    Guid CustomerId, DateOnly Date, IReadOnlyList<Allocation> Allocations, string? Memo, Guid? Id = null);
 
-/// <summary>Issue a credit note against invoices (contra-revenue, no cash).</summary>
-public sealed record CreditNoteRequest(Guid CustomerId, DateOnly Date, IReadOnlyList<Allocation> Allocations, string? Memo);
+/// <summary>Issue a credit note against invoices (contra-revenue, no cash). <paramref name="Id"/> is an
+/// optional caller-supplied retry key — same key and same content replays, different content is a 422.</summary>
+public sealed record CreditNoteRequest(
+    Guid CustomerId, DateOnly Date, IReadOnlyList<Allocation> Allocations, string? Memo, Guid? Id = null);
 
-/// <summary>Refund a customer's unapplied credit as cash.</summary>
-public sealed record RefundRequest(Guid CustomerId, DateOnly Date, decimal Amount, string? Memo);
+/// <summary>Refund a customer's unapplied credit as cash. <paramref name="Id"/> is an optional
+/// caller-supplied retry key — same key and same content replays, different content is a 422.</summary>
+public sealed record RefundRequest(
+    Guid CustomerId, DateOnly Date, decimal Amount, string? Memo, Guid? Id = null);

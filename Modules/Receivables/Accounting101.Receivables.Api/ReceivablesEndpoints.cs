@@ -292,9 +292,12 @@ public static class ReceivablesEndpoints
     {
         try
         {
-            WriteOff recorded = await service.RecordWriteOffAsync(clientId,
-                new WriteOffCommand(request.CustomerId, request.Date, request.Allocations, request.Memo), cancellationToken);
-            return Results.Created($"/clients/{clientId}/write-offs/{recorded.Id}", recorded);
+            (WriteOff recorded, bool replayed) = await service.RecordWriteOffAsync(clientId,
+                new WriteOffCommand(request.CustomerId, request.Date, request.Allocations, request.Memo, request.Id),
+                cancellationToken);
+            return replayed
+                ? Results.Ok(recorded)
+                : Results.Created($"/clients/{clientId}/write-offs/{recorded.Id}", recorded);
         }
         catch (InvalidOperationException ex)
         {
@@ -321,9 +324,12 @@ public static class ReceivablesEndpoints
     {
         try
         {
-            CreditNote recorded = await service.RecordCreditNoteAsync(clientId,
-                new CreditNoteCommand(request.CustomerId, request.Date, request.Allocations, request.Memo), cancellationToken);
-            return Results.Created($"/clients/{clientId}/credit-notes/{recorded.Id}", recorded);
+            (CreditNote recorded, bool replayed) = await service.RecordCreditNoteAsync(clientId,
+                new CreditNoteCommand(request.CustomerId, request.Date, request.Allocations, request.Memo, request.Id),
+                cancellationToken);
+            return replayed
+                ? Results.Ok(recorded)
+                : Results.Created($"/clients/{clientId}/credit-notes/{recorded.Id}", recorded);
         }
         catch (InvalidOperationException ex)
         {
@@ -350,9 +356,12 @@ public static class ReceivablesEndpoints
     {
         try
         {
-            Refund recorded = await service.RecordRefundAsync(clientId,
-                new RefundBody(request.CustomerId, request.Date, request.Amount, request.Memo), cancellationToken);
-            return Results.Created($"/clients/{clientId}/refunds/{recorded.Id}", recorded);
+            (Refund recorded, bool replayed) = await service.RecordRefundAsync(clientId,
+                new RefundBody(request.CustomerId, request.Date, request.Amount, request.Memo),
+                request.Id, cancellationToken);
+            return replayed
+                ? Results.Ok(recorded)
+                : Results.Created($"/clients/{clientId}/refunds/{recorded.Id}", recorded);
         }
         catch (InvalidOperationException ex)
         {

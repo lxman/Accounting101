@@ -334,17 +334,28 @@ public sealed class PaymentService(
         return (await payments.GetPaymentAsync(clientId, paymentId, ct))!;
     }
 
-    public async Task<WriteOff> RecordWriteOffAsync(Guid clientId, WriteOffCommand command, CancellationToken ct = default)
+    public async Task<(WriteOff WriteOff, bool Replayed)> RecordWriteOffAsync(
+        Guid clientId, WriteOffCommand command, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(command);
         if (command.Allocations.Count == 0 || command.Allocations.Any(a => a.Amount <= 0m))
             throw new InvalidOperationException("A write-off needs positive allocations.");
-        await ValidateAllocationsAsync(clientId, command.CustomerId, command.Allocations, ct);
+
+        Guid id = command.Id ?? Guid.NewGuid();
+        WriteOff? known = command.Id is not null ? await payments.GetWriteOffAsync(clientId, id, ct) : null;
+        bool replayed = known is not null;
+
         WriteOffBody body = new(command.CustomerId, command.Date, command.Memo);
-        WriteOff recorded = await payments.RecordWriteOffAsync(clientId, body, ct);
+
+        if (!replayed)
+        {
+            await ValidateAllocationsAsync(clientId, command.CustomerId, command.Allocations, ct);
+            known = await payments.RecordWriteOffAsync(clientId, id, body, ct);
+        }
+
         PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
-        await ledger.PostAsync(clientId, PaymentPosting.ComposeWriteOff(recorded.Id, body, command.Allocations, posting), ct);
-        return recorded;
+        await ledger.PostAsync(clientId, PaymentPosting.ComposeWriteOff(id, body, command.Allocations, posting), ct);
+        return (known!, replayed);
     }
 
     public async Task<WriteOff> VoidWriteOffAsync(Guid clientId, Guid writeOffId, string? reason = null, CancellationToken ct = default)
@@ -359,17 +370,28 @@ public sealed class PaymentService(
         return (await payments.GetWriteOffAsync(clientId, writeOffId, ct))!;
     }
 
-    public async Task<CreditNote> RecordCreditNoteAsync(Guid clientId, CreditNoteCommand command, CancellationToken ct = default)
+    public async Task<(CreditNote CreditNote, bool Replayed)> RecordCreditNoteAsync(
+        Guid clientId, CreditNoteCommand command, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(command);
         if (command.Allocations.Count == 0 || command.Allocations.Any(a => a.Amount <= 0m))
             throw new InvalidOperationException("A credit note needs positive allocations.");
-        await ValidateAllocationsAsync(clientId, command.CustomerId, command.Allocations, ct);
+
+        Guid id = command.Id ?? Guid.NewGuid();
+        CreditNote? known = command.Id is not null ? await payments.GetCreditNoteAsync(clientId, id, ct) : null;
+        bool replayed = known is not null;
+
         CreditNoteBody body = new(command.CustomerId, command.Date, command.Memo);
-        CreditNote recorded = await payments.RecordCreditNoteAsync(clientId, body, ct);
+
+        if (!replayed)
+        {
+            await ValidateAllocationsAsync(clientId, command.CustomerId, command.Allocations, ct);
+            known = await payments.RecordCreditNoteAsync(clientId, id, body, ct);
+        }
+
         PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
-        await ledger.PostAsync(clientId, PaymentPosting.ComposeCreditNote(recorded.Id, body, command.Allocations, posting), ct);
-        return recorded;
+        await ledger.PostAsync(clientId, PaymentPosting.ComposeCreditNote(id, body, command.Allocations, posting), ct);
+        return (known!, replayed);
     }
 
     public async Task<CreditNote> VoidCreditNoteAsync(Guid clientId, Guid creditNoteId, string? reason = null, CancellationToken ct = default)
@@ -384,17 +406,28 @@ public sealed class PaymentService(
         return (await payments.GetCreditNoteAsync(clientId, creditNoteId, ct))!;
     }
 
-    public async Task<Refund> RecordRefundAsync(Guid clientId, RefundBody body, CancellationToken ct = default)
+    public async Task<(Refund Refund, bool Replayed)> RecordRefundAsync(
+        Guid clientId, RefundBody body, Guid? retryKey = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         if (body.Amount <= 0m) throw new InvalidOperationException("A refund amount must be greater than zero.");
-        decimal available = await GetCustomerCreditBalanceAsync(clientId, body.CustomerId, ct);
-        if (body.Amount > available)
-            throw new InvalidOperationException($"Refund of {body.Amount} exceeds available credit {available}.");
-        Refund recorded = await payments.RecordRefundAsync(clientId, body, ct);
+
+        Guid id = retryKey ?? Guid.NewGuid();
+        Refund? known = retryKey is not null ? await payments.GetRefundAsync(clientId, id, ct) : null;
+        bool replayed = known is not null;
+
+        if (!replayed)
+        {
+            // State-dependent: this refund itself consumes the credit it is checked against.
+            decimal available = await GetCustomerCreditBalanceAsync(clientId, body.CustomerId, ct);
+            if (body.Amount > available)
+                throw new InvalidOperationException($"Refund of {body.Amount} exceeds available credit {available}.");
+            known = await payments.RecordRefundAsync(clientId, id, body, ct);
+        }
+
         PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
-        await ledger.PostAsync(clientId, PaymentPosting.ComposeRefund(recorded.Id, body, posting), ct);
-        return recorded;
+        await ledger.PostAsync(clientId, PaymentPosting.ComposeRefund(id, body, posting), ct);
+        return (known!, replayed);
     }
 
     public async Task<Refund> VoidRefundAsync(Guid clientId, Guid refundId, string? reason = null, CancellationToken ct = default)

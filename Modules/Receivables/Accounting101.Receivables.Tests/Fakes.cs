@@ -320,11 +320,11 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
     public Task<CreditApplication?> GetCreditApplicationAsync(Guid clientId, Guid creditApplicationId, CancellationToken ct = default) =>
         Task.FromResult(_credits.GetValueOrDefault((clientId, creditApplicationId)));
 
-    public Task<WriteOff> RecordWriteOffAsync(Guid clientId, WriteOffBody body, CancellationToken ct = default)
+    public Task<WriteOff> RecordWriteOffAsync(Guid clientId, Guid id, WriteOffBody body, CancellationToken ct = default)
     {
         WriteOff w = new()
         {
-            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date,
+            Id = id, CustomerId = body.CustomerId, Date = body.Date,
             Memo = body.Memo, Voided = false,
         };
         _writeOffs[(clientId, w.Id)] = w;
@@ -344,11 +344,11 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
         return Task.CompletedTask;
     }
 
-    public Task<CreditNote> RecordCreditNoteAsync(Guid clientId, CreditNoteBody body, CancellationToken ct = default)
+    public Task<CreditNote> RecordCreditNoteAsync(Guid clientId, Guid id, CreditNoteBody body, CancellationToken ct = default)
     {
         CreditNote n = new()
         {
-            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date,
+            Id = id, CustomerId = body.CustomerId, Date = body.Date,
             Memo = body.Memo, Voided = false,
         };
         _creditNotes[(clientId, n.Id)] = n;
@@ -368,11 +368,11 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
         return Task.CompletedTask;
     }
 
-    public Task<Refund> RecordRefundAsync(Guid clientId, RefundBody body, CancellationToken ct = default)
+    public Task<Refund> RecordRefundAsync(Guid clientId, Guid id, RefundBody body, CancellationToken ct = default)
     {
         Refund r = new()
         {
-            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date,
+            Id = id, CustomerId = body.CustomerId, Date = body.Date,
             Amount = body.Amount, Voided = false,
         };
         _refunds[(clientId, r.Id)] = r;
