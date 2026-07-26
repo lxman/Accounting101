@@ -32,14 +32,17 @@ public static class CashEndpoints
     {
         try
         {
-            CashDisbursement disbursement = await service.RecordDisbursementAsync(clientId,
+            (CashDisbursement disbursement, bool replayed) = await service.RecordDisbursementAsync(clientId,
                 new CashDisbursementBody(
                     Lines: request.Lines.Select(l => new CashLine(l.AccountId, l.Amount)).ToList(),
                     Date: request.Date,
                     Reference: request.Reference,
                     Memo: request.Memo),
+                request.Id,
                 cancellationToken);
-            return Results.Created($"/clients/{clientId}/cash-disbursements/{disbursement.Id}", disbursement);
+            return replayed
+                ? Results.Ok(disbursement)
+                : Results.Created($"/clients/{clientId}/cash-disbursements/{disbursement.Id}", disbursement);
         }
         catch (ArgumentException ex) // empty lines, non-positive amount, or cash account in lines
         {
@@ -87,14 +90,17 @@ public static class CashEndpoints
     {
         try
         {
-            CashDeposit deposit = await service.RecordDepositAsync(clientId,
+            (CashDeposit deposit, bool replayed) = await service.RecordDepositAsync(clientId,
                 new CashDepositBody(
                     Lines: request.Lines.Select(l => new CashLine(l.AccountId, l.Amount)).ToList(),
                     Date: request.Date,
                     Reference: request.Reference,
                     Memo: request.Memo),
+                request.Id,
                 cancellationToken);
-            return Results.Created($"/clients/{clientId}/cash-deposits/{deposit.Id}", deposit);
+            return replayed
+                ? Results.Ok(deposit)
+                : Results.Created($"/clients/{clientId}/cash-deposits/{deposit.Id}", deposit);
         }
         catch (ArgumentException ex) // empty lines, non-positive amount, or cash account in lines
         {

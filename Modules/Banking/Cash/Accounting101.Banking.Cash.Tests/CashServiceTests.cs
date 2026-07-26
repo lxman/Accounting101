@@ -39,7 +39,7 @@ public sealed class CashServiceTests
             Reference: "LOAN-2026-06",
             Memo: "Loan payment — interest + principal");
 
-        CashDisbursement doc = await h.Service.RecordDisbursementAsync(clientId, body);
+        CashDisbursement doc = (await h.Service.RecordDisbursementAsync(clientId, body)).Disbursement;
 
         // Doc persisted and readable
         Assert.NotEqual(Guid.Empty, doc.Id);
@@ -108,7 +108,7 @@ public sealed class CashServiceTests
             Date: new DateOnly(2026, 6, 15),
             Reference: null,
             Memo: null);
-        CashDisbursement doc = await h.Service.RecordDisbursementAsync(clientId, body);
+        CashDisbursement doc = (await h.Service.RecordDisbursementAsync(clientId, body)).Disbursement;
 
         // Entry is PendingApproval (fake never auto-approves) — void should call VoidAsync on the client.
         CashDisbursement voided = await h.Service.VoidDisbursementAsync(clientId, doc.Id, "mistake");
@@ -130,7 +130,7 @@ public sealed class CashServiceTests
             Date: new DateOnly(2026, 6, 15),
             Reference: null,
             Memo: null);
-        CashDisbursement doc = await h.Service.RecordDisbursementAsync(clientId, body);
+        CashDisbursement doc = (await h.Service.RecordDisbursementAsync(clientId, body)).Disbursement;
         await h.Service.VoidDisbursementAsync(clientId, doc.Id);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => h.Service.VoidDisbursementAsync(clientId, doc.Id));
@@ -150,7 +150,7 @@ public sealed class CashServiceTests
             Reference: "CONTRIB-2026",
             Memo: "Owner contribution");
 
-        CashDeposit doc = await h.Service.RecordDepositAsync(clientId, body);
+        CashDeposit doc = (await h.Service.RecordDepositAsync(clientId, body)).Deposit;
 
         // Doc persisted and readable
         Assert.NotEqual(Guid.Empty, doc.Id);
@@ -213,7 +213,7 @@ public sealed class CashServiceTests
             Date: new DateOnly(2026, 1, 2),
             Reference: null,
             Memo: null);
-        CashDeposit doc = await h.Service.RecordDepositAsync(clientId, body);
+        CashDeposit doc = (await h.Service.RecordDepositAsync(clientId, body)).Deposit;
 
         // Entry is PendingApproval (fake never auto-approves) — void should call VoidAsync on the client.
         CashDeposit voided = await h.Service.VoidDepositAsync(clientId, doc.Id, "error");
@@ -235,7 +235,7 @@ public sealed class CashServiceTests
             Date: new DateOnly(2026, 1, 2),
             Reference: null,
             Memo: null);
-        CashDeposit doc = await h.Service.RecordDepositAsync(clientId, body);
+        CashDeposit doc = (await h.Service.RecordDepositAsync(clientId, body)).Deposit;
         await h.Service.VoidDepositAsync(clientId, doc.Id);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => h.Service.VoidDepositAsync(clientId, doc.Id));
@@ -251,10 +251,10 @@ public sealed class CashServiceTests
         Guid expenseAccount = Guid.NewGuid();
         Guid capitalAccount = Guid.NewGuid();
 
-        CashDisbursement disbursement = await h.Service.RecordDisbursementAsync(clientId,
-            new CashDisbursementBody([new CashLine(expenseAccount, 1_000m)], new DateOnly(2026, 6, 15), null, null));
-        CashDeposit deposit = await h.Service.RecordDepositAsync(clientId,
-            new CashDepositBody([new CashLine(capitalAccount, 25_000m)], new DateOnly(2026, 1, 2), null, null));
+        CashDisbursement disbursement = (await h.Service.RecordDisbursementAsync(clientId,
+            new CashDisbursementBody([new CashLine(expenseAccount, 1_000m)], new DateOnly(2026, 6, 15), null, null))).Disbursement;
+        CashDeposit deposit = (await h.Service.RecordDepositAsync(clientId,
+            new CashDepositBody([new CashLine(capitalAccount, 25_000m)], new DateOnly(2026, 1, 2), null, null))).Deposit;
 
         Assert.Equal(2, h.Ledger.Posted.Count);
         Assert.Contains(h.Ledger.Posted, e => e.SourceRef == disbursement.Id && e.SourceType == CashPosting.DisbursementSourceType);
@@ -269,8 +269,8 @@ public sealed class CashServiceTests
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
         Guid capitalAccount = Guid.NewGuid();
-        CashDeposit doc = await h.Service.RecordDepositAsync(clientId,
-            new CashDepositBody([new CashLine(capitalAccount, 25_000m)], new DateOnly(2026, 1, 2), null, null));
+        CashDeposit doc = (await h.Service.RecordDepositAsync(clientId,
+            new CashDepositBody([new CashLine(capitalAccount, 25_000m)], new DateOnly(2026, 1, 2), null, null))).Deposit;
 
         // Simulate the crash: the GL entry is withdrawn, but the document envelope was never marked void.
         IReadOnlyList<EntryResponse> spawned = await h.Ledger.GetEntriesBySourceRefAsync(clientId, doc.Id);
@@ -292,8 +292,8 @@ public sealed class CashServiceTests
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
         Guid capitalAccount = Guid.NewGuid();
-        CashDeposit doc = await h.Service.RecordDepositAsync(clientId,
-            new CashDepositBody([new CashLine(capitalAccount, 25_000m)], new DateOnly(2026, 1, 2), null, null));
+        CashDeposit doc = (await h.Service.RecordDepositAsync(clientId,
+            new CashDepositBody([new CashLine(capitalAccount, 25_000m)], new DateOnly(2026, 1, 2), null, null))).Deposit;
 
         // Simulate reversed-after-posting: a reversal entry is created directly (original stays Active),
         // and the document envelope is never marked void.
@@ -313,8 +313,8 @@ public sealed class CashServiceTests
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
         Guid expenseAccount = Guid.NewGuid();
-        CashDisbursement doc = await h.Service.RecordDisbursementAsync(clientId,
-            new CashDisbursementBody([new CashLine(expenseAccount, 1_000m)], new DateOnly(2026, 6, 15), null, null));
+        CashDisbursement doc = (await h.Service.RecordDisbursementAsync(clientId,
+            new CashDisbursementBody([new CashLine(expenseAccount, 1_000m)], new DateOnly(2026, 6, 15), null, null))).Disbursement;
 
         IReadOnlyList<EntryResponse> spawned = await h.Ledger.GetEntriesBySourceRefAsync(clientId, doc.Id);
         Guid entryId = Assert.Single(spawned).Id;
@@ -336,10 +336,10 @@ public sealed class CashServiceTests
         Guid clientId = Guid.NewGuid();
         Guid capitalAccount = Guid.NewGuid();
 
-        CashDeposit stayPosted = await h.Service.RecordDepositAsync(clientId,
-            new CashDepositBody([new CashLine(capitalAccount, 10_000m)], new DateOnly(2026, 1, 1), null, null));
-        CashDeposit goVoid = await h.Service.RecordDepositAsync(clientId,
-            new CashDepositBody([new CashLine(capitalAccount, 20_000m)], new DateOnly(2026, 1, 2), null, null));
+        CashDeposit stayPosted = (await h.Service.RecordDepositAsync(clientId,
+            new CashDepositBody([new CashLine(capitalAccount, 10_000m)], new DateOnly(2026, 1, 1), null, null))).Deposit;
+        CashDeposit goVoid = (await h.Service.RecordDepositAsync(clientId,
+            new CashDepositBody([new CashLine(capitalAccount, 20_000m)], new DateOnly(2026, 1, 2), null, null))).Deposit;
 
         // Withdraw the second deposit's entry directly — envelope stays Posted.
         Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, goVoid.Id)).Id;
@@ -358,10 +358,10 @@ public sealed class CashServiceTests
         Guid clientId = Guid.NewGuid();
         Guid expenseAccount = Guid.NewGuid();
 
-        CashDisbursement stayPosted = await h.Service.RecordDisbursementAsync(clientId,
-            new CashDisbursementBody([new CashLine(expenseAccount, 1_000m)], new DateOnly(2026, 6, 1), null, null));
-        CashDisbursement goVoid = await h.Service.RecordDisbursementAsync(clientId,
-            new CashDisbursementBody([new CashLine(expenseAccount, 2_000m)], new DateOnly(2026, 6, 2), null, null));
+        CashDisbursement stayPosted = (await h.Service.RecordDisbursementAsync(clientId,
+            new CashDisbursementBody([new CashLine(expenseAccount, 1_000m)], new DateOnly(2026, 6, 1), null, null))).Disbursement;
+        CashDisbursement goVoid = (await h.Service.RecordDisbursementAsync(clientId,
+            new CashDisbursementBody([new CashLine(expenseAccount, 2_000m)], new DateOnly(2026, 6, 2), null, null))).Disbursement;
 
         // Withdraw the second disbursement's entry directly — envelope stays Posted.
         Guid entryId = Assert.Single(await h.Ledger.GetEntriesBySourceRefAsync(clientId, goVoid.Id)).Id;
@@ -416,8 +416,8 @@ public sealed class CashServiceTests
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
         Guid capitalAccount = Guid.NewGuid();
-        CashDeposit doc = await h.Service.RecordDepositAsync(clientId,
-            new CashDepositBody([new CashLine(capitalAccount, 25_000m)], new DateOnly(2026, 1, 2), null, null));
+        CashDeposit doc = (await h.Service.RecordDepositAsync(clientId,
+            new CashDepositBody([new CashLine(capitalAccount, 25_000m)], new DateOnly(2026, 1, 2), null, null))).Deposit;
 
         await h.Service.GetDepositAsync(clientId, doc.Id);
 
@@ -431,8 +431,8 @@ public sealed class CashServiceTests
         Harness h = BuildHarness();
         Guid clientId = Guid.NewGuid();
         Guid expenseAccount = Guid.NewGuid();
-        CashDisbursement doc = await h.Service.RecordDisbursementAsync(clientId,
-            new CashDisbursementBody([new CashLine(expenseAccount, 1_000m)], new DateOnly(2026, 6, 15), null, null));
+        CashDisbursement doc = (await h.Service.RecordDisbursementAsync(clientId,
+            new CashDisbursementBody([new CashLine(expenseAccount, 1_000m)], new DateOnly(2026, 6, 15), null, null))).Disbursement;
 
         await h.Service.GetDisbursementAsync(clientId, doc.Id);
 

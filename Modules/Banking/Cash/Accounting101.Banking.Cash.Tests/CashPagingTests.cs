@@ -21,7 +21,7 @@ public sealed class CashPagingTests
 
         // Record 3 deposits.
         for (int i = 0; i < 3; i++)
-            await store.RecordAsync(clientId, new CashDepositBody([line], new DateOnly(2026, 1, i + 1), null, null));
+            await store.RecordAsync(clientId, Guid.NewGuid(), new CashDepositBody([line], new DateOnly(2026, 1, i + 1), null, null));
 
         PagedResponse<CashDeposit> page1 = await store.GetByClientPagedAsync(clientId, 0, 2, descending: false, includeVoided: false);
 
@@ -39,7 +39,7 @@ public sealed class CashPagingTests
         CashLine line = new(Guid.NewGuid(), 100m);
 
         for (int i = 0; i < 3; i++)
-            await store.RecordAsync(clientId, new CashDepositBody([line], new DateOnly(2026, 1, i + 1), $"REF-{i + 1}", null));
+            await store.RecordAsync(clientId, Guid.NewGuid(), new CashDepositBody([line], new DateOnly(2026, 1, i + 1), $"REF-{i + 1}", null));
 
         PagedResponse<CashDeposit> page1 = await store.GetByClientPagedAsync(clientId, 0, 2, descending: false, includeVoided: false);
         PagedResponse<CashDeposit> page2 = await store.GetByClientPagedAsync(clientId, 2, 2, descending: false, includeVoided: false);
@@ -57,9 +57,9 @@ public sealed class CashPagingTests
         Guid clientId = Guid.NewGuid();
         CashLine line = new(Guid.NewGuid(), 100m);
 
-        CashDeposit d1 = await store.RecordAsync(clientId, new CashDepositBody([line], new DateOnly(2026, 1, 1), null, null));
-        await store.RecordAsync(clientId, new CashDepositBody([line], new DateOnly(2026, 1, 2), null, null));
-        await store.RecordAsync(clientId, new CashDepositBody([line], new DateOnly(2026, 1, 3), null, null));
+        CashDeposit d1 = await store.RecordAsync(clientId, Guid.NewGuid(), new CashDepositBody([line], new DateOnly(2026, 1, 1), null, null));
+        await store.RecordAsync(clientId, Guid.NewGuid(), new CashDepositBody([line], new DateOnly(2026, 1, 2), null, null));
+        await store.RecordAsync(clientId, Guid.NewGuid(), new CashDepositBody([line], new DateOnly(2026, 1, 3), null, null));
         await store.VoidAsync(clientId, d1.Id);
 
         PagedResponse<CashDeposit> withoutVoided = await store.GetByClientPagedAsync(clientId, 0, 50, descending: false, includeVoided: false);
@@ -77,7 +77,7 @@ public sealed class CashPagingTests
         CashLine line = new(Guid.NewGuid(), 100m);
 
         for (int i = 0; i < 3; i++)
-            await store.RecordAsync(clientId, new CashDepositBody([line], new DateOnly(2026, 1, i + 1), null, null));
+            await store.RecordAsync(clientId, Guid.NewGuid(), new CashDepositBody([line], new DateOnly(2026, 1, i + 1), null, null));
 
         PagedResponse<CashDeposit> asc  = await store.GetByClientPagedAsync(clientId, 0, 3, descending: false, includeVoided: false);
         PagedResponse<CashDeposit> desc = await store.GetByClientPagedAsync(clientId, 0, 3, descending: true,  includeVoided: false);
@@ -96,7 +96,7 @@ public sealed class CashPagingTests
         CashLine line = new(Guid.NewGuid(), 500m);
 
         for (int i = 0; i < 3; i++)
-            await store.RecordAsync(clientId, new CashDisbursementBody([line], new DateOnly(2026, 1, i + 1), null, null));
+            await store.RecordAsync(clientId, Guid.NewGuid(), new CashDisbursementBody([line], new DateOnly(2026, 1, i + 1), null, null));
 
         PagedResponse<CashDisbursement> page1 = await store.GetByClientPagedAsync(clientId, 0, 2, descending: false, includeVoided: false);
 
@@ -112,7 +112,7 @@ public sealed class CashPagingTests
         CashLine line = new(Guid.NewGuid(), 500m);
 
         for (int i = 0; i < 3; i++)
-            await store.RecordAsync(clientId, new CashDisbursementBody([line], new DateOnly(2026, 1, i + 1), null, null));
+            await store.RecordAsync(clientId, Guid.NewGuid(), new CashDisbursementBody([line], new DateOnly(2026, 1, i + 1), null, null));
 
         PagedResponse<CashDisbursement> page1 = await store.GetByClientPagedAsync(clientId, 0, 2, descending: false, includeVoided: false);
         PagedResponse<CashDisbursement> page2 = await store.GetByClientPagedAsync(clientId, 2, 2, descending: false, includeVoided: false);
@@ -129,9 +129,9 @@ public sealed class CashPagingTests
         Guid clientId = Guid.NewGuid();
         CashLine line = new(Guid.NewGuid(), 500m);
 
-        CashDisbursement d1 = await store.RecordAsync(clientId, new CashDisbursementBody([line], new DateOnly(2026, 1, 1), null, null));
-        await store.RecordAsync(clientId, new CashDisbursementBody([line], new DateOnly(2026, 1, 2), null, null));
-        await store.RecordAsync(clientId, new CashDisbursementBody([line], new DateOnly(2026, 1, 3), null, null));
+        CashDisbursement d1 = await store.RecordAsync(clientId, Guid.NewGuid(), new CashDisbursementBody([line], new DateOnly(2026, 1, 1), null, null));
+        await store.RecordAsync(clientId, Guid.NewGuid(), new CashDisbursementBody([line], new DateOnly(2026, 1, 2), null, null));
+        await store.RecordAsync(clientId, Guid.NewGuid(), new CashDisbursementBody([line], new DateOnly(2026, 1, 3), null, null));
         await store.VoidAsync(clientId, d1.Id);
 
         PagedResponse<CashDisbursement> withoutVoided = await store.GetByClientPagedAsync(clientId, 0, 50, descending: false, includeVoided: false);

@@ -2,21 +2,25 @@ namespace Accounting101.Banking.Cash.Api;
 
 /// <summary>Record a cash disbursement (loan payment, insurance prepay, income-tax payment, owner draw,
 /// etc.). The clerk supplies the non-cash lines; the module derives the balancing Cash credit.
-/// Id/Number/Status are server-assigned and never sent.</summary>
+/// Number/Status are server-assigned. <paramref name="Id"/> is an optional caller-supplied retry key —
+/// same key and same content replays, different content is a 422.</summary>
 public sealed record RecordCashDisbursementRequest(
     IReadOnlyList<CashLineRequest> Lines,
     DateOnly Date,
     string? Reference,
-    string? Memo);
+    string? Memo,
+    Guid? Id = null);
 
 /// <summary>Record a cash deposit (owner contribution, loan proceeds, other non-invoice cash in).
 /// The clerk supplies the non-cash lines; the module derives the balancing Cash debit.
-/// Id/Number/Status are server-assigned and never sent.</summary>
+/// Number/Status are server-assigned. <paramref name="Id"/> is an optional caller-supplied retry key —
+/// same key and same content replays, different content is a 422.</summary>
 public sealed record RecordCashDepositRequest(
     IReadOnlyList<CashLineRequest> Lines,
     DateOnly Date,
     string? Reference,
-    string? Memo);
+    string? Memo,
+    Guid? Id = null);
 
 /// <summary>A single line on a cash voucher request: which account is affected and by how much.</summary>
 public sealed record CashLineRequest(Guid AccountId, decimal Amount);
