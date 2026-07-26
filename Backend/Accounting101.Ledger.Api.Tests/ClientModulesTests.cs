@@ -45,9 +45,12 @@ public sealed class ClientModulesTests(ApiFixture fixture) : IClassFixture<ApiFi
     public async Task A_mix_of_installed_and_uninstalled_keys_persists_nothing()
     {
         // A half-applied module set is worse than either clean outcome: the operator would believe the
-        // whole request landed. All or nothing.
+        // whole request landed. All or nothing. Seeded with a NON-EMPTY starting entitlement — an
+        // "still empty" outcome cannot distinguish "no write occurred" from "a write occurred that
+        // happened to persist the empty set". A distinct original value that survives the rejected
+        // request proves the write never landed.
         ControlStore control = fixture.Control();
-        SeededClient client = await fixture.SeedClientAsync(enabledModules: []);
+        SeededClient client = await fixture.SeedClientAsync(enabledModules: ["receivables"]);
         HttpClient admin = fixture.AdminClient();
 
         HttpResponseMessage response = await admin.PutAsJsonAsync(
@@ -61,7 +64,33 @@ public sealed class ClientModulesTests(ApiFixture fixture) : IClassFixture<ApiFi
 
         ClientRegistration? saved = await control.GetClientAsync(client.ClientId);
         Assert.NotNull(saved);
-        Assert.Empty(saved!.EnabledModules);
+        Assert.Equal(["receivables"], saved!.EnabledModules);
+    }
+
+    [Fact]
+    public async Task Guard_reads_the_composed_module_set_not_the_control_db()
+    {
+        // Task 4's central behavioural change: the guard now reads InstalledModules (what THIS host
+        // actually composed), not control.ListModulesAsync() (the control DB's modules collection,
+        // which ModuleRegistrar seeds from the full set of ModuleRegistration types the TEST PROCESS
+        // references — every module project, regardless of what any one host's InstalledModules says).
+        // fixture.AdminClient() boots the default host, where those two sources hold identical
+        // content, so neither of the two facts above can tell the DI-sourced guard apart from the
+        // control-DB-sourced guard it replaced. This test forces them apart: "cash" is genuinely
+        // registered in the control DB (ModuleAvailabilityTests relies on the same fact — see
+        // "cash"/"reconciliation" there), but fixture.ClientWithInstalledModules replaces THIS host's
+        // InstalledModules with a reduced set that omits it. Under the OLD control-DB-sourced guard,
+        // "cash" would be found in the control DB and this request would have returned 200; only the
+        // DI-sourced guard rejects it.
+        SeededClient client = await fixture.SeedClientAsync(enabledModules: []);
+        HttpClient admin = fixture.ClientWithInstalledModules(Guid.NewGuid(), ["receivables"], ("admin", "true"));
+
+        HttpResponseMessage response = await admin.PutAsJsonAsync(
+            $"/admin/clients/{client.ClientId}/modules",
+            new SetClientModulesRequest(["cash"]));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Contains("cash", await response.Content.ReadAsStringAsync());
     }
 
     [Fact]
