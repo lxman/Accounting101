@@ -4,8 +4,17 @@ namespace Accounting101.Receivables;
 /// the engine's document store. Voided is derived from the document lifecycle.</summary>
 public interface IPaymentStore
 {
-    Task<Payment> RecordPaymentAsync(Guid clientId, Guid id, PaymentBody body, CancellationToken ct = default);
-    Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, Guid id, CreditApplicationBody body, CancellationToken ct = default);
+    /// <summary>Records the payment under <paramref name="id"/>. <c>Created</c> is <c>true</c> only for the
+    /// caller that won the underlying atomic create; under two concurrent callers racing the SAME id exactly
+    /// one gets <c>true</c>, and the loser still gets back the winner's persisted document but must report
+    /// its own call as a replay. A caller cannot infer this from an earlier existence check — that check is
+    /// TOCTOU under concurrency.</summary>
+    Task<(Payment Payment, bool Created)> RecordPaymentAsync(Guid clientId, Guid id, PaymentBody body, CancellationToken ct = default);
+
+    /// <summary>Records the credit application under <paramref name="id"/>. <c>Created</c> is <c>true</c>
+    /// only for the caller that won the underlying atomic create — see the remarks on
+    /// <see cref="RecordPaymentAsync"/>.</summary>
+    Task<(CreditApplication Application, bool Created)> RecordCreditApplicationAsync(Guid clientId, Guid id, CreditApplicationBody body, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid documentId, CancellationToken ct = default);
     Task<Payment?> GetPaymentAsync(Guid clientId, Guid paymentId, CancellationToken ct = default);
     Task<IReadOnlyList<Payment>> GetPaymentsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default);

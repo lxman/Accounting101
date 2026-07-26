@@ -13,26 +13,31 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
     private const string CreditNotes = "credit-notes";
     private const string Refunds = "refunds";
 
-    public async Task<Payment> RecordPaymentAsync(Guid clientId, Guid id, PaymentBody body, CancellationToken ct = default)
+    public async Task<(Payment Payment, bool Created)> RecordPaymentAsync(Guid clientId, Guid id, PaymentBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        // Only the caller that actually created the document finalizes it. FinalizeAsync throws on a
-        // document that is no longer Draft (a deliberately pinned invariant), and that exception type
-        // lives in the engine's Api assembly where this module cannot catch it — so we must not race.
-        // This also means a replay burns no sequence number.
-        if (await documents.CreateWithIdAsync(clientId, Payments, id, body, Tags(body.CustomerId), ct))
+        // Only the caller that actually created the document finalizes it, so a replay burns no sequence
+        // number and cannot race a concurrent creator.
+        //
+        // CreateWithIdAsync's bool is the ONLY reliable created-vs-replayed signal: two concurrent callers
+        // can both see "not found" on an earlier existence check (inherently TOCTOU), but this create is
+        // atomic, so exactly one gets true. The service trusts this over its own pre-check.
+        bool created = await documents.CreateWithIdAsync(clientId, Payments, id, body, Tags(body.CustomerId), ct);
+        if (created)
             await documents.FinalizeAsync(clientId, Payments, id, ct);
         DocumentResult<PaymentBody>? result = await documents.GetAsync<PaymentBody>(clientId, Payments, id, ct);
-        return MapPayment(result!);
+        return (MapPayment(result!), created);
     }
 
-    public async Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, Guid id, CreditApplicationBody body, CancellationToken ct = default)
+    public async Task<(CreditApplication Application, bool Created)> RecordCreditApplicationAsync(Guid clientId, Guid id, CreditApplicationBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        if (await documents.CreateWithIdAsync(clientId, CreditApplications, id, body, Tags(body.CustomerId), ct))
+        // See RecordPaymentAsync: the atomic create's bool is the only reliable created-vs-replayed signal.
+        bool created = await documents.CreateWithIdAsync(clientId, CreditApplications, id, body, Tags(body.CustomerId), ct);
+        if (created)
             await documents.FinalizeAsync(clientId, CreditApplications, id, ct);
         DocumentResult<CreditApplicationBody>? result = await documents.GetAsync<CreditApplicationBody>(clientId, CreditApplications, id, ct);
-        return MapCredit(result!);
+        return (MapCredit(result!), created);
     }
 
     public Task VoidAsync(Guid clientId, Guid documentId, CancellationToken ct = default) =>
@@ -47,7 +52,7 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
     public async Task<IReadOnlyList<Payment>> GetPaymentsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default)
     {
         IReadOnlyList<DocumentResult<PaymentBody>> results =
-            await documents.QueryAsync<PaymentBody>(clientId, Payments, Tags(customerId), cancellationToken: ct);
+            await documents.QueryAsync<PaymentBody>(clientId, Payments, Tags(customerId), includeVoided: true, cancellationToken: ct);
         return results.Select(MapPayment).ToList();
     }
 

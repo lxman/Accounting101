@@ -280,25 +280,29 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
     private readonly ConcurrentDictionary<(Guid, Guid), CreditNote> _creditNotes = new();
     private readonly ConcurrentDictionary<(Guid, Guid), Refund> _refunds = new();
 
-    public Task<Payment> RecordPaymentAsync(Guid clientId, Guid id, PaymentBody body, CancellationToken ct = default)
+    public Task<(Payment Payment, bool Created)> RecordPaymentAsync(Guid clientId, Guid id, PaymentBody body, CancellationToken ct = default)
     {
         Payment p = new()
         {
             Id = id, CustomerId = body.CustomerId, Date = body.Date, Amount = body.Amount,
             Method = body.Method, Voided = false,
         };
-        _payments[(clientId, p.Id)] = p;
-        return Task.FromResult(p);
+        // TryAdd, not an unconditional set: mirrors the real store's insert-only create, so a fake-backed
+        // caller racing an id it doesn't yet know about gets an honest Created signal too.
+        bool created = _payments.TryAdd((clientId, id), p);
+        Payment stored = created ? p : _payments[(clientId, id)];
+        return Task.FromResult((stored, created));
     }
 
-    public Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, Guid id, CreditApplicationBody body, CancellationToken ct = default)
+    public Task<(CreditApplication Application, bool Created)> RecordCreditApplicationAsync(Guid clientId, Guid id, CreditApplicationBody body, CancellationToken ct = default)
     {
         CreditApplication c = new()
         {
             Id = id, CustomerId = body.CustomerId, Date = body.Date, Voided = false,
         };
-        _credits[(clientId, c.Id)] = c;
-        return Task.FromResult(c);
+        bool created = _credits.TryAdd((clientId, id), c);
+        CreditApplication stored = created ? c : _credits[(clientId, id)];
+        return Task.FromResult((stored, created));
     }
 
     public Task VoidAsync(Guid clientId, Guid documentId, CancellationToken ct = default)

@@ -36,7 +36,13 @@ public sealed class PaymentService(
         {
             // State-dependent: checks each invoice's remaining open balance, which this payment reduces.
             await ValidateAllocationsAsync(clientId, command.CustomerId, command.Allocations, ct);
-            known = await payments.RecordPaymentAsync(clientId, id, body, ct);
+
+            // The pre-check above is inherently TOCTOU under concurrency: two callers racing the same id
+            // can both see "not found" and both reach here. The store's atomic create is the actual
+            // arbiter — trust it over the pre-check for this response's status.
+            (Payment Payment, bool Created) result = await payments.RecordPaymentAsync(clientId, id, body, ct);
+            known = result.Payment;
+            replayed = !result.Created;
         }
 
         // Composed from the request, and posted on both branches — see Task 2 for why.
@@ -292,7 +298,13 @@ public sealed class PaymentService(
                 throw new InvalidOperationException($"Credit application of {applying} exceeds available credit {available}.");
 
             await ValidateAllocationsAsync(clientId, command.CustomerId, command.Allocations, ct);
-            known = await payments.RecordCreditApplicationAsync(clientId, id, body, ct);
+
+            // The pre-check above is inherently TOCTOU under concurrency: two callers racing the same id
+            // can both see "not found" and both reach here. The store's atomic create is the actual
+            // arbiter — trust it over the pre-check for this response's status.
+            (CreditApplication Application, bool Created) result = await payments.RecordCreditApplicationAsync(clientId, id, body, ct);
+            known = result.Application;
+            replayed = !result.Created;
         }
 
         PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
