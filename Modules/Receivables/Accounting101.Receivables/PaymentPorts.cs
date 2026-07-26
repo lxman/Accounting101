@@ -4,8 +4,8 @@ namespace Accounting101.Receivables;
 /// the engine's document store. Voided is derived from the document lifecycle.</summary>
 public interface IPaymentStore
 {
-    Task<Payment> RecordPaymentAsync(Guid clientId, PaymentBody body, CancellationToken ct = default);
-    Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, CreditApplicationBody body, CancellationToken ct = default);
+    Task<Payment> RecordPaymentAsync(Guid clientId, Guid id, PaymentBody body, CancellationToken ct = default);
+    Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, Guid id, CreditApplicationBody body, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid documentId, CancellationToken ct = default);
     Task<Payment?> GetPaymentAsync(Guid clientId, Guid paymentId, CancellationToken ct = default);
     Task<IReadOnlyList<Payment>> GetPaymentsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default);

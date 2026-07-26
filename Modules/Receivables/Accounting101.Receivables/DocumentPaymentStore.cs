@@ -13,20 +13,24 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
     private const string CreditNotes = "credit-notes";
     private const string Refunds = "refunds";
 
-    public async Task<Payment> RecordPaymentAsync(Guid clientId, PaymentBody body, CancellationToken ct = default)
+    public async Task<Payment> RecordPaymentAsync(Guid clientId, Guid id, PaymentBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        Guid id = await documents.CreateAsync(clientId, Payments, body, Tags(body.CustomerId), ct);
-        await documents.FinalizeAsync(clientId, Payments, id, ct);
+        // Only the caller that actually created the document finalizes it. FinalizeAsync throws on a
+        // document that is no longer Draft (a deliberately pinned invariant), and that exception type
+        // lives in the engine's Api assembly where this module cannot catch it — so we must not race.
+        // This also means a replay burns no sequence number.
+        if (await documents.CreateWithIdAsync(clientId, Payments, id, body, Tags(body.CustomerId), ct))
+            await documents.FinalizeAsync(clientId, Payments, id, ct);
         DocumentResult<PaymentBody>? result = await documents.GetAsync<PaymentBody>(clientId, Payments, id, ct);
         return MapPayment(result!);
     }
 
-    public async Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, CreditApplicationBody body, CancellationToken ct = default)
+    public async Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, Guid id, CreditApplicationBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        Guid id = await documents.CreateAsync(clientId, CreditApplications, body, Tags(body.CustomerId), ct);
-        await documents.FinalizeAsync(clientId, CreditApplications, id, ct);
+        if (await documents.CreateWithIdAsync(clientId, CreditApplications, id, body, Tags(body.CustomerId), ct))
+            await documents.FinalizeAsync(clientId, CreditApplications, id, ct);
         DocumentResult<CreditApplicationBody>? result = await documents.GetAsync<CreditApplicationBody>(clientId, CreditApplications, id, ct);
         return MapCredit(result!);
     }

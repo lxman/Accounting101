@@ -12,7 +12,7 @@ public sealed class DocumentPaymentStoreTests(DocumentStoreFixture fixture) : IC
         IPaymentStore store = new DocumentPaymentStore(fixture.Store);
 
         PaymentBody body = new(customer, new DateOnly(2026, 3, 31), 500m, "check");
-        Payment recorded = await store.RecordPaymentAsync(fixture.ClientId, body);
+        Payment recorded = await store.RecordPaymentAsync(fixture.ClientId, Guid.NewGuid(), body);
 
         Assert.Equal(500m, recorded.Amount);
         Assert.False(recorded.Voided);

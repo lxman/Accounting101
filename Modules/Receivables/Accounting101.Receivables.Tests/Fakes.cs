@@ -280,22 +280,22 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
     private readonly ConcurrentDictionary<(Guid, Guid), CreditNote> _creditNotes = new();
     private readonly ConcurrentDictionary<(Guid, Guid), Refund> _refunds = new();
 
-    public Task<Payment> RecordPaymentAsync(Guid clientId, PaymentBody body, CancellationToken ct = default)
+    public Task<Payment> RecordPaymentAsync(Guid clientId, Guid id, PaymentBody body, CancellationToken ct = default)
     {
         Payment p = new()
         {
-            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date, Amount = body.Amount,
+            Id = id, CustomerId = body.CustomerId, Date = body.Date, Amount = body.Amount,
             Method = body.Method, Voided = false,
         };
         _payments[(clientId, p.Id)] = p;
         return Task.FromResult(p);
     }
 
-    public Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, CreditApplicationBody body, CancellationToken ct = default)
+    public Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, Guid id, CreditApplicationBody body, CancellationToken ct = default)
     {
         CreditApplication c = new()
         {
-            Id = Guid.NewGuid(), CustomerId = body.CustomerId, Date = body.Date, Voided = false,
+            Id = id, CustomerId = body.CustomerId, Date = body.Date, Voided = false,
         };
         _credits[(clientId, c.Id)] = c;
         return Task.FromResult(c);

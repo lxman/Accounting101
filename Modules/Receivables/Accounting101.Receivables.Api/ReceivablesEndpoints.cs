@@ -236,10 +236,12 @@ public static class ReceivablesEndpoints
     {
         try
         {
-            Payment recorded = await service.RecordPaymentAsync(clientId,
-                new PaymentCommand(request.CustomerId, request.Date, request.Amount, request.Method, request.Allocations),
+            (Payment recorded, bool replayed) = await service.RecordPaymentAsync(clientId,
+                new PaymentCommand(request.CustomerId, request.Date, request.Amount, request.Method, request.Allocations, request.Id),
                 cancellationToken);
-            return Results.Created($"/clients/{clientId}/payments/{recorded.Id}", recorded);
+            return replayed
+                ? Results.Ok(recorded)
+                : Results.Created($"/clients/{clientId}/payments/{recorded.Id}", recorded);
         }
         catch (InvalidOperationException ex)
         {
@@ -266,9 +268,11 @@ public static class ReceivablesEndpoints
     {
         try
         {
-            CreditApplication applied = await service.RecordCreditApplicationAsync(clientId,
-                new CreditApplicationCommand(request.CustomerId, request.Date, request.Allocations), cancellationToken);
-            return Results.Created($"/clients/{clientId}/credit-applications/{applied.Id}", applied);
+            (CreditApplication applied, bool replayed) = await service.RecordCreditApplicationAsync(clientId,
+                new CreditApplicationCommand(request.CustomerId, request.Date, request.Allocations, request.Id), cancellationToken);
+            return replayed
+                ? Results.Ok(applied)
+                : Results.Created($"/clients/{clientId}/credit-applications/{applied.Id}", applied);
         }
         catch (InvalidOperationException ex)
         {

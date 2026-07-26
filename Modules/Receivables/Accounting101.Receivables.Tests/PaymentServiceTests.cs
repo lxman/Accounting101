@@ -59,7 +59,7 @@ public sealed class PaymentServiceTests
         (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(100m);
 
         PaymentCommand command = new(customerId, new DateOnly(2026, 3, 31), 40m, null, [new Allocation(invoice.Id, 40m)]);
-        Payment recorded = await h.Service.RecordPaymentAsync(clientId, command);
+        Payment recorded = (await h.Service.RecordPaymentAsync(clientId, command)).Payment;
 
         Assert.NotEqual(Guid.Empty, recorded.Id);
         PostEntryRequest entry = Assert.Single(h.Ledger.Posted);
@@ -121,8 +121,8 @@ public sealed class PaymentServiceTests
         // A second issued invoice to apply credit against.
         Invoice second = await IssueAnotherInvoiceAsync(h, clientId, customerId, 100m);
 
-        CreditApplication applied = await h.Service.RecordCreditApplicationAsync(clientId,
-            new CreditApplicationCommand(customerId, new DateOnly(2026, 4, 2), [new Allocation(second.Id, 50m)]));
+        CreditApplication applied = (await h.Service.RecordCreditApplicationAsync(clientId,
+            new CreditApplicationCommand(customerId, new DateOnly(2026, 4, 2), [new Allocation(second.Id, 50m)]))).Application;
 
         // CreditApplication no longer carries an Allocations array (or an Applied accessor derived from
         // one) — prove the 50 applied by folding it from the document's own posted entry instead.
@@ -147,7 +147,7 @@ public sealed class PaymentServiceTests
     public async Task Voiding_a_payment_restores_the_invoice_open_balance()
     {
         (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(100m);
-        Payment p = await h.Service.RecordPaymentAsync(clientId, new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 40m, null, [new Allocation(invoice.Id, 40m)]));
+        Payment p = (await h.Service.RecordPaymentAsync(clientId, new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 40m, null, [new Allocation(invoice.Id, 40m)]))).Payment;
         Assert.Equal(60m, (await h.Service.GetInvoiceViewAsync(clientId, invoice.Id))!.OpenBalance);
 
         await h.Service.VoidPaymentAsync(clientId, p.Id);
@@ -258,8 +258,8 @@ public sealed class PaymentServiceTests
         (Harness h, Guid clientId, Guid customerId, Invoice invoice) = await SetupWithIssuedInvoiceAsync(100m);
 
         // Act: pay in full — must not throw.
-        Payment recorded = await h.Service.RecordPaymentAsync(clientId,
-            new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(invoice.Id, 100m)]));
+        Payment recorded = (await h.Service.RecordPaymentAsync(clientId,
+            new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 100m, null, [new Allocation(invoice.Id, 100m)]))).Payment;
 
         // Assert: payment recorded and settled.
         Assert.NotEqual(Guid.Empty, recorded.Id);
@@ -500,8 +500,8 @@ public sealed class PaymentServiceTests
     {
         (Harness h, Guid clientId, Guid customerId, Invoice invoice1) = await SetupWithIssuedInvoiceAsync(100m);
         // Overpay invoice1 by 50 → $50 customer credit.
-        Payment pay = await h.Service.RecordPaymentAsync(clientId,
-            new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice1.Id, 100m)]));
+        Payment pay = (await h.Service.RecordPaymentAsync(clientId,
+            new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice1.Id, 100m)]))).Payment;
         // Apply that $50 credit to a second invoice → pool now 0.
         Invoice invoice2 = await IssueAnotherInvoiceAsync(h, clientId, customerId, 100m);
         await h.Service.RecordCreditApplicationAsync(clientId,
@@ -519,8 +519,8 @@ public sealed class PaymentServiceTests
     public async Task Voiding_a_payment_whose_credit_is_still_available_succeeds()
     {
         (Harness h, Guid clientId, Guid customerId, Invoice invoice1) = await SetupWithIssuedInvoiceAsync(100m);
-        Payment pay = await h.Service.RecordPaymentAsync(clientId,
-            new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice1.Id, 100m)]));
+        Payment pay = (await h.Service.RecordPaymentAsync(clientId,
+            new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice1.Id, 100m)]))).Payment;
 
         Payment voided = await h.Service.VoidPaymentAsync(clientId, pay.Id);
 
@@ -533,8 +533,8 @@ public sealed class PaymentServiceTests
     {
         (Harness h, Guid clientId, Guid customerId, Invoice invoice1) = await SetupWithIssuedInvoiceAsync(100m);
         // Two overpayments → pool $100.
-        Payment payA = await h.Service.RecordPaymentAsync(clientId,
-            new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice1.Id, 100m)]));
+        Payment payA = (await h.Service.RecordPaymentAsync(clientId,
+            new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice1.Id, 100m)]))).Payment;
         Invoice invoice2 = await IssueAnotherInvoiceAsync(h, clientId, customerId, 100m);
         await h.Service.RecordPaymentAsync(clientId,
             new PaymentCommand(customerId, new DateOnly(2026, 3, 31), 150m, null, [new Allocation(invoice2.Id, 100m)]));
