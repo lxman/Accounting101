@@ -1205,7 +1205,11 @@ Also stage the service and port-interface files you changed.
 - Consumes: `IDocumentStore.CreateWithIdAsync` (Task 1).
 - Produces: `InventoryMovementService.RecordAsync(Guid clientId, RecordMovement request, CancellationToken ct = default)` returns `Task<(StockMovement Movement, bool Replayed)>`; `IStockMovementStore.RecordAsync(Guid clientId, Guid id, StockMovementBody body, CancellationToken ct = default)`.
 
-**This task carries the most risk in the plan.** `InventoryMovementService.RecordAsync` does more than persist-then-post: it resolves the item, folds the current valuation, computes a `MovementEffect`, and **mutates the item's stored valuation**. A replay must skip *all* of it. Re-applying the effect would double-count on-hand quantity and value — a corruption the ledger's 422 would not catch, because the entry would be identical.
+**This task carries the most risk in the plan.** `InventoryMovementService.RecordAsync` does more than persist-then-post: it resolves the item, folds the current valuation, and computes a `MovementEffect` whose derived extended cost feeds the posting. A replay must skip all of it.
+
+**Correction, established during implementation (2026-07-25):** an earlier draft of this task and of the spec said `RecordAsync` "mutates the item's stored valuation." **It does not, and has not since the ledger-first cut-over.** `ItemBody` carries only Sku/Name/Description/UnitOfMeasure — no valuation fields — and the method only ever reads (`items.GetAsync`, `valuation.GetAsync`); there is no `items.UpdateAsync` call on this path. On-hand and value are derived on read from the ledger fold plus the movement projection.
+
+The risk is just as real but differently shaped: the double-count vector is a **second movement document plus a second posted entry**, both of which feed that derived fold. The retry key prevents both, so the mitigation is unchanged — only the mechanism description was wrong. The ledger's divergent-content 422 still cannot catch a duplicate here, because the composed entry would be identical.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1252,7 +1256,12 @@ Update `InventoryPorts.cs` to match.
 
 - [ ] **Step 5: Add the replay branch to the service**
 
-In `InventoryMovementService.RecordAsync`, insert the existence check immediately after `ValidateShape(request)` — which is stateless and stays on both branches — and put **everything else** inside the `if (!replayed)` block: the item resolve, the active-status check, the valuation fold, the `MovementEffect` computation, the extended-cost check, the account resolve, the store write, and the item-valuation mutation.
+In `InventoryMovementService.RecordAsync`, insert the existence check immediately after `ValidateShape(request)` — which is stateless and stays on both branches — and put the state-dependent work inside the `if (!replayed)` block: the item resolve, the active-status check, the valuation fold, the `MovementEffect` computation, and the extended-cost check.
+
+Two adjustments established during implementation, both deviations from this task's first draft:
+
+- **The account resolve must be hoisted ABOVE the branch, not placed inside it.** Composing the entry on both branches needs it, so it is data acquisition rather than a guard — the same distinction settled in Task 8. Cost: a client that is both misconfigured *and* naming an unknown item now gets 409 instead of 404. Untested territory either way.
+- **On the replay branch the extended cost comes from the STORED movement, not from a recomputation.** Extended cost is *derived* from the weighted-average fold, and on a replay that fold already contains this movement — so recomputing yields a different cost, or a zero cost on an issue-to-zero (spurious 422), or a spurious block-negative 409. This is a deliberate, scoped exception to "compose from the request": every *other* field of the entry still comes from the request, so date/type/item divergence is still arbitrated by the ledger. The accepted consequence is that a same-key retry differing **only** in quantity or unit cost replays instead of returning 422.
 
 ```csharp
         ValidateShape(request);   // stateless — both branches
