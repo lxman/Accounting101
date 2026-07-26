@@ -5,7 +5,12 @@ namespace Accounting101.Banking.Reconciliation;
 /// <summary>Bank adjustments as evidentiary documents (one-step record; voidable).</summary>
 public interface IBankAdjustmentStore
 {
-    Task<BankAdjustment> RecordAsync(Guid clientId, Guid id, BankAdjustmentBody body, CancellationToken ct = default);
+    /// <summary>Records the adjustment under <paramref name="id"/>. <c>Created</c> is <c>true</c> only for
+    /// the caller that won the underlying atomic create; under two concurrent callers racing the SAME id
+    /// exactly one gets <c>true</c>, and the loser still gets back the winner's persisted document but must
+    /// report its own call as a replay. A caller cannot infer this from an earlier existence check — that
+    /// check is TOCTOU under concurrency.</summary>
+    Task<(BankAdjustment Adjustment, bool Created)> RecordAsync(Guid clientId, Guid id, BankAdjustmentBody body, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid id, CancellationToken ct = default);
     Task<BankAdjustment?> GetAsync(Guid clientId, Guid id, CancellationToken ct = default);
     Task<IReadOnlyList<BankAdjustment>> GetByReconciliationAsync(Guid clientId, Guid reconciliationId, CancellationToken ct = default);

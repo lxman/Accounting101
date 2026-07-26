@@ -35,7 +35,14 @@ public sealed class AdjustmentService(
 
         // 1. Persist the evidentiary document (finalized immediately — no draft phase).
         if (!replayed)
-            known = await adjustments.RecordAsync(clientId, id, body, ct);
+        {
+            // The pre-check above is inherently TOCTOU under concurrency: two callers racing the same id
+            // can both see "not found" and both reach here. The store's atomic create is the actual
+            // arbiter — trust it over the pre-check for this response's status.
+            (BankAdjustment Adjustment, bool Created) result = await adjustments.RecordAsync(clientId, id, body, ct);
+            known = result.Adjustment;
+            replayed = !result.Created;
+        }
 
         // 2. Compose from the request and post on both branches — the ledger arbitrates a replay
         //    versus a key reused for different content, and a retry repairs a post that never landed.

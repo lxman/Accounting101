@@ -57,7 +57,7 @@ internal sealed class InMemoryBankAdjustmentStore : IBankAdjustmentStore
 {
     private readonly ConcurrentDictionary<(Guid, Guid), BankAdjustment> _store = new();
     private long _seq;
-    public Task<BankAdjustment> RecordAsync(Guid clientId, Guid id, BankAdjustmentBody body, CancellationToken ct = default)
+    public Task<(BankAdjustment Adjustment, bool Created)> RecordAsync(Guid clientId, Guid id, BankAdjustmentBody body, CancellationToken ct = default)
     {
         BankAdjustment a = new()
         {
@@ -66,8 +66,11 @@ internal sealed class InMemoryBankAdjustmentStore : IBankAdjustmentStore
             OffsetAccountId = body.OffsetAccountId, Kind = body.Kind, Amount = body.Amount,
             Date = body.Date, Memo = body.Memo, Status = BankAdjustmentStatus.Posted,
         };
-        _store[(clientId, a.Id)] = a;
-        return Task.FromResult(a);
+        // TryAdd, not an unconditional set: mirrors the real store's insert-only create, so a fake-backed
+        // caller racing an id it doesn't yet know about gets an honest Created signal too.
+        bool created = _store.TryAdd((clientId, a.Id), a);
+        BankAdjustment stored = created ? a : _store[(clientId, a.Id)];
+        return Task.FromResult((stored, created));
     }
     public Task VoidAsync(Guid clientId, Guid id, CancellationToken ct = default)
     {
