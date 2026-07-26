@@ -324,15 +324,18 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
     public Task<CreditApplication?> GetCreditApplicationAsync(Guid clientId, Guid creditApplicationId, CancellationToken ct = default) =>
         Task.FromResult(_credits.GetValueOrDefault((clientId, creditApplicationId)));
 
-    public Task<WriteOff> RecordWriteOffAsync(Guid clientId, Guid id, WriteOffBody body, CancellationToken ct = default)
+    public Task<(WriteOff WriteOff, bool Created)> RecordWriteOffAsync(Guid clientId, Guid id, WriteOffBody body, CancellationToken ct = default)
     {
         WriteOff w = new()
         {
             Id = id, CustomerId = body.CustomerId, Date = body.Date,
             Memo = body.Memo, Voided = false,
         };
-        _writeOffs[(clientId, w.Id)] = w;
-        return Task.FromResult(w);
+        // TryAdd, not an unconditional set: mirrors the real store's insert-only create, so a fake-backed
+        // caller racing an id it doesn't yet know about gets an honest Created signal too.
+        bool created = _writeOffs.TryAdd((clientId, id), w);
+        WriteOff stored = created ? w : _writeOffs[(clientId, id)];
+        return Task.FromResult((stored, created));
     }
 
     public Task<WriteOff?> GetWriteOffAsync(Guid clientId, Guid writeOffId, CancellationToken ct = default) =>
@@ -348,15 +351,18 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
         return Task.CompletedTask;
     }
 
-    public Task<CreditNote> RecordCreditNoteAsync(Guid clientId, Guid id, CreditNoteBody body, CancellationToken ct = default)
+    public Task<(CreditNote CreditNote, bool Created)> RecordCreditNoteAsync(Guid clientId, Guid id, CreditNoteBody body, CancellationToken ct = default)
     {
         CreditNote n = new()
         {
             Id = id, CustomerId = body.CustomerId, Date = body.Date,
             Memo = body.Memo, Voided = false,
         };
-        _creditNotes[(clientId, n.Id)] = n;
-        return Task.FromResult(n);
+        // TryAdd, not an unconditional set: mirrors the real store's insert-only create, so a fake-backed
+        // caller racing an id it doesn't yet know about gets an honest Created signal too.
+        bool created = _creditNotes.TryAdd((clientId, id), n);
+        CreditNote stored = created ? n : _creditNotes[(clientId, id)];
+        return Task.FromResult((stored, created));
     }
 
     public Task<CreditNote?> GetCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default) =>
@@ -372,15 +378,18 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
         return Task.CompletedTask;
     }
 
-    public Task<Refund> RecordRefundAsync(Guid clientId, Guid id, RefundBody body, CancellationToken ct = default)
+    public Task<(Refund Refund, bool Created)> RecordRefundAsync(Guid clientId, Guid id, RefundBody body, CancellationToken ct = default)
     {
         Refund r = new()
         {
             Id = id, CustomerId = body.CustomerId, Date = body.Date,
             Amount = body.Amount, Voided = false,
         };
-        _refunds[(clientId, r.Id)] = r;
-        return Task.FromResult(r);
+        // TryAdd, not an unconditional set: mirrors the real store's insert-only create, so a fake-backed
+        // caller racing an id it doesn't yet know about gets an honest Created signal too.
+        bool created = _refunds.TryAdd((clientId, id), r);
+        Refund stored = created ? r : _refunds[(clientId, id)];
+        return Task.FromResult((stored, created));
     }
 
     public Task<Refund?> GetRefundAsync(Guid clientId, Guid refundId, CancellationToken ct = default) =>

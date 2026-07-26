@@ -362,7 +362,13 @@ public sealed class PaymentService(
         if (!replayed)
         {
             await ValidateAllocationsAsync(clientId, command.CustomerId, command.Allocations, ct);
-            known = await payments.RecordWriteOffAsync(clientId, id, body, ct);
+
+            // The pre-check above is inherently TOCTOU under concurrency: two callers racing the same id
+            // can both see "not found" and both reach here. The store's atomic create is the actual
+            // arbiter — trust it over the pre-check for this response's status.
+            (WriteOff WriteOff, bool Created) result = await payments.RecordWriteOffAsync(clientId, id, body, ct);
+            known = result.WriteOff;
+            replayed = !result.Created;
         }
 
         PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
@@ -398,7 +404,13 @@ public sealed class PaymentService(
         if (!replayed)
         {
             await ValidateAllocationsAsync(clientId, command.CustomerId, command.Allocations, ct);
-            known = await payments.RecordCreditNoteAsync(clientId, id, body, ct);
+
+            // The pre-check above is inherently TOCTOU under concurrency: two callers racing the same id
+            // can both see "not found" and both reach here. The store's atomic create is the actual
+            // arbiter — trust it over the pre-check for this response's status.
+            (CreditNote CreditNote, bool Created) result = await payments.RecordCreditNoteAsync(clientId, id, body, ct);
+            known = result.CreditNote;
+            replayed = !result.Created;
         }
 
         PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);
@@ -434,7 +446,13 @@ public sealed class PaymentService(
             decimal available = await GetCustomerCreditBalanceAsync(clientId, body.CustomerId, ct);
             if (body.Amount > available)
                 throw new InvalidOperationException($"Refund of {body.Amount} exceeds available credit {available}.");
-            known = await payments.RecordRefundAsync(clientId, id, body, ct);
+
+            // The pre-check above is inherently TOCTOU under concurrency: two callers racing the same id
+            // can both see "not found" and both reach here. The store's atomic create is the actual
+            // arbiter — trust it over the pre-check for this response's status.
+            (Refund Refund, bool Created) result = await payments.RecordRefundAsync(clientId, id, body, ct);
+            known = result.Refund;
+            replayed = !result.Created;
         }
 
         PaymentPostingAccounts posting = await accounts.GetAsync(clientId, ct);

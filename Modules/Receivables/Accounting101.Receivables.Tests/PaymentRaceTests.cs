@@ -120,4 +120,104 @@ public sealed class PaymentRaceTests
         Assert.Single(results, r => r.Replayed);
         Assert.Equal(key, results[0].Application.Id);
     }
+
+    [Fact]
+    public async Task Two_write_off_racers_past_the_probe_yield_exactly_one_create()
+    {
+        InMemoryPaymentStore inner = new();
+        RaceRendezvous rendezvous = new(participants: 2);
+        RendezvousPaymentStore racingStore = new(inner, rendezvous);
+
+        Guid clientId = Guid.NewGuid();
+        Guid customerId = Guid.NewGuid();
+        Guid key = Guid.NewGuid();
+
+        FakeLedgerClient ledger = new();
+        InMemoryInvoiceStore invoices = new();
+        // Same non-binding rule as the payment race above: a small allocation against a large invoice.
+        Invoice invoice = await IssueLargeInvoiceAsync(invoices, ledger, clientId, customerId, total: 100_000m);
+
+        PaymentService service = new(racingStore, invoices, new FixedPaymentAccountsProvider(Accounts), ledger);
+
+        WriteOffCommand command = new(customerId, new DateOnly(2026, 3, 1), [new Allocation(invoice.Id, 1m)], "uncollectible", key);
+
+        Task<(WriteOff WriteOff, bool Replayed)> first = service.RecordWriteOffAsync(clientId, command);
+        Task<(WriteOff WriteOff, bool Replayed)> second = service.RecordWriteOffAsync(clientId, command);
+        (WriteOff WriteOff, bool Replayed)[] results = await Task.WhenAll(first, second);
+
+        Assert.Single(results, r => !r.Replayed);
+        Assert.Single(results, r => r.Replayed);
+        Assert.Equal(key, results[0].WriteOff.Id);
+    }
+
+    [Fact]
+    public async Task Two_credit_note_racers_past_the_probe_yield_exactly_one_create()
+    {
+        InMemoryPaymentStore inner = new();
+        RaceRendezvous rendezvous = new(participants: 2);
+        RendezvousPaymentStore racingStore = new(inner, rendezvous);
+
+        Guid clientId = Guid.NewGuid();
+        Guid customerId = Guid.NewGuid();
+        Guid key = Guid.NewGuid();
+
+        FakeLedgerClient ledger = new();
+        InMemoryInvoiceStore invoices = new();
+        // Same non-binding rule as the payment race above: a small allocation against a large invoice.
+        Invoice invoice = await IssueLargeInvoiceAsync(invoices, ledger, clientId, customerId, total: 100_000m);
+
+        PaymentService service = new(racingStore, invoices, new FixedPaymentAccountsProvider(Accounts), ledger);
+
+        CreditNoteCommand command = new(customerId, new DateOnly(2026, 3, 1), [new Allocation(invoice.Id, 1m)], "partial return", key);
+
+        Task<(CreditNote CreditNote, bool Replayed)> first = service.RecordCreditNoteAsync(clientId, command);
+        Task<(CreditNote CreditNote, bool Replayed)> second = service.RecordCreditNoteAsync(clientId, command);
+        (CreditNote CreditNote, bool Replayed)[] results = await Task.WhenAll(first, second);
+
+        Assert.Single(results, r => !r.Replayed);
+        Assert.Single(results, r => r.Replayed);
+        Assert.Equal(key, results[0].CreditNote.Id);
+    }
+
+    [Fact]
+    public async Task Two_refund_racers_past_the_probe_yield_exactly_one_create()
+    {
+        InMemoryPaymentStore inner = new();
+        RaceRendezvous rendezvous = new(participants: 2);
+        RendezvousPaymentStore racingStore = new(inner, rendezvous);
+
+        Guid clientId = Guid.NewGuid();
+        Guid customerId = Guid.NewGuid();
+        Guid key = Guid.NewGuid();
+
+        FakeLedgerClient ledger = new();
+        InMemoryInvoiceStore invoices = new();
+
+        // A refund needs available customer credit, not an invoice — seed credit well above what the
+        // racers refund, same non-binding rule as the credit-application race above (Customer Credits is
+        // credit-normal, so a CREDIT line here raises the available balance).
+        ledger.SeedEntry(new PostEntryRequest(
+            Id: null, EffectiveDate: new DateOnly(2026, 3, 1), Reference: "seed-credit", Memo: null,
+            Lines:
+            [
+                new PostLineRequest(Accounts.CustomerCreditsAccountId, "Credit", 100_000m,
+                    Dimensions: new Dictionary<string, Guid> { ["Customer"] = customerId }),
+                new PostLineRequest(DummyRevenueAccountId, "Debit", 100_000m),
+            ],
+            SourceRef: Guid.NewGuid(), SourceType: "CustomerCredit"));
+
+        PaymentService service = new(racingStore, invoices, new FixedPaymentAccountsProvider(Accounts), ledger);
+
+        // PaymentService.RecordRefundAsync takes a RefundBody plus an optional retry key (there is no
+        // RefundCommand) — command here is the body, and key is passed explicitly as the retry key.
+        RefundBody command = new(customerId, new DateOnly(2026, 3, 2), 1m, "returned");
+
+        Task<(Refund Refund, bool Replayed)> first = service.RecordRefundAsync(clientId, command, key);
+        Task<(Refund Refund, bool Replayed)> second = service.RecordRefundAsync(clientId, command, key);
+        (Refund Refund, bool Replayed)[] results = await Task.WhenAll(first, second);
+
+        Assert.Single(results, r => !r.Replayed);
+        Assert.Single(results, r => r.Replayed);
+        Assert.Equal(key, results[0].Refund.Id);
+    }
 }

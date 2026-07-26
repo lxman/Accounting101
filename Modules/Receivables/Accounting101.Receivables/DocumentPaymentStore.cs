@@ -69,14 +69,15 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
         return r is null ? null : MapCredit(r);
     }
 
-    public async Task<WriteOff> RecordWriteOffAsync(Guid clientId, Guid id, WriteOffBody body, CancellationToken ct = default)
+    public async Task<(WriteOff WriteOff, bool Created)> RecordWriteOffAsync(Guid clientId, Guid id, WriteOffBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        // Only the caller that actually created the document finalizes it — see RecordPaymentAsync above.
-        if (await documents.CreateWithIdAsync(clientId, WriteOffs, id, body, Tags(body.CustomerId), ct))
+        // See RecordPaymentAsync: the atomic create's bool is the only reliable created-vs-replayed signal.
+        bool created = await documents.CreateWithIdAsync(clientId, WriteOffs, id, body, Tags(body.CustomerId), ct);
+        if (created)
             await documents.FinalizeAsync(clientId, WriteOffs, id, ct);
         DocumentResult<WriteOffBody>? r = await documents.GetAsync<WriteOffBody>(clientId, WriteOffs, id, ct);
-        return MapWriteOff(r!);
+        return (MapWriteOff(r!), created);
     }
 
     public async Task<WriteOff?> GetWriteOffAsync(Guid clientId, Guid writeOffId, CancellationToken ct = default)
@@ -94,14 +95,15 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
     public Task VoidWriteOffAsync(Guid clientId, Guid writeOffId, CancellationToken ct = default) =>
         documents.VoidAsync(clientId, WriteOffs, writeOffId, ct);
 
-    public async Task<CreditNote> RecordCreditNoteAsync(Guid clientId, Guid id, CreditNoteBody body, CancellationToken ct = default)
+    public async Task<(CreditNote CreditNote, bool Created)> RecordCreditNoteAsync(Guid clientId, Guid id, CreditNoteBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        // Only the caller that actually created the document finalizes it — see RecordPaymentAsync above.
-        if (await documents.CreateWithIdAsync(clientId, CreditNotes, id, body, Tags(body.CustomerId), ct))
+        // See RecordPaymentAsync: the atomic create's bool is the only reliable created-vs-replayed signal.
+        bool created = await documents.CreateWithIdAsync(clientId, CreditNotes, id, body, Tags(body.CustomerId), ct);
+        if (created)
             await documents.FinalizeAsync(clientId, CreditNotes, id, ct);
         DocumentResult<CreditNoteBody>? r = await documents.GetAsync<CreditNoteBody>(clientId, CreditNotes, id, ct);
-        return MapCreditNote(r!);
+        return (MapCreditNote(r!), created);
     }
 
     public async Task<CreditNote?> GetCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default)
@@ -119,14 +121,15 @@ public sealed class DocumentPaymentStore(IDocumentStore documents) : IPaymentSto
     public Task VoidCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default) =>
         documents.VoidAsync(clientId, CreditNotes, creditNoteId, ct);
 
-    public async Task<Refund> RecordRefundAsync(Guid clientId, Guid id, RefundBody body, CancellationToken ct = default)
+    public async Task<(Refund Refund, bool Created)> RecordRefundAsync(Guid clientId, Guid id, RefundBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        // Only the caller that actually created the document finalizes it — see RecordPaymentAsync above.
-        if (await documents.CreateWithIdAsync(clientId, Refunds, id, body, Tags(body.CustomerId), ct))
+        // See RecordPaymentAsync: the atomic create's bool is the only reliable created-vs-replayed signal.
+        bool created = await documents.CreateWithIdAsync(clientId, Refunds, id, body, Tags(body.CustomerId), ct);
+        if (created)
             await documents.FinalizeAsync(clientId, Refunds, id, ct);
         DocumentResult<RefundBody>? r = await documents.GetAsync<RefundBody>(clientId, Refunds, id, ct);
-        return MapRefund(r!);
+        return (MapRefund(r!), created);
     }
 
     public async Task<Refund?> GetRefundAsync(Guid clientId, Guid refundId, CancellationToken ct = default)

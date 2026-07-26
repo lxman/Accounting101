@@ -34,8 +34,7 @@ internal sealed class RendezvousPaymentStore(InMemoryPaymentStore inner, RaceRen
         Guid clientId, Guid id, CreditApplicationBody body, CancellationToken ct = default) =>
         inner.RecordCreditApplicationAsync(clientId, id, body, ct);
 
-    // Every remaining IPaymentStore member delegates straight through, unblocked, for now.
-    // Task 7 converts the write-off / credit-note / refund records and adds their blocking probes.
+    // Every remaining IPaymentStore member delegates straight through, unblocked.
     public Task VoidAsync(Guid clientId, Guid documentId, CancellationToken ct = default) =>
         inner.VoidAsync(clientId, documentId, ct);
 
@@ -45,11 +44,16 @@ internal sealed class RendezvousPaymentStore(InMemoryPaymentStore inner, RaceRen
     public Task<IReadOnlyList<CreditApplication>> GetCreditApplicationsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default) =>
         inner.GetCreditApplicationsByCustomerAsync(clientId, customerId, ct);
 
-    public Task<WriteOff> RecordWriteOffAsync(Guid clientId, Guid id, WriteOffBody body, CancellationToken ct = default) =>
+    public Task<(WriteOff WriteOff, bool Created)> RecordWriteOffAsync(
+        Guid clientId, Guid id, WriteOffBody body, CancellationToken ct = default) =>
         inner.RecordWriteOffAsync(clientId, id, body, ct);
 
-    public Task<WriteOff?> GetWriteOffAsync(Guid clientId, Guid writeOffId, CancellationToken ct = default) =>
-        inner.GetWriteOffAsync(clientId, writeOffId, ct);
+    public async Task<WriteOff?> GetWriteOffAsync(Guid clientId, Guid writeOffId, CancellationToken ct = default)
+    {
+        WriteOff? found = await inner.GetWriteOffAsync(clientId, writeOffId, ct);
+        await rendezvous.ArriveAndWaitAsync(ct);
+        return found;
+    }
 
     public Task<IReadOnlyList<WriteOff>> GetWriteOffsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default) =>
         inner.GetWriteOffsByCustomerAsync(clientId, customerId, ct);
@@ -57,11 +61,16 @@ internal sealed class RendezvousPaymentStore(InMemoryPaymentStore inner, RaceRen
     public Task VoidWriteOffAsync(Guid clientId, Guid writeOffId, CancellationToken ct = default) =>
         inner.VoidWriteOffAsync(clientId, writeOffId, ct);
 
-    public Task<CreditNote> RecordCreditNoteAsync(Guid clientId, Guid id, CreditNoteBody body, CancellationToken ct = default) =>
+    public Task<(CreditNote CreditNote, bool Created)> RecordCreditNoteAsync(
+        Guid clientId, Guid id, CreditNoteBody body, CancellationToken ct = default) =>
         inner.RecordCreditNoteAsync(clientId, id, body, ct);
 
-    public Task<CreditNote?> GetCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default) =>
-        inner.GetCreditNoteAsync(clientId, creditNoteId, ct);
+    public async Task<CreditNote?> GetCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default)
+    {
+        CreditNote? found = await inner.GetCreditNoteAsync(clientId, creditNoteId, ct);
+        await rendezvous.ArriveAndWaitAsync(ct);
+        return found;
+    }
 
     public Task<IReadOnlyList<CreditNote>> GetCreditNotesByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default) =>
         inner.GetCreditNotesByCustomerAsync(clientId, customerId, ct);
@@ -69,11 +78,16 @@ internal sealed class RendezvousPaymentStore(InMemoryPaymentStore inner, RaceRen
     public Task VoidCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default) =>
         inner.VoidCreditNoteAsync(clientId, creditNoteId, ct);
 
-    public Task<Refund> RecordRefundAsync(Guid clientId, Guid id, RefundBody body, CancellationToken ct = default) =>
+    public Task<(Refund Refund, bool Created)> RecordRefundAsync(
+        Guid clientId, Guid id, RefundBody body, CancellationToken ct = default) =>
         inner.RecordRefundAsync(clientId, id, body, ct);
 
-    public Task<Refund?> GetRefundAsync(Guid clientId, Guid refundId, CancellationToken ct = default) =>
-        inner.GetRefundAsync(clientId, refundId, ct);
+    public async Task<Refund?> GetRefundAsync(Guid clientId, Guid refundId, CancellationToken ct = default)
+    {
+        Refund? found = await inner.GetRefundAsync(clientId, refundId, ct);
+        await rendezvous.ArriveAndWaitAsync(ct);
+        return found;
+    }
 
     public Task<IReadOnlyList<Refund>> GetRefundsByCustomerAsync(Guid clientId, Guid customerId, CancellationToken ct = default) =>
         inner.GetRefundsByCustomerAsync(clientId, customerId, ct);
