@@ -45,6 +45,11 @@ public sealed class ModuleAccess(ControlStore control)
         ModuleRegistration? module = await control.GetModuleAsync(caller.Key, cancellationToken);
         if (module is null)
             return ModuleAccessDecision.Unregistered;
+        // NOTE: Hosting.InstalledModules deliberately does NOT filter on Enabled — it means "composed",
+        // not "composed and permitted" (see its doc comment). If a future endpoint ever lets an operator
+        // flip Enabled=false, that "installed" surface will keep listing the module (and nav will keep
+        // rendering it) even though this call now refuses it. Whoever adds that switch must update both
+        // places together.
         if (!module.Enabled)
             return ModuleAccessDecision.Disabled;
 
