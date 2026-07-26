@@ -118,6 +118,15 @@ public sealed class BillPaymentRetryKeyDepthTests(PayablesHostFixture httpFixtur
         Assert.Single(all); // no second document was created
     }
 
+    /// <summary>
+    /// End-to-end proof that one document and one non-reversal entry survive two same-key posts, through
+    /// real HTTP and real Mongo — coverage the service-level race test cannot provide.
+    ///
+    /// It does NOT pin the TOCTOU fix: these two posts usually serialize, and when they do the second
+    /// one's pre-check finds the document and returns 200, so the status assertions below hold even if
+    /// the fix is reverted. <see cref="BillPaymentRaceTests"/> is what forces the interleaving and fails
+    /// when the fix is absent. Keep both.
+    /// </summary>
     [Fact]
     public async Task Two_concurrent_posts_with_the_same_key_yield_one_document_and_one_entry()
     {
