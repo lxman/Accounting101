@@ -39,10 +39,12 @@ public enum ReactivateResult { NotFound, AlreadyActive, Reactivated }
 /// connection.</summary>
 public interface IStockMovementStore
 {
-    /// <summary>Persists the movement under the CALLER-CHOSEN <paramref name="id"/> (the retry key, or a
-    /// fresh Guid when the caller supplied none). Insert-only: an id already taken is returned as-is,
-    /// never overwritten and never re-numbered.</summary>
-    Task<StockMovement> RecordAsync(Guid clientId, Guid id, StockMovementBody body, CancellationToken ct = default);
+    /// <summary>Records the movement under <paramref name="id"/>. <c>Created</c> is <c>true</c> only for
+    /// the caller that won the underlying atomic create; under two concurrent callers racing the SAME id
+    /// exactly one gets <c>true</c>, and the loser still gets back the winner's persisted document but must
+    /// report its own call as a replay. A caller cannot infer this from an earlier existence check — that
+    /// check is TOCTOU under concurrency.</summary>
+    Task<(StockMovement Movement, bool Created)> RecordAsync(Guid clientId, Guid id, StockMovementBody body, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid movementId, CancellationToken ct = default);
     Task<StockMovement?> GetAsync(Guid clientId, Guid movementId, CancellationToken ct = default);
     Task<PagedResponse<StockMovement>> GetByItemPagedAsync(

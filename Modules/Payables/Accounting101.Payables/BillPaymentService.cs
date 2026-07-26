@@ -83,7 +83,15 @@ public sealed class BillPaymentService(
                 throw new InvalidOperationException($"Credit application of {applying} exceeds available credit {available}.");
 
             await ValidateAllocationsAsync(clientId, command.VendorId, command.Allocations, ct);
-            known = await payments.RecordCreditApplicationAsync(clientId, id, body, ct);
+
+            // The pre-check above is inherently TOCTOU under concurrency: two callers racing the same id
+            // can both see "not found" and both reach here. The store's own atomic create is the actual
+            // arbiter — only its result tells a caller whether IT created the document or lost the race
+            // and is really replaying. Trust that over the pre-check for this response's status.
+            (VendorCreditApplication Application, bool Created) result =
+                await payments.RecordCreditApplicationAsync(clientId, id, body, ct);
+            known = result.Application;
+            replayed = !result.Created;
         }
 
         BillPaymentPostingAccounts posting = await accounts.GetPaymentAccountsAsync(clientId, ct);

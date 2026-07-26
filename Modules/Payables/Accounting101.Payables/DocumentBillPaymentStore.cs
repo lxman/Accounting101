@@ -30,17 +30,22 @@ public sealed class DocumentBillPaymentStore(IDocumentStore documents) : IBillPa
         return (MapPayment(result!), created);
     }
 
-    public async Task<VendorCreditApplication> RecordCreditApplicationAsync(Guid clientId, Guid id, VendorCreditApplicationBody body, CancellationToken ct = default)
+    public async Task<(VendorCreditApplication Application, bool Created)> RecordCreditApplicationAsync(Guid clientId, Guid id, VendorCreditApplicationBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         // Only the caller that actually created the document finalizes it. FinalizeAsync throws on a
         // document that is no longer Draft (a deliberately pinned invariant), and that exception type
         // lives in the engine's Api assembly where this module cannot catch it — so we must not race.
         // This also means a replay burns no sequence number.
-        if (await documents.CreateWithIdAsync(clientId, VendorCreditApplications, id, body, Tags(body.VendorId), ct))
+        //
+        // CreateWithIdAsync's bool is the ONLY reliable signal of who won a race on this id: two concurrent
+        // callers can both see "not found" on an earlier existence check (that check is inherently TOCTOU),
+        // but the engine's insert-only create is atomic, so exactly one caller gets true here.
+        bool created = await documents.CreateWithIdAsync(clientId, VendorCreditApplications, id, body, Tags(body.VendorId), ct);
+        if (created)
             await documents.FinalizeAsync(clientId, VendorCreditApplications, id, ct);
         DocumentResult<VendorCreditApplicationBody>? result = await documents.GetAsync<VendorCreditApplicationBody>(clientId, VendorCreditApplications, id, ct);
-        return MapCredit(result!);
+        return (MapCredit(result!), created);
     }
 
     public Task VoidAsync(Guid clientId, Guid paymentId, CancellationToken ct = default) =>
@@ -62,10 +67,12 @@ public sealed class DocumentBillPaymentStore(IDocumentStore documents) : IBillPa
         return results.Select(MapPayment).ToList();
     }
 
+    // Voided credit applications are included (greyed in the UI, per BillPaymentService's list-view docs) —
+    // the caller/service filters, not this store — so includeVoided: true here, matching the sibling above.
     public async Task<IReadOnlyList<VendorCreditApplication>> GetCreditApplicationsByVendorAsync(Guid clientId, Guid vendorId, CancellationToken ct = default)
     {
         IReadOnlyList<DocumentResult<VendorCreditApplicationBody>> results =
-            await documents.QueryAsync<VendorCreditApplicationBody>(clientId, VendorCreditApplications, Tags(vendorId), cancellationToken: ct);
+            await documents.QueryAsync<VendorCreditApplicationBody>(clientId, VendorCreditApplications, Tags(vendorId), includeVoided: true, cancellationToken: ct);
         return results.Select(MapCredit).ToList();
     }
 

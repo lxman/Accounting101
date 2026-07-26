@@ -13,7 +13,37 @@ internal sealed class FakeLedgerClient : ILedgerClient
     private readonly Dictionary<Guid, IReadOnlyList<PostLineRequest>> _linesById = new();
     private readonly List<PostEntryRequest> _posted = [];
 
-    public IReadOnlyList<PostEntryRequest> Posted => _posted;
+    // Maps a SourceRef to the request that first posted under it, and to the entry that request minted —
+    // mirrors the real engine's idempotent-post arbitration (LedgerEndpoints.PostEntry /
+    // EntryComparison.SameFinancialContent): a second PostAsync carrying the SAME SourceRef is either a
+    // replay of the same operation (return the existing entry, don't double-count the fold) or a key
+    // reused for different content (422 in production; an exception here).
+    private readonly Dictionary<Guid, PostEntryRequest> _bySourceRef = new();
+    private readonly Dictionary<Guid, Guid> _entryIdBySourceRef = new();
+
+    // PostAsync is now the target of a per-SourceRef check-then-act over plain (non-concurrent)
+    // collections, and this project's race tests genuinely drive two racers through it concurrently
+    // past their store-side rendezvous. A lock here is minimal and keeps this fake's long-standing
+    // plain-Dictionary/List design everywhere else (see the 2026-07-26 toctou-status-code plan's
+    // Task 9 cross-cutting finding).
+    //
+    // The SAME lock also guards every OTHER member that reads or mutates _entries/_linesById/_posted
+    // below (GetEntriesBySourceRefAsync, GetSubledgerAsync, ApproveAsync, ReverseAsync, VoidAsync, the
+    // Posted getter) — not just PostAsync's write path. This fake predates concurrent access entirely
+    // (it was built as a single-threaded, sequential test double), and this project's race tests are
+    // the first callers to genuinely drive a reader concurrently with PostAsync's writer: a plain
+    // Dictionary throws InvalidOperationException when enumerated (GetSubledgerAsync's foreach) while
+    // another thread inserts into it, which is exactly what a racer's pre-post fold read does while its
+    // sibling racer's PostAsync is landing — five of Receivables' record paths read the AR fold before
+    // creating. `lock` is reentrant on the same thread, and none of these methods call another locked
+    // member on `this` or await while holding the lock (all bodies below are synchronous despite the
+    // Task-returning signature — verified before adding these locks), so there is no deadlock risk.
+    private readonly object _postLock = new();
+
+    public IReadOnlyList<PostEntryRequest> Posted
+    {
+        get { lock (_postLock) return _posted.ToList(); }
+    }
 
     /// <summary>The most recently posted entry, or null if nothing has posted yet.</summary>
     public PostEntryRequest? LastPosted { get; private set; }
@@ -34,14 +64,72 @@ internal sealed class FakeLedgerClient : ILedgerClient
             await OnValidate(entry);
     }
 
+    // FORWARD-LOOKING CAVEAT (2026-07-26): a same-SourceRef replay returns the FIRST request's
+    // persisted entry without appending to _posted/_LastPosted a second time — already true before
+    // this fix, and no existing assertion depends on the opposite. But it means a future "a replay
+    // posts no second entry" test written against THIS fake would pass whether or not the service
+    // under test actually replays correctly, because the fake collapses the duplicate for you
+    // regardless. Assert that property against the real engine (HTTP/Mongo), not this fake.
     public Task<PostEntryResponse> PostAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
     {
-        _posted.Add(entry);
-        LastPosted = entry;
-        var id = Guid.NewGuid();
-        _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "PendingApproval", reversalOf: null, lines: entry.Lines);
-        _linesById[id] = entry.Lines;
-        return Task.FromResult(new PostEntryResponse(id, "Active", "PendingApproval"));
+        lock (_postLock)
+        {
+            if (entry.SourceRef is { } sourceRef && _bySourceRef.TryGetValue(sourceRef, out PostEntryRequest? seen))
+            {
+                // Production answers 422 when a key is reused for different content. Mirror that here, or every
+                // divergent-retry test written against this fake passes vacuously.
+                if (!SameContent(seen, entry))
+                    throw new InvalidOperationException(
+                        $"Entry for SourceRef {sourceRef} already exists with different content.");
+
+                EntryResponse existing = _entries[_entryIdBySourceRef[sourceRef]];
+                return Task.FromResult(new PostEntryResponse(existing.Id, existing.Status, existing.Posting));
+            }
+
+            _posted.Add(entry);
+            LastPosted = entry;
+            var id = Guid.NewGuid();
+            _entries[id] = Entry(id, entry.SourceRef, entry.SourceType, posting: "PendingApproval", reversalOf: null, lines: entry.Lines);
+            _linesById[id] = entry.Lines;
+            if (entry.SourceRef is { } sr)
+            {
+                _bySourceRef[sr] = entry;
+                _entryIdBySourceRef[sr] = id;
+            }
+            return Task.FromResult(new PostEntryResponse(id, "Active", "PendingApproval"));
+        }
+    }
+
+    // Matches EntryComparison.SameFinancialContent (Backend/Accounting101.Ledger.Core/Journal/
+    // EntryComparison.cs) field-for-field, minus SourceRef (already guaranteed equal — the call site
+    // above only reaches this after keying on a matching SourceRef). Reference/Memo are deliberately
+    // NOT compared: production ignores them (EntryComparison.cs:5-7's own doc comment calls them
+    // "descriptive", and the implementation never reads them), so a Memo/Reference-only retry is a
+    // successful replay in production, not a 422 — comparing them here would make this fake STRICTER
+    // than production, which is exactly the wrong direction for a fidelity fake.
+    private static bool SameContent(PostEntryRequest a, PostEntryRequest b) =>
+        a.EffectiveDate == b.EffectiveDate
+        && a.Type == b.Type
+        && a.SourceType == b.SourceType
+        && a.Lines.Count == b.Lines.Count
+        && a.Lines.Zip(b.Lines).All(p =>
+            p.First.AccountId == p.Second.AccountId
+            && p.First.Direction == p.Second.Direction
+            && p.First.Amount == p.Second.Amount
+            && SameDimensions(p.First.Dimensions, p.Second.Dimensions));
+
+    // Ported from EntryComparison.SameDimensions (EntryComparison.cs:37-45), a value comparison (not
+    // reference equality) — extended only for PostLineRequest.Dimensions being nullable, unlike
+    // production's non-null Line.Dimensions; null and empty are treated as equivalent.
+    private static bool SameDimensions(IReadOnlyDictionary<string, Guid>? x, IReadOnlyDictionary<string, Guid>? y)
+    {
+        int xCount = x?.Count ?? 0;
+        int yCount = y?.Count ?? 0;
+        if (xCount != yCount) return false;
+        if (xCount == 0) return true;
+        foreach (KeyValuePair<string, Guid> kv in x!)
+            if (!y!.TryGetValue(kv.Key, out Guid v) || v != kv.Value) return false;
+        return true;
     }
 
     /// <summary>
@@ -59,36 +147,48 @@ internal sealed class FakeLedgerClient : ILedgerClient
 
     public Task<EntryResponse> ApproveAsync(Guid clientId, Guid entryId, CancellationToken cancellationToken = default)
     {
-        EntryResponse posted = _entries[entryId] with { Posting = "Posted" };
-        _entries[entryId] = posted;
-        return Task.FromResult(posted);
+        lock (_postLock)
+        {
+            EntryResponse posted = _entries[entryId] with { Posting = "Posted" };
+            _entries[entryId] = posted;
+            return Task.FromResult(posted);
+        }
     }
 
     public Task<EntryResponse> ReverseAsync(Guid clientId, Guid entryId, ReverseRequest request, CancellationToken cancellationToken = default)
     {
-        ReversalCount++;
-        EntryResponse original = _entries[entryId];
-        var id = Guid.NewGuid();
-        // A reversal's fold effect is the original entry's lines with direction flipped — the original
-        // entry stays Active (and still counted) so the pair nets to zero, exactly like the real engine.
-        IReadOnlyList<PostLineRequest> reversedLines = _linesById.TryGetValue(entryId, out IReadOnlyList<PostLineRequest>? originalLines)
-            ? originalLines.Select(l => l with { Direction = Flip(l.Direction) }).ToList()
-            : [];
-        EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "PendingApproval", reversalOf: entryId, lines: reversedLines);
-        _entries[id] = reversal;
-        _linesById[id] = reversedLines;
-        return Task.FromResult(reversal);
+        lock (_postLock)
+        {
+            ReversalCount++;
+            EntryResponse original = _entries[entryId];
+            var id = Guid.NewGuid();
+            // A reversal's fold effect is the original entry's lines with direction flipped — the original
+            // entry stays Active (and still counted) so the pair nets to zero, exactly like the real engine.
+            IReadOnlyList<PostLineRequest> reversedLines = _linesById.TryGetValue(entryId, out IReadOnlyList<PostLineRequest>? originalLines)
+                ? originalLines.Select(l => l with { Direction = Flip(l.Direction) }).ToList()
+                : [];
+            EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "PendingApproval", reversalOf: entryId, lines: reversedLines);
+            _entries[id] = reversal;
+            _linesById[id] = reversedLines;
+            return Task.FromResult(reversal);
+        }
     }
 
     public Task<EntryResponse> VoidAsync(Guid clientId, Guid entryId, VoidRequest request, CancellationToken cancellationToken = default)
     {
-        EntryResponse voided = _entries[entryId] with { Status = "Voided" };
-        _entries[entryId] = voided;
-        return Task.FromResult(voided);
+        lock (_postLock)
+        {
+            EntryResponse voided = _entries[entryId] with { Status = "Voided" };
+            _entries[entryId] = voided;
+            return Task.FromResult(voided);
+        }
     }
 
-    public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<EntryResponse>>(_entries.Values.Where(e => e.SourceRef == sourceRef).ToList());
+    public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default)
+    {
+        lock (_postLock)
+            return Task.FromResult<IReadOnlyList<EntryResponse>>(_entries.Values.Where(e => e.SourceRef == sourceRef).ToList());
+    }
 
     /// <summary>
     /// A real per-dimension fold over every posted entry's lines, mirroring the real engine's subledger
@@ -118,21 +218,24 @@ internal sealed class FakeLedgerClient : ILedgerClient
         Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default,
         bool includePending = false)
     {
-        Dictionary<Guid, decimal> totals = new();
-        foreach ((Guid id, EntryResponse response) in _entries)
+        lock (_postLock)
         {
-            if (response.Status != "Active") continue;
-            if (!_linesById.TryGetValue(id, out IReadOnlyList<PostLineRequest>? lines)) continue;
-            foreach (PostLineRequest line in lines)
+            Dictionary<Guid, decimal> totals = new();
+            foreach ((Guid id, EntryResponse response) in _entries)
             {
-                if (line.AccountId != account) continue;
-                if (line.Dimensions is null || !line.Dimensions.TryGetValue(dimension, out Guid dimValue)) continue;
-                decimal signed = line.Direction == "Debit" ? line.Amount : -line.Amount;
-                totals[dimValue] = totals.GetValueOrDefault(dimValue) + signed;
+                if (response.Status != "Active") continue;
+                if (!_linesById.TryGetValue(id, out IReadOnlyList<PostLineRequest>? lines)) continue;
+                foreach (PostLineRequest line in lines)
+                {
+                    if (line.AccountId != account) continue;
+                    if (line.Dimensions is null || !line.Dimensions.TryGetValue(dimension, out Guid dimValue)) continue;
+                    decimal signed = line.Direction == "Debit" ? line.Amount : -line.Amount;
+                    totals[dimValue] = totals.GetValueOrDefault(dimValue) + signed;
+                }
             }
+            return Task.FromResult<IReadOnlyList<SubledgerLineResponse>>(
+                totals.Select(kv => new SubledgerLineResponse(account, kv.Key, kv.Value)).ToList());
         }
-        return Task.FromResult<IReadOnlyList<SubledgerLineResponse>>(
-            totals.Select(kv => new SubledgerLineResponse(account, kv.Key, kv.Value)).ToList());
     }
 
     public Task<IReadOnlyList<AccountResponse>> GetAccountsAsync(Guid clientId, CancellationToken cancellationToken = default) =>
@@ -280,25 +383,29 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
     private readonly ConcurrentDictionary<(Guid, Guid), CreditNote> _creditNotes = new();
     private readonly ConcurrentDictionary<(Guid, Guid), Refund> _refunds = new();
 
-    public Task<Payment> RecordPaymentAsync(Guid clientId, Guid id, PaymentBody body, CancellationToken ct = default)
+    public Task<(Payment Payment, bool Created)> RecordPaymentAsync(Guid clientId, Guid id, PaymentBody body, CancellationToken ct = default)
     {
         Payment p = new()
         {
             Id = id, CustomerId = body.CustomerId, Date = body.Date, Amount = body.Amount,
             Method = body.Method, Voided = false,
         };
-        _payments[(clientId, p.Id)] = p;
-        return Task.FromResult(p);
+        // TryAdd, not an unconditional set: mirrors the real store's insert-only create, so a fake-backed
+        // caller racing an id it doesn't yet know about gets an honest Created signal too.
+        bool created = _payments.TryAdd((clientId, id), p);
+        Payment stored = created ? p : _payments[(clientId, id)];
+        return Task.FromResult((stored, created));
     }
 
-    public Task<CreditApplication> RecordCreditApplicationAsync(Guid clientId, Guid id, CreditApplicationBody body, CancellationToken ct = default)
+    public Task<(CreditApplication Application, bool Created)> RecordCreditApplicationAsync(Guid clientId, Guid id, CreditApplicationBody body, CancellationToken ct = default)
     {
         CreditApplication c = new()
         {
             Id = id, CustomerId = body.CustomerId, Date = body.Date, Voided = false,
         };
-        _credits[(clientId, c.Id)] = c;
-        return Task.FromResult(c);
+        bool created = _credits.TryAdd((clientId, id), c);
+        CreditApplication stored = created ? c : _credits[(clientId, id)];
+        return Task.FromResult((stored, created));
     }
 
     public Task VoidAsync(Guid clientId, Guid documentId, CancellationToken ct = default)
@@ -320,15 +427,18 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
     public Task<CreditApplication?> GetCreditApplicationAsync(Guid clientId, Guid creditApplicationId, CancellationToken ct = default) =>
         Task.FromResult(_credits.GetValueOrDefault((clientId, creditApplicationId)));
 
-    public Task<WriteOff> RecordWriteOffAsync(Guid clientId, Guid id, WriteOffBody body, CancellationToken ct = default)
+    public Task<(WriteOff WriteOff, bool Created)> RecordWriteOffAsync(Guid clientId, Guid id, WriteOffBody body, CancellationToken ct = default)
     {
         WriteOff w = new()
         {
             Id = id, CustomerId = body.CustomerId, Date = body.Date,
             Memo = body.Memo, Voided = false,
         };
-        _writeOffs[(clientId, w.Id)] = w;
-        return Task.FromResult(w);
+        // TryAdd, not an unconditional set: mirrors the real store's insert-only create, so a fake-backed
+        // caller racing an id it doesn't yet know about gets an honest Created signal too.
+        bool created = _writeOffs.TryAdd((clientId, id), w);
+        WriteOff stored = created ? w : _writeOffs[(clientId, id)];
+        return Task.FromResult((stored, created));
     }
 
     public Task<WriteOff?> GetWriteOffAsync(Guid clientId, Guid writeOffId, CancellationToken ct = default) =>
@@ -344,15 +454,18 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
         return Task.CompletedTask;
     }
 
-    public Task<CreditNote> RecordCreditNoteAsync(Guid clientId, Guid id, CreditNoteBody body, CancellationToken ct = default)
+    public Task<(CreditNote CreditNote, bool Created)> RecordCreditNoteAsync(Guid clientId, Guid id, CreditNoteBody body, CancellationToken ct = default)
     {
         CreditNote n = new()
         {
             Id = id, CustomerId = body.CustomerId, Date = body.Date,
             Memo = body.Memo, Voided = false,
         };
-        _creditNotes[(clientId, n.Id)] = n;
-        return Task.FromResult(n);
+        // TryAdd, not an unconditional set: mirrors the real store's insert-only create, so a fake-backed
+        // caller racing an id it doesn't yet know about gets an honest Created signal too.
+        bool created = _creditNotes.TryAdd((clientId, id), n);
+        CreditNote stored = created ? n : _creditNotes[(clientId, id)];
+        return Task.FromResult((stored, created));
     }
 
     public Task<CreditNote?> GetCreditNoteAsync(Guid clientId, Guid creditNoteId, CancellationToken ct = default) =>
@@ -368,15 +481,18 @@ internal sealed class InMemoryPaymentStore : IPaymentStore
         return Task.CompletedTask;
     }
 
-    public Task<Refund> RecordRefundAsync(Guid clientId, Guid id, RefundBody body, CancellationToken ct = default)
+    public Task<(Refund Refund, bool Created)> RecordRefundAsync(Guid clientId, Guid id, RefundBody body, CancellationToken ct = default)
     {
         Refund r = new()
         {
             Id = id, CustomerId = body.CustomerId, Date = body.Date,
             Amount = body.Amount, Voided = false,
         };
-        _refunds[(clientId, r.Id)] = r;
-        return Task.FromResult(r);
+        // TryAdd, not an unconditional set: mirrors the real store's insert-only create, so a fake-backed
+        // caller racing an id it doesn't yet know about gets an honest Created signal too.
+        bool created = _refunds.TryAdd((clientId, id), r);
+        Refund stored = created ? r : _refunds[(clientId, id)];
+        return Task.FromResult((stored, created));
     }
 
     public Task<Refund?> GetRefundAsync(Guid clientId, Guid refundId, CancellationToken ct = default) =>

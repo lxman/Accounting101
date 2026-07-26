@@ -26,7 +26,12 @@ public interface IBillPaymentStore
     /// distinction; a caller cannot safely infer it from an earlier existence check alone (a classic TOCTOU
     /// race under concurrency).</summary>
     Task<(BillPayment Payment, bool Created)> RecordPaymentAsync(Guid clientId, Guid id, BillPaymentBody body, CancellationToken ct = default);
-    Task<VendorCreditApplication> RecordCreditApplicationAsync(Guid clientId, Guid id, VendorCreditApplicationBody body, CancellationToken ct = default);
+    /// <summary>Records the credit application under <paramref name="id"/>. <c>Created</c> is <c>true</c>
+    /// only for the caller that won the underlying atomic create; under two concurrent callers racing the
+    /// SAME id exactly one gets <c>true</c>, and the loser still gets back the winner's persisted document
+    /// but must report its own call as a replay. A caller cannot infer this from an earlier existence
+    /// check — that check is TOCTOU under concurrency.</summary>
+    Task<(VendorCreditApplication Application, bool Created)> RecordCreditApplicationAsync(Guid clientId, Guid id, VendorCreditApplicationBody body, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid paymentId, CancellationToken ct = default);
     Task<BillPayment?> GetPaymentAsync(Guid clientId, Guid paymentId, CancellationToken ct = default);
     Task<IReadOnlyList<BillPayment>> GetPaymentsByVendorAsync(Guid clientId, Guid vendorId, CancellationToken ct = default);

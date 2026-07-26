@@ -6,7 +6,12 @@ namespace Accounting101.Banking.Cash;
 /// store. One-step record (finalize immediately) / void lifecycle; no draft phase.</summary>
 public interface ICashDisbursementStore
 {
-    Task<CashDisbursement> RecordAsync(Guid clientId, Guid id, CashDisbursementBody body, CancellationToken ct = default);
+    /// <summary>Records the disbursement under <paramref name="id"/>. <c>Created</c> is <c>true</c> only for
+    /// the caller that won the underlying atomic create; under two concurrent callers racing the SAME id
+    /// exactly one gets <c>true</c>, and the loser still gets back the winner's persisted document but must
+    /// report its own call as a replay. A caller cannot infer this from an earlier existence check — that
+    /// check is TOCTOU under concurrency.</summary>
+    Task<(CashDisbursement Disbursement, bool Created)> RecordAsync(Guid clientId, Guid id, CashDisbursementBody body, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid id, CancellationToken ct = default);
     Task<CashDisbursement?> GetAsync(Guid clientId, Guid id, CancellationToken ct = default);
     Task<IReadOnlyList<CashDisbursement>> GetByClientAsync(Guid clientId, CancellationToken ct = default);
@@ -17,7 +22,12 @@ public interface ICashDisbursementStore
 /// store. One-step record (finalize immediately) / void lifecycle; no draft phase.</summary>
 public interface ICashDepositStore
 {
-    Task<CashDeposit> RecordAsync(Guid clientId, Guid id, CashDepositBody body, CancellationToken ct = default);
+    /// <summary>Records the deposit under <paramref name="id"/>. <c>Created</c> is <c>true</c> only for the
+    /// caller that won the underlying atomic create; under two concurrent callers racing the SAME id exactly
+    /// one gets <c>true</c>, and the loser still gets back the winner's persisted document but must report
+    /// its own call as a replay. A caller cannot infer this from an earlier existence check — that check is
+    /// TOCTOU under concurrency.</summary>
+    Task<(CashDeposit Deposit, bool Created)> RecordAsync(Guid clientId, Guid id, CashDepositBody body, CancellationToken ct = default);
     Task VoidAsync(Guid clientId, Guid id, CancellationToken ct = default);
     Task<CashDeposit?> GetAsync(Guid clientId, Guid id, CancellationToken ct = default);
     Task<IReadOnlyList<CashDeposit>> GetByClientAsync(Guid clientId, CancellationToken ct = default);

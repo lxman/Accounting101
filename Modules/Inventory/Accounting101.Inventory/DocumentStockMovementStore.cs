@@ -9,15 +9,20 @@ public sealed class DocumentStockMovementStore(IDocumentStore documents) : IStoc
 {
     private const string Collection = "stock-movements";
 
-    public async Task<StockMovement> RecordAsync(Guid clientId, Guid id, StockMovementBody body, CancellationToken ct = default)
+    public async Task<(StockMovement Movement, bool Created)> RecordAsync(Guid clientId, Guid id, StockMovementBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
         // Evidentiary: create then finalize to assign the sequence number — but only the caller that
         // actually created it finalizes, so a replay burns no number and cannot race a concurrent creator.
-        if (await documents.CreateWithIdAsync(clientId, Collection, id, body, Tags(), ct))
+        //
+        // That bool is also the ONLY reliable created-vs-replayed signal: two concurrent callers can both
+        // see "not found" on an earlier existence check (inherently TOCTOU), but this create is atomic, so
+        // exactly one gets true. The service trusts this over its own pre-check.
+        bool created = await documents.CreateWithIdAsync(clientId, Collection, id, body, Tags(), ct);
+        if (created)
             await documents.FinalizeAsync(clientId, Collection, id, ct);
         DocumentResult<StockMovementBody>? result = await documents.GetAsync<StockMovementBody>(clientId, Collection, id, ct);
-        return Map(result!);
+        return (Map(result!), created);
     }
 
     public Task VoidAsync(Guid clientId, Guid movementId, CancellationToken ct = default) =>
