@@ -70,4 +70,38 @@ public sealed class ModuleAvailabilityTests(ApiFixture fixture) : IClassFixture<
         Assert.NotNull(stored);
         Assert.Contains("reconciliation", stored!.EnabledModules);
     }
+
+    [Fact]
+    public async Task Posting_account_slots_are_offered_for_an_installed_entitled_module()
+    {
+        SeededClient c = await fixture.SeedClientAsync("SlotsInstalled");
+        await fixture.Control().SetClientModulesAsync(c.ClientId, ["cash"]);
+        Guid userId = Guid.NewGuid();
+        await fixture.Control().SetMembershipAsync(
+            userId, c.ClientId, [], [Capabilities.AdminPostingAccounts, Capabilities.GlRead]);
+
+        HttpClient http = fixture.ClientWithInstalledModules(userId, ["cash"]);
+        PostingAccountsResponse response = (await http.GetFromJsonAsync<PostingAccountsResponse>(
+            $"/clients/{c.ClientId}/posting-accounts"))!;
+
+        Assert.Equal("cash", Assert.Single(response.Slots).ModuleKey);
+    }
+
+    [Fact]
+    public async Task Posting_account_slots_are_not_offered_for_an_uninstalled_module()
+    {
+        // Offering a config slot for a module this deployment never composed is the same lie the
+        // capabilities payload used to tell, in a different place.
+        SeededClient c = await fixture.SeedClientAsync("SlotsAbsent");
+        await fixture.Control().SetClientModulesAsync(c.ClientId, ["cash"]);
+        Guid userId = Guid.NewGuid();
+        await fixture.Control().SetMembershipAsync(
+            userId, c.ClientId, [], [Capabilities.AdminPostingAccounts, Capabilities.GlRead]);
+
+        HttpClient http = fixture.ClientWithInstalledModules(userId, ["reconciliation"]);
+        PostingAccountsResponse response = (await http.GetFromJsonAsync<PostingAccountsResponse>(
+            $"/clients/{c.ClientId}/posting-accounts"))!;
+
+        Assert.Empty(response.Slots);
+    }
 }

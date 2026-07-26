@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Control;
+using Accounting101.Ledger.Api.Hosting;
 using Accounting101.Ledger.Contracts;
 
 namespace Accounting101.Ledger.Api.Endpoints;
@@ -22,7 +23,7 @@ public static class PostingAccountEndpoints
 
     private static async Task<IResult> GetPostingAccounts(
         Guid clientId, ClaimsPrincipal user, IActorFactory actorFactory, ControlStore control,
-        PostingAccountStore store, CancellationToken ct)
+        PostingAccountStore store, InstalledModules installed, CancellationToken ct)
     {
         if (!await AdminAuthorization.MayAsync(user, clientId, Capabilities.AdminPostingAccounts, actorFactory, control, ct))
             return Results.Forbid();
@@ -30,7 +31,9 @@ public static class PostingAccountEndpoints
         ClientRegistration? client = await control.GetClientAsync(clientId, ct);
         if (client is null) return Results.NotFound();
 
-        HashSet<string> enabled = [.. client.EnabledModules];
+        // Availability = installed ∩ entitled: only offer config slots for modules that are both sold
+        // to this client AND composed into this deployment.
+        HashSet<string> available = [.. client.EnabledModules.Where(installed.Has)];
         PostingAccountsDoc? doc = await store.GetAsync(clientId, ct);
 
         Guid? Current(string moduleKey, string slotKey) =>
@@ -39,7 +42,7 @@ public static class PostingAccountEndpoints
                 ? id : null;
 
         List<PostingAccountSlotResponse> slots = PostingAccountSlots.All
-            .Where(s => enabled.Contains(s.ModuleKey))
+            .Where(s => available.Contains(s.ModuleKey))
             .Select(s => new PostingAccountSlotResponse(
                 s.ModuleKey, s.SlotKey, s.Label, s.ExpectedType, s.RequiredDimensions, Current(s.ModuleKey, s.SlotKey)))
             .ToList();
