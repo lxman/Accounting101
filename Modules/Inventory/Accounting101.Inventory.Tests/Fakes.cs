@@ -25,9 +25,25 @@ internal sealed class FakeLedgerClient : ILedgerClient
     // a lock for exactly this reason (concurrent race-test racers); PostAsync gets the same minimal
     // treatment rather than a broader rewrite (see the 2026-07-26 toctou-status-code plan's Task 9
     // cross-cutting finding).
+    //
+    // The SAME lock also guards every OTHER member that reads or mutates _entries/_linesById/_posted
+    // below (GetEntriesBySourceRefAsync, GetEntriesBySourceRefsAsync, GetSubledgerAsync, ApproveAll,
+    // ReverseAsync, VoidAsync, the Posted getter) — not just PostAsync's write path. This fake predates
+    // concurrent access entirely (it was built as a single-threaded, sequential test double), and this
+    // project's race tests are the first callers to genuinely drive a reader concurrently with
+    // PostAsync's writer: a plain Dictionary throws InvalidOperationException when enumerated
+    // (GetSubledgerAsync's foreach) while another thread inserts into it — exactly what
+    // ItemValuationService's read of _entries/_linesById (ItemValuationService.cs:52,67) does while a
+    // sibling racer's PostAsync is landing. `lock` is reentrant on the same thread, and none of these
+    // methods call another locked member on `this` or await while holding the lock (all bodies below
+    // are synchronous despite the Task-returning signature — verified before adding these locks), so
+    // there is no deadlock risk.
     private readonly object _postLock = new();
 
-    public IReadOnlyList<PostEntryRequest> Posted => _posted;
+    public IReadOnlyList<PostEntryRequest> Posted
+    {
+        get { lock (_postLock) return _posted.ToList(); }
+    }
     public bool ReversedOrWithdrawn { get; private set; }
     public bool ReturnNoEntries { get; set; }
 
@@ -36,6 +52,12 @@ internal sealed class FakeLedgerClient : ILedgerClient
     public int GetSubledgerCallCount;
     public int GetEntriesBySourceRefsCallCount;
 
+    // FORWARD-LOOKING CAVEAT (2026-07-26): a same-SourceRef replay returns the FIRST request's
+    // persisted entry without appending to _posted a second time — already true before this fix, and
+    // no existing assertion depends on the opposite. But it means a future "a replay posts no second
+    // entry" test written against THIS fake would pass whether or not the service under test actually
+    // replays correctly, because the fake collapses the duplicate for you regardless. Assert that
+    // property against the real engine (HTTP/Mongo), not this fake.
     public Task<PostEntryResponse> PostAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
     {
         lock (_postLock)
@@ -100,70 +122,88 @@ internal sealed class FakeLedgerClient : ILedgerClient
     /// <summary>Test helper: approve every pending entry so posted-only reads see them.</summary>
     public void ApproveAll()
     {
-        foreach (Guid id in _entries.Keys.ToList())
-            if (_entries[id].Posting == "PendingApproval")
-                _entries[id] = _entries[id] with { Posting = "Posted" };
+        lock (_postLock)
+        {
+            foreach (Guid id in _entries.Keys.ToList())
+                if (_entries[id].Posting == "PendingApproval")
+                    _entries[id] = _entries[id] with { Posting = "Posted" };
+        }
     }
 
     public Task<EntryResponse> ReverseAsync(Guid clientId, Guid entryId, ReverseRequest request, CancellationToken cancellationToken = default)
     {
-        ReversedOrWithdrawn = true;
-        EntryResponse original = _entries[entryId];
-        var id = Guid.NewGuid();
-        // Negated lines; the reversal is PendingApproval until approved (exactly like the real engine —
-        // LedgerService.ReverseAsync) and the original stays Active. A posted-only fold does NOT roll back
-        // until the reversal is approved (call ApproveAll to model that).
-        IReadOnlyList<PostLineRequest> reversedLines = _linesById.TryGetValue(entryId, out IReadOnlyList<PostLineRequest>? originalLines)
-            ? originalLines.Select(l => l with { Direction = Flip(l.Direction) }).ToList()
-            : [];
-        EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "PendingApproval", reversalOf: entryId, lines: reversedLines);
-        _entries[id] = reversal;
-        _linesById[id] = reversedLines;
-        return Task.FromResult(reversal);
+        lock (_postLock)
+        {
+            ReversedOrWithdrawn = true;
+            EntryResponse original = _entries[entryId];
+            var id = Guid.NewGuid();
+            // Negated lines; the reversal is PendingApproval until approved (exactly like the real engine —
+            // LedgerService.ReverseAsync) and the original stays Active. A posted-only fold does NOT roll back
+            // until the reversal is approved (call ApproveAll to model that).
+            IReadOnlyList<PostLineRequest> reversedLines = _linesById.TryGetValue(entryId, out IReadOnlyList<PostLineRequest>? originalLines)
+                ? originalLines.Select(l => l with { Direction = Flip(l.Direction) }).ToList()
+                : [];
+            EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "PendingApproval", reversalOf: entryId, lines: reversedLines);
+            _entries[id] = reversal;
+            _linesById[id] = reversedLines;
+            return Task.FromResult(reversal);
+        }
     }
 
     public Task<EntryResponse> VoidAsync(Guid clientId, Guid entryId, VoidRequest request, CancellationToken cancellationToken = default)
     {
-        ReversedOrWithdrawn = true;
-        EntryResponse voided = _entries[entryId] with { Status = "Voided" };
-        _entries[entryId] = voided;
-        return Task.FromResult(voided);
+        lock (_postLock)
+        {
+            ReversedOrWithdrawn = true;
+            EntryResponse voided = _entries[entryId] with { Status = "Voided" };
+            _entries[entryId] = voided;
+            return Task.FromResult(voided);
+        }
     }
 
-    public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<EntryResponse>>(ReturnNoEntries
-            ? []
-            : _entries.Values.Where(e => e.SourceRef == sourceRef).ToList());
+    public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default)
+    {
+        lock (_postLock)
+            return Task.FromResult<IReadOnlyList<EntryResponse>>(ReturnNoEntries
+                ? []
+                : _entries.Values.Where(e => e.SourceRef == sourceRef).ToList());
+    }
 
     public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefsAsync(Guid clientId, IReadOnlyList<Guid> sourceRefs, CancellationToken cancellationToken = default)
     {
-        GetEntriesBySourceRefsCallCount++;
-        return Task.FromResult<IReadOnlyList<EntryResponse>>(ReturnNoEntries
-            ? []
-            : _entries.Values.Where(e => e.SourceRef is { } s && sourceRefs.Contains(s)).ToList());
+        lock (_postLock)
+        {
+            GetEntriesBySourceRefsCallCount++;
+            return Task.FromResult<IReadOnlyList<EntryResponse>>(ReturnNoEntries
+                ? []
+                : _entries.Values.Where(e => e.SourceRef is { } s && sourceRefs.Contains(s)).ToList());
+        }
     }
 
     public Task<IReadOnlyList<SubledgerLineResponse>> GetSubledgerAsync(
         Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default,
         bool includePending = false)
     {
-        GetSubledgerCallCount++;
-        Dictionary<Guid, decimal> totals = new();
-        foreach ((Guid id, EntryResponse response) in _entries)
+        lock (_postLock)
         {
-            if (response.Status != "Active") continue;
-            if (!includePending && response.Posting != "Posted") continue;
-            if (!_linesById.TryGetValue(id, out IReadOnlyList<PostLineRequest>? lines)) continue;
-            foreach (PostLineRequest line in lines)
+            GetSubledgerCallCount++;
+            Dictionary<Guid, decimal> totals = new();
+            foreach ((Guid id, EntryResponse response) in _entries)
             {
-                if (line.AccountId != account) continue;
-                if (line.Dimensions is null || !line.Dimensions.TryGetValue(dimension, out Guid dimValue)) continue;
-                decimal signed = line.Direction == "Debit" ? line.Amount : -line.Amount;
-                totals[dimValue] = totals.GetValueOrDefault(dimValue) + signed;
+                if (response.Status != "Active") continue;
+                if (!includePending && response.Posting != "Posted") continue;
+                if (!_linesById.TryGetValue(id, out IReadOnlyList<PostLineRequest>? lines)) continue;
+                foreach (PostLineRequest line in lines)
+                {
+                    if (line.AccountId != account) continue;
+                    if (line.Dimensions is null || !line.Dimensions.TryGetValue(dimension, out Guid dimValue)) continue;
+                    decimal signed = line.Direction == "Debit" ? line.Amount : -line.Amount;
+                    totals[dimValue] = totals.GetValueOrDefault(dimValue) + signed;
+                }
             }
+            return Task.FromResult<IReadOnlyList<SubledgerLineResponse>>(
+                totals.Select(kv => new SubledgerLineResponse(account, kv.Key, kv.Value)).ToList());
         }
-        return Task.FromResult<IReadOnlyList<SubledgerLineResponse>>(
-            totals.Select(kv => new SubledgerLineResponse(account, kv.Key, kv.Value)).ToList());
     }
 
     public Task<IReadOnlyList<AccountResponse>> GetAccountsAsync(Guid clientId, CancellationToken cancellationToken = default) =>

@@ -25,9 +25,24 @@ internal sealed class FakeLedgerClient : ILedgerClient
     // through it concurrently past their store-side rendezvous. A lock here is minimal and keeps this
     // fake's long-standing plain-Dictionary/List design everywhere else (see the 2026-07-26
     // toctou-status-code plan's Task 9 cross-cutting finding).
+    //
+    // The SAME lock also guards every OTHER member that reads or mutates _entries/_posted below
+    // (ReverseAsync, VoidAsync, GetEntriesBySourceRefAsync, GetEntriesBySourceRefsAsync, the Posted
+    // getter) — not just PostAsync's write path. This fake predates concurrent access entirely (it was
+    // built as a single-threaded, sequential test double); CashRaceTests's racers are the first callers
+    // to genuinely drive a reader concurrently with PostAsync's writer, which would throw
+    // InvalidOperationException on a plain Dictionary enumerated mid-insert. Cash is not exposed by any
+    // test today (nothing between its barrier and PostAsync touches the ledger), but the lock is added
+    // for consistency — the next test added here will not know which reads are safe. `lock` is
+    // reentrant on the same thread, and none of these methods call another locked member on `this` or
+    // await while holding the lock (all bodies below are synchronous despite the Task-returning
+    // signature — verified before adding these locks), so there is no deadlock risk.
     private readonly object _postLock = new();
 
-    public IReadOnlyList<PostEntryRequest> Posted => _posted;
+    public IReadOnlyList<PostEntryRequest> Posted
+    {
+        get { lock (_postLock) return _posted.ToList(); }
+    }
 
     /// <summary>Each singular by-source-ref read, recorded so tests can assert detail reads pass through once.</summary>
     public List<Guid> SingularCalls { get; } = [];
@@ -35,6 +50,12 @@ internal sealed class FakeLedgerClient : ILedgerClient
     /// <summary>Each batched by-source-refs read, recorded so tests can assert a list folds in ONE call (not N+1).</summary>
     public List<IReadOnlyList<Guid>> BatchCalls { get; } = [];
 
+    // FORWARD-LOOKING CAVEAT (2026-07-26): a same-SourceRef replay returns the FIRST request's
+    // persisted entry without appending to _posted a second time — already true before this fix, and
+    // no existing assertion depends on the opposite. But it means a future "a replay posts no second
+    // entry" test written against THIS fake would pass whether or not the service under test actually
+    // replays correctly, because the fake collapses the duplicate for you regardless. Assert that
+    // property against the real engine (HTTP/Mongo), not this fake.
     public Task<PostEntryResponse> PostAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
     {
         lock (_postLock)
@@ -97,31 +118,43 @@ internal sealed class FakeLedgerClient : ILedgerClient
 
     public Task<EntryResponse> ReverseAsync(Guid clientId, Guid entryId, ReverseRequest request, CancellationToken cancellationToken = default)
     {
-        EntryResponse original = _entries[entryId];
-        var id = Guid.NewGuid();
-        EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "PendingApproval", reversalOf: entryId);
-        _entries[id] = reversal;
-        return Task.FromResult(reversal);
+        lock (_postLock)
+        {
+            EntryResponse original = _entries[entryId];
+            var id = Guid.NewGuid();
+            EntryResponse reversal = Entry(id, original.SourceRef, original.SourceType, posting: "PendingApproval", reversalOf: entryId);
+            _entries[id] = reversal;
+            return Task.FromResult(reversal);
+        }
     }
 
     public Task<EntryResponse> VoidAsync(Guid clientId, Guid entryId, VoidRequest request, CancellationToken cancellationToken = default)
     {
-        EntryResponse voided = _entries[entryId] with { Status = "Voided" };
-        _entries[entryId] = voided;
-        return Task.FromResult(voided);
+        lock (_postLock)
+        {
+            EntryResponse voided = _entries[entryId] with { Status = "Voided" };
+            _entries[entryId] = voided;
+            return Task.FromResult(voided);
+        }
     }
 
     public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default)
     {
-        SingularCalls.Add(sourceRef);
-        return Task.FromResult<IReadOnlyList<EntryResponse>>(_entries.Values.Where(e => e.SourceRef == sourceRef).ToList());
+        lock (_postLock)
+        {
+            SingularCalls.Add(sourceRef);
+            return Task.FromResult<IReadOnlyList<EntryResponse>>(_entries.Values.Where(e => e.SourceRef == sourceRef).ToList());
+        }
     }
 
     public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefsAsync(Guid clientId, IReadOnlyList<Guid> sourceRefs, CancellationToken cancellationToken = default)
     {
-        BatchCalls.Add(sourceRefs);
-        return Task.FromResult<IReadOnlyList<EntryResponse>>(
-            _entries.Values.Where(e => e.SourceRef is { } s && sourceRefs.Contains(s)).ToList());
+        lock (_postLock)
+        {
+            BatchCalls.Add(sourceRefs);
+            return Task.FromResult<IReadOnlyList<EntryResponse>>(
+                _entries.Values.Where(e => e.SourceRef is { } s && sourceRefs.Contains(s)).ToList());
+        }
     }
 
     public Task<IReadOnlyList<AccountResponse>> GetAccountsAsync(Guid clientId, CancellationToken cancellationToken = default) =>

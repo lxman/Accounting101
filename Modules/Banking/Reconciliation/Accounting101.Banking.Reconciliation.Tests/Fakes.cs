@@ -105,8 +105,30 @@ internal sealed class FakePostingLedger : ILedgerClient
     // AdjustmentRaceTests genuinely drive two racers through it concurrently past their store-side
     // rendezvous. A lock here is minimal (see the 2026-07-26 toctou-status-code plan's Task 9
     // cross-cutting finding).
+    //
+    // The SAME lock also guards every OTHER member that reads or mutates Posted/Reversed/Voided below
+    // (ReverseAsync, VoidAsync, GetEntriesBySourceRefAsync, StubEntry) — not just PostAsync's write
+    // path. This fake predates concurrent access entirely (it was built as a single-threaded,
+    // sequential test double); AdjustmentRaceTests's racers are the first callers to genuinely drive a
+    // reader concurrently with PostAsync's writer. Unlike the Dictionary-backed fakes elsewhere in this
+    // project, this one has no collection that THROWS on concurrent read/write — Posted/Reversed/Voided
+    // are plain auto-properties, and a reference/bool read or write is atomic on its own — but a racer
+    // reading Posted, EntryPosting, and Posted.Lines across several statements in StubEntry() with no
+    // lock could still observe a torn combination (e.g. Posted from one racer's post paired with
+    // EntryPosting mutated by the other) if this fake's usage ever grows beyond today's read-only-before
+    // -any-post shape. The lock is added for that consistency, matching the other five fakes, even
+    // though no test today is known to hit the inconsistent-read window. `lock` is reentrant on the
+    // same thread, and none of these methods call another locked member on `this` or await while
+    // holding the lock (all bodies below are synchronous despite the Task-returning signature —
+    // verified before adding these locks), so there is no deadlock risk.
     private readonly object _postLock = new();
 
+    // FORWARD-LOOKING CAVEAT (2026-07-26): a same-SourceRef replay silently overwrites Posted with the
+    // new (content-identical) request rather than rejecting it as a duplicate post — already true
+    // before this fix, and no existing assertion depends on the opposite. This fake has only a single
+    // Posted slot (not a list), so it cannot distinguish "posted once" from "posted twice with identical
+    // content" at all; a future "a replay posts no second entry" test would need the real engine
+    // (HTTP/Mongo), not this fake.
     public Task<PostEntryResponse> PostAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default)
     {
         lock (_postLock)
@@ -157,11 +179,14 @@ internal sealed class FakePostingLedger : ILedgerClient
         return true;
     }
     public Task<EntryResponse> ReverseAsync(Guid clientId, Guid entryId, ReverseRequest request, CancellationToken cancellationToken = default)
-    { Reversed = true; return Task.FromResult(StubEntry()); }
+    { lock (_postLock) { Reversed = true; return Task.FromResult(StubEntry()); } }
     public Task<EntryResponse> VoidAsync(Guid clientId, Guid entryId, VoidRequest request, CancellationToken cancellationToken = default)
-    { Voided = true; return Task.FromResult(StubEntry()); }
-    public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default) =>
-        Task.FromResult<IReadOnlyList<EntryResponse>>(Posted is null ? [] : [StubEntry()]);
+    { lock (_postLock) { Voided = true; return Task.FromResult(StubEntry()); } }
+    public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default)
+    {
+        lock (_postLock)
+            return Task.FromResult<IReadOnlyList<EntryResponse>>(Posted is null ? [] : [StubEntry()]);
+    }
 
     private EntryResponse StubEntry() =>
         new(_entryId, 0, Posted!.EffectiveDate, "Standard", "Active", EntryPosting, Posted.Lines.Count,
