@@ -7,7 +7,9 @@ namespace Accounting101.Inventory.Tests;
 /// Blocks in the PROBE until every racer has arrived, forcing both callers to observe "not found"
 /// before either reaches the atomic create — the interleaving InventoryMovementService's pre-check is
 /// vulnerable to. Everything else delegates, so the create is really arbitrated by the inner fake's
-/// TryAdd.
+/// own <c>lock</c>-guarded, insert-only <c>FirstOrDefault</c> existence check in
+/// <see cref="InMemoryStockMovementStore.RecordAsync"/> (it has no <c>TryAdd</c> — it is a
+/// <c>List</c>, not a dictionary).
 /// </summary>
 internal sealed class RendezvousStockMovementStore(
     InMemoryStockMovementStore inner, RaceRendezvous rendezvous) : IStockMovementStore
