@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Accounting101.Ledger.Api.Auth;
+using Accounting101.Ledger.Api.Hosting;
 using Accounting101.Ledger.Contracts;
 using Accounting101.Ledger.Api.Control;
 
@@ -157,7 +158,8 @@ public static class AdminEndpoints
 
     private static async Task<IResult> SetClientModules(
         Guid clientId, SetClientModulesRequest request, ClaimsPrincipal user,
-        IActorFactory actorFactory, ControlStore control, CancellationToken cancellationToken)
+        IActorFactory actorFactory, ControlStore control, InstalledModules installed,
+        CancellationToken cancellationToken)
     {
         if (!await AdminAuthorization.MayAsync(user, clientId, Capabilities.AdminClient, actorFactory, control, cancellationToken))
             return Results.Forbid();
@@ -166,14 +168,22 @@ public static class AdminEndpoints
             return Results.NotFound();
 
         IReadOnlyList<string> keys = request.ModuleKeys ?? [];
-        // Validate against installed modules — an unknown key is a mistake (no module would ever be entitled),
-        // not inert. A helpful 400 beats a silently useless entitlement. One lookup covers every key.
-        if (keys.Count > 0)
-        {
-            HashSet<string> installed = [.. (await control.ListModulesAsync(cancellationToken)).Select(m => m.Key)];
-            if (keys.FirstOrDefault(k => !installed.Contains(k)) is { } unknown)
-                return Results.Problem($"Unknown module '{unknown}'.", statusCode: StatusCodes.Status400BadRequest);
-        }
+
+        // Refuse to SELL what this deployment cannot RUN. Defence in depth on top of the read-time
+        // intersection, not a replacement for it: validating here gives entitled ⊆ installed only until
+        // the next deployment changes what is installed, and nothing re-validates stored rows.
+        //
+        // Taken from DI (what the host actually composed) rather than the control DB's modules
+        // collection: ModuleRegistrar seeds that only into the default firm, so it can be partial or
+        // stale under multi-firm.
+        //
+        // All keys are checked before anything is written — a half-applied module set is worse than
+        // either clean outcome.
+        string[] absent = [.. keys.Where(k => !installed.Has(k))];
+        if (absent.Length > 0)
+            return Results.Problem(
+                $"Module(s) not installed in this deployment: {string.Join(", ", absent)}.",
+                statusCode: StatusCodes.Status422UnprocessableEntity);
 
         await control.SetClientModulesAsync(clientId, keys, cancellationToken);
         return Results.Ok(new ClientModulesResponse(clientId, keys));

@@ -26,7 +26,7 @@ public sealed class ClientModulesTests(ApiFixture fixture) : IClassFixture<ApiFi
     }
 
     [Fact]
-    public async Task Unknown_module_key_is_rejected()
+    public async Task An_uninstalled_module_key_is_rejected_and_named()
     {
         SeededClient client = await fixture.SeedClientAsync(enabledModules: []);
         HttpClient admin = fixture.AdminClient();
@@ -35,7 +35,33 @@ public sealed class ClientModulesTests(ApiFixture fixture) : IClassFixture<ApiFi
             $"/admin/clients/{client.ClientId}/modules",
             new SetClientModulesRequest(["not-a-real-module"]));
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        // 422, not 400: the request is well-formed, it just asks to sell something this deployment
+        // cannot run. The body names the key so an operator can act on it.
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Contains("not-a-real-module", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task A_mix_of_installed_and_uninstalled_keys_persists_nothing()
+    {
+        // A half-applied module set is worse than either clean outcome: the operator would believe the
+        // whole request landed. All or nothing.
+        ControlStore control = fixture.Control();
+        SeededClient client = await fixture.SeedClientAsync(enabledModules: []);
+        HttpClient admin = fixture.AdminClient();
+
+        HttpResponseMessage response = await admin.PutAsJsonAsync(
+            $"/admin/clients/{client.ClientId}/modules",
+            new SetClientModulesRequest(["receivables", "not-a-real-module"]));
+
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        string body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("not-a-real-module", body);
+        Assert.DoesNotContain("receivables", body);
+
+        ClientRegistration? saved = await control.GetClientAsync(client.ClientId);
+        Assert.NotNull(saved);
+        Assert.Empty(saved!.EnabledModules);
     }
 
     [Fact]
