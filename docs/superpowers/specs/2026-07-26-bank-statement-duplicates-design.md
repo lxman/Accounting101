@@ -64,10 +64,20 @@ public async Task<IReadOnlyList<BankStatement>> FindDuplicateStatementsAsync(
 Returns statements on that cash account bearing that exact statement date, where
 `Status != BankStatementStatus.Void`, ordered by `Number` descending.
 
-**Void is excluded** for the bill lookup's reason, which holds identically here: a voided statement is
-exactly when re-recording is correct. Note that `ListStatementsAsync` does *not* filter Void — the two
-reads answer different questions and this one must do its own filtering rather than assume the store
-did it.
+**The Void filter is belt-and-braces, not the load-bearing exclusion.** This was checked rather than
+assumed, and the first draft of this spec had it wrong. Two facts already prevent a voided statement
+reaching the lookup:
+
+- `DocumentBankStatementStore.GetByAccountAsync` calls `QueryAsync` without `includeVoided`, which
+  defaults to `false`, and `MongoDocumentStore.MatchFilter` then adds `Nin(State, HiddenStates)` —
+  Voided, Superseded and Inactive.
+- **Nothing voids a bank statement in the first place.** `IBankStatementStore` exposes no void method,
+  no module code path calls one, and the collection registers as `manifest.Evidentiary("bank-statements")`
+  — recorded, finalized, immutable. Cash's deposits and disbursements have void paths; statements do not.
+
+The filter stays, because it keeps this read correct if either fact changes, and because `Map` already
+models the state. But the spec must not pretend it is doing the work, and — see Testing — it must not
+be covered by a test that cannot fail.
 
 **Ordering is by `Number`, not by date.** Every hit shares the same statement date by construction, so
 date ordering would be meaningless. `Number` descending puts the most recently recorded first, matching
@@ -161,8 +171,14 @@ operator is entitled to make.
 
 ### Service — mirroring `BillDuplicateTests`
 
-Finds a statement on the same account and date; excludes Void; excludes other accounts; excludes other
-dates; empty when there are none; `Number`-descending ordering.
+Finds a statement on the same account and date; excludes other accounts; excludes other dates; empty
+when there are none; `Number`-descending ordering.
+
+**The Void case is tested here and only here**, against `InMemoryBankStatementStore` — which must gain
+a seeding method that can place a statement in a chosen status, because its `RecordAsync` cannot
+produce one. That is the only way to write a Void test that *can fail*: delete the service's filter and
+the fake hands the voided statement back. Testing it through the real store would be a test that passes
+whether or not the filter exists, which is worth nothing.
 
 **Plus the test that carries this arc's process lesson:** a duplicate on an account with **more than
 200 statements is still found**. That is the statement-side analogue of sub-project 1's drafts test —
@@ -173,8 +189,19 @@ through the real document store in an endpoint test is slow for what it proves.
 ### Endpoint — mirroring `BillDuplicateEndpointTests`
 
 400 for a missing `cashAccountId`; 400 for a missing `statementDate`; 400 for an unparseable
-`statementDate`; 200 with an empty array when nothing matches; and **Void exclusion proven against the
-real engine**, not a fake that cannot fail — the discipline the `includeVoided` work established.
+`statementDate`; 200 with an empty array when nothing matches.
+
+**Plus the test the endpoint actually exists for:** a statement recorded over HTTP is then found by the
+lookup over HTTP. This is the analogue of sub-project 1's drafts test — nothing else in the file records
+a statement, so a transposed argument or a mis-bound query key would otherwise leave every test green
+while every import silently reported "no duplicates found". That is the defect class this arc keeps
+producing.
+
+No Void test at this level, for the reason given above.
+
+`statementDate` binds as `string?` and is parsed in the handler rather than bound as `DateOnly?`. A
+malformed value bound directly would produce the framework's own empty-bodied 400, and these tests
+assert a `problem+json` body like every other 400 in the module.
 
 ### Angular — both screens
 
