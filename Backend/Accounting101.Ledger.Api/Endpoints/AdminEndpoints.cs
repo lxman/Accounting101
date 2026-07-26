@@ -189,14 +189,22 @@ public static class AdminEndpoints
         if (!await AdminAuthorization.MayAsync(user, clientId, Capabilities.AdminClient, actorFactory, control, cancellationToken))
             return Results.Forbid();
 
-        if (await control.GetClientAsync(clientId, cancellationToken) is null)
+        ClientRegistration? existing = await control.GetClientAsync(clientId, cancellationToken);
+        if (existing is null)
             return Results.NotFound();
 
         IReadOnlyList<string> keys = request.ModuleKeys ?? [];
 
-        // Refuse to SELL what this deployment cannot RUN. Defence in depth on top of the read-time
-        // intersection, not a replacement for it: validating here gives entitled ⊆ installed only until
-        // the next deployment changes what is installed, and nothing re-validates stored rows.
+        // Refuse to SELL what this deployment cannot RUN — but only for keys this request would newly
+        // add. A key already present in the stored entitlement is carried forward regardless of this
+        // host's installed set: SetClientModulesRequest is a documented full replace ("Idempotent",
+        // AdminContracts.cs), so an unrelated edit (e.g. adding "payables") must not silently erase an
+        // entitlement the client already bought just because a later deployment stopped composing its
+        // module ("Entitlement is never erased" — a redeploy must never delete what a customer bought,
+        // and re-installing must restore it). The guard's purpose is fully served by rejecting NEW
+        // keys — extending it to already-stored keys would turn every unrelated edit into a silent
+        // erasure. Removing an uninstalled entitlement stays possible by simply omitting it, which is
+        // an explicit act rather than a side effect of this guard.
         //
         // Taken from DI (what the host actually composed) rather than the control DB's modules
         // collection: ModuleRegistrar seeds that only into the default firm, so it can be partial or
@@ -204,7 +212,7 @@ public static class AdminEndpoints
         //
         // All keys are checked before anything is written — a half-applied module set is worse than
         // either clean outcome.
-        string[] absent = [.. keys.Where(k => !installed.Has(k))];
+        string[] absent = [.. keys.Where(k => !installed.Has(k) && !existing.EnabledModules.Contains(k))];
         if (absent.Length > 0)
             return Results.Problem(
                 $"Module(s) not installed in this deployment: {string.Join(", ", absent)}.",

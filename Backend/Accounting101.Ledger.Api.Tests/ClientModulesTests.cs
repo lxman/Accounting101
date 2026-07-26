@@ -11,7 +11,6 @@ public sealed class ClientModulesTests(ApiFixture fixture) : IClassFixture<ApiFi
     public async Task Deployment_admin_sets_modules_and_they_persist()
     {
         ControlStore control = fixture.Control();
-        await control.RegisterModuleAsync(new ModuleRegistration { Key = "receivables", Name = "Receivables", Enabled = true });
         SeededClient client = await fixture.SeedClientAsync(enabledModules: []);
         HttpClient admin = fixture.AdminClient();
 
@@ -94,6 +93,28 @@ public sealed class ClientModulesTests(ApiFixture fixture) : IClassFixture<ApiFi
     }
 
     [Fact]
+    public async Task An_already_entitled_uninstalled_module_survives_an_unrelated_edit()
+    {
+        // Full-replace semantics ("Idempotent", AdminContracts.cs) must not turn an unrelated edit into
+        // a silent erasure of an entitlement this deployment merely stopped composing. "receivables" is
+        // already stored on the client but absent from this host's InstalledModules (a stand-in for "the
+        // overlay that shipped it was pulled from a later deployment"). Adding "payables" — unrelated to
+        // "receivables" — must succeed, and "receivables" must survive the round trip untouched.
+        SeededClient client = await fixture.SeedClientAsync(enabledModules: ["cash", "receivables"]);
+        HttpClient admin = fixture.ClientWithInstalledModules(Guid.NewGuid(), ["cash", "payables"], ("admin", "true"));
+
+        HttpResponseMessage response = await admin.PutAsJsonAsync(
+            $"/admin/clients/{client.ClientId}/modules",
+            new SetClientModulesRequest(["cash", "receivables", "payables"]));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        ControlStore control = fixture.Control();
+        ClientRegistration? saved = await control.GetClientAsync(client.ClientId);
+        Assert.NotNull(saved);
+        Assert.Equal(["cash", "receivables", "payables"], saved!.EnabledModules);
+    }
+
+    [Fact]
     public async Task Unknown_client_is_not_found()
     {
         HttpClient admin = fixture.AdminClient();
@@ -105,8 +126,6 @@ public sealed class ClientModulesTests(ApiFixture fixture) : IClassFixture<ApiFi
     [Fact]
     public async Task A_plain_member_without_admin_client_is_forbidden()
     {
-        ControlStore control = fixture.Control();
-        await control.RegisterModuleAsync(new ModuleRegistration { Key = "receivables", Name = "Receivables", Enabled = true });
         SeededClient client = await fixture.SeedClientAsync(role: LedgerRole.Clerk, enabledModules: []);
 
         HttpResponseMessage response = await client.Http.PutAsJsonAsync(
