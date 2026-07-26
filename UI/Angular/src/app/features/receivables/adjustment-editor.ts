@@ -6,7 +6,7 @@ import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { ReceivablesService } from '../../core/receivables/receivables.service';
 import { CreditType } from '../../core/receivables/receivables';
-import { extractProblem } from '../../core/api/problem-details';
+import { extractProblem, retryKeyConflictMessage } from '../../core/api/problem-details';
 import { money as fmtMoney, displayDate as fmtDate } from '../../core/format/display';
 import { CurrencyInput } from '../../shared/currency-input';
 import { CanDirective } from '../../core/capabilities/can.directive';
@@ -131,6 +131,12 @@ export class AdjustmentEditor {
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
 
+  // A caller-supplied retry key: the same key across retries of a FAILED save makes the server replay
+  // instead of recording the adjustment twice. Re-minted after a success so the next adjustment is a new
+  // operation. All three modes below send this same key — safe because credit notes, write-offs and credit
+  // applications write to different server-side collections, so a shared Guid cannot collide across them.
+  private retryKey = crypto.randomUUID();
+
   readonly total = computed(() =>
     Math.round(this.rows().filter(r => r.included).reduce((s, r) => s + r.amount, 0) * 100) / 100);
 
@@ -192,19 +198,26 @@ export class AdjustmentEditor {
     const memo = this.memo().trim() || null;
 
     const done = {
-      next: () => { this.busy.set(false); void this.router.navigate(['/receivables/credits']); },
-      error: (e: unknown) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
+      next: () => {
+        this.retryKey = crypto.randomUUID();
+        this.busy.set(false);
+        void this.router.navigate(['/receivables/credits']);
+      },
+      error: (e: unknown) => {
+        this.message.set(retryKeyConflictMessage(e) ?? extractProblem(e).detail);
+        this.busy.set(false);
+      },
     };
 
     switch (this.type()) {
       case 'credit-note':
-        this.svc.recordCreditNote({ customerId, date, allocations, memo }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(done);
+        this.svc.recordCreditNote({ customerId, date, allocations, memo, id: this.retryKey }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(done);
         break;
       case 'write-off':
-        this.svc.recordWriteOff({ customerId, date, allocations, memo }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(done);
+        this.svc.recordWriteOff({ customerId, date, allocations, memo, id: this.retryKey }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(done);
         break;
       case 'credit-application':
-        this.svc.applyCredit({ customerId, date, allocations }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(done);
+        this.svc.applyCredit({ customerId, date, allocations, id: this.retryKey }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe(done);
         break;
     }
   }

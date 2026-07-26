@@ -42,6 +42,7 @@ export interface Payment {
 export interface RecordPaymentRequest {
   customerId: string; date: string; amount: number;
   method: string | null; allocations: PaymentAllocation[];
+  readonly id?: string;
 }
 
 export type CreditType = 'credit-note' | 'write-off' | 'credit-application';
@@ -52,13 +53,13 @@ export interface CreditDocument {
 export interface InvoiceAllocationLine { invoiceId: string; invoiceNumber: string | null; amount: number; }
 export interface CreditView { credit: CreditDocument; allocations: InvoiceAllocationLine[]; journalEntryId: string | null; }
 export interface PaymentView { payment: Payment; allocations: InvoiceAllocationLine[]; unapplied: number; journalEntryId: string | null; }
-export interface CreditNoteRequest { customerId: string; date: string; allocations: PaymentAllocation[]; memo: string | null; }
-export interface WriteOffRequest   { customerId: string; date: string; allocations: PaymentAllocation[]; memo: string | null; }
-export interface CreditApplyRequest { customerId: string; date: string; allocations: PaymentAllocation[]; }
+export interface CreditNoteRequest { customerId: string; date: string; allocations: PaymentAllocation[]; memo: string | null; readonly id?: string; }
+export interface WriteOffRequest   { customerId: string; date: string; allocations: PaymentAllocation[]; memo: string | null; readonly id?: string; }
+export interface CreditApplyRequest { customerId: string; date: string; allocations: PaymentAllocation[]; readonly id?: string; }
 
 export interface Refund { id: string; customerId: string; date: string; amount: number; memo: string | null; voided: boolean; }
 export interface RefundView { refund: Refund; journalEntryId: string | null; }
-export interface RefundRequest { customerId: string; date: string; amount: number; memo: string | null; }
+export interface RefundRequest { customerId: string; date: string; amount: number; memo: string | null; readonly id?: string; }
 
 /** A payment-allocation editor row: one open invoice the user can apply cash to. */
 export interface AllocRow {

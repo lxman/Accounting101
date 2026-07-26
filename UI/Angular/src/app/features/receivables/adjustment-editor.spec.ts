@@ -127,4 +127,64 @@ describe('AdjustmentEditor', () => {
     expect(cmp.allocationWarning()).toBeNull();
     ctrl.verify();
   });
+
+  it('sends a retry key with the adjustment', () => {
+    const ctrl = setup('cu1');
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(AdjustmentEditor); f.detectChanges();
+    loadInvoices(ctrl, f, [{ id: 'inv1', number: '1001', open: 100 }]);
+    const c = f.componentInstance;
+    c.toggleRow(0, true); f.detectChanges();
+    c.save();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/credit-notes');
+    expect(req.request.body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    req.flush({});
+  });
+
+  it('reuses the same key when a failed save is retried', () => {
+    const ctrl = setup('cu1');
+    const f = TestBed.createComponent(AdjustmentEditor); f.detectChanges();
+    loadInvoices(ctrl, f, [{ id: 'inv1', number: '1001', open: 100 }]);
+    const c = f.componentInstance;
+    c.toggleRow(0, true); f.detectChanges();
+    c.save();
+    const post1 = ctrl.expectOne('http://localhost:5000/clients/C1/credit-notes');
+    const key1 = post1.request.body.id;
+    post1.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+    c.save();
+    const post2 = ctrl.expectOne('http://localhost:5000/clients/C1/credit-notes');
+    expect(post2.request.body.id).toBe(key1);
+    post2.flush({ detail: 'boom' }, { status: 500, statusText: 'Server Error' });
+  });
+
+  it('mints a fresh key after a successful save', () => {
+    const ctrl = setup('cu1');
+    const nav = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(AdjustmentEditor); f.detectChanges();
+    loadInvoices(ctrl, f, [{ id: 'inv1', number: '1001', open: 100 }]);
+    const c = f.componentInstance;
+    c.toggleRow(0, true); f.detectChanges();
+    c.save();
+    const post1 = ctrl.expectOne('http://localhost:5000/clients/C1/credit-notes');
+    const key1 = post1.request.body.id;
+    post1.flush({});
+    c.save();
+    const post2 = ctrl.expectOne('http://localhost:5000/clients/C1/credit-notes');
+    expect(post2.request.body.id).not.toBe(key1);
+    post2.flush({});
+    expect(nav).toHaveBeenCalledWith(['/receivables/credits']);
+  });
+
+  it('sends a truthy retry key in a non-default mode too, since the three modes write to different collections', () => {
+    const ctrl = setup('cu1');
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const f = TestBed.createComponent(AdjustmentEditor); f.detectChanges();
+    loadInvoices(ctrl, f, [{ id: 'inv1', number: '1001', open: 100 }]);
+    const c = f.componentInstance;
+    c.setType('write-off'); c.toggleRow(0, true); f.detectChanges();
+    c.save();
+    const req = ctrl.expectOne('http://localhost:5000/clients/C1/write-offs');
+    expect(req.request.body.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    req.flush({});
+  });
 });
