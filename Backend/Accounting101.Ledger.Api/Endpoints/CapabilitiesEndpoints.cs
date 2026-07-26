@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Control;
+using Accounting101.Ledger.Api.Hosting;
 using Accounting101.Ledger.Contracts;
 using Accounting101.Ledger.Mongo;
 
@@ -21,7 +22,8 @@ public static class CapabilitiesEndpoints
     }
 
     private static async Task<IResult> GetMyCapabilities(
-        Guid clientId, ClaimsPrincipal user, IActorFactory actorFactory, ControlStore control, CancellationToken cancellationToken)
+        Guid clientId, ClaimsPrincipal user, IActorFactory actorFactory, ControlStore control,
+        InstalledModules installed, CancellationToken cancellationToken)
     {
         Actor actor = actorFactory.Create(user);
         Membership? membership = await control.GetMembershipAsync(actor.UserId, clientId, cancellationToken);
@@ -30,11 +32,20 @@ public static class CapabilitiesEndpoints
 
         bool deploymentAdmin = user.HasClaim("admin", "true");
         ClientRegistration? client = await control.GetClientAsync(clientId, cancellationToken);
+
+        // Availability = installed ∩ entitled. An entitlement this deployment never composed would
+        // otherwise render nav to routes nobody registered — the guard reads THIS list. Entitlement
+        // order is preserved, and the stored entitlement is left untouched: the raw value stays
+        // readable at GET /admin/clients/{id}/modules, which is where support needs it.
+        IReadOnlyList<string> available = client is null
+            ? []
+            : client.EnabledModules.Where(installed.Has).ToList();
+
         return Results.Ok(new CapabilitiesResponse(
             membership.Capabilities,
             membership.GrantedRoles.Select(r => r.ToString()).ToList(),
             deploymentAdmin,
-            client?.EnabledModules ?? [],
+            available,
             client is null ? ApprovalMode.TwoPerson : ApprovalPolicy.ModeOf(client),
             client?.BaseCurrency ?? "USD"));
     }

@@ -63,8 +63,18 @@ public sealed record AdminAuditEntryResponse(
 /// <summary>Replace a client's entitled module keys (default-closed access + billing meter). Idempotent.</summary>
 public sealed record SetClientModulesRequest(IReadOnlyList<string> ModuleKeys);
 
-/// <summary>A client's entitled module keys as returned by the entitlement setter.</summary>
-public sealed record ClientModulesResponse(Guid ClientId, IReadOnlyList<string> ModuleKeys);
+/// <summary>A client's module picture. Gated on <c>admin.client</c>, which any holder of the
+/// <c>LedgerRole.Admin</c> preset carries — including a tenant's own administrator, not only
+/// deployment staff — so treat this as client-readable, not support-only. <c>ModuleKeys</c> is the RAW
+/// stored entitlement — what was sold, never intersected — and <c>InstalledModuleKeys</c> is what this
+/// deployment actually composed. Their difference is precisely the "entitled but not installed"
+/// misconfiguration that is invisible everywhere else, because every user-facing surface reports
+/// availability (installed ∩ entitled) and so cannot distinguish it from "not sold". Disclosing the
+/// installed set to a tenant admin is accepted: it is keys only, never a <c>ModuleRegistration</c>
+/// (which carries the module's shared <c>Secret</c>), and the PUT on this same resource already leaks
+/// the same information via its 422's named-key list.</summary>
+public sealed record ClientModulesResponse(
+    Guid ClientId, IReadOnlyList<string> ModuleKeys, IReadOnlyList<string> InstalledModuleKeys);
 
 /// <summary>A client's current approval mode, plus how many entries are awaiting approval
 /// (drives the "clear the queue before enabling auto-approve" guard).</summary>

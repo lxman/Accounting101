@@ -82,4 +82,46 @@ public sealed class ModuleHostingTests(ApiFixture fixture) : IClassFixture<ApiFi
         // The two instances must be distinct objects (not the same shared singleton).
         Assert.NotSame(payablesCred, receivablesCred);
     }
+
+    /// <summary>
+    /// The registration inside AddModule is a TryAdd, so only the FIRST AddModule call registers the
+    /// factory — but the factory does not RUN until first resolution, long after every AddModule has
+    /// completed. The single instance must therefore see every module, not just the first. This test is
+    /// the guard against "fixing" it by computing the key set eagerly at registration time.
+    /// </summary>
+    [Fact]
+    public void Installed_modules_sees_every_module_not_just_the_first_registered()
+    {
+        ServiceCollection services = new();
+        services.AddModule(new ModuleIdentity("payables"), "Payables");
+        services.AddModule(new ModuleIdentity("receivables"), "Receivables");
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+        InstalledModules installed = provider.GetRequiredService<InstalledModules>();
+
+        Assert.Equal(
+            ["payables", "receivables"],
+            installed.Keys.OrderBy(k => k, StringComparer.Ordinal).ToArray());
+        Assert.True(installed.Has("payables"));
+        Assert.True(installed.Has("receivables"));
+        Assert.False(installed.Has("einvoicing"));
+    }
+
+    /// <summary>
+    /// A host that composes no module at all must still resolve an (empty) InstalledModules rather than
+    /// throw — the engine registers the same late-bound factory, so first-wins TryAdd ordering between
+    /// the engine and AddModule is irrelevant.
+    /// </summary>
+    [Fact]
+    public void An_engine_with_no_modules_resolves_an_empty_installed_set()
+    {
+        ServiceCollection services = new();
+        services.AddLedgerEngine(new ConfigurationBuilder().Build());
+
+        using ServiceProvider provider = services.BuildServiceProvider();
+
+        InstalledModules installed = provider.GetRequiredService<InstalledModules>();
+        Assert.Empty(installed.Keys);
+        Assert.False(installed.Has("payables"));
+    }
 }

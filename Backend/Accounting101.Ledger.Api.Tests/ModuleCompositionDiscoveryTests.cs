@@ -7,22 +7,31 @@ namespace Accounting101.Ledger.Api.Tests;
 public sealed class ModuleCompositionDiscoveryTests
 {
     [Fact]
-    public void Discovers_exactly_the_seven_module_compositions()
+    public void Discovers_at_least_the_seven_public_module_compositions()
     {
         string[] found = ModuleCompositionDiscovery.DiscoverAll()
             .Select(m => m.GetType().Name)
             .OrderBy(n => n, StringComparer.Ordinal)
             .ToArray();
 
-        // Pins the full set: a pruned/undiscovered module fails here loudly, and adding an
-        // eighth in-repo module must update this expectation deliberately.
+        // Superset, not equality: composition is deployment-dependent. A Modules.Private/ overlay
+        // (EInvoicing today) legitimately adds more, and this checkout may or may not have one — an
+        // exact-set assertion fails purely on whether the overlay happens to be present.
+        //
+        // The original purpose survives unchanged: a pruned or undiscovered PUBLIC module still fails
+        // here loudly, which is the whole reason this test exists.
         string[] expected =
         [
             "CashComposition", "FixedAssetsComposition", "InventoryComposition",
             "PayablesComposition", "PayrollComposition", "ReceivablesComposition",
             "ReconciliationComposition",
         ];
-        Assert.Equal(expected, found);
+        string[] missing = [.. expected.Except(found).OrderBy(n => n, StringComparer.Ordinal)];
+
+        Assert.True(
+            missing.Length == 0,
+            $"Undiscovered public module composition(s): {string.Join(", ", missing)}. "
+            + $"Discovered: {string.Join(", ", found)}.");
     }
 
     [Fact]

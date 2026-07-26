@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Accounting101.Ledger.Api.Auth;
+using Accounting101.Ledger.Api.Hosting;
 using Accounting101.Ledger.Contracts;
 using Accounting101.Ledger.Api.Control;
 
@@ -28,6 +29,7 @@ public static class AdminEndpoints
         perClient.MapPost("/clients/{clientId:guid}/members", AddMember);
         perClient.MapGet("/clients/{clientId:guid}/members", ListMembers);
         perClient.MapPut("/clients/{clientId:guid}/modules", SetClientModules);
+        perClient.MapGet("/clients/{clientId:guid}/modules", GetClientModules);
     }
 
     private static async Task<IResult> CreateClient(
@@ -155,27 +157,68 @@ public static class AdminEndpoints
             m.UserId, m.ClientId, m.GrantedRoles.Select(r => r.ToString()).ToList(), m.Capabilities)).ToList());
     }
 
-    private static async Task<IResult> SetClientModules(
-        Guid clientId, SetClientModulesRequest request, ClaimsPrincipal user,
-        IActorFactory actorFactory, ControlStore control, CancellationToken cancellationToken)
+    private static async Task<IResult> GetClientModules(
+        Guid clientId, ClaimsPrincipal user, IActorFactory actorFactory, ControlStore control,
+        InstalledModules installed, CancellationToken cancellationToken)
     {
         if (!await AdminAuthorization.MayAsync(user, clientId, Capabilities.AdminClient, actorFactory, control, cancellationToken))
             return Results.Forbid();
 
-        if (await control.GetClientAsync(clientId, cancellationToken) is null)
+        ClientRegistration? client = await control.GetClientAsync(clientId, cancellationToken);
+        if (client is null)
+            return Results.NotFound();
+
+        // Entitlement RAW, deliberately un-intersected: this is the one surface that lets support tell
+        // "not sold" apart from "not installed". Sorted installed keys so the diff is easy to eyeball.
+        return Results.Ok(new ClientModulesResponse(
+            clientId,
+            client.EnabledModules,
+            SortedInstalledKeys(installed)));
+    }
+
+    // Ordering exists purely so a support reader can eyeball the difference between sold and
+    // installed keys — it carries no meaning in the wire contract itself.
+    private static string[] SortedInstalledKeys(InstalledModules installed) =>
+        [.. installed.Keys.OrderBy(k => k, StringComparer.Ordinal)];
+
+    private static async Task<IResult> SetClientModules(
+        Guid clientId, SetClientModulesRequest request, ClaimsPrincipal user,
+        IActorFactory actorFactory, ControlStore control, InstalledModules installed,
+        CancellationToken cancellationToken)
+    {
+        if (!await AdminAuthorization.MayAsync(user, clientId, Capabilities.AdminClient, actorFactory, control, cancellationToken))
+            return Results.Forbid();
+
+        ClientRegistration? existing = await control.GetClientAsync(clientId, cancellationToken);
+        if (existing is null)
             return Results.NotFound();
 
         IReadOnlyList<string> keys = request.ModuleKeys ?? [];
-        // Validate against installed modules — an unknown key is a mistake (no module would ever be entitled),
-        // not inert. A helpful 400 beats a silently useless entitlement. One lookup covers every key.
-        if (keys.Count > 0)
-        {
-            HashSet<string> installed = [.. (await control.ListModulesAsync(cancellationToken)).Select(m => m.Key)];
-            if (keys.FirstOrDefault(k => !installed.Contains(k)) is { } unknown)
-                return Results.Problem($"Unknown module '{unknown}'.", statusCode: StatusCodes.Status400BadRequest);
-        }
+
+        // Refuse to SELL what this deployment cannot RUN — but only for keys this request would newly
+        // add. A key already present in the stored entitlement is carried forward regardless of this
+        // host's installed set: SetClientModulesRequest is a documented full replace ("Idempotent",
+        // AdminContracts.cs), so an unrelated edit (e.g. adding "payables") must not silently erase an
+        // entitlement the client already bought just because a later deployment stopped composing its
+        // module ("Entitlement is never erased" — a redeploy must never delete what a customer bought,
+        // and re-installing must restore it). The guard's purpose is fully served by rejecting NEW
+        // keys — extending it to already-stored keys would turn every unrelated edit into a silent
+        // erasure. Removing an uninstalled entitlement stays possible by simply omitting it, which is
+        // an explicit act rather than a side effect of this guard.
+        //
+        // Taken from DI (what the host actually composed) rather than the control DB's modules
+        // collection: ModuleRegistrar seeds that only into the default firm, so it can be partial or
+        // stale under multi-firm.
+        //
+        // All keys are checked before anything is written — a half-applied module set is worse than
+        // either clean outcome.
+        string[] absent = [.. keys.Where(k => !installed.Has(k) && !existing.EnabledModules.Contains(k))];
+        if (absent.Length > 0)
+            return Results.Problem(
+                $"Module(s) not installed in this deployment: {string.Join(", ", absent)}.",
+                statusCode: StatusCodes.Status422UnprocessableEntity);
 
         await control.SetClientModulesAsync(clientId, keys, cancellationToken);
-        return Results.Ok(new ClientModulesResponse(clientId, keys));
+        return Results.Ok(new ClientModulesResponse(clientId, keys, SortedInstalledKeys(installed)));
     }
 }

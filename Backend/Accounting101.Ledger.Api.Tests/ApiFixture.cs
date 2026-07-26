@@ -1,11 +1,15 @@
 using System.Net.Http.Headers;
 using Accounting101.Ledger.Api.Auth;
 using Accounting101.Ledger.Api.Control;
+using Accounting101.Ledger.Api.Hosting;
 using Accounting101.Ledger.Api.Platform;
 using Accounting101.Ledger.Contracts;
 using Accounting101.TestSupport;
 using EphemeralMongo;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using MongoDB.Driver;
 
 namespace Accounting101.Ledger.Api.Tests;
@@ -71,6 +75,31 @@ public sealed class ApiFixture : IAsyncLifetime
     }
 
     public HttpClient AnonymousClient() => _factory.CreateClient();
+
+    /// <summary>
+    /// An HttpClient from a host whose <see cref="InstalledModules"/> is replaced with exactly
+    /// <paramref name="installedKeys"/>. This is the ONLY way to exercise the "not installed" branch:
+    /// the test process's deps.json includes every module project, so a module can never genuinely be
+    /// absent here.
+    ///
+    /// <c>ConfigureTestServices</c> runs AFTER the host's own registrations, and the engine registers
+    /// InstalledModules with <c>TryAddSingleton</c> (first-wins) — so this must <c>Replace</c> the
+    /// descriptor, not <c>Add</c> a second one. The derived factory is tracked by its parent and
+    /// disposed with the fixture.
+    /// </summary>
+    public HttpClient ClientWithInstalledModules(
+        Guid userId, IEnumerable<string> installedKeys, params (string Type, string Value)[] claims)
+    {
+        InstalledModules installed = new(installedKeys);
+        HttpClient client = _factory
+            .WithWebHostBuilder(b => b.ConfigureTestServices(s =>
+                s.Replace(ServiceDescriptor.Singleton(installed))))
+            .CreateClient();
+        string token = DevToken.Encode(new DevTokenPayload(
+            userId, "Installed-Subset Member", claims.Select(c => new DevClaim(c.Type, c.Value)).ToList()));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(DevTokenDefaults.Scheme, token);
+        return client;
+    }
 
     /// <summary>An HttpClient authenticated as a deployment admin (carries the provisioning claim).</summary>
     public HttpClient AdminClient() => ClientFor(Guid.NewGuid(), "Deployment Admin", ("admin", "true"));
