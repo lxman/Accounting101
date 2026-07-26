@@ -9,11 +9,13 @@ public sealed class DocumentBankAdjustmentStore(IDocumentStore documents) : IBan
 {
     private const string Collection = "bank-adjustments";
 
-    public async Task<BankAdjustment> RecordAsync(Guid clientId, BankAdjustmentBody body, CancellationToken ct = default)
+    public async Task<BankAdjustment> RecordAsync(Guid clientId, Guid id, BankAdjustmentBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        Guid id = await documents.CreateAsync(clientId, Collection, body, Tags(), ct);
-        await documents.FinalizeAsync(clientId, Collection, id, ct);
+        // Evidentiary: create then finalize to assign the sequence number — but only the caller that
+        // actually created it finalizes, so a replay burns no number and cannot race a concurrent creator.
+        if (await documents.CreateWithIdAsync(clientId, Collection, id, body, Tags(), ct))
+            await documents.FinalizeAsync(clientId, Collection, id, ct);
         DocumentResult<BankAdjustmentBody>? result = await documents.GetAsync<BankAdjustmentBody>(clientId, Collection, id, ct);
         return Map(result!);
     }

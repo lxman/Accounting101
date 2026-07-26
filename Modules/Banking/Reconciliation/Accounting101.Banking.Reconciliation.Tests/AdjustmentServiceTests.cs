@@ -21,8 +21,8 @@ public sealed class AdjustmentServiceTests
         (AdjustmentService svc, InMemoryReconciliationStore recs, InMemoryBankAdjustmentStore adjs, FakePostingLedger ledger) = Build();
         Reconciliation rec = await recs.CreateAsync(clientId, Cash, Guid.NewGuid(), StmtDate);
 
-        BankAdjustment adj = await svc.RecordAdjustmentAsync(clientId, rec.Id,
-            new RecordAdjustmentInput(Offset, 5m, AdjustmentKind.Charge, null, "bank fee"));
+        BankAdjustment adj = (await svc.RecordAdjustmentAsync(clientId, rec.Id,
+            new RecordAdjustmentInput(Offset, 5m, AdjustmentKind.Charge, null, "bank fee"))).Adjustment;
 
         Assert.NotNull(ledger.Posted);
         Assert.Contains(ledger.Posted!.Lines, l => l.AccountId == Offset && l.Direction == "Debit" && l.Amount == 5m);
@@ -61,7 +61,7 @@ public sealed class AdjustmentServiceTests
         (AdjustmentService svc, InMemoryReconciliationStore recs, _, FakePostingLedger ledger) = Build();
         Reconciliation rec = await recs.CreateAsync(clientId, Cash, Guid.NewGuid(), StmtDate);
         ledger.EntryPosting = "PendingApproval";
-        BankAdjustment adj = await svc.RecordAdjustmentAsync(clientId, rec.Id, new RecordAdjustmentInput(Offset, 5m, AdjustmentKind.Charge, null, null));
+        BankAdjustment adj = (await svc.RecordAdjustmentAsync(clientId, rec.Id, new RecordAdjustmentInput(Offset, 5m, AdjustmentKind.Charge, null, null))).Adjustment;
 
         BankAdjustment voided = await svc.VoidAdjustmentAsync(clientId, adj.Id);
 
@@ -77,7 +77,7 @@ public sealed class AdjustmentServiceTests
         (AdjustmentService svc, InMemoryReconciliationStore recs, _, FakePostingLedger ledger) = Build();
         Reconciliation rec = await recs.CreateAsync(clientId, Cash, Guid.NewGuid(), StmtDate);
         ledger.EntryPosting = "Posted";   // simulate the entry already approved
-        BankAdjustment adj = await svc.RecordAdjustmentAsync(clientId, rec.Id, new RecordAdjustmentInput(Offset, 5m, AdjustmentKind.Charge, null, null));
+        BankAdjustment adj = (await svc.RecordAdjustmentAsync(clientId, rec.Id, new RecordAdjustmentInput(Offset, 5m, AdjustmentKind.Charge, null, null))).Adjustment;
 
         await svc.VoidAdjustmentAsync(clientId, adj.Id);
 

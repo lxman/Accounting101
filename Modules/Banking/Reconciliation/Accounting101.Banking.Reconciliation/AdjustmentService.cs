@@ -7,13 +7,22 @@ namespace Accounting101.Banking.Reconciliation;
 public sealed class AdjustmentService(
     IReconciliationStore reconciliations, IBankAdjustmentStore adjustments, ILedgerClient ledger)
 {
-    public async Task<BankAdjustment> RecordAdjustmentAsync(
-        Guid clientId, Guid reconciliationId, RecordAdjustmentInput input, CancellationToken ct = default)
+    public async Task<(BankAdjustment Adjustment, bool Replayed)> RecordAdjustmentAsync(
+        Guid clientId, Guid reconciliationId, RecordAdjustmentInput input, Guid? retryKey = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(input);
+
+        Guid id = retryKey ?? Guid.NewGuid();
+        BankAdjustment? known = retryKey is not null ? await adjustments.GetAsync(clientId, id, ct) : null;
+        bool replayed = known is not null;
+
+        // The reconciliation's cash account and default date are needed to compose the entry on every
+        // call, replay or not — the same role Cash's/Payroll's posting-accounts fetch plays, not a
+        // state-dependent guard. Its Completed status IS state that can change between the original
+        // call and a later replay, so that check is gated to the create branch below.
         Reconciliation reconciliation = await reconciliations.GetAsync(clientId, reconciliationId, ct)
             ?? throw new InvalidOperationException($"Reconciliation {reconciliationId} not found.");
-        if (reconciliation.Status == ReconciliationStatus.Completed)
+        if (!replayed && reconciliation.Status == ReconciliationStatus.Completed)
             throw new InvalidOperationException($"Reconciliation {reconciliationId} is already completed.");
         if (input.Amount <= 0m)
             throw new ArgumentException($"Adjustment amount must be positive; got {input.Amount}.");
@@ -24,10 +33,16 @@ public sealed class AdjustmentService(
             reconciliationId, reconciliation.CashAccountId, input.OffsetAccountId,
             input.Kind, input.Amount, input.Date ?? reconciliation.StatementDate, input.Memo);
 
-        BankAdjustment adjustment = await adjustments.RecordAsync(clientId, body, ct);
-        PostEntryRequest entry = AdjustmentPosting.Compose(adjustment.Id, body);
-        await ledger.PostAsync(clientId, entry, ct);   // PendingApproval — module never approves
-        return adjustment;
+        // 1. Persist the evidentiary document (finalized immediately — no draft phase).
+        if (!replayed)
+            known = await adjustments.RecordAsync(clientId, id, body, ct);
+
+        // 2. Compose from the request and post on both branches — the ledger arbitrates a replay
+        //    versus a key reused for different content, and a retry repairs a post that never landed.
+        PostEntryRequest entry = AdjustmentPosting.Compose(id, body);
+        // 3. Post PendingApproval — the module never approves its own entries.
+        await ledger.PostAsync(clientId, entry, ct);
+        return (known!, replayed);
     }
 
     public async Task<BankAdjustment> VoidAdjustmentAsync(

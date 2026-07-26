@@ -57,11 +57,11 @@ internal sealed class InMemoryBankAdjustmentStore : IBankAdjustmentStore
 {
     private readonly ConcurrentDictionary<(Guid, Guid), BankAdjustment> _store = new();
     private long _seq;
-    public Task<BankAdjustment> RecordAsync(Guid clientId, BankAdjustmentBody body, CancellationToken ct = default)
+    public Task<BankAdjustment> RecordAsync(Guid clientId, Guid id, BankAdjustmentBody body, CancellationToken ct = default)
     {
         BankAdjustment a = new()
         {
-            Id = Guid.NewGuid(), Number = $"ADJ-{Interlocked.Increment(ref _seq):D5}",
+            Id = id, Number = $"ADJ-{Interlocked.Increment(ref _seq):D5}",
             ReconciliationId = body.ReconciliationId, CashAccountId = body.CashAccountId,
             OffsetAccountId = body.OffsetAccountId, Kind = body.Kind, Amount = body.Amount,
             Date = body.Date, Memo = body.Memo, Status = BankAdjustmentStatus.Posted,
