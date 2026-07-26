@@ -5,9 +5,9 @@ namespace Accounting101.Banking.Reconciliation.Tests;
 /// <summary>
 /// The TOCTOU race on a retry key, pinned deterministically.
 ///
-/// WHAT MAKES THIS VALID: revert the service's <c>replayed = !result.Created;</c> to
-/// <c>replayed = known is not null;</c> and both racers claim a create, so the single-create
-/// assertion sees two and fails.
+/// WHAT MAKES THIS VALID: delete the service's <c>replayed = !result.Created;</c> line (leaving
+/// <c>replayed</c> at its earlier, pre-check-derived value) and both racers claim a create, so the
+/// single-create assertion sees two and fails.
 /// </summary>
 public sealed class AdjustmentRaceTests
 {

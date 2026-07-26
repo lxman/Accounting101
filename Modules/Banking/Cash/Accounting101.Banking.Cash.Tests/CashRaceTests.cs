@@ -6,10 +6,10 @@ namespace Accounting101.Banking.Cash.Tests;
 /// <summary>
 /// The TOCTOU race on a retry key, pinned deterministically.
 ///
-/// WHAT MAKES THESE VALID: revert the service's <c>replayed = !result.Created;</c> to
-/// <c>replayed = known is not null;</c> and both racers claim a create, so the single-create
-/// assertion sees two and fails. A concurrency test without that property is worse than none —
-/// it advertises protection it does not provide.
+/// WHAT MAKES THESE VALID: delete the service's <c>replayed = !result.Created;</c> line (leaving
+/// <c>replayed</c> at its earlier, pre-check-derived value) and both racers claim a create, so the
+/// single-create assertion sees two and fails. A concurrency test without that property is worse than
+/// none — it advertises protection it does not provide.
 /// </summary>
 public sealed class CashRaceTests
 {
