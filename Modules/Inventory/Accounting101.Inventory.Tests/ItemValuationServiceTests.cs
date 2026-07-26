@@ -19,7 +19,7 @@ public class ItemValuationServiceTests
     private static async Task Post(InMemoryStockMovementStore movements, FakeLedgerClient ledger, FixedInventoryAccountsProvider acct,
         Guid itemId, MovementType type, decimal qty, decimal ext)
     {
-        StockMovement m = await movements.RecordAsync(Client, new StockMovementBody(
+        StockMovement m = await movements.RecordAsync(Client, Guid.NewGuid(), new StockMovementBody(
             itemId, type, new DateOnly(2026, 1, 1), null, qty, ext / Math.Abs(qty), ext));
         await ledger.PostAsync(Client, InventoryPosting.Compose(type, qty, m.Id, itemId, ext, new DateOnly(2026, 1, 1), null,
             new InventoryPostingAccounts
@@ -68,7 +68,7 @@ public class ItemValuationServiceTests
         Guid item = Guid.NewGuid();
 
         // Post inline (rather than via the Post() helper) so we capture the entry id needed for ReverseAsync.
-        StockMovement m = await movements.RecordAsync(Client, new StockMovementBody(
+        StockMovement m = await movements.RecordAsync(Client, Guid.NewGuid(), new StockMovementBody(
             item, MovementType.Receipt, new DateOnly(2026, 1, 1), null, 10m, 10m, 100m));
         PostEntryResponse posted = await ledger.PostAsync(Client, InventoryPosting.Compose(
             MovementType.Receipt, 10m, m.Id, item, 100m, new DateOnly(2026, 1, 1), null,

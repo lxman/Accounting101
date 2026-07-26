@@ -10,11 +10,14 @@ public sealed record SaveItemRequest(string Sku, string Name, string? Descriptio
 }
 
 /// <summary>Record a stock movement (receipt, issue, or adjustment). <see cref="EffectiveDate"/> is
-/// required — the clerk always dates a movement.</summary>
+/// required — the clerk always dates a movement. <paramref name="Id"/> is an optional caller-supplied
+/// retry key that becomes the movement's id: same key and same content replays (200, no second movement
+/// and no second valuation effect), different content is a 422.</summary>
 public sealed record RecordMovementRequest(
-    Guid ItemId, MovementType Type, decimal Quantity, decimal? UnitCost, DateOnly EffectiveDate, string? Memo)
+    Guid ItemId, MovementType Type, decimal Quantity, decimal? UnitCost, DateOnly EffectiveDate, string? Memo,
+    Guid? Id = null)
 {
-    public RecordMovement ToRequest() => new(ItemId, Type, Quantity, UnitCost, EffectiveDate, Memo);
+    public RecordMovement ToRequest() => new(ItemId, Type, Quantity, UnitCost, EffectiveDate, Memo, Id);
 }
 
 /// <summary>Optional free-text reason accompanying a void.</summary>

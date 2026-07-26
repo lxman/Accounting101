@@ -36,7 +36,7 @@ public sealed class InventoryMovementServiceTests
         await svc.RecordAsync(clientId, new RecordMovement(item.Id, MovementType.Receipt, 10m, 10m, new DateOnly(2026, 1, 1), null));
         await svc.RecordAsync(clientId, new RecordMovement(item.Id, MovementType.Receipt, 10m, 20m, new DateOnly(2026, 1, 2), null));
         // On-hand 20 @ avg 15. Issue 4 → COGS 60.
-        StockMovement issue = await svc.RecordAsync(clientId, new RecordMovement(item.Id, MovementType.Issue, 4m, null, new DateOnly(2026, 1, 3), null));
+        StockMovement issue = (await svc.RecordAsync(clientId, new RecordMovement(item.Id, MovementType.Issue, 4m, null, new DateOnly(2026, 1, 3), null))).Movement;
 
         Assert.Equal(60m, issue.ExtendedCost);
         Assert.Equal(15m, issue.AppliedUnitCost);
@@ -49,8 +49,8 @@ public sealed class InventoryMovementServiceTests
         ItemValuationService valuation = new(movements, accts, ledger);
         Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
 
-        StockMovement mv = await svc.RecordAsync(Client,
-            new RecordMovement(item.Id, MovementType.Receipt, 10m, 2m, new DateOnly(2026, 1, 15), null));
+        StockMovement mv = (await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Receipt, 10m, 2m, new DateOnly(2026, 1, 15), null))).Movement;
 
         Assert.NotNull(mv.Number);
         // Valuation is derived from the ledger fold, not stamped on the store (includePending: the fake
@@ -140,8 +140,8 @@ public sealed class InventoryMovementServiceTests
         await svc.RecordAsync(Client,
             new RecordMovement(item.Id, MovementType.Receipt, 20m, 3m, new DateOnly(2026, 1, 1), null));
 
-        StockMovement issue1 = await svc.RecordAsync(Client,
-            new RecordMovement(item.Id, MovementType.Issue, 5m, null, new DateOnly(2026, 1, 15), null));
+        StockMovement issue1 = (await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Issue, 5m, null, new DateOnly(2026, 1, 15), null))).Movement;
 
         Assert.Equal(3m, issue1.AppliedUnitCost);
         Assert.Equal(15m, issue1.ExtendedCost);
@@ -154,8 +154,8 @@ public sealed class InventoryMovementServiceTests
         Assert.Contains(firstIssueEntry.Lines, l => l.AccountId == accts.CogsAccountId && l.Direction == "Debit" && l.Amount == 15m);
         Assert.Contains(firstIssueEntry.Lines, l => l.AccountId == accts.InventoryAssetAccountId && l.Direction == "Credit" && l.Amount == 15m);
 
-        StockMovement issue2 = await svc.RecordAsync(Client,
-            new RecordMovement(item.Id, MovementType.Issue, 15m, null, new DateOnly(2026, 1, 20), null));
+        StockMovement issue2 = (await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Issue, 15m, null, new DateOnly(2026, 1, 20), null))).Movement;
 
         Assert.Equal(3m, issue2.AppliedUnitCost);
         Assert.Equal(45m, issue2.ExtendedCost);
@@ -193,8 +193,8 @@ public sealed class InventoryMovementServiceTests
         await svc.RecordAsync(Client,
             new RecordMovement(item.Id, MovementType.Receipt, 10m, 3m, new DateOnly(2026, 1, 1), null));
 
-        StockMovement mv = await svc.RecordAsync(Client,
-            new RecordMovement(item.Id, MovementType.Adjustment, 5m, 4m, new DateOnly(2026, 1, 15), "Cycle count overage"));
+        StockMovement mv = (await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Adjustment, 5m, 4m, new DateOnly(2026, 1, 15), "Cycle count overage"))).Movement;
 
         Assert.Equal(4m, mv.AppliedUnitCost);
         Assert.Equal(20m, mv.ExtendedCost);
@@ -220,8 +220,8 @@ public sealed class InventoryMovementServiceTests
         await svc.RecordAsync(Client,
             new RecordMovement(item.Id, MovementType.Receipt, 10m, 3m, new DateOnly(2026, 1, 1), null));
 
-        StockMovement mv = await svc.RecordAsync(Client,
-            new RecordMovement(item.Id, MovementType.Adjustment, -4m, null, new DateOnly(2026, 1, 15), "Cycle count shrinkage"));
+        StockMovement mv = (await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Adjustment, -4m, null, new DateOnly(2026, 1, 15), "Cycle count shrinkage"))).Movement;
 
         Assert.Equal(3m, mv.AppliedUnitCost);
         Assert.Equal(12m, mv.ExtendedCost);
@@ -276,7 +276,7 @@ public sealed class InventoryMovementServiceTests
         Item item = await items.CreateAsync(clientId, new ItemBody("SKU1", "Widget", null, "ea"));
 
         await svc.RecordAsync(clientId, new RecordMovement(item.Id, MovementType.Receipt, 10m, 10m, new DateOnly(2026, 1, 1), null));
-        StockMovement issue = await svc.RecordAsync(clientId, new RecordMovement(item.Id, MovementType.Issue, 4m, null, new DateOnly(2026, 1, 2), null));
+        StockMovement issue = (await svc.RecordAsync(clientId, new RecordMovement(item.Id, MovementType.Issue, 4m, null, new DateOnly(2026, 1, 2), null))).Movement;
         await svc.VoidAsync(clientId, issue.Id, "oops");
 
         ItemValuation v = await valuation.GetAsync(clientId, item.Id, includePending: true);
@@ -293,7 +293,7 @@ public sealed class InventoryMovementServiceTests
         ItemValuationService valuation = new(movements, accts, ledger);
         Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
         await svc.RecordAsync(Client, new RecordMovement(item.Id, MovementType.Receipt, 10m, 2m, D(2026, 1, 10), null));
-        StockMovement issue = await svc.RecordAsync(Client, new RecordMovement(item.Id, MovementType.Issue, 4m, null, D(2026, 1, 20), null));
+        StockMovement issue = (await svc.RecordAsync(Client, new RecordMovement(item.Id, MovementType.Issue, 4m, null, D(2026, 1, 20), null))).Movement;
         // item now (6, 12). Void the issue → the withdrawn entry + now-void movement drop out of the fold,
         // rolling the derived valuation back to (10, 20) with no stored restore.
         StockMovement voided = await svc.VoidAsync(Client, issue.Id, "oops");
@@ -311,8 +311,8 @@ public sealed class InventoryMovementServiceTests
     {
         (InventoryMovementService svc, InMemoryItemStore items, _, _, _) = Build();
         Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
-        StockMovement receipt = await svc.RecordAsync(Client,
-            new RecordMovement(item.Id, MovementType.Receipt, 10m, 2m, D(2026, 1, 10), null));
+        StockMovement receipt = (await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Receipt, 10m, 2m, D(2026, 1, 10), null))).Movement;
         await svc.RecordAsync(Client, new RecordMovement(item.Id, MovementType.Issue, 4m, null, D(2026, 1, 20), null));
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => svc.VoidAsync(Client, receipt.Id, null));
@@ -323,8 +323,8 @@ public sealed class InventoryMovementServiceTests
     {
         (InventoryMovementService svc, InMemoryItemStore items, _, _, _) = Build();
         Item item = await items.CreateAsync(Client, new ItemBody("SKU1", "Widget", null, "each"));
-        StockMovement receipt = await svc.RecordAsync(Client,
-            new RecordMovement(item.Id, MovementType.Receipt, 10m, 2m, D(2026, 1, 10), null));
+        StockMovement receipt = (await svc.RecordAsync(Client,
+            new RecordMovement(item.Id, MovementType.Receipt, 10m, 2m, D(2026, 1, 10), null))).Movement;
         await svc.VoidAsync(Client, receipt.Id, null);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => svc.VoidAsync(Client, receipt.Id, null));

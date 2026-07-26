@@ -32,8 +32,10 @@ public static class InventoryEndpoints
     {
         try
         {
-            StockMovement movement = await service.RecordAsync(clientId, request.ToRequest(), cancellationToken);
-            return Results.Created($"/clients/{clientId}/movements/{movement.Id}", new StockMovementView(movement));
+            (StockMovement movement, bool replayed) = await service.RecordAsync(clientId, request.ToRequest(), cancellationToken);
+            return replayed
+                ? Results.Ok(new StockMovementView(movement))
+                : Results.Created($"/clients/{clientId}/movements/{movement.Id}", new StockMovementView(movement));
         }
         catch (KeyNotFoundException ex)
         {

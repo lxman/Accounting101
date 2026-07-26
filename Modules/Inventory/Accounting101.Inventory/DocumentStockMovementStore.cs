@@ -9,11 +9,13 @@ public sealed class DocumentStockMovementStore(IDocumentStore documents) : IStoc
 {
     private const string Collection = "stock-movements";
 
-    public async Task<StockMovement> RecordAsync(Guid clientId, StockMovementBody body, CancellationToken ct = default)
+    public async Task<StockMovement> RecordAsync(Guid clientId, Guid id, StockMovementBody body, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(body);
-        Guid id = await documents.CreateAsync(clientId, Collection, body, Tags(), ct);
-        await documents.FinalizeAsync(clientId, Collection, id, ct);
+        // Evidentiary: create then finalize to assign the sequence number — but only the caller that
+        // actually created it finalizes, so a replay burns no number and cannot race a concurrent creator.
+        if (await documents.CreateWithIdAsync(clientId, Collection, id, body, Tags(), ct))
+            await documents.FinalizeAsync(clientId, Collection, id, ct);
         DocumentResult<StockMovementBody>? result = await documents.GetAsync<StockMovementBody>(clientId, Collection, id, ct);
         return Map(result!);
     }
