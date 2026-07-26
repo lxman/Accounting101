@@ -114,4 +114,38 @@ public sealed class ClientModulesTests(ApiFixture fixture) : IClassFixture<ApiFi
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
+
+    [Fact]
+    public async Task Admin_read_shows_raw_entitlement_beside_what_is_installed()
+    {
+        SeededClient client = await fixture.SeedClientAsync(enabledModules: ["cash", "reconciliation"]);
+        // A deployment that sold both but composed only "cash" — the misconfiguration the UI hides.
+        HttpClient admin = fixture.ClientWithInstalledModules(
+            Guid.NewGuid(), ["cash"], ("admin", "true"));
+
+        ClientModulesResponse body = (await admin.GetFromJsonAsync<ClientModulesResponse>(
+            $"/admin/clients/{client.ClientId}/modules"))!;
+
+        Assert.Equal(client.ClientId, body.ClientId);
+        // Entitlement is NOT intersected here — support must see "sold but absent".
+        Assert.Equal(["cash", "reconciliation"], body.ModuleKeys);
+        Assert.Equal(["cash"], body.InstalledModuleKeys);
+    }
+
+    [Fact]
+    public async Task Admin_read_of_an_unknown_client_is_not_found()
+    {
+        HttpClient admin = fixture.AdminClient();
+        HttpResponseMessage response = await admin.GetAsync($"/admin/clients/{Guid.NewGuid()}/modules");
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_read_is_forbidden_to_a_plain_member()
+    {
+        SeededClient client = await fixture.SeedClientAsync(role: LedgerRole.Clerk, enabledModules: []);
+        HttpResponseMessage response = await client.Http.GetAsync(
+            $"/admin/clients/{client.ClientId}/modules");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
 }

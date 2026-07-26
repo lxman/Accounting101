@@ -29,6 +29,7 @@ public static class AdminEndpoints
         perClient.MapPost("/clients/{clientId:guid}/members", AddMember);
         perClient.MapGet("/clients/{clientId:guid}/members", ListMembers);
         perClient.MapPut("/clients/{clientId:guid}/modules", SetClientModules);
+        perClient.MapGet("/clients/{clientId:guid}/modules", GetClientModules);
     }
 
     private static async Task<IResult> CreateClient(
@@ -156,6 +157,25 @@ public static class AdminEndpoints
             m.UserId, m.ClientId, m.GrantedRoles.Select(r => r.ToString()).ToList(), m.Capabilities)).ToList());
     }
 
+    private static async Task<IResult> GetClientModules(
+        Guid clientId, ClaimsPrincipal user, IActorFactory actorFactory, ControlStore control,
+        InstalledModules installed, CancellationToken cancellationToken)
+    {
+        if (!await AdminAuthorization.MayAsync(user, clientId, Capabilities.AdminClient, actorFactory, control, cancellationToken))
+            return Results.Forbid();
+
+        ClientRegistration? client = await control.GetClientAsync(clientId, cancellationToken);
+        if (client is null)
+            return Results.NotFound();
+
+        // Entitlement RAW, deliberately un-intersected: this is the one surface that lets support tell
+        // "not sold" apart from "not installed". Sorted installed keys so the diff is easy to eyeball.
+        return Results.Ok(new ClientModulesResponse(
+            clientId,
+            client.EnabledModules,
+            [.. installed.Keys.OrderBy(k => k, StringComparer.Ordinal)]));
+    }
+
     private static async Task<IResult> SetClientModules(
         Guid clientId, SetClientModulesRequest request, ClaimsPrincipal user,
         IActorFactory actorFactory, ControlStore control, InstalledModules installed,
@@ -186,6 +206,7 @@ public static class AdminEndpoints
                 statusCode: StatusCodes.Status422UnprocessableEntity);
 
         await control.SetClientModulesAsync(clientId, keys, cancellationToken);
-        return Results.Ok(new ClientModulesResponse(clientId, keys));
+        return Results.Ok(new ClientModulesResponse(
+            clientId, keys, [.. installed.Keys.OrderBy(k => k, StringComparer.Ordinal)]));
     }
 }
