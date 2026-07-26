@@ -93,12 +93,13 @@ branch testable at all (see Testing).
 
 | Consumer | Question it answers | Change |
 |---|---|---|
-| `ModuleAccess.cs:59` — authorization | may this call proceed? | **None.** If a module is not installed its code is not running, so no caller can present its credential; intersecting is a no-op. It remains the authority. |
+| `ModuleAccess.cs:59` — authorization | may this call proceed? | **None.** The credential does not vanish with the code: `CredentialModuleAuthenticator` verifies against the persisted control-DB row and `ModuleSecretResolver` persists the secret in `platform_control`, neither pruned on uninstall. What actually stops the call is confidentiality — nobody outside the process knows the secret to present — not the module's absence; intersecting here would be a no-op anyway. It remains the authority. |
 | `CapabilitiesEndpoints.cs:37` — the UI's source of truth | what can this user reach? | **Intersect.** |
 | `PostingAccountEndpoints.cs:33` — which config slots to offer | what can this client configure? | **Intersect.** Offering posting-account slots for an absent module is the same lie in a different place. |
 | `AdminEndpoints.SetClientModules` | what may be sold to this client? | **Reject** keys this deployment does not have — 422 naming them. Defence in depth. |
 | `AdminContracts.cs:41` — client detail | what was sold, and what is here? | **Keep entitlement raw, add installed.** This is where support distinguishes "not sold" from "not installed". |
 | `PlatformEndpoints.cs:138` — usage meter | what was sold, across firms? | **Keep raw.** A billing meter counts what was sold, independent of whether any given deployment composed it. |
+| `EInvoicingEndpoints.cs:56-63` — the einvoicing module's own authorization gate | may this call proceed? | **None needed — no-op.** Unlike the `ModuleAccess` row, this *is* authorization, and it reads `EnabledModules` from the capabilities payload rather than the raw client record, which the framing above assumed never happened. It is still safe: a module serving the request is by construction installed on the host answering capabilities, and the intersection only ever shrinks the list, so it fails closed. |
 
 The last two rows are decisions, not oversights. Diagnosability belongs on the admin surface that
 needs it, not in every user's capabilities payload; and metering entitlement rather than availability
