@@ -93,8 +93,17 @@ Registered in `ReconciliationEndpoints.MapReconciliationEndpoints` beside the ot
 No route conflict with `/bank-statements/{id:guid}` — that route is guid-constrained, so `duplicates`
 cannot match it.
 
-Both parameters are required. A missing, empty or unparseable either way is a 400 stating which,
-matching `ListStatements`' existing treatment of a missing `cashAccountId`.
+Both parameters are required, and a missing or empty either way is a 400 stating which, with a
+`problem+json` body — matching `ListStatements`' existing treatment of a missing `cashAccountId`.
+
+`statementDate` additionally handles an **unparseable** value, because it binds as `string?` and is
+parsed in the handler (see Testing). `cashAccountId` does not: it binds as `Guid?`, so a malformed
+value fails minimal-API parameter binding before the handler runs and returns the framework's own
+empty-bodied 400. That asymmetry is deliberate and was ratified during implementation — `ListStatements`
+twenty lines above behaves identically, no client can emit a malformed GUID, and the response is a 400
+either way. Making this one endpoint stricter than its neighbour would leave a reader unable to tell
+which of the two is correct. If the module ever standardises on parsed GUID parameters, both should
+change together.
 
 Returns a bare array of the domain `BankStatement`, per this class's convention (the same choice the
 bill lookup made).
