@@ -93,25 +93,22 @@ public sealed class MovementFoldRaceTests
     /// against it here would be asserting protected behaviour from unprotected code. At 3 the guard is
     /// unreachable either way, which isolates the store-bool guarantee from the block-negative guard.
     ///
-    /// The extended cost is identical under either WHOLE-FOLD ordering, i.e. a loser whose fold read
-    /// lands entirely before or entirely after the winner's write: issuing at the weighted average
-    /// leaves the average unchanged (10 units / 20.00 → avg 2.00; after one issue of 3, 7 units / 14.00
-    /// → still avg 2.00), so both racers compose 6.00 whichever whole fold they read. Do not "simplify"
-    /// these numbers.
+    /// The extended cost is identical under both orderings, so no divergent-content rejection can fire
+    /// either: issuing at the weighted average leaves the average unchanged (10 units / 20.00 → avg 2.00;
+    /// after one issue of 3, 7 units / 14.00 → still avg 2.00), so both racers compose 6.00 whichever
+    /// fold they read. Do not "simplify" these numbers.
     ///
-    /// RESIDUAL, NOT ELIMINATED: the fold is not one atomic read. <see cref="ItemValuationService.GetAsync"/>
-    /// takes the value from <c>GetSubledgerAsync</c>, then the quantity from <c>ProjectQuantityAsync</c>
-    /// (itself two more reads) — and under <see cref="NoOpItemWriteLock"/> nothing holds those together.
-    /// A torn read is possible in the narrow gap between them: the loser reads the subledger value (20),
-    /// is preempted, the winner completes its ENTIRE store write and post inside that gap, and the loser
-    /// resumes and reads quantity 7 — a fold that never existed at any single instant. That yields an
-    /// average of 2.857 instead of 2.00, an extended cost of 8.57 instead of 6.00, and
-    /// <see cref="FakeLedgerClient.PostAsync"/> throwing on divergent content under the winner's
-    /// already-registered SourceRef. This window is far narrower than the block-negative one above (the
-    /// winner's whole tail — store write and post — must land inside one specific gap between two of the
-    /// loser's three reads), which is why it has not been observed in this test's many stability runs,
-    /// but it is not structurally excluded the way the two claims above are. Whether to accept this
-    /// documented residual or rebuild the test to close it is an open decision, not resolved here.
+    /// TWO RENDEZVOUS, and both are needed. The fold is three reads, not one — value from
+    /// GetSubledgerAsync, then quantity from a movement-store read and GetEntriesBySourceRefsAsync — so
+    /// "whichever fold they read" is only true if a racer's fold is not TORN across the other's write.
+    /// Unguarded, a racer preempted after the value read resumes with a stale value (20) and a fresh
+    /// quantity (7), giving avg 2.857 and a cost of 8.57 instead of 6.00, and the ledger fake rejects it
+    /// as divergent content under the winner's SourceRef.
+    ///   - `atProbe` (in the store probe) puts both racers past the existence check before either creates.
+    ///   - `afterFold` (after the fold's LAST read) puts both past the ENTIRE valuation before either
+    ///     writes, which is what makes the torn read impossible.
+    /// Neither serialises the racers, so the un-locked interleaving this test exists to pin is still
+    /// reached. Removing `afterFold` reintroduces a narrow, real flake.
     ///
     /// WHAT MAKES IT VALID: delete the service's <c>replayed = !result.Created;</c> line and both racers
     /// claim a create, so the single-create assertion sees two and fails.
@@ -121,19 +118,27 @@ public sealed class MovementFoldRaceTests
     {
         InMemoryItemStore items = new();
         InMemoryStockMovementStore inner = new();
-        RaceRendezvous rendezvous = new(participants: 2, timeout: TimeSpan.FromSeconds(5));
-        RendezvousStockMovementStore racingStore = new(inner, rendezvous);   // blocks in the PROBE
         FakeLedgerClient ledger = new();
         FixedInventoryAccountsProvider accounts = new();
-        ItemValuationService valuation = new(racingStore, accounts, ledger);
-        InventoryMovementService service = new(items, racingStore, accounts, ledger, valuation, new NoOpItemWriteLock());
+
+        // Seeder: undecorated on BOTH seams, so setup can never arrive at either rendezvous and strand
+        // it. (The seed would in fact miss the fold rendezvous anyway — ProjectQuantityAsync returns
+        // early when the item has no movements yet, so GetEntriesBySourceRefsAsync is never reached —
+        // but relying on that accident would break the moment seeding order changed.)
+        ItemValuationService seedValuation = new(inner, accounts, ledger);
+        InventoryMovementService seeder = new(items, inner, accounts, ledger, seedValuation, new NoOpItemWriteLock());
+
+        RaceRendezvous atProbe = new(participants: 2, timeout: TimeSpan.FromSeconds(5));
+        RaceRendezvous afterFold = new(participants: 2, timeout: TimeSpan.FromSeconds(5));
+        RendezvousStockMovementStore racingStore = new(inner, atProbe);              // blocks in the PROBE
+        FoldCompleteRendezvousLedger racingLedger = new(ledger, afterFold);          // blocks after the FOLD
+        ItemValuationService raceValuation = new(racingStore, accounts, racingLedger);
+        InventoryMovementService racing = new(items, racingStore, accounts, racingLedger, raceValuation, new NoOpItemWriteLock());
 
         Guid clientId = Guid.NewGuid();
         Item item = await items.CreateAsync(clientId, new ItemBody("SKU1", "Widget", null, "each"));
 
-        // Seed WITHOUT a retry key: RecordAsync only probes when one is supplied, so this call never
-        // reaches the rendezvous and cannot strand it.
-        await service.RecordAsync(clientId, new RecordMovement(
+        await seeder.RecordAsync(clientId, new RecordMovement(
             item.Id, MovementType.Receipt, 10m, 2m, new DateOnly(2026, 1, 15), "seed"));
 
         Guid key = Guid.NewGuid();
@@ -141,13 +146,14 @@ public sealed class MovementFoldRaceTests
             item.Id, MovementType.Issue, 3m, null, new DateOnly(2026, 1, 16), "issue", key);
 
         (StockMovement Movement, bool Replayed)[] results =
-            await Task.WhenAll(service.RecordAsync(clientId, request), service.RecordAsync(clientId, request));
+            await Task.WhenAll(racing.RecordAsync(clientId, request), racing.RecordAsync(clientId, request));
 
         Assert.Single(results, r => !r.Replayed);
         Assert.Single(results, r => r.Replayed);
         Assert.All(results, r => Assert.Equal(key, r.Movement.Id));
 
-        ItemValuation after = await valuation.GetAsync(clientId, item.Id, includePending: true);
+        // Read back through the UNDECORATED valuation — the racing one would arrive at afterFold again.
+        ItemValuation after = await seedValuation.GetAsync(clientId, item.Id, includePending: true);
         Assert.Equal(7m, after.OnHand);          // 10 - 3: the movement applied exactly once, not twice
     }
 
