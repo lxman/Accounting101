@@ -642,7 +642,7 @@ The pre-existing tests in this file set `cmp.cashAccountId.set('CA1')` directly 
     cmp.setCashAccount('CA1');
     const first = ctrl.expectOne(r => r.url.endsWith('/bank-statements/duplicates'));
     cmp.setStatementDate('2026-04-30');
-    const second = ctrl.expectOne(r => r.request.params.get('statementDate') === '2026-04-30');
+    const second = ctrl.expectOne(r => r.params.get('statementDate') === '2026-04-30');
     second.flush([]);
     first.flush([{ id: 'stale', number: 'BST-09999', cashAccountId: 'CA1', statementDate: '2026-03-31',
       openingBalance: 0, closingBalance: 100, lines: [], status: 'Posted' }]);
@@ -661,7 +661,7 @@ The pre-existing tests in this file set `cmp.cashAccountId.set('CA1')` directly 
     fixture.detectChanges();
     expect(cmp.duplicates().length).toBe(1);
     cmp.setStatementDate('2026-04-30');
-    ctrl.expectOne(r => r.request.params.get('statementDate') === '2026-04-30')
+    ctrl.expectOne(r => r.params.get('statementDate') === '2026-04-30')
         .flush('boom', { status: 500, statusText: 'Server Error' });
     fixture.detectChanges();
     expect(cmp.duplicates()).toEqual([]);
@@ -846,9 +846,9 @@ Append to `UI/Angular/src/app/features/banking/statement-import.spec.ts`, inside
     cmp.previews.set([{ lines: [], openingBalance: 0, closingBalance: 0, statementDate: '2026-03-31', duplicates: [] }]);
     cmp.stage.set('preview');
     cmp.setStatementDate(0, '2026-04-30');
-    const first = ctrl.expectOne(r => r.request.params.get('statementDate') === '2026-04-30');
+    const first = ctrl.expectOne(r => r.params.get('statementDate') === '2026-04-30');
     cmp.setStatementDate(0, '2026-05-31');
-    ctrl.expectOne(r => r.request.params.get('statementDate') === '2026-05-31').flush([]);
+    ctrl.expectOne(r => r.params.get('statementDate') === '2026-05-31').flush([]);
     first.flush([{ id: 'stale', number: 'BST-09999', cashAccountId: 'CA1', statementDate: '2026-04-30',
       openingBalance: 0, closingBalance: 0, lines: [], status: 'Posted' }]);
     fixture.detectChanges();
@@ -894,28 +894,36 @@ Append to `UI/Angular/src/app/features/banking/statement-import.spec.ts`, inside
     ctrl.verify();
   });
 
-  it('leaves no stale hit on a preview when its re-scan fails', () => {
+  // A stale ERROR must not wipe out a newer scan that already succeeded. Note what this test does NOT
+  // do: flush a failing scan and assert duplicates is empty. That assertion holds whether or not the
+  // error handler is guarded, because scan() clears duplicates synchronously before any response
+  // arrives — it is a test that cannot fail. The guard only earns its place in the ordering below.
+  it('keeps a newer scan\'s hits when an older scan errors late', () => {
     const { fixture, ctrl } = boot();
     const cmp = fixture.componentInstance;
     cmp.cashAccountId.set('CA1');
     cmp.previews.set([{ lines: [], openingBalance: 0, closingBalance: 0, statementDate: '2026-03-31', duplicates: [] }]);
     cmp.stage.set('preview');
+
     cmp.setStatementDate(0, '2026-04-30');
-    ctrl.expectOne(r => r.request.params.get('statementDate') === '2026-04-30').flush([
-      { id: 'b1', number: 'BST-00001', cashAccountId: 'CA1', statementDate: '2026-04-30',
+    const older = ctrl.expectOne(r => r.params.get('statementDate') === '2026-04-30');   // left in flight
+
+    cmp.setStatementDate(0, '2026-05-31');
+    ctrl.expectOne(r => r.params.get('statementDate') === '2026-05-31').flush([
+      { id: 'b1', number: 'BST-00001', cashAccountId: 'CA1', statementDate: '2026-05-31',
         openingBalance: 0, closingBalance: 0, lines: [], status: 'Posted' }]);
     fixture.detectChanges();
     expect(cmp.previews()[0].duplicates.length).toBe(1);
 
-    cmp.setStatementDate(0, '2026-05-31');
-    ctrl.expectOne(r => r.request.params.get('statementDate') === '2026-05-31')
-        .flush('boom', { status: 500, statusText: 'Server Error' });
+    older.flush('boom', { status: 500, statusText: 'Server Error' });                    // arrives late
     fixture.detectChanges();
-    expect(cmp.previews()[0].duplicates).toEqual([]);
-    expect(cmp.message()).toBeNull();          // a failed scan is not a failed import
+    expect(cmp.previews()[0].duplicates.length).toBe(1);   // the newer scan's hit survives
+    expect(cmp.message()).toBeNull();                      // a failed scan is not a failed import
     ctrl.verify();
   });
 ```
+
+**Prove this test can fail before committing.** Temporarily change the `error:` branch of `scan()` to clear unconditionally (drop both guard lines from `settle`'s error path, or make the handler `error: () => this.patchPreview(i, { duplicates: [] })`) and re-run the spec. `keeps a newer scan's hits when an older scan errors late` MUST fail — the late error wipes the newer hit. Restore the guarded version, re-run, all pass. Report the mutation evidence; a guard test nobody has watched fail is worth nothing.
 
 Then update the **existing** `uploads a CSV with a built mapping and moves to preview` test: after its `fixture.detectChanges()` and before `ctrl.verify()`, add:
 
