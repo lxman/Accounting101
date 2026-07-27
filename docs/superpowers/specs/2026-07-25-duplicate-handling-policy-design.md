@@ -73,7 +73,9 @@ screen onto it (deleting the client-side scan it replaces).
 - **Bank statement duplicate lookup** (sub-project 3) — `GET /bank-statements/duplicates`, matching on
   cash account + statement date, called from the import screen. Deliberately not line-level
   `ExternalRef` reconciliation: partial overlaps and incremental statements make that a feature, not a
-  rule.
+  rule. **SHIPPED 2026-07-26** (`master` `e1abc8c`) — see
+  [its design](2026-07-26-bank-statement-duplicates-design.md). It warns on the manual editor as well
+  as the import screen; the two carry the identical field pair and failure mode.
 - **Everything the standard excludes** — AR invoices, vendor and customer master records, and general
   cross-module consistency for its own sake.
 
