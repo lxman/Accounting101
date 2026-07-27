@@ -92,13 +92,18 @@ describe('StatementImport', () => {
     const { fixture, ctrl } = boot();
     const cmp = fixture.componentInstance;
     cmp.cashAccountId.set('CA1');
-    cmp.previews.set([{ lines: [], openingBalance: 0, closingBalance: 0, statementDate: '2026-03-31', duplicates: [] }]);
+    cmp.previews.set([
+      { lines: [], openingBalance: 0, closingBalance: 0, statementDate: '2026-03-31', duplicates: [] },
+      { lines: [], openingBalance: 0, closingBalance: 0, statementDate: '2026-04-30', duplicates: [] },
+    ]);
     cmp.stage.set('preview');
-    cmp.setStatementDate(0, '2026-04-30');
-    const req = ctrl.expectOne(r => r.url.endsWith('/bank-statements/duplicates'));
-    expect(req.request.params.get('statementDate')).toBe('2026-04-30');
-    req.flush([]);
-    expect(cmp.previews()[0].statementDate).toBe('2026-04-30');
+    cmp.setStatementDate(0, '2026-05-31');
+    const reqs = ctrl.match(r => r.url.endsWith('/bank-statements/duplicates'));
+    expect(reqs.length).toBe(1);
+    expect(reqs[0].request.params.get('statementDate')).toBe('2026-05-31');
+    reqs[0].flush([]);
+    expect(cmp.previews()[0].statementDate).toBe('2026-05-31');
+    expect(cmp.previews()[1].statementDate).toBe('2026-04-30');
     ctrl.verify();
   });
 
@@ -133,6 +138,10 @@ describe('StatementImport', () => {
     fixture.detectChanges();
     expect(cmp.previews()[0].duplicates.length).toBe(1);
     expect(cmp.foots(cmp.previews()[0])).toBe(true);
+    const btn = Array.from(fixture.nativeElement.querySelectorAll('button'))
+      .find((b) => (b as HTMLButtonElement).textContent?.trim() === 'Record statement') as HTMLButtonElement | undefined;
+    expect(btn).toBeTruthy();
+    expect(btn!.disabled).toBe(false);
     ctrl.verify();
   });
 

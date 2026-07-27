@@ -51,10 +51,15 @@ change to how statements are stored, numbered or reconciled.
 ### Where it lives
 
 `ReconciliationService`, beside `ListStatementsAsync`. `IBankStatementStore` needs no change:
-`GetByAccountAsync` already reads every statement for an account with no paging and no cap, so the
-lookup is **complete by construction**. This is the property that matters — sub-project 1 exists
-because a caller assembled a scan over a list endpoint, and a bounded scan reporting "none found" is a
-lie of omission.
+`GetByAccountAsync` already reads every statement for the **client** (an empty tag filter) and filters
+to the cash account in memory, with no paging and no cap, so the lookup is **complete by
+construction**. This is the property that matters — sub-project 1 exists because a caller assembled a
+scan over a list endpoint, and a bounded scan reporting "none found" is a lie of omission.
+
+That read shape has a cost the import screen inherits: because each preview scans independently, the
+screen issues one such client-wide read per preview on entering the preview stage. Acceptable at these
+volumes, and mitigated by both screens' date inputs using `(change)` rather than `(input)`, so editing
+a date does not fan out a scan per keystroke.
 
 ```csharp
 public async Task<IReadOnlyList<BankStatement>> FindDuplicateStatementsAsync(

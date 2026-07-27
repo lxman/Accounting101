@@ -651,7 +651,14 @@ The pre-existing tests in this file set `cmp.cashAccountId.set('CA1')` directly 
     ctrl.verify();
   });
 
-  it('leaves no stale hit on screen when a re-scan fails', () => {
+  // scan() clears `duplicates` synchronously at the top of every call, so by the time setStatementDate's
+  // 500 is flushed below, the array is already empty — deleting the error handler's own clear, or
+  // deleting this synchronous pre-clear, each ALONE still leaves the test passing, because whichever one
+  // remains still empties `duplicates` before the response ever arrives. Only deleting both fails it. So
+  // this does NOT prove the error handler's guard is correct; it only pins the synchronous
+  // clear-on-scan-start behaviour. The guard's real coverage lives in 'prevents a late-arriving stale
+  // error from wiping out a newer successful scan' below.
+  it('clears the previous hit as soon as a re-scan starts', () => {
     const { fixture, ctrl } = boot();
     const cmp = fixture.componentInstance;
     cmp.setCashAccount('CA1');

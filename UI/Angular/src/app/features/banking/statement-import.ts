@@ -110,7 +110,7 @@ type Stage = 'upload' | 'preview';
               <div class="flex flex-col gap-1"><label hlmLabel>Closing</label>
                 <input hlmInput type="number" class="text-right tabular-nums" [value]="p.closingBalance" (input)="patchPreview(i, { closingBalance: +$any($event.target).value })" [disabled]="!!p.createdId" /></div>
             </div>
-            <app-statement-duplicate-warning [duplicates]="p.duplicates" />
+            @if (!p.createdId) { <app-statement-duplicate-warning [duplicates]="p.duplicates" /> }
             <table class="w-full text-sm">
               <thead><tr class="text-left text-muted-foreground"><th class="py-1">Date</th><th>Description</th><th class="text-right">Amount</th></tr></thead>
               <tbody>@for (l of p.lines; track $index) {
@@ -183,6 +183,10 @@ export class StatementImport {
    * cash account: `generation` (incremented ONLY in reset(), so an in-flight scan cannot write to a preview
    * set that has been thrown away) and `key` (the date being scanned, so an earlier response cannot land on
    * a preview whose date has since moved). They guard different things — do not collapse them.
+   * `key` only needs to cover the date, not the cash account, because the account select lives in the
+   * `upload` stage (`@if (stage() === 'upload')`) and so cannot change while previews exist — the only
+   * route back to `upload` is `reset()`, which bumps `generation` on its own. If the account ever becomes
+   * editable in the preview stage, `key` would need to cover it too.
    * Deliberately never touches `busy`, which belongs to upload()/confirm().
    */
   private scan(i: number): void {

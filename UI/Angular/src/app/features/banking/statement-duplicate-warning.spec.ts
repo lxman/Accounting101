@@ -34,6 +34,7 @@ describe('StatementDuplicateWarning', () => {
     expect(links[0].getAttribute('href')).toBe('/cash/statements/b1');
     expect(links[0].textContent).toContain('BST-00001');
     expect(fixture.nativeElement.textContent).toContain('2026-03-31');
+    expect(fixture.nativeElement.textContent).toContain('closing 100.00');
   });
 
   it('falls back to a label when a statement has no number', () => {
