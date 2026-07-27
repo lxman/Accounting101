@@ -6,11 +6,12 @@ import { HlmLabelImports } from '@spartan-ng/helm/label';
 import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { BankingService } from '../../core/banking/banking.service';
-import { BankStatementLine, RecordBankStatementRequest } from '../../core/banking/banking';
+import { BankStatement, BankStatementLine, RecordBankStatementRequest } from '../../core/banking/banking';
 import { AccountsService } from '../../core/accounts/accounts.service';
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney } from '../../core/format/display';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { StatementDuplicateWarning } from './statement-duplicate-warning';
 
 interface LineModel extends BankStatementLine { lineId: string; }
 const emptyLine = (): LineModel => ({ lineId: crypto.randomUUID(), date: new Date().toISOString().slice(0, 10), amount: 0, description: '', externalRef: null });
@@ -18,7 +19,7 @@ const emptyLine = (): LineModel => ({ lineId: crypto.randomUUID(), date: new Dat
 @Component({
   selector: 'app-statement-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, CanDirective, ...HlmInputImports, ...HlmLabelImports, HlmButton, ...HlmSelectImports],
+  imports: [RouterLink, CanDirective, StatementDuplicateWarning, ...HlmInputImports, ...HlmLabelImports, HlmButton, ...HlmSelectImports],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-3xl">
       <h1 class="text-2xl font-bold">New bank statement</h1>
@@ -27,7 +28,7 @@ const emptyLine = (): LineModel => ({ lineId: crypto.randomUUID(), date: new Dat
       <div class="grid grid-cols-2 gap-4">
         <div class="flex flex-col gap-1">
           <label hlmLabel>Cash account</label>
-          <div hlmSelect [value]="cashAccountId() ?? ''" [itemToString]="accountItemToString" (valueChange)="cashAccountId.set($any($event))" class="w-full">
+          <div hlmSelect [value]="cashAccountId() ?? ''" [itemToString]="accountItemToString" (valueChange)="setCashAccount($any($event))" class="w-full">
             <hlm-select-trigger class="w-full"><hlm-select-value placeholder="Select a cash account" /></hlm-select-trigger>
             <hlm-select-content *hlmSelectPortal>
               @for (a of cashAccounts(); track a.id) { <hlm-select-item [value]="a.id">{{ a.number }} {{ a.name }}</hlm-select-item> }
@@ -36,7 +37,7 @@ const emptyLine = (): LineModel => ({ lineId: crypto.randomUUID(), date: new Dat
         </div>
         <div class="flex flex-col gap-1">
           <label hlmLabel>Statement date</label>
-          <input hlmInput type="date" [value]="statementDate()" (change)="statementDate.set($any($event.target).value)" />
+          <input hlmInput type="date" [value]="statementDate()" (change)="setStatementDate($any($event.target).value)" />
         </div>
         <div class="flex flex-col gap-1">
           <label hlmLabel>Opening balance</label>
@@ -47,6 +48,8 @@ const emptyLine = (): LineModel => ({ lineId: crypto.randomUUID(), date: new Dat
           <input hlmInput type="number" class="text-right tabular-nums" [value]="closingBalance()" (input)="closingBalance.set(+$any($event.target).value)" />
         </div>
       </div>
+
+      <app-statement-duplicate-warning [duplicates]="duplicates()" />
 
       <table class="w-full text-sm">
         <thead><tr class="text-left text-muted-foreground"><th class="py-1">Date</th><th>Description</th><th class="text-right">Amount</th><th>Ref</th><th></th></tr></thead>
@@ -95,6 +98,8 @@ export class StatementEditor {
   readonly lines = signal<LineModel[]>([emptyLine()]);
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
+  readonly duplicates = signal<BankStatement[]>([]);
+  private generation = 0;
 
   readonly cashAccounts = computed(() => this.accounts.accounts().filter(a => a.type === 'Asset' && a.postable));
   readonly lineSum = computed(() => this.lines().reduce((s, l) => s + (l.amount ?? 0), 0));
@@ -107,6 +112,28 @@ export class StatementEditor {
   constructor() { if (this.accounts.accounts().length === 0) this.accounts.load(); }
 
   readonly accountItemToString = (id: string): string => this.accounts.label(id);
+
+  setCashAccount(id: string): void { this.cashAccountId.set(id); this.scan(); }
+  setStatementDate(date: string): void { this.statementDate.set(date); this.scan(); }
+
+  /**
+   * Advisory duplicate scan. `generation` is incremented per scan and captured, so only the most recently
+   * started scan may write — the single-statement equivalent of the import screen's generation + key pair.
+   * Deliberately never touches `busy`: that belongs to save(), and a guarded callback skipping
+   * busy.set(false) is what deadlocked the e-invoicing import button.
+   */
+  private scan(): void {
+    this.duplicates.set([]);
+    const account = this.cashAccountId();
+    const date = this.statementDate();
+    const gen = ++this.generation;
+    if (!account || !date) return;
+    this.svc.statementDuplicates(account, date).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (hits) => { if (gen === this.generation) this.duplicates.set(hits); },
+      error: () => { if (gen === this.generation) this.duplicates.set([]); },
+    });
+  }
+
   patch(i: number, part: Partial<BankStatementLine>): void { this.lines.update(v => v.map((l, idx) => idx === i ? { ...l, ...part } : l)); }
   setLine(i: number, line: BankStatementLine): void { this.lines.update(v => v.map((l, idx) => idx === i ? { ...l, ...line } : l)); }
   addLine(): void { this.lines.update(v => [...v, emptyLine()]); }

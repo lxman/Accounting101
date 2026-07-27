@@ -38,4 +38,66 @@ describe('StatementEditor', () => {
       openingBalance: 0, closingBalance: 100, lines: [], status: 'Posted' });
     ctrl.verify();
   });
+
+  it('scans for duplicates once the account and date are both set, and renders the hits', () => {
+    const { fixture, ctrl } = boot();
+    const cmp = fixture.componentInstance;
+    cmp.setCashAccount('CA1');
+    const req = ctrl.expectOne(r => r.url.endsWith('/bank-statements/duplicates'));
+    expect(req.request.params.get('cashAccountId')).toBe('CA1');
+    expect(req.request.params.get('statementDate')).toBe(cmp.statementDate());
+    req.flush([{ id: 'b1', number: 'BST-00001', cashAccountId: 'CA1', statementDate: cmp.statementDate(),
+      openingBalance: 0, closingBalance: 100, lines: [], status: 'Posted' }]);
+    fixture.detectChanges();
+    expect(cmp.duplicates().length).toBe(1);
+    expect(fixture.nativeElement.textContent).toContain('BST-00001');
+    ctrl.verify();
+  });
+
+  it('never disables Record statement because of a duplicate', () => {
+    const { fixture, ctrl } = boot();
+    const cmp = fixture.componentInstance;
+    cmp.setCashAccount('CA1');
+    cmp.patch(0, { date: '2026-03-05', description: 'dep', amount: 100 });
+    cmp.closingBalance.set(100);
+    ctrl.expectOne(r => r.url.endsWith('/bank-statements/duplicates')).flush([
+      { id: 'b1', number: 'BST-00001', cashAccountId: 'CA1', statementDate: cmp.statementDate(),
+        openingBalance: 0, closingBalance: 100, lines: [], status: 'Posted' }]);
+    fixture.detectChanges();
+    expect(cmp.duplicates().length).toBe(1);
+    expect(cmp.canSave()).toBe(true);
+    ctrl.verify();
+  });
+
+  it('ignores a response superseded by a later scan', () => {
+    const { fixture, ctrl } = boot();
+    const cmp = fixture.componentInstance;
+    cmp.setCashAccount('CA1');
+    const first = ctrl.expectOne(r => r.url.endsWith('/bank-statements/duplicates'));
+    cmp.setStatementDate('2026-04-30');
+    const second = ctrl.expectOne(r => r.params.get('statementDate') === '2026-04-30');
+    second.flush([]);
+    first.flush([{ id: 'stale', number: 'BST-09999', cashAccountId: 'CA1', statementDate: '2026-03-31',
+      openingBalance: 0, closingBalance: 100, lines: [], status: 'Posted' }]);
+    fixture.detectChanges();
+    expect(cmp.duplicates()).toEqual([]);
+    ctrl.verify();
+  });
+
+  it('leaves no stale hit on screen when a re-scan fails', () => {
+    const { fixture, ctrl } = boot();
+    const cmp = fixture.componentInstance;
+    cmp.setCashAccount('CA1');
+    ctrl.expectOne(r => r.url.endsWith('/bank-statements/duplicates')).flush([
+      { id: 'b1', number: 'BST-00001', cashAccountId: 'CA1', statementDate: cmp.statementDate(),
+        openingBalance: 0, closingBalance: 100, lines: [], status: 'Posted' }]);
+    fixture.detectChanges();
+    expect(cmp.duplicates().length).toBe(1);
+    cmp.setStatementDate('2026-04-30');
+    ctrl.expectOne(r => r.params.get('statementDate') === '2026-04-30')
+        .flush('boom', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+    expect(cmp.duplicates()).toEqual([]);
+    ctrl.verify();
+  });
 });
