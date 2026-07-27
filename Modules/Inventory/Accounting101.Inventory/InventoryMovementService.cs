@@ -17,7 +17,7 @@ public sealed record RecordMovement(
 /// movement projection. This is the module's first GL-posting service.</summary>
 public sealed class InventoryMovementService(
     IItemStore items, IStockMovementStore movements, IInventoryAccountsProvider accounts, ILedgerClient ledger,
-    ItemValuationService valuation)
+    ItemValuationService valuation, IItemWriteLock itemLock)
 {
     /// <summary>Records a movement, or REPLAYS one when the caller supplies a retry key that is already
     /// taken. The replay branch is wider here than on any other retry-key endpoint: this path derives what
@@ -41,6 +41,18 @@ public sealed class InventoryMovementService(
         // 1. Shape validation (→ 422). Direction/cost rules per movement type. Pure — it reads only the
         // request, so it guards BOTH branches: a replay carrying a malformed request is still a 422.
         ValidateShape(request);
+
+        // Serialise every write to this item's stock position, for the whole body. Two things make this
+        // the right boundary:
+        //
+        // 1. It must be taken BEFORE the existence pre-check. That is what makes a same-key racer take the
+        //    replay branch below rather than computing a cost from a fold the winner has already moved.
+        // 2. It must be held THROUGH the ledger post. A movement is invisible to the fold until its entry
+        //    exists (ItemValuationService.OnBooks requires one, and the value axis comes from the
+        //    subledger), so releasing after the store write would let the next caller read a stale fold.
+        //
+        // Single-instance only — see ItemWriteLock's remarks.
+        using IDisposable itemGate = await itemLock.AcquireAsync(clientId, request.ItemId, ct);
 
         Guid id = request.Id ?? Guid.NewGuid();
         StockMovement? known = request.Id is not null ? await movements.GetAsync(clientId, id, ct) : null;

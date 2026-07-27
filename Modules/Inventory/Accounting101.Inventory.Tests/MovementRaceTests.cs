@@ -29,7 +29,10 @@ public sealed class MovementRaceTests
         FakeLedgerClient ledger = new();
         FixedInventoryAccountsProvider accounts = new();
         ItemValuationService valuation = new(racingStore, accounts, ledger);
-        InventoryMovementService service = new(items, racingStore, accounts, ledger, valuation);
+        // NoOp on purpose: this test pins the STORE's insert-only create as the arbiter of
+        // created-vs-replayed — the guarantee that holds even where an in-process lock would not. Its
+        // rendezvous blocks inside the critical section, so the real lock would strand the second racer.
+        InventoryMovementService service = new(items, racingStore, accounts, ledger, valuation, new NoOpItemWriteLock());
 
         Guid clientId = Guid.NewGuid();
         Item item = await items.CreateAsync(clientId, new ItemBody("SKU1", "Widget", null, "each"));
