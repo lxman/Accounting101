@@ -383,7 +383,13 @@ public sealed class MovementFoldRaceTests
         Task<(StockMovement Movement, bool Replayed)> b = service.RecordAsync(clientId, new RecordMovement(
             two.Id, MovementType.Receipt, 5m, 1m, new DateOnly(2026, 1, 15), "B", Guid.NewGuid()));
 
-        await Task.WhenAll(a, b);                // a TimeoutException here means the lock is too coarse
+        // The liveness check is that this does NOT throw TimeoutException — if the lock were keyed per
+        // client instead of per item, the second racer could never reach the rendezvous. The assertions
+        // below additionally pin that both writes really landed, so the test cannot pass vacuously.
+        (StockMovement Movement, bool Replayed)[] results = await Task.WhenAll(a, b);
+
+        Assert.All(results, r => Assert.False(r.Replayed));        // two distinct creates, not a replay
+        Assert.Equal(2, results.Select(r => r.Movement.Id).Distinct().Count());
     }
 }
 ```
