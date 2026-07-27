@@ -631,7 +631,8 @@ Run the face-1 mutation too, so both race tests are proven capable of failing. R
 git add Modules/Inventory/Accounting101.Inventory/InventoryMovementService.cs \
         Modules/Inventory/Accounting101.Inventory.Api/InventoryServiceExtensions.cs \
         Modules/Inventory/Accounting101.Inventory.Tests/RendezvousItemWriteLock.cs \
-        Modules/Inventory/Accounting101.Inventory.Tests/NoOpItemWriteLock.cs \n        Modules/Inventory/Accounting101.Inventory.Tests/FoldCompleteRendezvousLedger.cs \
+        Modules/Inventory/Accounting101.Inventory.Tests/NoOpItemWriteLock.cs \
+        Modules/Inventory/Accounting101.Inventory.Tests/FoldCompleteRendezvousLedger.cs \
         Modules/Inventory/Accounting101.Inventory.Tests/MovementFoldRaceTests.cs \
         Modules/Inventory/Accounting101.Inventory.Tests/InventoryMovementServiceTests.cs \
         Modules/Inventory/Accounting101.Inventory.Tests/MovementRaceTests.cs
