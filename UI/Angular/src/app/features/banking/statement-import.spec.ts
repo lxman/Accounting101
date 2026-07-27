@@ -184,4 +184,45 @@ describe('StatementImport', () => {
     expect(cmp.message()).toBeNull();                      // a failed scan is not a failed import
     ctrl.verify();
   });
+
+  // The `key` guard alone explains every test above: in each one the preview array survives and only
+  // the date moves. This proves the OTHER half of the design — reset() discards the whole preview set
+  // while a scan is in flight, then a new import lands a preview at the same index whose statementDate
+  // is the SAME as the discarded one (2026-03-31 both times). `key` cannot see any difference there;
+  // only the generation bump in reset() can tell the stale response apart from the current one.
+  it('discards a stale scan after reset, even when the new preview has the same date', () => {
+    const { fixture, ctrl } = boot();
+    const cmp = fixture.componentInstance;
+    cmp.cashAccountId.set('CA1');
+    cmp.file.set(new File(['x'], 'bank.csv', { type: 'text/csv' }));
+    cmp.setColumn('date', 0); cmp.setColumn('amount', 1); cmp.setColumn('description', 2);
+    cmp.upload();
+    ctrl.expectOne('http://localhost:5000/clients/C1/bank-statements/import').flush({
+      statements: [{ lines: [{ date: '2026-03-05', amount: 100, description: 'dep', externalRef: null }],
+        detectedOpeningBalance: 0, detectedClosingBalance: 100, statementDate: '2026-03-31', accountHint: null }],
+      warnings: [],
+    });
+    fixture.detectChanges();
+    const stale = ctrl.expectOne(r => r.url.endsWith('/bank-statements/duplicates'));   // left in flight across reset()
+
+    cmp.reset();
+
+    cmp.file.set(new File(['y'], 'bank2.csv', { type: 'text/csv' }));
+    cmp.upload();
+    ctrl.expectOne('http://localhost:5000/clients/C1/bank-statements/import').flush({
+      statements: [{ lines: [{ date: '2026-04-05', amount: 50, description: 'dep', externalRef: null }],
+        detectedOpeningBalance: 0, detectedClosingBalance: 50, statementDate: '2026-03-31', accountHint: null }],   // same date as the discarded preview
+      warnings: [],
+    });
+    fixture.detectChanges();
+    ctrl.expectOne(r => r.url.endsWith('/bank-statements/duplicates')).flush([]);
+    fixture.detectChanges();
+
+    stale.flush([{ id: 'stale', number: 'BST-09999', cashAccountId: 'CA1', statementDate: '2026-03-31',
+      openingBalance: 0, closingBalance: 100, lines: [], status: 'Posted' }]);
+    fixture.detectChanges();
+
+    expect(cmp.previews()[0].duplicates).toEqual([]);   // the discarded generation's hit never lands
+    ctrl.verify();
+  });
 });
