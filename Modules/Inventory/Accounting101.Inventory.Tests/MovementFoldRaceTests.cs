@@ -191,4 +191,29 @@ public sealed class MovementFoldRaceTests
         Assert.All(results, r => Assert.False(r.Replayed));        // two distinct creates, not a replay
         Assert.Equal(2, results.Select(r => r.Movement.Id).Distinct().Count());
     }
+
+    /// <summary>Both write paths must lock the item they are about to move. A void that did not lock could
+    /// interleave with a record and let it compute from a fold mid-void.</summary>
+    [Fact]
+    public async Task Recording_and_voiding_both_acquire_the_lock_for_the_movements_item()
+    {
+        InMemoryItemStore items = new();
+        InMemoryStockMovementStore movements = new();
+        FakeLedgerClient ledger = new();
+        FixedInventoryAccountsProvider accounts = new();
+        ItemValuationService valuation = new(movements, accounts, ledger);
+        RecordingItemWriteLock gate = new(new ItemWriteLock());
+        InventoryMovementService service = new(items, movements, accounts, ledger, valuation, gate);
+
+        Guid clientId = Guid.NewGuid();
+        Item item = await items.CreateAsync(clientId, new ItemBody("SKU1", "Widget", null, "each"));
+
+        (StockMovement Movement, bool Replayed) recorded = await service.RecordAsync(clientId, new RecordMovement(
+            item.Id, MovementType.Receipt, 10m, 2m, new DateOnly(2026, 1, 15), "seed"));
+        Assert.Equal((clientId, item.Id), Assert.Single(gate.Acquired));      // the record path locked the item
+
+        await service.VoidAsync(clientId, recorded.Movement.Id, "undo");
+        Assert.Equal(2, gate.Acquired.Count);                                 // and so did the void
+        Assert.All(gate.Acquired, key => Assert.Equal((clientId, item.Id), key));
+    }
 }

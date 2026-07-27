@@ -179,6 +179,13 @@ public sealed class InventoryMovementService(
     /// FixedAssetsRunService.VoidRunAsync.</summary>
     public async Task<StockMovement> VoidAsync(Guid clientId, Guid movementId, string? reason, CancellationToken ct = default)
     {
+        // The lock is keyed by ITEM and only the movement knows its item, so read it once to learn the
+        // key. This pre-read decides nothing: every check below runs against the re-read taken under the
+        // lock. Single-instance only — see ItemWriteLock's remarks.
+        StockMovement forKey = await movements.GetAsync(clientId, movementId, ct)
+            ?? throw new KeyNotFoundException($"Stock movement {movementId} not found.");
+        using IDisposable itemGate = await itemLock.AcquireAsync(clientId, forKey.ItemId, ct);
+
         StockMovement movement = await movements.GetAsync(clientId, movementId, ct)
             ?? throw new KeyNotFoundException($"Stock movement {movementId} not found.");
         if (movement.Status != MovementStatus.Posted)
