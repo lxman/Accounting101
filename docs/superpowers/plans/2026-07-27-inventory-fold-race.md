@@ -31,6 +31,7 @@
 | `Modules/Inventory/Accounting101.Inventory.Api/InventoryServiceExtensions.cs` | Registers the singleton |
 | `Modules/Inventory/Accounting101.Inventory.Tests/RendezvousItemWriteLock.cs` | **New** — test decorator, rendezvous OUTSIDE the protected section |
 | `Modules/Inventory/Accounting101.Inventory.Tests/NoOpItemWriteLock.cs` | **New** — grants immediately without exclusion, for store-level race tests |
+| `Modules/Inventory/Accounting101.Inventory.Tests/FoldCompleteRendezvousLedger.cs` | **New** — rendezvous after the fold's LAST read, closing the torn-read window |
 | `Modules/Inventory/Accounting101.Inventory.Tests/RecordingItemWriteLock.cs` | **New** — test spy recording which keys were acquired |
 | `Modules/Inventory/Accounting101.Inventory.Tests/MovementFoldRaceTests.cs` | **New** — the two races + the cross-item concurrency guard |
 | `Modules/Inventory/Accounting101.Inventory.Tests/InventoryMovementServiceTests.cs:21` | Constructor call gains the lock argument |
@@ -257,6 +258,63 @@ internal sealed class RendezvousItemWriteLock(IItemWriteLock inner, RaceRendezvo
 }
 ```
 
+Create `Modules/Inventory/Accounting101.Inventory.Tests/FoldCompleteRendezvousLedger.cs`:
+
+```csharp
+using Accounting101.Ledger.Contracts;
+using Accounting101.TestSupport;
+
+namespace Accounting101.Inventory.Tests;
+
+/// <summary>
+/// Rendezvouses after the fold's LAST read, so no racer starts writing until every racer has finished
+/// reading the whole valuation.
+///
+/// The fold is THREE reads, not one: <see cref="ItemValuationService.GetAsync"/> takes value from
+/// <c>GetSubledgerAsync</c>, then quantity from <c>ProjectQuantityAsync</c>, which reads the movement
+/// store and then <c>GetEntriesBySourceRefsAsync</c>. Nothing holds them together when the item write
+/// lock is bypassed, so a racer preempted mid-fold can resume with a stale value and a fresh quantity —
+/// an incoherent average, a different extended cost, and a divergent-content rejection from the ledger
+/// fake. Blocking on the last of the three closes that window WITHOUT serialising the racers, which is
+/// exactly what a test that must reach the un-serialised interleaving needs.
+///
+/// Only <c>GetEntriesBySourceRefsAsync</c> is intercepted; everything else delegates untouched.
+/// </summary>
+internal sealed class FoldCompleteRendezvousLedger(ILedgerClient inner, RaceRendezvous rendezvous) : ILedgerClient
+{
+    public async Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefsAsync(
+        Guid clientId, IReadOnlyList<Guid> sourceRefs, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<EntryResponse> entries = await inner.GetEntriesBySourceRefsAsync(clientId, sourceRefs, cancellationToken);
+        await rendezvous.ArriveAndWaitAsync(cancellationToken);   // this caller's fold is now complete
+        return entries;
+    }
+
+    public Task<PostEntryResponse> PostAsync(Guid clientId, PostEntryRequest entry, CancellationToken cancellationToken = default) =>
+        inner.PostAsync(clientId, entry, cancellationToken);
+
+    public Task<EntryResponse> ReverseAsync(Guid clientId, Guid entryId, ReverseRequest request, CancellationToken cancellationToken = default) =>
+        inner.ReverseAsync(clientId, entryId, request, cancellationToken);
+
+    public Task<EntryResponse> VoidAsync(Guid clientId, Guid entryId, VoidRequest request, CancellationToken cancellationToken = default) =>
+        inner.VoidAsync(clientId, entryId, request, cancellationToken);
+
+    public Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefAsync(Guid clientId, Guid sourceRef, CancellationToken cancellationToken = default) =>
+        inner.GetEntriesBySourceRefAsync(clientId, sourceRef, cancellationToken);
+
+    public Task<IReadOnlyList<SubledgerLineResponse>> GetSubledgerAsync(
+        Guid clientId, Guid account, string dimension, DateOnly? asOf, CancellationToken cancellationToken = default,
+        bool includePending = false) =>
+        inner.GetSubledgerAsync(clientId, account, dimension, asOf, cancellationToken, includePending);
+
+    public Task<IReadOnlyList<AccountResponse>> GetAccountsAsync(Guid clientId, CancellationToken cancellationToken = default) =>
+        inner.GetAccountsAsync(clientId, cancellationToken);
+
+    public Task<CapabilitiesResponse> GetMyCapabilitiesAsync(Guid clientId, CancellationToken cancellationToken = default) =>
+        inner.GetMyCapabilitiesAsync(clientId, cancellationToken);
+}
+```
+
 Create `Modules/Inventory/Accounting101.Inventory.Tests/NoOpItemWriteLock.cs`:
 
 ```csharp
@@ -382,10 +440,22 @@ public sealed class MovementFoldRaceTests
     /// against it here would be asserting protected behaviour from unprotected code. At 3 the guard is
     /// unreachable either way, which isolates the store-bool guarantee from the block-negative guard.
     ///
-    /// The extended cost is identical under both orderings, so no divergent-content 422 can fire either:
-    /// issuing at the weighted average leaves the average unchanged (10 units / 20.00 → avg 2.00; after
-    /// one issue of 3, 7 units / 14.00 → still avg 2.00), so both racers compose 6.00 whichever fold
-    /// they read. Do not "simplify" these numbers.
+    /// The extended cost is identical under both orderings, so no divergent-content rejection can fire
+    /// either: issuing at the weighted average leaves the average unchanged (10 units / 20.00 → avg 2.00;
+    /// after one issue of 3, 7 units / 14.00 → still avg 2.00), so both racers compose 6.00 whichever
+    /// fold they read. Do not "simplify" these numbers.
+    ///
+    /// TWO RENDEZVOUS, and both are needed. The fold is three reads, not one — value from
+    /// GetSubledgerAsync, then quantity from a movement-store read and GetEntriesBySourceRefsAsync — so
+    /// "whichever fold they read" is only true if a racer's fold is not TORN across the other's write.
+    /// Unguarded, a racer preempted after the value read resumes with a stale value (20) and a fresh
+    /// quantity (7), giving avg 2.857 and a cost of 8.57 instead of 6.00, and the ledger fake rejects it
+    /// as divergent content under the winner's SourceRef.
+    ///   - `atProbe` (in the store probe) puts both racers past the existence check before either creates.
+    ///   - `afterFold` (after the fold's LAST read) puts both past the ENTIRE valuation before either
+    ///     writes, which is what makes the torn read impossible.
+    /// Neither serialises the racers, so the un-locked interleaving this test exists to pin is still
+    /// reached. Removing `afterFold` reintroduces a narrow, real flake.
     ///
     /// WHAT MAKES IT VALID: delete the service's <c>replayed = !result.Created;</c> line and both racers
     /// claim a create, so the single-create assertion sees two and fails.
@@ -395,19 +465,27 @@ public sealed class MovementFoldRaceTests
     {
         InMemoryItemStore items = new();
         InMemoryStockMovementStore inner = new();
-        RaceRendezvous rendezvous = new(participants: 2, timeout: TimeSpan.FromSeconds(5));
-        RendezvousStockMovementStore racingStore = new(inner, rendezvous);   // blocks in the PROBE
         FakeLedgerClient ledger = new();
         FixedInventoryAccountsProvider accounts = new();
-        ItemValuationService valuation = new(racingStore, accounts, ledger);
-        InventoryMovementService service = new(items, racingStore, accounts, ledger, valuation, new NoOpItemWriteLock());
+
+        // Seeder: undecorated on BOTH seams, so setup can never arrive at either rendezvous and strand
+        // it. (The seed would in fact miss the fold rendezvous anyway — ProjectQuantityAsync returns
+        // early when the item has no movements yet, so GetEntriesBySourceRefsAsync is never reached —
+        // but relying on that accident would break the moment seeding order changed.)
+        ItemValuationService seedValuation = new(inner, accounts, ledger);
+        InventoryMovementService seeder = new(items, inner, accounts, ledger, seedValuation, new NoOpItemWriteLock());
+
+        RaceRendezvous atProbe = new(participants: 2, timeout: TimeSpan.FromSeconds(5));
+        RaceRendezvous afterFold = new(participants: 2, timeout: TimeSpan.FromSeconds(5));
+        RendezvousStockMovementStore racingStore = new(inner, atProbe);              // blocks in the PROBE
+        FoldCompleteRendezvousLedger racingLedger = new(ledger, afterFold);          // blocks after the FOLD
+        ItemValuationService raceValuation = new(racingStore, accounts, racingLedger);
+        InventoryMovementService racing = new(items, racingStore, accounts, racingLedger, raceValuation, new NoOpItemWriteLock());
 
         Guid clientId = Guid.NewGuid();
         Item item = await items.CreateAsync(clientId, new ItemBody("SKU1", "Widget", null, "each"));
 
-        // Seed WITHOUT a retry key: RecordAsync only probes when one is supplied, so this call never
-        // reaches the rendezvous and cannot strand it.
-        await service.RecordAsync(clientId, new RecordMovement(
+        await seeder.RecordAsync(clientId, new RecordMovement(
             item.Id, MovementType.Receipt, 10m, 2m, new DateOnly(2026, 1, 15), "seed"));
 
         Guid key = Guid.NewGuid();
@@ -415,13 +493,14 @@ public sealed class MovementFoldRaceTests
             item.Id, MovementType.Issue, 3m, null, new DateOnly(2026, 1, 16), "issue", key);
 
         (StockMovement Movement, bool Replayed)[] results =
-            await Task.WhenAll(service.RecordAsync(clientId, request), service.RecordAsync(clientId, request));
+            await Task.WhenAll(racing.RecordAsync(clientId, request), racing.RecordAsync(clientId, request));
 
         Assert.Single(results, r => !r.Replayed);
         Assert.Single(results, r => r.Replayed);
         Assert.All(results, r => Assert.Equal(key, r.Movement.Id));
 
-        ItemValuation after = await valuation.GetAsync(clientId, item.Id, includePending: true);
+        // Read back through the UNDECORATED valuation — the racing one would arrive at afterFold again.
+        ItemValuation after = await seedValuation.GetAsync(clientId, item.Id, includePending: true);
         Assert.Equal(7m, after.OnHand);          // 10 - 3: the movement applied exactly once, not twice
     }
 
@@ -552,7 +631,7 @@ Run the face-1 mutation too, so both race tests are proven capable of failing. R
 git add Modules/Inventory/Accounting101.Inventory/InventoryMovementService.cs \
         Modules/Inventory/Accounting101.Inventory.Api/InventoryServiceExtensions.cs \
         Modules/Inventory/Accounting101.Inventory.Tests/RendezvousItemWriteLock.cs \
-        Modules/Inventory/Accounting101.Inventory.Tests/NoOpItemWriteLock.cs \
+        Modules/Inventory/Accounting101.Inventory.Tests/NoOpItemWriteLock.cs \n        Modules/Inventory/Accounting101.Inventory.Tests/FoldCompleteRendezvousLedger.cs \
         Modules/Inventory/Accounting101.Inventory.Tests/MovementFoldRaceTests.cs \
         Modules/Inventory/Accounting101.Inventory.Tests/InventoryMovementServiceTests.cs \
         Modules/Inventory/Accounting101.Inventory.Tests/MovementRaceTests.cs
