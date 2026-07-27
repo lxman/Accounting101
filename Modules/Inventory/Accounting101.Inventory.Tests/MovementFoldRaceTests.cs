@@ -5,10 +5,14 @@ namespace Accounting101.Inventory.Tests;
 /// <summary>
 /// The weighted-average fold race, both faces, pinned deterministically.
 ///
-/// WHAT MAKES THESE VALID: change the service's acquire to release immediately —
+/// WHAT MAKES <see cref="Two_concurrent_issues_on_one_item_cannot_both_pass_block_negative"/> VALID:
+/// change the service's acquire to release immediately —
 /// <c>(await itemLock.AcquireAsync(clientId, request.ItemId, ct)).Dispose();</c> instead of holding it
-/// with <c>using</c> — and the first two tests fail. Removing the lock outright is NOT a valid mutation:
-/// it removes the rendezvous with it, so the racers no longer overlap and the tests prove nothing.
+/// with <c>using</c> — and THAT test fails (both issues succeed, on-hand lands at -2). Removing the lock
+/// outright is NOT a valid mutation: it removes the rendezvous with it, so the racers no longer overlap
+/// and the test proves nothing. The other two tests below are unaffected by this mutation — one builds
+/// with <see cref="NoOpItemWriteLock"/> and never executes the mutated line, the other is a liveness
+/// check — and each names its own mutation in its own remarks.
 /// </summary>
 public sealed class MovementFoldRaceTests
 {
@@ -89,10 +93,25 @@ public sealed class MovementFoldRaceTests
     /// against it here would be asserting protected behaviour from unprotected code. At 3 the guard is
     /// unreachable either way, which isolates the store-bool guarantee from the block-negative guard.
     ///
-    /// The extended cost is identical under both orderings, so no divergent-content 422 can fire either:
-    /// issuing at the weighted average leaves the average unchanged (10 units / 20.00 → avg 2.00; after
-    /// one issue of 3, 7 units / 14.00 → still avg 2.00), so both racers compose 6.00 whichever fold
-    /// they read. Do not "simplify" these numbers.
+    /// The extended cost is identical under either WHOLE-FOLD ordering, i.e. a loser whose fold read
+    /// lands entirely before or entirely after the winner's write: issuing at the weighted average
+    /// leaves the average unchanged (10 units / 20.00 → avg 2.00; after one issue of 3, 7 units / 14.00
+    /// → still avg 2.00), so both racers compose 6.00 whichever whole fold they read. Do not "simplify"
+    /// these numbers.
+    ///
+    /// RESIDUAL, NOT ELIMINATED: the fold is not one atomic read. <see cref="ItemValuationService.GetAsync"/>
+    /// takes the value from <c>GetSubledgerAsync</c>, then the quantity from <c>ProjectQuantityAsync</c>
+    /// (itself two more reads) — and under <see cref="NoOpItemWriteLock"/> nothing holds those together.
+    /// A torn read is possible in the narrow gap between them: the loser reads the subledger value (20),
+    /// is preempted, the winner completes its ENTIRE store write and post inside that gap, and the loser
+    /// resumes and reads quantity 7 — a fold that never existed at any single instant. That yields an
+    /// average of 2.857 instead of 2.00, an extended cost of 8.57 instead of 6.00, and
+    /// <see cref="FakeLedgerClient.PostAsync"/> throwing on divergent content under the winner's
+    /// already-registered SourceRef. This window is far narrower than the block-negative one above (the
+    /// winner's whole tail — store write and post — must land inside one specific gap between two of the
+    /// loser's three reads), which is why it has not been observed in this test's many stability runs,
+    /// but it is not structurally excluded the way the two claims above are. Whether to accept this
+    /// documented residual or rebuild the test to close it is an open decision, not resolved here.
     ///
     /// WHAT MAKES IT VALID: delete the service's <c>replayed = !result.Created;</c> line and both racers
     /// claim a create, so the single-create assertion sees two and fails.
