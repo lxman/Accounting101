@@ -375,6 +375,18 @@ public sealed class MovementFoldRaceTests
     /// RaceRendezvous's timeout. What it pins is the PORTABLE guarantee, the one that survives where an
     /// in-process lock would not.
     ///
+    /// QUANTITIES ARE LOAD-BEARING: 3 against a seed of 10, deliberately small enough that BOTH racers
+    /// clear block-negative under every ordering. Running unprotected (that is the point — see above),
+    /// a loser whose fold read lands after the winner's write sees the reduced on-hand; with 6 against
+    /// 10 it would see 4, fail block-negative, and throw. That throw is face 1's bug, so asserting
+    /// against it here would be asserting protected behaviour from unprotected code. At 3 the guard is
+    /// unreachable either way, which isolates the store-bool guarantee from the block-negative guard.
+    ///
+    /// The extended cost is identical under both orderings, so no divergent-content 422 can fire either:
+    /// issuing at the weighted average leaves the average unchanged (10 units / 20.00 → avg 2.00; after
+    /// one issue of 3, 7 units / 14.00 → still avg 2.00), so both racers compose 6.00 whichever fold
+    /// they read. Do not "simplify" these numbers.
+    ///
     /// WHAT MAKES IT VALID: delete the service's <c>replayed = !result.Created;</c> line and both racers
     /// claim a create, so the single-create assertion sees two and fails.
     /// </summary>
@@ -400,7 +412,7 @@ public sealed class MovementFoldRaceTests
 
         Guid key = Guid.NewGuid();
         RecordMovement request = new(
-            item.Id, MovementType.Issue, 6m, null, new DateOnly(2026, 1, 16), "issue", key);
+            item.Id, MovementType.Issue, 3m, null, new DateOnly(2026, 1, 16), "issue", key);
 
         (StockMovement Movement, bool Replayed)[] results =
             await Task.WhenAll(service.RecordAsync(clientId, request), service.RecordAsync(clientId, request));
@@ -410,7 +422,7 @@ public sealed class MovementFoldRaceTests
         Assert.All(results, r => Assert.Equal(key, r.Movement.Id));
 
         ItemValuation after = await valuation.GetAsync(clientId, item.Id, includePending: true);
-        Assert.Equal(4m, after.OnHand);          // the movement applied exactly once
+        Assert.Equal(7m, after.OnHand);          // 10 - 3: the movement applied exactly once, not twice
     }
 
     /// <summary>The lock must be keyed per ITEM, not per client. Keyed too coarsely it would still pass
