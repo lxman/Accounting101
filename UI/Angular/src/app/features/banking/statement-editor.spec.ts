@@ -100,4 +100,22 @@ describe('StatementEditor', () => {
     expect(cmp.duplicates()).toEqual([]);
     ctrl.verify();
   });
+
+  it('prevents a late-arriving stale error from wiping out a newer successful scan', () => {
+    const { fixture, ctrl } = boot();
+    const cmp = fixture.componentInstance;
+    cmp.setCashAccount('CA1');
+    const scanA = ctrl.expectOne(r => r.url.endsWith('/bank-statements/duplicates'));
+    cmp.setStatementDate('2026-04-30');
+    const scanB = ctrl.expectOne(r => r.params.get('statementDate') === '2026-04-30');
+    scanB.flush([{ id: 'b2', number: 'BST-00002', cashAccountId: 'CA1', statementDate: '2026-04-30',
+      openingBalance: 0, closingBalance: 50, lines: [], status: 'Posted' }]);
+    fixture.detectChanges();
+    expect(cmp.duplicates().length).toBe(1);
+    scanA.flush('boom', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+    expect(cmp.duplicates().length).toBe(1);
+    expect(cmp.message()).toBeNull();
+    ctrl.verify();
+  });
 });
