@@ -10,9 +10,12 @@ namespace Accounting101.Inventory.Tests;
 /// <c>(await itemLock.AcquireAsync(clientId, request.ItemId, ct)).Dispose();</c> instead of holding it
 /// with <c>using</c> — and THAT test fails (both issues succeed, on-hand lands at -2). Removing the lock
 /// outright is NOT a valid mutation: it removes the rendezvous with it, so the racers no longer overlap
-/// and the test proves nothing. The other two tests below are unaffected by this mutation — one builds
-/// with <see cref="NoOpItemWriteLock"/> and never executes the mutated line, the other is a liveness
-/// check — and each names its own mutation in its own remarks.
+/// and the test proves nothing. The other three tests below are unaffected by this mutation — one builds
+/// with <see cref="NoOpItemWriteLock"/> and never executes the mutated line, another is a liveness
+/// check, and the third (<see cref="Recording_and_voiding_both_acquire_the_lock_for_the_movements_item"/>)
+/// is a SEQUENTIAL spy test that asserts only which keys were acquired, so it is blind to an
+/// acquire-but-don't-hold mutation — disposing immediately still enqueues the same two keys — and each
+/// names its own mutation in its own remarks.
 /// </summary>
 public sealed class MovementFoldRaceTests
 {
@@ -193,7 +196,13 @@ public sealed class MovementFoldRaceTests
     }
 
     /// <summary>Both write paths must lock the item they are about to move. A void that did not lock could
-    /// interleave with a record and let it compute from a fold mid-void.</summary>
+    /// interleave with a record and let it compute from a fold mid-void.
+    ///
+    /// WHAT MAKES IT VALID: remove the <c>itemLock.AcquireAsync</c> call from <c>VoidAsync</c> and the
+    /// second assertion sees 1 acquisition, not 2 — exactly the red-step failure observed before the
+    /// production fix landed. This test is SEQUENTIAL, not concurrent — it asserts only which keys were
+    /// acquired, not how long the lock is held, so it is blind to (and does not claim to cover) an
+    /// acquire-but-don't-hold mutation: disposing immediately still enqueues the same two keys.</summary>
     [Fact]
     public async Task Recording_and_voiding_both_acquire_the_lock_for_the_movements_item()
     {
