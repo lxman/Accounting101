@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Accounting101.Banking.Reconciliation;
 using Accounting101.Interchange;
@@ -17,6 +18,7 @@ public static class ReconciliationEndpoints
         clients.MapPost("/bank-statements", RecordStatement);
         clients.MapGet("/bank-statements/{id:guid}", GetStatement);
         clients.MapGet("/bank-statements", ListStatements);
+        clients.MapGet("/bank-statements/duplicates", FindDuplicateStatements);
         clients.MapPost("/bank-statements/import", ImportStatement).DisableAntiforgery();
 
         clients.MapPost("/reconciliations", StartReconciliation);
@@ -68,6 +70,27 @@ public static class ReconciliationEndpoints
             ? all.OrderByDescending(s => s.Number) : all.OrderBy(s => s.Number);
         List<BankStatement> items = ordered.Skip(Math.Max(0, skip ?? 0)).Take(Math.Clamp(limit ?? 50, 1, 200)).ToList();
         return Results.Ok(new PagedResponse<BankStatement>(items, all.Count, Math.Max(0, skip ?? 0), Math.Clamp(limit ?? 50, 1, 200)));
+    }
+
+    /// <summary>Statements this cash account already has bearing the given statement date. Advisory: the
+    /// caller decides what to do about them. Returns the domain type per this class's convention.
+    /// <para>
+    /// statementDate binds as a string and is parsed here rather than bound as DateOnly?. A malformed value
+    /// bound directly yields the framework's own empty-bodied 400, and every other 400 in this module
+    /// returns a problem+json body.
+    /// </para></summary>
+    private static async Task<IResult> FindDuplicateStatements(
+        Guid clientId, Guid? cashAccountId, string? statementDate,
+        ReconciliationService service, CancellationToken ct)
+    {
+        if (cashAccountId is null || cashAccountId == Guid.Empty)
+            return Results.Problem("cashAccountId query parameter is required.", statusCode: StatusCodes.Status400BadRequest);
+
+        if (!DateOnly.TryParse(statementDate, CultureInfo.InvariantCulture, out DateOnly parsed))
+            return Results.Problem("statementDate query parameter is required and must be a date (yyyy-MM-dd).",
+                statusCode: StatusCodes.Status400BadRequest);
+
+        return Results.Ok(await service.FindDuplicateStatementsAsync(clientId, cashAccountId.Value, parsed, ct));
     }
 
     private static async Task<IResult> StartReconciliation(

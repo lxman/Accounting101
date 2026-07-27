@@ -38,4 +38,95 @@ describe('StatementEditor', () => {
       openingBalance: 0, closingBalance: 100, lines: [], status: 'Posted' });
     ctrl.verify();
   });
+
+  it('scans for duplicates once the account and date are both set, and renders the hits', () => {
+    const { fixture, ctrl } = boot();
+    const cmp = fixture.componentInstance;
+    cmp.setCashAccount('CA1');
+    const req = ctrl.expectOne(r => r.url.endsWith('/bank-statements/duplicates'));
+    expect(req.request.params.get('cashAccountId')).toBe('CA1');
+    expect(req.request.params.get('statementDate')).toBe(cmp.statementDate());
+    req.flush([{ id: 'b1', number: 'BST-00001', cashAccountId: 'CA1', statementDate: cmp.statementDate(),
+      openingBalance: 0, closingBalance: 100, lines: [], status: 'Posted' }]);
+    fixture.detectChanges();
+    expect(cmp.duplicates().length).toBe(1);
+    expect(fixture.nativeElement.textContent).toContain('BST-00001');
+    ctrl.verify();
+  });
+
+  it('never disables Record statement because of a duplicate', () => {
+    const { fixture, ctrl } = boot();
+    const cmp = fixture.componentInstance;
+    cmp.setCashAccount('CA1');
+    cmp.patch(0, { date: '2026-03-05', description: 'dep', amount: 100 });
+    cmp.closingBalance.set(100);
+    ctrl.expectOne(r => r.url.endsWith('/bank-statements/duplicates')).flush([
+      { id: 'b1', number: 'BST-00001', cashAccountId: 'CA1', statementDate: cmp.statementDate(),
+        openingBalance: 0, closingBalance: 100, lines: [], status: 'Posted' }]);
+    fixture.detectChanges();
+    expect(cmp.duplicates().length).toBe(1);
+    expect(cmp.canSave()).toBe(true);
+    const btn = Array.from(fixture.nativeElement.querySelectorAll('button'))
+      .find((b) => (b as HTMLButtonElement).textContent?.trim() === 'Record statement') as HTMLButtonElement | undefined;
+    expect(btn).toBeTruthy();
+    expect(btn!.disabled).toBe(false);
+    ctrl.verify();
+  });
+
+  it('ignores a response superseded by a later scan', () => {
+    const { fixture, ctrl } = boot();
+    const cmp = fixture.componentInstance;
+    cmp.setCashAccount('CA1');
+    const first = ctrl.expectOne(r => r.url.endsWith('/bank-statements/duplicates'));
+    cmp.setStatementDate('2026-04-30');
+    const second = ctrl.expectOne(r => r.params.get('statementDate') === '2026-04-30');
+    second.flush([]);
+    first.flush([{ id: 'stale', number: 'BST-09999', cashAccountId: 'CA1', statementDate: '2026-03-31',
+      openingBalance: 0, closingBalance: 100, lines: [], status: 'Posted' }]);
+    fixture.detectChanges();
+    expect(cmp.duplicates()).toEqual([]);
+    ctrl.verify();
+  });
+
+  // scan() clears `duplicates` synchronously at the top of every call, so by the time setStatementDate's
+  // 500 is flushed below, the array is already empty — deleting the error handler's own clear, or
+  // deleting this synchronous pre-clear, each ALONE still leaves the test passing, because whichever one
+  // remains still empties `duplicates` before the response ever arrives. Only deleting both fails it. So
+  // this does NOT prove the error handler's guard is correct; it only pins the synchronous
+  // clear-on-scan-start behaviour. The guard's real coverage lives in 'prevents a late-arriving stale
+  // error from wiping out a newer successful scan' below.
+  it('clears the previous hit as soon as a re-scan starts', () => {
+    const { fixture, ctrl } = boot();
+    const cmp = fixture.componentInstance;
+    cmp.setCashAccount('CA1');
+    ctrl.expectOne(r => r.url.endsWith('/bank-statements/duplicates')).flush([
+      { id: 'b1', number: 'BST-00001', cashAccountId: 'CA1', statementDate: cmp.statementDate(),
+        openingBalance: 0, closingBalance: 100, lines: [], status: 'Posted' }]);
+    fixture.detectChanges();
+    expect(cmp.duplicates().length).toBe(1);
+    cmp.setStatementDate('2026-04-30');
+    ctrl.expectOne(r => r.params.get('statementDate') === '2026-04-30')
+        .flush('boom', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+    expect(cmp.duplicates()).toEqual([]);
+    ctrl.verify();
+  });
+
+  it('prevents a late-arriving stale error from wiping out a newer successful scan', () => {
+    const { fixture, ctrl } = boot();
+    const cmp = fixture.componentInstance;
+    cmp.setCashAccount('CA1');
+    const scanA = ctrl.expectOne(r => r.url.endsWith('/bank-statements/duplicates'));
+    cmp.setStatementDate('2026-04-30');
+    const scanB = ctrl.expectOne(r => r.params.get('statementDate') === '2026-04-30');
+    scanB.flush([{ id: 'b2', number: 'BST-00002', cashAccountId: 'CA1', statementDate: '2026-04-30',
+      openingBalance: 0, closingBalance: 50, lines: [], status: 'Posted' }]);
+    fixture.detectChanges();
+    expect(cmp.duplicates().length).toBe(1);
+    scanA.flush('boom', { status: 500, statusText: 'Server Error' });
+    fixture.detectChanges();
+    expect(cmp.duplicates().length).toBe(1);
+    expect(cmp.message()).toBeNull();
+    ctrl.verify();
+  });
 });

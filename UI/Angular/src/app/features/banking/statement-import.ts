@@ -7,22 +7,23 @@ import { HlmButton } from '@spartan-ng/helm/button';
 import { HlmSelectImports } from '@spartan-ng/helm/select';
 import { BankingService } from '../../core/banking/banking.service';
 import {
-  InterchangeFormat, CsvMapping, ColumnRef, StatementPreview, BankStatementLine, RecordBankStatementRequest,
+  InterchangeFormat, CsvMapping, ColumnRef, StatementPreview, BankStatement, BankStatementLine, RecordBankStatementRequest,
 } from '../../core/banking/banking';
 import { AccountsService } from '../../core/accounts/accounts.service';
 import { extractProblem } from '../../core/api/problem-details';
 import { money as fmtMoney } from '../../core/format/display';
 import { CanDirective } from '../../core/capabilities/can.directive';
+import { StatementDuplicateWarning } from './statement-duplicate-warning';
 
 type MappableField = 'date' | 'amount' | 'debit' | 'credit' | 'description' | 'reference';
 /** An editable preview: server lines + the user-supplied balances/date that the preview may not carry. */
-interface EditablePreview { lines: BankStatementLine[]; openingBalance: number; closingBalance: number; statementDate: string; createdId?: string; error?: string; }
+interface EditablePreview { lines: BankStatementLine[]; openingBalance: number; closingBalance: number; statementDate: string; duplicates: BankStatement[]; createdId?: string; error?: string; }
 type Stage = 'upload' | 'preview';
 
 @Component({
   selector: 'app-statement-import',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, CanDirective, ...HlmInputImports, ...HlmLabelImports, HlmButton, ...HlmSelectImports],
+  imports: [RouterLink, CanDirective, StatementDuplicateWarning, ...HlmInputImports, ...HlmLabelImports, HlmButton, ...HlmSelectImports],
   template: `
     <div class="flex flex-col gap-4 p-4 max-w-3xl">
       <a routerLink="/cash/statements" class="text-sm text-muted-foreground hover:text-foreground">← Statements</a>
@@ -103,12 +104,13 @@ type Stage = 'upload' | 'preview';
             </div>
             <div class="grid grid-cols-3 gap-3">
               <div class="flex flex-col gap-1"><label hlmLabel>Statement date</label>
-                <input hlmInput type="date" [value]="p.statementDate" (change)="patchPreview(i, { statementDate: $any($event.target).value })" [disabled]="!!p.createdId" /></div>
+                <input hlmInput type="date" [value]="p.statementDate" (change)="setStatementDate(i, $any($event.target).value)" [disabled]="!!p.createdId" /></div>
               <div class="flex flex-col gap-1"><label hlmLabel>Opening</label>
                 <input hlmInput type="number" class="text-right tabular-nums" [value]="p.openingBalance" (input)="patchPreview(i, { openingBalance: +$any($event.target).value })" [disabled]="!!p.createdId" /></div>
               <div class="flex flex-col gap-1"><label hlmLabel>Closing</label>
                 <input hlmInput type="number" class="text-right tabular-nums" [value]="p.closingBalance" (input)="patchPreview(i, { closingBalance: +$any($event.target).value })" [disabled]="!!p.createdId" /></div>
             </div>
+            @if (!p.createdId) { <app-statement-duplicate-warning [duplicates]="p.duplicates" /> }
             <table class="w-full text-sm">
               <thead><tr class="text-left text-muted-foreground"><th class="py-1">Date</th><th>Description</th><th class="text-right">Amount</th></tr></thead>
               <tbody>@for (l of p.lines; track $index) {
@@ -149,6 +151,7 @@ export class StatementImport {
   readonly warnings = signal<string[]>([]);
   readonly busy = signal(false);
   readonly message = signal<string | null>(null);
+  private generation = 0;
 
   readonly cashAccounts = computed(() => this.accounts.accounts().filter(a => a.type === 'Asset' && a.postable));
   readonly canUpload = computed(() => {
@@ -171,7 +174,37 @@ export class StatementImport {
     return Math.round((p.openingBalance + sum - p.closingBalance) * 100) === 0;
   }
   patchPreview(i: number, part: Partial<EditablePreview>): void { this.previews.update(v => v.map((p, idx) => idx === i ? { ...p, ...part } : p)); }
-  reset(): void { this.stage.set('upload'); this.previews.set([]); this.warnings.set([]); this.file.set(null); this.message.set(null); }
+  reset(): void { this.generation++; this.stage.set('upload'); this.previews.set([]); this.warnings.set([]); this.file.set(null); this.message.set(null); }
+
+  setStatementDate(i: number, date: string): void { this.patchPreview(i, { statementDate: date }); this.scan(i); }
+
+  /**
+   * Advisory duplicate scan for one preview. Two guards, because this screen holds N previews sharing one
+   * cash account: `generation` (incremented ONLY in reset(), so an in-flight scan cannot write to a preview
+   * set that has been thrown away) and `key` (the date being scanned, so an earlier response cannot land on
+   * a preview whose date has since moved). They guard different things — do not collapse them.
+   * `key` only needs to cover the date, not the cash account, because the account select lives in the
+   * `upload` stage (`@if (stage() === 'upload')`) and so cannot change while previews exist — the only
+   * route back to `upload` is `reset()`, which bumps `generation` on its own. If the account ever becomes
+   * editable in the preview stage, `key` would need to cover it too.
+   * Deliberately never touches `busy`, which belongs to upload()/confirm().
+   */
+  private scan(i: number): void {
+    this.patchPreview(i, { duplicates: [] });
+    const account = this.cashAccountId();
+    const key = this.previews()[i]?.statementDate;
+    if (!account || !key) return;
+    const gen = this.generation;
+    const settle = (hits: BankStatement[]): void => {
+      if (gen !== this.generation) return;
+      if (this.previews()[i]?.statementDate !== key) return;
+      this.patchPreview(i, { duplicates: hits });
+    };
+    this.svc.statementDuplicates(account, key).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (hits) => settle(hits),
+      error: () => settle([]),
+    });
+  }
 
   private buildMapping(): CsvMapping | null {
     if (this.format() !== 'Csv') return null;
@@ -196,9 +229,11 @@ export class StatementImport {
             openingBalance: s.detectedOpeningBalance ?? 0,
             closingBalance: s.detectedClosingBalance ?? 0,
             statementDate: s.statementDate ?? new Date().toISOString().slice(0, 10),
+            duplicates: [],
           })));
           this.warnings.set(res.warnings);
           this.stage.set('preview'); this.busy.set(false);
+          this.previews().forEach((_, i) => this.scan(i));
         },
         error: (e) => { this.message.set(extractProblem(e).detail); this.busy.set(false); },
       });

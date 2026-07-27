@@ -18,6 +18,21 @@ internal sealed class InMemoryBankStatementStore : IBankStatementStore
         _store[(clientId, s.Id)] = s;
         return Task.FromResult(s);
     }
+
+    /// <summary>Place a statement directly, in a chosen status. <see cref="RecordAsync"/> can only produce
+    /// Posted, and no production path produces Void at all, so a test covering the Void filter has to seed
+    /// one here — otherwise that filter would be covered only by a test that cannot fail.</summary>
+    public BankStatement Seed(Guid clientId, Guid cashAccountId, DateOnly statementDate, BankStatementStatus status)
+    {
+        BankStatement s = new()
+        {
+            Id = Guid.NewGuid(), Number = $"BST-{Interlocked.Increment(ref _seq):D5}",
+            CashAccountId = cashAccountId, StatementDate = statementDate,
+            OpeningBalance = 0m, ClosingBalance = 0m, Lines = [], Status = status,
+        };
+        _store[(clientId, s.Id)] = s;
+        return s;
+    }
     public Task<BankStatement?> GetAsync(Guid clientId, Guid id, CancellationToken ct = default) =>
         Task.FromResult(_store.GetValueOrDefault((clientId, id)));
     public Task<IReadOnlyList<BankStatement>> GetByAccountAsync(Guid clientId, Guid cashAccountId, CancellationToken ct = default) =>
