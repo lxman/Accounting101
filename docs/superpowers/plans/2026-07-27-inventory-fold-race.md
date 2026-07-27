@@ -30,6 +30,7 @@
 | `Modules/Inventory/Accounting101.Inventory/InventoryMovementService.cs` | Takes the lock in `RecordAsync` and `VoidAsync` |
 | `Modules/Inventory/Accounting101.Inventory.Api/InventoryServiceExtensions.cs` | Registers the singleton |
 | `Modules/Inventory/Accounting101.Inventory.Tests/RendezvousItemWriteLock.cs` | **New** — test decorator, rendezvous OUTSIDE the protected section |
+| `Modules/Inventory/Accounting101.Inventory.Tests/NoOpItemWriteLock.cs` | **New** — grants immediately without exclusion, for store-level race tests |
 | `Modules/Inventory/Accounting101.Inventory.Tests/RecordingItemWriteLock.cs` | **New** — test spy recording which keys were acquired |
 | `Modules/Inventory/Accounting101.Inventory.Tests/MovementFoldRaceTests.cs` | **New** — the two races + the cross-item concurrency guard |
 | `Modules/Inventory/Accounting101.Inventory.Tests/InventoryMovementServiceTests.cs:21` | Constructor call gains the lock argument |
@@ -222,6 +223,11 @@ The two existing test files construct the service directly, so both break the mo
 
 **A rendezvous decorator fires on every acquire, including seeding calls.** A test that seeds stock through the same service instance would strand the seed at a 2-participant rendezvous and time out. Seed through a second service instance that shares the same stores but wraps the *undecorated* lock.
 
+**Two guarantees, tested separately — do not conflate them.** The store's atomic-create bool is the *portable* arbiter of created-vs-replayed: it holds even across processes, where an in-process lock does not. The lock is the single-instance addition on top. They need independent tests, and the store-level ones must bypass the lock to stay reachable at all:
+
+- Any test whose rendezvous blocks **inside** the critical section (i.e. `RendezvousStockMovementStore`, which blocks in the store probe) must build its service with `NoOpItemWriteLock`. With the real lock, racer A holds it and waits at the rendezvous while B waits on the lock and never arrives — A then dies on `RaceRendezvous`'s timeout. This applies to the pre-existing `MovementRaceTests` too, which is why its construction site takes the no-op lock rather than the real one.
+- Only the face-2 test uses the real lock, and its rendezvous sits outside the protected section.
+
 - [ ] **Step 1: Write the test decorator**
 
 Create `Modules/Inventory/Accounting101.Inventory.Tests/RendezvousItemWriteLock.cs`:
@@ -247,6 +253,35 @@ internal sealed class RendezvousItemWriteLock(IItemWriteLock inner, RaceRendezvo
     {
         await rendezvous.ArriveAndWaitAsync(ct);
         return await inner.AcquireAsync(clientId, itemId, ct);
+    }
+}
+```
+
+Create `Modules/Inventory/Accounting101.Inventory.Tests/NoOpItemWriteLock.cs`:
+
+```csharp
+namespace Accounting101.Inventory.Tests;
+
+/// <summary>
+/// Grants immediately and excludes nobody — for tests that must still be able to drive two callers into
+/// the same critical section.
+///
+/// The store's insert-only create is the arbiter of created-vs-replayed, and that guarantee is the
+/// PORTABLE one: it holds even across processes, where <see cref="ItemWriteLock"/> does not. Tests that
+/// pin it therefore have to bypass the lock, because with the lock in place the interleaving they need
+/// is unreachable through the service — and worse, a rendezvous blocking inside the critical section
+/// would strand its second participant and die on RaceRendezvous's timeout.
+/// </summary>
+internal sealed class NoOpItemWriteLock : IItemWriteLock
+{
+    private static readonly IDisposable Nothing = new NoRelease();
+
+    public Task<IDisposable> AcquireAsync(Guid clientId, Guid itemId, CancellationToken ct = default) =>
+        Task.FromResult(Nothing);
+
+    private sealed class NoRelease : IDisposable
+    {
+        public void Dispose() { }
     }
 }
 ```
@@ -329,31 +364,52 @@ public sealed class MovementFoldRaceTests
         Assert.Equal(4m, after.OnHand);          // 10 - 6, never 10 - 6 - 6
     }
 
-    /// <summary>FACE 1, on an ISSUE — the type MovementRaceTests deliberately avoids. Two racers share a
-    /// retry key. Unfixed, the loser computes its cost from a fold that already contains the winner's
-    /// movement and can throw for a movement that landed. Fixed, its pre-check runs after the winner
-    /// finished, so it takes the replay branch and freezes the cost from the stored document.</summary>
+    /// <summary>
+    /// FACE 1, on an ISSUE — the type MovementRaceTests deliberately avoids, extending that test's
+    /// guarantee to the fold-costed path. Two racers share a retry key and BOTH get past the probe;
+    /// the store's insert-only create is what makes exactly one of them a create.
+    ///
+    /// DELIBERATELY BUILT WITH NoOpItemWriteLock. The interleaving this pins is unreachable through the
+    /// service once the real lock is in place — and the rendezvous, which blocks inside the store probe
+    /// and therefore inside the critical section, would strand its second participant and die on
+    /// RaceRendezvous's timeout. What it pins is the PORTABLE guarantee, the one that survives where an
+    /// in-process lock would not.
+    ///
+    /// WHAT MAKES IT VALID: delete the service's <c>replayed = !result.Created;</c> line and both racers
+    /// claim a create, so the single-create assertion sees two and fails.
+    /// </summary>
     [Fact]
     public async Task Two_issue_racers_on_one_retry_key_yield_one_create_and_one_replay()
     {
+        InMemoryItemStore items = new();
+        InMemoryStockMovementStore inner = new();
         RaceRendezvous rendezvous = new(participants: 2, timeout: TimeSpan.FromSeconds(5));
-        Rig rig = Build(rendezvous);
+        RendezvousStockMovementStore racingStore = new(inner, rendezvous);   // blocks in the PROBE
+        FakeLedgerClient ledger = new();
+        FixedInventoryAccountsProvider accounts = new();
+        ItemValuationService valuation = new(racingStore, accounts, ledger);
+        InventoryMovementService service = new(items, racingStore, accounts, ledger, valuation, new NoOpItemWriteLock());
+
         Guid clientId = Guid.NewGuid();
-        Item item = await SeedTenOnHandAsync(rig, clientId);
+        Item item = await items.CreateAsync(clientId, new ItemBody("SKU1", "Widget", null, "each"));
+
+        // Seed WITHOUT a retry key: RecordAsync only probes when one is supplied, so this call never
+        // reaches the rendezvous and cannot strand it.
+        await service.RecordAsync(clientId, new RecordMovement(
+            item.Id, MovementType.Receipt, 10m, 2m, new DateOnly(2026, 1, 15), "seed"));
 
         Guid key = Guid.NewGuid();
         RecordMovement request = new(
             item.Id, MovementType.Issue, 6m, null, new DateOnly(2026, 1, 16), "issue", key);
 
         (StockMovement Movement, bool Replayed)[] results =
-            await Task.WhenAll(rig.Racing.RecordAsync(clientId, request), rig.Racing.RecordAsync(clientId, request));
+            await Task.WhenAll(service.RecordAsync(clientId, request), service.RecordAsync(clientId, request));
 
         Assert.Single(results, r => !r.Replayed);
         Assert.Single(results, r => r.Replayed);
         Assert.All(results, r => Assert.Equal(key, r.Movement.Id));
-        Assert.Equal(results[0].Movement.ExtendedCost, results[1].Movement.ExtendedCost);
 
-        ItemValuation after = await rig.Valuation.GetAsync(clientId, item.Id, includePending: true);
+        ItemValuation after = await valuation.GetAsync(clientId, item.Id, includePending: true);
         Assert.Equal(4m, after.OnHand);          // the movement applied exactly once
     }
 
@@ -443,10 +499,13 @@ In `Modules/Inventory/Accounting101.Inventory.Tests/InventoryMovementServiceTest
         InventoryMovementService service = new(items, movements, accounts, ledger, valuation, new ItemWriteLock());
 ```
 
-In `Modules/Inventory/Accounting101.Inventory.Tests/MovementRaceTests.cs`, change line 32 to:
+In `Modules/Inventory/Accounting101.Inventory.Tests/MovementRaceTests.cs`, change line 32 to take the **no-op** lock — this test's rendezvous blocks inside the store probe, which the real lock now wraps, so with the real lock its second racer could never arrive and it would die on the rendezvous timeout:
 
 ```csharp
-        InventoryMovementService service = new(items, racingStore, accounts, ledger, valuation, new ItemWriteLock());
+        // NoOp on purpose: this test pins the STORE's insert-only create as the arbiter of
+        // created-vs-replayed — the guarantee that holds even where an in-process lock would not. Its
+        // rendezvous blocks inside the critical section, so the real lock would strand the second racer.
+        InventoryMovementService service = new(items, racingStore, accounts, ledger, valuation, new NoOpItemWriteLock());
 ```
 
 - [ ] **Step 7: Run the tests to verify they pass**
@@ -466,9 +525,14 @@ Temporarily replace the `using IDisposable itemGate = ...` line from Step 4 with
 ```
 
 Run: `dotnet test Modules/Inventory/Accounting101.Inventory.Tests --filter MovementFoldRaceTests`
-Expected: `Two_concurrent_issues_on_one_item_cannot_both_pass_block_negative` FAILS (both succeed; on-hand −2) and `Two_issue_racers_on_one_retry_key_yield_one_create_and_one_replay` FAILS. `Writes_to_different_items_are_not_serialised` still passes — it is a liveness test and the mutation does not affect it.
+Expected: `Two_concurrent_issues_on_one_item_cannot_both_pass_block_negative` FAILS — both issues succeed and on-hand lands at −2.
 
-Restore the `using` form and re-run: all 3 pass. Do not commit the mutation. Report the failing output.
+The other two are unaffected by this mutation **by design**, and that is not a defect: `Two_issue_racers_on_one_retry_key_yield_one_create_and_one_replay` builds its service with `NoOpItemWriteLock`, so it never touches the mutated line, and `Writes_to_different_items_are_not_serialised` is a liveness test. Each has its own mutation, recorded in its class remarks:
+
+- Face 1 — delete the service's `replayed = !result.Created;` line; both racers then claim a create and its single-create assertion fails.
+- Cross-item — key the lock on `clientId` alone instead of `(clientId, itemId)`; the second write can then never enter its critical section and the rendezvous times out.
+
+Run the face-1 mutation too, so both race tests are proven capable of failing. Restore everything and re-run: all 3 pass. Do not commit any mutation. Report the failing output for both.
 
 - [ ] **Step 9: Commit**
 
@@ -476,6 +540,7 @@ Restore the `using` form and re-run: all 3 pass. Do not commit the mutation. Rep
 git add Modules/Inventory/Accounting101.Inventory/InventoryMovementService.cs \
         Modules/Inventory/Accounting101.Inventory.Api/InventoryServiceExtensions.cs \
         Modules/Inventory/Accounting101.Inventory.Tests/RendezvousItemWriteLock.cs \
+        Modules/Inventory/Accounting101.Inventory.Tests/NoOpItemWriteLock.cs \
         Modules/Inventory/Accounting101.Inventory.Tests/MovementFoldRaceTests.cs \
         Modules/Inventory/Accounting101.Inventory.Tests/InventoryMovementServiceTests.cs \
         Modules/Inventory/Accounting101.Inventory.Tests/MovementRaceTests.cs
