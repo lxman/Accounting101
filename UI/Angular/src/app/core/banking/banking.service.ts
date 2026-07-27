@@ -113,6 +113,12 @@ export class BankingService {
     if (!this.client.clientId()) return EMPTY;
     return this.http.post<BankStatement>(this.base('/bank-statements'), req);
   }
+  /** Statements already on file for this cash account and statement date. Advisory — never blocks. */
+  statementDuplicates(cashAccountId: string, statementDate: string): Observable<BankStatement[]> {
+    if (!this.client.clientId()) return EMPTY;
+    const params = new HttpParams().set('cashAccountId', cashAccountId).set('statementDate', statementDate);
+    return this.http.get<BankStatement[]>(this.base('/bank-statements/duplicates'), { params });
+  }
 
   // ── Import (parse-to-preview) ────────────────────────────────────────────────
   importStatements(file: File, format: InterchangeFormat, mapping: CsvMapping | null): Observable<ImportPreviewResponse> {
