@@ -823,6 +823,95 @@ cannot proceed.
 
 ---
 
+## Task 3c: Make the flagship race test detect its mutation deterministically
+
+**Added after Task 3b's review, which confirmed the defect empirically.**
+`Two_concurrent_issues_on_one_item_cannot_both_pass_block_negative` is this branch's central proof —
+the test that shows two concurrent issues cannot both clear block-negative. It detects its mandated
+record-path mutation (`(await itemLock.AcquireAsync(clientId, request.ItemId, ct)).Dispose();` in
+`RecordAsync`) **only when it happens to run first in its class out of a cold thread pool.** xUnit
+orders test methods by a hash of their names, not by source position, so that is scheduling luck, not
+construction. The reviewer's matrix:
+
+| Configuration | Record-path mutation detected? |
+|---|---|
+| HEAD as shipped, class alone | YES — 5/5 |
+| HEAD as shipped, full suite | YES — 4/4 |
+| A concurrent test appended to the class, class alone | **NO — 5/5 green** |
+| A concurrent test appended to the class, full suite | **NO — 3/3 green under a mutation that must fail** |
+
+Two controls locate the cause: a same-named stub occupying the same slot leaves detection intact
+(so it is not merely being preceded), and shortening the successor's grace window from 2s to 50ms
+loses detection (so it is not elapsed time either) — but the 50ms version with its tail assertions
+stripped detects again. The margin is a few milliseconds of the predecessor's synchronous tail work.
+
+This violates the plan's own global constraint that every race test be watched failing before it
+counts. Human precedent (twice on this branch): close it, do not document-and-accept.
+
+**Files:**
+- Modify: `Modules/Inventory/Accounting101.Inventory.Tests/MovementFoldRaceTests.cs`
+- Modify: `Modules/Inventory/Accounting101.Inventory.Tests/MovementVoidLockHoldTests.cs` (minor 3 below)
+- Modify: `Modules/Inventory/Accounting101.Inventory.Tests/VoidSectionGateStore.cs` (minor 1 below)
+- **No production file changes.** The production code is correct and stays byte-identical. If you
+  conclude otherwise, STOP and report — that is a finding, not a licence to edit.
+
+### The requirement
+
+`Two_concurrent_issues_on_one_item_cannot_both_pass_block_negative` must detect its mutation because of
+how it is BUILT, not because of where it lands in the schedule. The fix both the implementer and the
+reviewer independently named: a second rendezvous after the fold's last read, mirroring the `afterFold`
+rendezvous that `Two_issue_racers_on_one_retry_key_yield_one_create_and_one_replay` already uses —
+`FoldCompleteRendezvousLedger` exists for exactly this and is already wired into that sibling.
+
+### The acceptance bar — this is the whole point of the task
+
+The old detection evidence is void; you are re-establishing it. Demonstrate detection in **all four**
+cells of the matrix above, not just the two that already passed:
+
+1. mutation + this class alone,
+2. mutation + full suite,
+3. mutation + a concurrent test appended to this class (the configuration that disarms it today — you
+   must reproduce the disarming on HEAD first, so you know your reproduction works, and only then show
+   your fix surviving it),
+4. mutation + full suite with that concurrent test still appended.
+
+Run each several times, not once — a flaky detector is what you are removing. Report the actual counts.
+Then remove the temporary appended test, revert the mutation, and confirm a clean production tree with
+`git diff --exit-code`.
+
+### Also fix, in the same task (three Minors from Task 3b's review)
+
+- `VoidSectionGateStore.cs:19` — says the gated call sits "four statements after" the acquire. It is
+  the third; only two intervene. Fix the count or drop it.
+- `MovementFoldRaceTests.cs:32` — says "~30 classes running in parallel". The project has 24 test
+  classes (27 public, 3 of them fixtures).
+- `MovementVoidLockHoldTests.cs:90-93` — `gate.Open()` is unreachable when the first assertion throws,
+  so a failing run leaves the void parked until its 10s timeout fires into a task nobody awaits. Put
+  the open in a `finally`.
+
+### The trap this task is most likely to fall into
+
+If your fix makes the flagship test order-independent, then the `DO NOT ADD A CONCURRENT TEST TO THIS
+CLASS` warning block and the rationale for `MovementVoidLockHoldTests` living in its own class may both
+become false — they document a fragility you just removed. Leaving them is defect class (4), which this
+plan has now paid for **three** times, twice in this exact comment block. Re-read every claim in both
+files' remarks after your change and make them true. Do NOT move the hold test back into
+`MovementFoldRaceTests` unless you have proven detection survives it (cell 3 above); if you do move it,
+cell 3 stops being hypothetical and becomes the shipped configuration.
+
+- [ ] **Step 1: Reproduce the disarming on HEAD** (append a concurrent test, apply the record-path
+  mutation, watch the class go green) — you cannot prove a fix against a repro you have not seen
+- [ ] **Step 2: Apply the durable fix**
+- [ ] **Step 3: Prove all four matrix cells, several runs each**
+- [ ] **Step 4: Fix the three Minors**
+- [ ] **Step 5: Reconcile every claim in both files' remarks** (see the trap above)
+- [ ] **Step 6: Full module suite** — 119 currently green
+- [ ] **Step 7: Revert all mutations and temporary tests; `git diff --exit-code` on production; commit**
+  with an explicit `git add` file list (never `-A`; `UI/Angular/src/app/core/api/environment.ts` stays
+  uncommitted)
+
+---
+
 ## Task 4: Retire the stale narrowing comments
 
 **Files:**
