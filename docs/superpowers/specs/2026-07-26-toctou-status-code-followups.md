@@ -72,13 +72,11 @@ anchors are not.
 
 ## Still out of scope, per the spec
 
-- **Inventory's weighted-average fold race.** Issue and shrinkage Adjustment derive cost from a
-  pending-inclusive fold the race winner has already moved, and the cost is computed *before* the
-  store call, so the atomic-create bool cannot help. The conversion fixed the status code for every
-  movement type and fully fixed Receipt and overage Adjustment (cost is `Round(qty × unitCost)`,
-  request-pure). The fold race self-heals on the next retry. **This is now the only remaining problem
-  there, which was the point of converting Inventory anyway — its own spec is correspondingly
-  smaller.**
+- ~~**Inventory's weighted-average fold race.**~~ **CLOSED 2026-07-27** —
+  [2026-07-27-inventory-fold-race-design.md](2026-07-27-inventory-fold-race-design.md). Investigation found
+  a second, unrecorded and more serious face: two concurrent movements on the same item with DIFFERENT ids
+  both passed the block-negative guard, driving on-hand negative permanently. Both faces are closed by a
+  per-item write lock; single-instance only, by ratified decision.
 - **Retry-keys follow-up #3** — validation running before the atomic create. Bites only on genuine
   concurrency, not on the sequential failed-but-succeeded retry the feature exists for, and
   self-heals.

@@ -31,6 +31,14 @@ before the store call. Mitigating factor, verified by the final review: the lose
 succeeds, because its probe now finds the movement, freezes the cost from the stored document and
 replays. So this is a transient spurious error, not a money defect, and it self-heals.
 
+**SUPERSEDED 2026-07-27 — closed, and the "transient, self-heals, not a money defect" conclusion above
+was only ever true of the face it describes.** The own-design this paragraph called for
+([2026-07-27-inventory-fold-race-design.md](2026-07-27-inventory-fold-race-design.md)) found a *second*
+face nobody had recorded: two concurrent movements on one item with DIFFERENT ids, both clearing
+block-negative, driving on-hand negative permanently. That face does not self-heal and is a money
+defect. Both are closed by a per-item write lock (single-instance only, by ratified decision). Do not
+re-derive this.
+
 ### 2. `includeVoided` asymmetry in two list methods
 
 Task 10 fixed `GetPaymentsByVendorAsync` (voided payments were silently vanishing from the vendor

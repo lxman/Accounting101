@@ -10,12 +10,10 @@ namespace Accounting101.Inventory.Tests;
 /// <c>replayed</c> at its earlier, pre-check-derived value) and both racers claim a create, so the
 /// single-create assertion sees two and fails.
 ///
-/// DELIBERATELY A RECEIPT. Receipt and overage Adjustment compute extendedCost as
-/// Round(qty x unitCost) — pure in the request — so the conversion fixes them completely. Issue and
-/// shrinkage Adjustment derive cost from a pending-inclusive weighted-average fold the winner has
-/// already moved, and that race is NOT fixed here (the cost is computed before the store call, so the
-/// Created bool cannot help). A race test built on an Issue would fail for the fold reason and pin
-/// the wrong thing.
+/// DELIBERATELY A RECEIPT, and still worth keeping as a Receipt: this test pins the STORE's atomic
+/// create as the arbiter of created-vs-replayed, independently of the per-item lock added later. The
+/// fold race that once made an Issue unsuitable here is closed (see MovementFoldRaceTests), which now
+/// covers the Issue path directly.
 /// </summary>
 public sealed class MovementRaceTests
 {

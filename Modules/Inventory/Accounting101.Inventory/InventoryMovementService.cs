@@ -103,18 +103,12 @@ public sealed class InventoryMovementService(
             // 5. Persist the numbered movement under the caller's id. No valuation snapshot is stored —
             // on-hand and value are derived on read from the ledger fold + movement projection.
             //
-            // The pre-check above is inherently TOCTOU under concurrency: two callers racing the same id
-            // can both see "not found" and both reach here. The store's atomic create is the actual
-            // arbiter — trust it over the pre-check for this response's status.
-            //
-            // SCOPE, deliberately partial. This fixes the STATUS CODE for every movement type, and that
-            // is the whole fix for Receipt and overage Adjustment, whose extendedCost is Round(qty x
-            // unitCost) — pure in the request. It does NOT fix Issue or shrinkage Adjustment: their cost
-            // comes from a pending-inclusive weighted-average fold that the race winner has already moved,
-            // and it is computed ABOVE this line, before the store call — so a loser can still get a
-            // ledger 422, block-negative 409, or the extendedCost <= 0 guard for a movement that actually
-            // landed. That self-heals (the next retry's probe finds the movement and freezes the cost from
-            // the stored document) and is the subject of its own spec.
+            // The pre-check above is inherently TOCTOU under concurrency, and the store's atomic create
+            // is the arbiter for THIS response's status — it stays the arbiter because the per-item lock
+            // is single-instance only (see ItemWriteLock's remarks). That arbitration used to leave a
+            // wider fold race open — a loser computing its cost from a fold the winner had already moved
+            // — and the lock closes it: taken before the pre-check, so within one process a same-key loser
+            // reaches the replay branch below rather than racing here at all.
             (StockMovement Movement, bool Created) result = await movements.RecordAsync(clientId, id, new StockMovementBody(
                 request.ItemId, request.Type, request.EffectiveDate, request.Memo,
                 request.Quantity, effect.AppliedUnitCost, effect.ExtendedCost), ct);

@@ -200,7 +200,10 @@ fake again, and not fixed by editing the assertion until it passes.
 
 ## Out of scope
 
-- **Inventory's weighted-average fold race** — its own spec, deliberately narrowed by this one.
+- **Inventory's weighted-average fold race** — its own spec, deliberately narrowed by this one. That
+  spec was written and shipped on 2026-07-27
+  ([2026-07-27-inventory-fold-race-design.md](2026-07-27-inventory-fold-race-design.md)): the race is
+  closed by a per-item write lock, so this bullet is a record of *this* branch's scope, not open work.
 - **Follow-up #3**, validation running before the atomic create. It bites only on genuine concurrency,
   not on the sequential failed-but-succeeded retry the feature exists for, and it self-heals.
 - **Follow-up #4**, the ledger's `sourceRef` query not being scoped by source type. Engine-level, and
