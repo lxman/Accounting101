@@ -17,7 +17,7 @@ public sealed record RecordMovement(
 /// movement projection. This is the module's first GL-posting service.</summary>
 public sealed class InventoryMovementService(
     IItemStore items, IStockMovementStore movements, IInventoryAccountsProvider accounts, ILedgerClient ledger,
-    ItemValuationService valuation)
+    ItemValuationService valuation, IItemWriteLock itemLock)
 {
     /// <summary>Records a movement, or REPLAYS one when the caller supplies a retry key that is already
     /// taken. The replay branch is wider here than on any other retry-key endpoint: this path derives what
@@ -41,6 +41,34 @@ public sealed class InventoryMovementService(
         // 1. Shape validation (→ 422). Direction/cost rules per movement type. Pure — it reads only the
         // request, so it guards BOTH branches: a replay carrying a malformed request is still a 422.
         ValidateShape(request);
+
+        // Serialise every write to this item's stock position, for the whole body. Two things make this
+        // the right boundary:
+        //
+        // 1. It must be taken BEFORE the existence pre-check. That is what makes a same-key racer ON THIS
+        //    ITEM take the replay branch below rather than computing a cost from a fold the winner has
+        //    already moved. Same key but a DIFFERENT item is not serialised — the gate is keyed
+        //    (clientId, itemId), so that pair takes two semaphores and the store's atomic create, not
+        //    this lock, is what separates them.
+        // 2. It must be held THROUGH the ledger post. A movement is invisible to the fold until its entry
+        //    exists (ItemValuationService.OnBooks requires one, and the value axis comes from the
+        //    subledger), so releasing after the store write would let the next caller read a stale fold.
+        //
+        //    THAT FACT IS ABOUT THIS PATH ONLY — do not carry it over to reads. The fold below runs
+        //    entirely inside this lock and passes includePending: true, whose gate is Active x {Posted,
+        //    PendingApproval} on BOTH axes (MongoJournalStore.OnBooks for value, ItemValuationService
+        //    .OnBooks for quantity), so a concurrent ledger-side Pending->Posted approval moves nothing
+        //    it read: the entry is admitted in either state. A ledger-side VOID or REVERSE does move it,
+        //    and is not closed here — see the fold-race spec, "the guard reaches exactly as far as the
+        //    lock does". ItemValuationService's READ path has no immunity at all: GetAsync and
+        //    GetManyAsync take the value fold and the quantity projection as separate un-locked calls,
+        //    and InventoryService reads them with includePending: false, so a read overlapping a void can
+        //    pair a post-void on-hand with a pre-void total value and report a nonsense AverageUnitCost
+        //    for that one request. Transient, display-only, self-corrects on the next read, and never
+        //    claimed closed by this design.
+        //
+        // Single-instance only — see ItemWriteLock's remarks.
+        using IDisposable itemGate = await itemLock.AcquireAsync(clientId, request.ItemId, ct);
 
         Guid id = request.Id ?? Guid.NewGuid();
         StockMovement? known = request.Id is not null ? await movements.GetAsync(clientId, id, ct) : null;
@@ -91,18 +119,14 @@ public sealed class InventoryMovementService(
             // 5. Persist the numbered movement under the caller's id. No valuation snapshot is stored —
             // on-hand and value are derived on read from the ledger fold + movement projection.
             //
-            // The pre-check above is inherently TOCTOU under concurrency: two callers racing the same id
-            // can both see "not found" and both reach here. The store's atomic create is the actual
-            // arbiter — trust it over the pre-check for this response's status.
-            //
-            // SCOPE, deliberately partial. This fixes the STATUS CODE for every movement type, and that
-            // is the whole fix for Receipt and overage Adjustment, whose extendedCost is Round(qty x
-            // unitCost) — pure in the request. It does NOT fix Issue or shrinkage Adjustment: their cost
-            // comes from a pending-inclusive weighted-average fold that the race winner has already moved,
-            // and it is computed ABOVE this line, before the store call — so a loser can still get a
-            // ledger 422, block-negative 409, or the extendedCost <= 0 guard for a movement that actually
-            // landed. That self-heals (the next retry's probe finds the movement and freezes the cost from
-            // the stored document) and is the subject of its own spec.
+            // The pre-check above is inherently TOCTOU under concurrency, and the store's atomic create
+            // is the arbiter for THIS response's status. TWO things keep it the arbiter rather than the
+            // lock: the lock is single-instance only (see ItemWriteLock's remarks), and it is keyed
+            // (clientId, itemId) — so two callers sharing a retry key but naming DIFFERENT items take
+            // different semaphores, both reach this line, and only the insert-only create separates them.
+            // What the lock does close is the wider fold race — a loser computing its cost from a fold the
+            // winner had already moved. Taken before the pre-check, so within one process a same-key loser
+            // ON THE SAME ITEM reaches the replay branch below rather than racing here at all.
             (StockMovement Movement, bool Created) result = await movements.RecordAsync(clientId, id, new StockMovementBody(
                 request.ItemId, request.Type, request.EffectiveDate, request.Memo,
                 request.Quantity, effect.AppliedUnitCost, effect.ExtendedCost), ct);
@@ -167,6 +191,13 @@ public sealed class InventoryMovementService(
     /// FixedAssetsRunService.VoidRunAsync.</summary>
     public async Task<StockMovement> VoidAsync(Guid clientId, Guid movementId, string? reason, CancellationToken ct = default)
     {
+        // The lock is keyed by ITEM and only the movement knows its item, so read it once to learn the
+        // key. This pre-read decides nothing: every check below runs against the re-read taken under the
+        // lock. Single-instance only — see ItemWriteLock's remarks.
+        StockMovement forKey = await movements.GetAsync(clientId, movementId, ct)
+            ?? throw new KeyNotFoundException($"Stock movement {movementId} not found.");
+        using IDisposable itemGate = await itemLock.AcquireAsync(clientId, forKey.ItemId, ct);
+
         StockMovement movement = await movements.GetAsync(clientId, movementId, ct)
             ?? throw new KeyNotFoundException($"Stock movement {movementId} not found.");
         if (movement.Status != MovementStatus.Posted)

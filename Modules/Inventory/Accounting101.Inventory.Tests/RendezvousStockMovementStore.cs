@@ -10,6 +10,15 @@ namespace Accounting101.Inventory.Tests;
 /// own <c>lock</c>-guarded, insert-only <c>FirstOrDefault</c> existence check in
 /// <see cref="InMemoryStockMovementStore.RecordAsync"/> (it has no <c>TryAdd</c> — it is a
 /// <c>List</c>, not a dictionary).
+///
+/// DO NOT WIRE THIS STORE TO A VOID without changing it first, and nothing does today.
+/// <c>InventoryMovementService.VoidAsync</c> calls <c>GetAsync</c> THREE times (the item-key pre-read, the
+/// re-read under the lock, and the read-back it returns) and this decorator arrives at the rendezvous on
+/// EVERY <c>GetAsync</c>, while <see cref="RaceRendezvous"/> is a one-shot COUNTING barrier that releases
+/// on the Nth arrival from anyone — so a single voider would satisfy <c>participants: 2</c> by itself, no
+/// timeout, no red, no signal that the forced interleaving never happened. Same hazard
+/// <see cref="FoldOverlapGate"/>'s remarks describe for the record path, and the same remedy: such a test
+/// needs arrival identity (count distinct callers) rather than an arrival count.
 /// </summary>
 internal sealed class RendezvousStockMovementStore(
     InMemoryStockMovementStore inner, RaceRendezvous rendezvous) : IStockMovementStore

@@ -18,7 +18,7 @@ public sealed class InventoryMovementServiceTests
         FakeLedgerClient ledger = new();
         FixedInventoryAccountsProvider accounts = new();
         ItemValuationService valuation = new(movements, accounts, ledger);
-        InventoryMovementService service = new(items, movements, accounts, ledger, valuation);
+        InventoryMovementService service = new(items, movements, accounts, ledger, valuation, new ItemWriteLock());
         return (service, items, movements, ledger, accounts);
     }
 

@@ -27,6 +27,9 @@ public static class InventoryServiceExtensions
         services.AddScoped<IStockMovementStore>(sp =>
             new DocumentStockMovementStore(sp.GetRequiredKeyedService<IDocumentStore>("inventory")));
         services.AddScoped<InventoryMovementService>();
+        // Singleton on purpose: InventoryMovementService is Scoped, so a per-request lock would guard
+        // nothing. Single-instance only — see ItemWriteLock's remarks.
+        services.AddSingleton<IItemWriteLock, ItemWriteLock>();
         services.AddScoped<ItemValuationService>();
         services.AddScoped<IInventoryAccountsProvider, StoreBackedInventoryAccountsProvider>();
         services.AddScoped<InventoryChartRequirements>();

@@ -164,6 +164,14 @@ and does not buy:
   next retry succeeds, because its probe now finds the movement and freezes the cost from the stored
   document, so this is a transient spurious error that self-heals, not a money defect.
 
+> **SUPERSEDED 2026-07-27.** *"Transient, self-heals, not a money defect"* was only ever true of the
+> face described above. The spec this branch deferred to
+> ([2026-07-27-inventory-fold-race-design.md](2026-07-27-inventory-fold-race-design.md)) found a second
+> face — two concurrent movements on one item with DIFFERENT ids, both clearing block-negative, on-hand
+> driven negative permanently — which does **not** self-heal and **is** a money defect. Both are closed
+> by a per-item write lock (single-instance only, by ratified decision). The rest of this section is
+> this branch's reasoning of the day and is left as written.
+
 Converting Inventory anyway is deliberate. It leaves the fold race as the *only* remaining problem
 there, which makes its future spec sharper — "the weighted-average fold races" rather than "the fold
 races and the status code is also wrong."
@@ -200,7 +208,10 @@ fake again, and not fixed by editing the assertion until it passes.
 
 ## Out of scope
 
-- **Inventory's weighted-average fold race** — its own spec, deliberately narrowed by this one.
+- **Inventory's weighted-average fold race** — its own spec, deliberately narrowed by this one. That
+  spec was written and shipped on 2026-07-27
+  ([2026-07-27-inventory-fold-race-design.md](2026-07-27-inventory-fold-race-design.md)): the race is
+  closed by a per-item write lock, so this bullet is a record of *this* branch's scope, not open work.
 - **Follow-up #3**, validation running before the atomic create. It bites only on genuine concurrency,
   not on the sequential failed-but-succeeded retry the feature exists for, and it self-heals.
 - **Follow-up #4**, the ledger's `sourceRef` query not being scoped by source type. Engine-level, and

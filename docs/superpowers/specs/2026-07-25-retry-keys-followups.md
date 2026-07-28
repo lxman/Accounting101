@@ -16,7 +16,8 @@ and none of this lives in git history otherwise.
 time-of-check-to-time-of-use. Two same-key racers can both observe `known == null` and both report
 `201 Created`. Task 10 fixed it there by having the store return `(BillPayment, bool Created)` and
 having the service trust that over its own pre-check; the other twelve endpoints still carry the
-un-fixed shape.
+un-fixed shape. **(Stale since 2026-07-26 — all thirteen now trust the atomic-create bool; see
+[2026-07-26-toctou-status-code-followups.md](2026-07-26-toctou-status-code-followups.md).)**
 
 **Consequence for eleven of them: a wrong status code only.** One document (Mongo `_id` is the
 arbiter), one entry (deterministic UUIDv5 plus the ledger's own duplicate-key catch), correct money.
@@ -30,6 +31,14 @@ all for a movement that actually landed. Returning `Created` does not help: the 
 before the store call. Mitigating factor, verified by the final review: the loser's *next* retry
 succeeds, because its probe now finds the movement, freezes the cost from the stored document and
 replays. So this is a transient spurious error, not a money defect, and it self-heals.
+
+**SUPERSEDED 2026-07-27 — closed, and the "transient, self-heals, not a money defect" conclusion above
+was only ever true of the face it describes.** The own-design this paragraph called for
+([2026-07-27-inventory-fold-race-design.md](2026-07-27-inventory-fold-race-design.md)) found a *second*
+face nobody had recorded: two concurrent movements on one item with DIFFERENT ids, both clearing
+block-negative, driving on-hand negative permanently. That face does not self-heal and is a money
+defect. Both are closed by a per-item write lock (single-instance only, by ratified decision). Do not
+re-derive this.
 
 ### 2. `includeVoided` asymmetry in two list methods
 
