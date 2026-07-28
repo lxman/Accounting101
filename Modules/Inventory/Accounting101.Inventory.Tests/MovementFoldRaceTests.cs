@@ -9,15 +9,28 @@ namespace Accounting101.Inventory.Tests;
 /// WHAT MAKES <see cref="Two_concurrent_issues_on_one_item_cannot_both_pass_block_negative"/> VALID:
 /// change the RECORD path's acquire to release immediately —
 /// <c>(await itemLock.AcquireAsync(clientId, request.ItemId, ct)).Dispose();</c> instead of holding it
-/// with <c>using</c> — and THAT test fails (both issues succeed, on-hand lands at -2). Removing the lock
-/// outright is NOT a valid mutation: it removes the rendezvous with it, so the racers no longer overlap
-/// and the test proves nothing. The other three tests below are unaffected by this mutation — one builds
-/// with <see cref="NoOpItemWriteLock"/>, so it runs the mutated line against a lock whose holder does
-/// nothing whether it is disposed early or late; another is a liveness check; and the third
-/// (<see cref="Recording_and_voiding_both_acquire_the_lock_for_the_movements_item"/>)
-/// is a SEQUENTIAL spy test that asserts only which keys were acquired, so it is blind to EITHER
-/// acquire-but-don't-hold mutation — disposing immediately still enqueues the same two keys — and each
-/// names its own mutation in its own remarks.
+/// with <c>using</c> — and THAT test fails (both issues succeed; measured, not inferred: on-hand lands
+/// at -2).
+///
+/// REMOVING THE LOCK OUTRIGHT IS ALSO A VALID RED, and these remarks said the exact opposite until
+/// 2026-07-27. Delete the <c>using</c> acquire from <c>RecordAsync</c> altogether and this class fails 5
+/// runs out of 5 — the flagship on the same money assertion (expected 1 success, got 2), and
+/// <see cref="Recording_and_voiding_both_acquire_the_lock_for_the_movements_item"/> alongside it, whose
+/// first assertion then finds no acquisition recorded at all. With <c>AcquireAsync</c> never called
+/// neither racer ever registers a hold, so BOTH arrive at <see cref="FoldOverlapGate"/>'s barrier and the
+/// folds overlap even more reliably than under the mutation above. What the old text claimed — that
+/// deleting the acquire deletes the rendezvous with it, leaving the racers no longer overlapping — was
+/// true of the OLD construction, whose overlap came solely from the pre-acquire rendezvous. The gate
+/// inverted it: the gate does not depend on the lock being acquired. Do not restore that warning.
+///
+/// The other three tests below are unaffected by the ACQUIRE-BUT-DON'T-HOLD mutation specifically — one
+/// builds with <see cref="NoOpItemWriteLock"/>, so it runs the mutated line against a lock whose holder
+/// does nothing whether it is disposed early or late; another is a liveness check; and the third
+/// (the spy test again) is SEQUENTIAL and asserts only which keys were acquired, so it is blind to EITHER
+/// acquire-but-don't-hold mutation — disposing immediately still enqueues the same two keys. Outright
+/// REMOVAL is the one it does catch, on either path: drop the acquire from <c>RecordAsync</c> and its
+/// first assertion sees zero keys, drop it from <c>VoidAsync</c> and its second sees one instead of two.
+/// Each test names its own mutation in its own remarks.
 ///
 /// THAT DETECTION IS STRUCTURAL, AND IT WAS NOT ALWAYS. Until 2026-07-27 the test held its racers with a
 /// single rendezvous taken BEFORE the lock acquire and then left the thread pool to interleave the two

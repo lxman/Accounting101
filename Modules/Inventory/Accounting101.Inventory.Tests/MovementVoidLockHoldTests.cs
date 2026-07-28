@@ -6,11 +6,12 @@ namespace Accounting101.Inventory.Tests;
 /// concurrent record, and <see cref="MovementFoldRaceTests"/> covers none of it — its spy test asserts
 /// only which keys were acquired and says so in its own remarks.
 ///
-/// WHY THIS IS ITS OWN CLASS. Two reasons, both topical — and NEITHER of them is the one that first put
-/// it here. It pins a DIFFERENT production mutation (VoidAsync's acquire-but-don't-hold, named below)
-/// from the one <see cref="MovementFoldRaceTests"/> pins, and it needs a different harness to do it: a
-/// one-sided <see cref="VoidSectionGateStore"/> rather than that class's two-party rendezvous, for the
-/// reason the next paragraph gives.
+/// WHY IT IS KEPT SEPARATE — topical grouping, NOT a constraint. Nothing stops this test living in
+/// <see cref="MovementFoldRaceTests"/>: that class already holds four tests pinning three mutations
+/// through three harnesses, so "a different mutation" and "a different harness" (this one pins VoidAsync's
+/// acquire-but-don't-hold through a one-sided <see cref="VoidSectionGateStore"/> rather than a two-party
+/// rendezvous, for the reason the next paragraph gives) do not make a case that it CANNOT go there. It is
+/// here because the void path's hold is its own subject, and that is the whole of the reason.
 ///
 /// The ORIGINAL reason is gone, and this note is what is left of it. When this test was written, appending
 /// it to <see cref="MovementFoldRaceTests"/> silently disarmed that class's

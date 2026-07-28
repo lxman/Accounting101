@@ -39,6 +39,15 @@ namespace Accounting101.Inventory.Tests;
 /// The timeout is load-bearing for the reason it is on <see cref="RaceRendezvous"/> itself: if a future
 /// change ever left ONE racer unprotected and the other protected, the unprotected one would wait alone
 /// and must fail in seconds with a clear message rather than hang the suite.
+///
+/// ONE ASSUMPTION TO KNOW ABOUT, because it would fail SILENTLY. <see cref="RaceRendezvous"/> is a
+/// one-shot COUNTING barrier — it releases on the Nth arrival from anyone and never resets. It is sound
+/// here only because a racer arrives exactly once: <c>RecordAsync</c> folds once, on its create branch,
+/// and one fold is one <c>GetEntriesBySourceRefsAsync</c>. Give <c>RecordAsync</c> a second fold on the
+/// same path and ONE racer's two arrivals would satisfy <c>racers: 2</c> by itself — the barrier would
+/// stop forcing any overlap at all, with no timeout and no red to say so, and the mutation would go back
+/// to being caught by luck. Nothing folds twice today. If that changes, this gate needs arrival identity
+/// (count distinct racers) rather than an arrival count.
 /// </summary>
 internal sealed class FoldOverlapGate(int racers, TimeSpan timeout)
 {
