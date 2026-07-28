@@ -45,8 +45,11 @@ public sealed class InventoryMovementService(
         // Serialise every write to this item's stock position, for the whole body. Two things make this
         // the right boundary:
         //
-        // 1. It must be taken BEFORE the existence pre-check. That is what makes a same-key racer take the
-        //    replay branch below rather than computing a cost from a fold the winner has already moved.
+        // 1. It must be taken BEFORE the existence pre-check. That is what makes a same-key racer ON THIS
+        //    ITEM take the replay branch below rather than computing a cost from a fold the winner has
+        //    already moved. Same key but a DIFFERENT item is not serialised — the gate is keyed
+        //    (clientId, itemId), so that pair takes two semaphores and the store's atomic create, not
+        //    this lock, is what separates them.
         // 2. It must be held THROUGH the ledger post. A movement is invisible to the fold until its entry
         //    exists (ItemValuationService.OnBooks requires one, and the value axis comes from the
         //    subledger), so releasing after the store write would let the next caller read a stale fold.
@@ -104,11 +107,13 @@ public sealed class InventoryMovementService(
             // on-hand and value are derived on read from the ledger fold + movement projection.
             //
             // The pre-check above is inherently TOCTOU under concurrency, and the store's atomic create
-            // is the arbiter for THIS response's status — it stays the arbiter because the per-item lock
-            // is single-instance only (see ItemWriteLock's remarks). That arbitration used to leave a
-            // wider fold race open — a loser computing its cost from a fold the winner had already moved
-            // — and the lock closes it: taken before the pre-check, so within one process a same-key loser
-            // reaches the replay branch below rather than racing here at all.
+            // is the arbiter for THIS response's status. TWO things keep it the arbiter rather than the
+            // lock: the lock is single-instance only (see ItemWriteLock's remarks), and it is keyed
+            // (clientId, itemId) — so two callers sharing a retry key but naming DIFFERENT items take
+            // different semaphores, both reach this line, and only the insert-only create separates them.
+            // What the lock does close is the wider fold race — a loser computing its cost from a fold the
+            // winner had already moved. Taken before the pre-check, so within one process a same-key loser
+            // ON THE SAME ITEM reaches the replay branch below rather than racing here at all.
             (StockMovement Movement, bool Created) result = await movements.RecordAsync(clientId, id, new StockMovementBody(
                 request.ItemId, request.Type, request.EffectiveDate, request.Memo,
                 request.Quantity, effect.AppliedUnitCost, effect.ExtendedCost), ct);

@@ -11,9 +11,25 @@ namespace Accounting101.Inventory.Tests;
 /// single-create assertion sees two and fails.
 ///
 /// DELIBERATELY A RECEIPT, and still worth keeping as a Receipt: this test pins the STORE's atomic
-/// create as the arbiter of created-vs-replayed, independently of the per-item lock added later. The
-/// fold race that once made an Issue unsuitable here is closed (see MovementFoldRaceTests), which now
-/// covers the Issue path directly.
+/// create as the arbiter of created-vs-replayed, independently of the per-item lock — which is exactly
+/// why it builds on <see cref="NoOpItemWriteLock"/> below.
+///
+/// THE FOLD RACE IS CLOSED IN THE SERVICE, NOT IN THIS RIG. Running unlocked is the whole point here,
+/// so this is precisely the build where that race is still live, and an Issue would still fail for the
+/// fold reason and pin the wrong thing. <see cref="MovementFoldRaceTests"/> covers the Issue path
+/// directly, on a rig that needs FOUR things this one does not have:
+///   - Stock to issue. Here the item is created and the raced Receipt is its FIRST movement, so on-hand
+///     is 0 and an Issue of any size block-negatives on both racers immediately.
+///   - An undecorated seeder service to lay that stock down. There is one service here and it is
+///     decorated, so a lone seeding call arrives at a 2-participant rendezvous by itself and dies on
+///     RaceRendezvous's 10s timeout.
+///   - A quantity small enough that BOTH racers clear block-negative under every ordering — 3 against a
+///     seed of 10. At 6 the loser sees the reduced on-hand, throws, and the test would be asserting
+///     protected behaviour from unprotected code.
+///   - A second rendezvous after the fold's LAST read. The fold is three reads, and unguarded a racer
+///     resumes with a stale value and a fresh quantity, composing 8.57 against 6.00 and taking a
+///     divergent-content rejection. This rig has one rendezvous, in the probe, and no fold rendezvous.
+/// Read that test rather than converting this one.
 /// </summary>
 public sealed class MovementRaceTests
 {

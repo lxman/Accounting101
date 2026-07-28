@@ -16,7 +16,8 @@ and none of this lives in git history otherwise.
 time-of-check-to-time-of-use. Two same-key racers can both observe `known == null` and both report
 `201 Created`. Task 10 fixed it there by having the store return `(BillPayment, bool Created)` and
 having the service trust that over its own pre-check; the other twelve endpoints still carry the
-un-fixed shape.
+un-fixed shape. **(Stale since 2026-07-26 — all thirteen now trust the atomic-create bool; see
+[2026-07-26-toctou-status-code-followups.md](2026-07-26-toctou-status-code-followups.md).)**
 
 **Consequence for eleven of them: a wrong status code only.** One document (Mongo `_id` is the
 arbiter), one entry (deterministic UUIDv5 plus the ledger's own duplicate-key catch), correct money.
