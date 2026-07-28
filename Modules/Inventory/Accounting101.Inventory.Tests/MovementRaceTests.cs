@@ -17,12 +17,13 @@ namespace Accounting101.Inventory.Tests;
 /// THE FOLD RACE IS CLOSED IN THE SERVICE, NOT IN THIS RIG. Running unlocked is the whole point here,
 /// so this is precisely the build where that race is still live, and an Issue would still fail for the
 /// fold reason and pin the wrong thing. <see cref="MovementFoldRaceTests"/> covers the Issue path
-/// directly, on a rig that needs FOUR things this one does not have:
+/// directly, on a rig that needs THREE things this one does not have:
 ///   - Stock to issue. Here the item is created and the raced Receipt is its FIRST movement, so on-hand
-///     is 0 and an Issue of any size block-negatives on both racers immediately.
-///   - An undecorated seeder service to lay that stock down. There is one service here and it is
-///     decorated, so a lone seeding call arrives at a 2-participant rendezvous by itself and dies on
-///     RaceRendezvous's 10s timeout.
+///     is 0 and an Issue of any size block-negatives on both racers immediately. Seed it WITHOUT a retry
+///     key: the probe the rendezvous lives in runs only when one is supplied, so an unkeyed seed passes
+///     straight through this rig's decorated store, while a keyed one arrives at a 2-participant
+///     rendezvous alone and dies on RaceRendezvous's 10s timeout. (MovementFoldRaceTests sidesteps the
+///     question with a separate undecorated seeder service; this class has only the one decorated.)
 ///   - A quantity small enough that BOTH racers clear block-negative under every ordering — 3 against a
 ///     seed of 10. At 6 the loser sees the reduced on-hand, throws, and the test would be asserting
 ///     protected behaviour from unprotected code.
