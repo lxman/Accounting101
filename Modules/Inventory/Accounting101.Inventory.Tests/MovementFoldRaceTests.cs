@@ -6,16 +6,32 @@ namespace Accounting101.Inventory.Tests;
 /// The weighted-average fold race, both faces, pinned deterministically.
 ///
 /// WHAT MAKES <see cref="Two_concurrent_issues_on_one_item_cannot_both_pass_block_negative"/> VALID:
-/// change the service's acquire to release immediately —
+/// change the RECORD path's acquire to release immediately —
 /// <c>(await itemLock.AcquireAsync(clientId, request.ItemId, ct)).Dispose();</c> instead of holding it
 /// with <c>using</c> — and THAT test fails (both issues succeed, on-hand lands at -2). Removing the lock
 /// outright is NOT a valid mutation: it removes the rendezvous with it, so the racers no longer overlap
 /// and the test proves nothing. The other three tests below are unaffected by this mutation — one builds
 /// with <see cref="NoOpItemWriteLock"/> and never executes the mutated line, another is a liveness
 /// check, and the third (<see cref="Recording_and_voiding_both_acquire_the_lock_for_the_movements_item"/>)
-/// is a SEQUENTIAL spy test that asserts only which keys were acquired, so it is blind to an
+/// is a SEQUENTIAL spy test that asserts only which keys were acquired, so it is blind to EITHER
 /// acquire-but-don't-hold mutation — disposing immediately still enqueues the same two keys — and each
 /// names its own mutation in its own remarks.
+///
+/// DO NOT ADD A CONCURRENT TEST TO THIS CLASS — put it in a sibling class instead. Measured 2026-07-27
+/// while adding the void path's hold test: the mutation above is detected only while
+/// Two_concurrent_issues_on_one_item_cannot_both_pass_block_negative runs FIRST in the class and out of
+/// a cold thread pool. A predecessor that parks and resumes continuations on the pool warms it enough
+/// that one racer finishes before the other reads the fold, and a MUTATED build then goes green here.
+/// Appending the hold test did exactly that — under the mutation this class went 5/5 green instead of
+/// 1 failed, and nothing in the unmutated run showed it. Two controls, both measured in that same first
+/// slot: a stub whose entire body is <c>await Task.Run(() =&gt; { })</c> leaves the detection intact, so
+/// it is the concurrent WORK that disarms it and not merely being preceded; and shortening the hold
+/// test's own wait from 2s to 50ms still disarmed it, so it is not elapsed time either. Renaming is not
+/// a workaround — xUnit orders a class's tests by a hash of their names, not by source position, so an
+/// appended test can land ahead of this one whatever it is called. Predecessors in OTHER classes are
+/// harmless: the full suite, ~30 classes running in parallel, detects it 4 runs out of 4. That is why
+/// the void path's hold test lives in <see cref="MovementVoidLockHoldTests"/>, which also carries the
+/// VOID-path acquire-but-don't-hold mutation — a second mutation nothing in THIS class covers.
 /// </summary>
 public sealed class MovementFoldRaceTests
 {
