@@ -16,9 +16,10 @@ namespace Accounting101.Inventory.Tests;
 /// WHERE IT BLOCKS, and why that placement is load-bearing. Only
 /// <see cref="GetLatestForItemAsync"/> is intercepted; the other six members delegate untouched (the
 /// <see cref="FoldCompleteRendezvousLedger"/> shape). That method is called from EXACTLY ONE place in
-/// the whole module — <c>InventoryMovementService.VoidAsync</c>'s LIFO guard, four statements after the
-/// <c>using</c> acquire and before the method returns — so a caller parked here is provably mid-body
-/// under the item lock. Neither <c>RecordAsync</c> nor <see cref="ItemValuationService"/> calls it, so a
+/// the whole module — <c>InventoryMovementService.VoidAsync</c>'s LIFO guard, the THIRD statement after
+/// the <c>using</c> acquire (only the re-read and the status check intervene) and well before the method
+/// returns — so a caller parked here is provably mid-body under the item lock. Neither
+/// <c>RecordAsync</c> nor <see cref="ItemValuationService"/> calls it, so a
 /// service built over the UNDECORATED store can never arrive here and can only ever be stopped by the
 /// item lock itself.
 ///

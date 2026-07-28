@@ -1,11 +1,10 @@
 using Accounting101.Ledger.Contracts;
-using Accounting101.TestSupport;
 
 namespace Accounting101.Inventory.Tests;
 
 /// <summary>
-/// Rendezvouses after the fold's LAST read, so no racer starts writing until every racer has finished
-/// reading the whole valuation.
+/// Runs the caller's barrier after the fold's LAST read, so no racer that barrier holds starts writing
+/// until every racer it is waiting for has finished reading the whole valuation.
 ///
 /// The fold is THREE reads, not one: <see cref="ItemValuationService.GetAsync"/> takes value from
 /// <c>GetSubledgerAsync</c>, then quantity from <c>ProjectQuantityAsync</c>, which reads the movement
@@ -16,14 +15,22 @@ namespace Accounting101.Inventory.Tests;
 /// exactly what a test that must reach the un-serialised interleaving needs.
 ///
 /// Only <c>GetEntriesBySourceRefsAsync</c> is intercepted; everything else delegates untouched.
+///
+/// WHAT THE HOOK IS. <paramref name="onFoldComplete"/> is the caller's own barrier, so the same decorator
+/// serves both shapes this project needs. A test whose racers run UNLOCKED passes a plain
+/// <c>RaceRendezvous.ArriveAndWaitAsync</c> — every racer always waits. A test whose racers contend for a
+/// real item write lock cannot: only one of them can be inside the section this hook fires in, so an
+/// unconditional wait would strand it. Those pass <see cref="FoldOverlapRacer.FoldCompletedAsync"/>, which
+/// waits only for racers the lock is NOT protecting. See <see cref="FoldOverlapGate"/> for why.
 /// </summary>
-internal sealed class FoldCompleteRendezvousLedger(ILedgerClient inner, RaceRendezvous rendezvous) : ILedgerClient
+internal sealed class FoldCompleteRendezvousLedger(ILedgerClient inner, Func<CancellationToken, Task> onFoldComplete)
+    : ILedgerClient
 {
     public async Task<IReadOnlyList<EntryResponse>> GetEntriesBySourceRefsAsync(
         Guid clientId, IReadOnlyList<Guid> sourceRefs, CancellationToken cancellationToken = default)
     {
         IReadOnlyList<EntryResponse> entries = await inner.GetEntriesBySourceRefsAsync(clientId, sourceRefs, cancellationToken);
-        await rendezvous.ArriveAndWaitAsync(cancellationToken);   // this caller's fold is now complete
+        await onFoldComplete(cancellationToken);                 // this caller's fold is now complete
         return entries;
     }
 

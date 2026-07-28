@@ -1,3 +1,4 @@
+using Accounting101.Ledger.Contracts;
 using Accounting101.TestSupport;
 
 namespace Accounting101.Inventory.Tests;
@@ -11,50 +12,68 @@ namespace Accounting101.Inventory.Tests;
 /// with <c>using</c> — and THAT test fails (both issues succeed, on-hand lands at -2). Removing the lock
 /// outright is NOT a valid mutation: it removes the rendezvous with it, so the racers no longer overlap
 /// and the test proves nothing. The other three tests below are unaffected by this mutation — one builds
-/// with <see cref="NoOpItemWriteLock"/> and never executes the mutated line, another is a liveness
-/// check, and the third (<see cref="Recording_and_voiding_both_acquire_the_lock_for_the_movements_item"/>)
+/// with <see cref="NoOpItemWriteLock"/>, so it runs the mutated line against a lock whose holder does
+/// nothing whether it is disposed early or late; another is a liveness check; and the third
+/// (<see cref="Recording_and_voiding_both_acquire_the_lock_for_the_movements_item"/>)
 /// is a SEQUENTIAL spy test that asserts only which keys were acquired, so it is blind to EITHER
 /// acquire-but-don't-hold mutation — disposing immediately still enqueues the same two keys — and each
 /// names its own mutation in its own remarks.
 ///
-/// DO NOT ADD A CONCURRENT TEST TO THIS CLASS — put it in a sibling class instead. Measured 2026-07-27
-/// while adding the void path's hold test: the mutation above is detected only while
-/// Two_concurrent_issues_on_one_item_cannot_both_pass_block_negative runs FIRST in the class and out of
-/// a cold thread pool. A predecessor that parks and resumes continuations on the pool warms it enough
-/// that one racer finishes before the other reads the fold, and a MUTATED build then goes green here.
-/// Appending the hold test did exactly that — under the mutation this class went 5/5 green instead of
-/// 1 failed, and nothing in the unmutated run showed it. Two controls, both measured in that same first
-/// slot: a stub whose entire body is <c>await Task.Run(() =&gt; { })</c> leaves the detection intact, so
-/// it is the concurrent WORK that disarms it and not merely being preceded; and shortening the hold
-/// test's own wait from 2s to 50ms still disarmed it, so it is not elapsed time either. Renaming is not
-/// a workaround — xUnit orders a class's tests by a hash of their names, not by source position, so an
-/// appended test can land ahead of this one whatever it is called. Predecessors in OTHER classes are
-/// harmless: the full suite, ~30 classes running in parallel, detects it 4 runs out of 4. That is why
-/// the void path's hold test lives in <see cref="MovementVoidLockHoldTests"/>, which also carries the
-/// VOID-path acquire-but-don't-hold mutation — a second mutation nothing in THIS class covers.
+/// THAT DETECTION IS STRUCTURAL, AND IT WAS NOT ALWAYS. Until 2026-07-27 the test held its racers with a
+/// single rendezvous taken BEFORE the lock acquire and then left the thread pool to interleave the two
+/// folds. It usually did — but a concurrent predecessor in the same class was enough to stop it, and
+/// xUnit orders a class's tests by a hash of their names, not by source position, so an appended test can
+/// land ahead of this one whatever it is called. Measured with a copy of
+/// <see cref="MovementVoidLockHoldTests.A_record_cannot_proceed_while_a_void_holds_the_items_lock"/>
+/// appended to this class: under the mutation above the class went 5 runs out of 5 GREEN, and the full
+/// module suite 2 out of 2 green, where every run had to fail.
+/// <see cref="FoldOverlapGate"/> closes that hole by construction — a racer whose fold completes while it
+/// does NOT hold the item lock waits there for the other racer's fold, so under the mutation both folds
+/// are taken before either write, both read on-hand 10, and both clear block-negative in EVERY ordering.
+/// Under the shipped code every racer holds the lock through its own fold, so the gate is never waited on
+/// and cannot strand. Both configurations were then re-measured green-when-clean and red-when-mutated,
+/// with and without that appended predecessor, class-alone and full-suite. So a concurrent test may now
+/// be added to this class — but do not go back to a bare pre-acquire rendezvous, which is what made the
+/// detection incidental in the first place. The void path's hold test stays in
+/// <see cref="MovementVoidLockHoldTests"/> on its own merits, described there.
 /// </summary>
 public sealed class MovementFoldRaceTests
 {
     private sealed record Rig(
-        InventoryMovementService Seeder, InventoryMovementService Racing,
+        InventoryMovementService Seeder, InventoryMovementService RacerA, InventoryMovementService RacerB,
         InMemoryItemStore Items, ItemValuationService Valuation);
 
-    /// <summary>Two services over ONE set of stores: the seeder holds the undecorated lock so setup calls
-    /// do not strand at the rendezvous, the racer holds the decorated one. They share the same underlying
-    /// ItemWriteLock, so seeding and racing are still mutually exclusive.</summary>
-    private static Rig Build(RaceRendezvous rendezvous)
+    /// <summary>Three services over ONE set of stores, one ledger fake and one real
+    /// <see cref="ItemWriteLock"/>, so all of them are genuinely mutually exclusive.
+    ///
+    /// The seeder is undecorated on every seam, so setup calls can never arrive at either rendezvous and
+    /// strand it. The two racers are decorated identically but SEPARATELY: each gets its own
+    /// <see cref="FoldOverlapRacer"/>, which is at once its item write lock (wrapping the shared
+    /// pre-acquire rendezvous over the shared real lock) and the fold-complete hook of its own ledger
+    /// decorator. One racer per pair is what lets <see cref="FoldOverlapGate"/> answer "is THIS racer
+    /// holding the lock?" without a window — see its remarks. Everything underneath is shared, so the
+    /// domain race is exactly the one two HTTP callers would run.</summary>
+    private static Rig Build(RaceRendezvous atAcquire, FoldOverlapGate foldGate)
     {
         InMemoryItemStore items = new();
         InMemoryStockMovementStore movements = new();
         FakeLedgerClient ledger = new();
         FixedInventoryAccountsProvider accounts = new();
-        ItemValuationService valuation = new(movements, accounts, ledger);
+        ItemValuationService seedValuation = new(movements, accounts, ledger);
         ItemWriteLock realLock = new();
+        IItemWriteLock contended = new RendezvousItemWriteLock(realLock, atAcquire);
+
         return new Rig(
-            new InventoryMovementService(items, movements, accounts, ledger, valuation, realLock),
-            new InventoryMovementService(items, movements, accounts, ledger, valuation,
-                new RendezvousItemWriteLock(realLock, rendezvous)),
-            items, valuation);
+            new InventoryMovementService(items, movements, accounts, ledger, seedValuation, realLock),
+            BuildRacer(), BuildRacer(), items, seedValuation);
+
+        InventoryMovementService BuildRacer()
+        {
+            FoldOverlapRacer racer = foldGate.NewRacer(contended);
+            ILedgerClient racerLedger = new FoldCompleteRendezvousLedger(ledger, racer.FoldCompletedAsync);
+            ItemValuationService racerValuation = new(movements, accounts, racerLedger);
+            return new InventoryMovementService(items, movements, accounts, racerLedger, racerValuation, racer);
+        }
     }
 
     private static async Task<Item> SeedTenOnHandAsync(Rig rig, Guid clientId)
@@ -65,20 +84,28 @@ public sealed class MovementFoldRaceTests
         return item;
     }
 
-    /// <summary>FACE 2, the money bug. Both racers read (OnHand 10, Value 100), both issue 6, and
-    /// InventoryValuation.Issue's <c>quantity > current.OnHand</c> guard passes for BOTH because neither
-    /// movement is in the other's fold. Unfixed, on-hand lands at -2 and stays there.</summary>
+    /// <summary>FACE 2, the money bug. Both racers read (OnHand 10, Value 20.00 — the seed's 10 @ 2.00),
+    /// both issue 6, and InventoryValuation.Issue's <c>quantity > current.OnHand</c> guard passes for BOTH
+    /// because neither movement is in the other's fold. Unfixed, on-hand lands at -2 and stays there.
+    ///
+    /// TWO SEAMS, and both are needed. <c>atAcquire</c> (inside <see cref="RendezvousItemWriteLock"/>,
+    /// BEFORE the acquire) puts both racers in flight at the lock at the same instant, so the shipped
+    /// build's pass is a real contention outcome and not two calls that happened to run one after the
+    /// other. <c>foldGate</c> (after the fold's LAST read) forces the two folds to OVERLAP in any build
+    /// where the lock is not held across them — the mutation — and is inert in the build where it is.
+    /// Neither is a timing window: see <see cref="FoldOverlapGate"/> and this class's remarks.</summary>
     [Fact]
     public async Task Two_concurrent_issues_on_one_item_cannot_both_pass_block_negative()
     {
-        RaceRendezvous rendezvous = new(participants: 2, timeout: TimeSpan.FromSeconds(5));
-        Rig rig = Build(rendezvous);
+        RaceRendezvous atAcquire = new(participants: 2, timeout: TimeSpan.FromSeconds(5));
+        FoldOverlapGate foldGate = new(racers: 2, timeout: TimeSpan.FromSeconds(5));
+        Rig rig = Build(atAcquire, foldGate);
         Guid clientId = Guid.NewGuid();
         Item item = await SeedTenOnHandAsync(rig, clientId);
 
-        Task<(StockMovement Movement, bool Replayed)> a = rig.Racing.RecordAsync(clientId, new RecordMovement(
+        Task<(StockMovement Movement, bool Replayed)> a = rig.RacerA.RecordAsync(clientId, new RecordMovement(
             item.Id, MovementType.Issue, 6m, null, new DateOnly(2026, 1, 16), "issue A", Guid.NewGuid()));
-        Task<(StockMovement Movement, bool Replayed)> b = rig.Racing.RecordAsync(clientId, new RecordMovement(
+        Task<(StockMovement Movement, bool Replayed)> b = rig.RacerB.RecordAsync(clientId, new RecordMovement(
             item.Id, MovementType.Issue, 6m, null, new DateOnly(2026, 1, 16), "issue B", Guid.NewGuid()));
 
         int succeeded = 0, refused = 0;
@@ -150,7 +177,7 @@ public sealed class MovementFoldRaceTests
         RaceRendezvous atProbe = new(participants: 2, timeout: TimeSpan.FromSeconds(5));
         RaceRendezvous afterFold = new(participants: 2, timeout: TimeSpan.FromSeconds(5));
         RendezvousStockMovementStore racingStore = new(inner, atProbe);              // blocks in the PROBE
-        FoldCompleteRendezvousLedger racingLedger = new(ledger, afterFold);          // blocks after the FOLD
+        FoldCompleteRendezvousLedger racingLedger = new(ledger, afterFold.ArriveAndWaitAsync);   // blocks after the FOLD
         ItemValuationService raceValuation = new(racingStore, accounts, racingLedger);
         InventoryMovementService racing = new(items, racingStore, accounts, racingLedger, raceValuation, new NoOpItemWriteLock());
 
