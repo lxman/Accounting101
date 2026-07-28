@@ -54,6 +54,19 @@ public sealed class InventoryMovementService(
         //    exists (ItemValuationService.OnBooks requires one, and the value axis comes from the
         //    subledger), so releasing after the store write would let the next caller read a stale fold.
         //
+        //    THAT FACT IS ABOUT THIS PATH ONLY — do not carry it over to reads. The fold below runs
+        //    entirely inside this lock and passes includePending: true, whose gate is Active x {Posted,
+        //    PendingApproval} on BOTH axes (MongoJournalStore.OnBooks for value, ItemValuationService
+        //    .OnBooks for quantity), so a concurrent ledger-side Pending->Posted approval moves nothing
+        //    it read: the entry is admitted in either state. A ledger-side VOID or REVERSE does move it,
+        //    and is not closed here — see the fold-race spec, "the guard reaches exactly as far as the
+        //    lock does". ItemValuationService's READ path has no immunity at all: GetAsync and
+        //    GetManyAsync take the value fold and the quantity projection as separate un-locked calls,
+        //    and InventoryService reads them with includePending: false, so a read overlapping a void can
+        //    pair a post-void on-hand with a pre-void total value and report a nonsense AverageUnitCost
+        //    for that one request. Transient, display-only, self-corrects on the next read, and never
+        //    claimed closed by this design.
+        //
         // Single-instance only — see ItemWriteLock's remarks.
         using IDisposable itemGate = await itemLock.AcquireAsync(clientId, request.ItemId, ct);
 

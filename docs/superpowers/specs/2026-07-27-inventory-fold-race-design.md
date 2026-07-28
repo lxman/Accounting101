@@ -97,6 +97,27 @@ access to take a real lock.
 **The guard reaches exactly as far as the lock does.** Any future write path that creates stock movements
 without going through `InventoryMovementService` bypasses it.
 
+> **AMENDED 2026-07-27 (post-merge review) — that sentence is incomplete.** Creating a stock movement is
+> not the only way to move the fold the lock protects. The write fold is pending-inclusive, and its gate is
+> `Active` × {`Posted`, `PendingApproval`} on both axes — `MongoJournalStore.OnBooks` for value,
+> `ItemValuationService.OnBooks` for quantity. A ledger-side **reverse or void of a movement's entry** takes
+> it out of that gate (a reversal adds an Active counter-entry; a void drops the primary out of `Active`)
+> and creates **no stock movement at all**. So a caller can move an item's on-hand without going near
+> `InventoryMovementService` while an Issue sits between its fold read and its store write — and that
+> Issue's block-negative guard was then evaluated against stock that no longer exists.
+>
+> **The Ledger API is not wide open, but what guards it is not a concurrency guard.**
+> `LedgerGateway.AuthorizeEntryMutationAsync` refuses a *raw* caller a void or reverse of a module-owned
+> entry with a 409 ("void or reverse it through that module"), so such a request must carry the inventory
+> module's own credential. That is authorization only: `LedgerEndpoints.ReverseEntry` and `VoidEntry` never
+> touch `IItemWriteLock`, so a request that passes it races the module freely. Left open deliberately — it
+> needs a deliberate ledger action concurrent with an inventory write, which is far less probable than
+> either face above, and closing it would need ledger-side coordination this branch's constraints forbid.
+>
+> **Approval is not in this set.** Pending→Posted moves *within* the gate on both axes, so it cannot move
+> the write fold at all. The read paths have no equivalent immunity — see the note beside the invisibility
+> fact in `InventoryMovementService.RecordAsync`.
+
 ## Error handling
 
 No behaviour change. The lock only orders callers; every existing 409/422/exception path is untouched. A
@@ -135,6 +156,24 @@ lock protects. Its job is only to guarantee the two callers are genuinely in fli
 the lock then does the real work, and both racers still reach the rendezvous whether or not the lock
 holds.
 
+> **SUPERSEDED 2026-07-27 (Task 3c).** The pre-acquire rendezvous is still there and still does that job,
+> but it is not the only seam, and on its own it did not work. Left to the thread pool to interleave the
+> two folds, the flagship test went **5 runs out of 5 GREEN** under the mutation described below — a single
+> concurrent predecessor in the same class was enough to disarm it, and xUnit orders a class's tests by a
+> hash of their names, not by source position, so an appended test can land in front of it whatever it is
+> called. The shipped rig therefore adds a **second seam, at the fold read**: `FoldOverlapGate`
+> (`Accounting101.Inventory.Tests/FoldOverlapGate.cs`), reached through a per-racer
+> `FoldCompleteRendezvousLedger` on the fold's last read.
+>
+> *"Every point inside the critical section has this problem"* is true of an **unconditional** barrier —
+> which is exactly why the sibling face-1 test, running on `NoOpItemWriteLock` and therefore having no
+> section, can use a plain `RaceRendezvous` there and this test cannot. `FoldOverlapGate` is
+> **conditional**, and that is what makes the second seam safe: a racer that finishes folding while it
+> *holds* the lock is let straight through, so under the shipped code the gate is never waited on and
+> cannot strand its holder; only a racer folding *without* the lock waits, which is precisely the mutated
+> build. It asks "am I holding it", not "is anyone holding it", so it has no window. Both seams are
+> load-bearing — see `MovementFoldRaceTests`'s class remarks and `FoldOverlapGate`'s own.
+
 ### The mutation that proves these tests can fail
 
 Removing the lock entirely also removes the decorator's rendezvous, so the forced interleaving vanishes
@@ -148,6 +187,21 @@ dispose it immediately rather than for the body's duration:
 
 "Acquire but don't hold" is precisely the defect the design guards against, which is what makes it the
 right mutation rather than an arbitrary one.
+
+> **SUPERSEDED 2026-07-27 (Task 3c) — the first sentence of this section is now false**, and
+> `MovementFoldRaceTests`'s class remarks explicitly forbid restoring it. Removing the lock **outright** —
+> deleting the `using` acquire from `RecordAsync` altogether — is a **valid red** against the shipped rig:
+> the class fails 5 runs out of 5, the flagship on the same money assertion (1 success expected, 2
+> observed) and `Recording_and_voiding_both_acquire_the_lock_for_the_movements_item` alongside it, whose
+> first assertion then finds no acquisition recorded at all.
+>
+> What the claim above was true of is the **old** construction, whose overlap came solely from the
+> pre-acquire rendezvous. `FoldOverlapGate` inverted it: the gate does not depend on the lock being
+> acquired, so with `AcquireAsync` never called neither racer ever registers a hold, **both** wait at the
+> barrier, and the folds overlap *more* reliably than under acquire-but-don't-hold rather than less.
+> Acquire-but-don't-hold remains a valid mutation too — it is simply no longer the only one, and it is the
+> one the other three tests in the class are blind to (each names its own; the void path's twin is pinned
+> in `MovementVoidLockHoldTests`).
 
 ## Out of scope
 

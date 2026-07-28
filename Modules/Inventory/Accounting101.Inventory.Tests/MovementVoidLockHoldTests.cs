@@ -92,14 +92,17 @@ public sealed class MovementVoidLockHoldTests
         Task<(StockMovement Movement, bool Replayed)> recording = writer.RecordAsync(clientId, new RecordMovement(
             item.Id, MovementType.Receipt, 5m, 3m, new DateOnly(2026, 1, 16), "concurrent", Guid.NewGuid()));
 
-        // The only timing in the test, and it is generous on purpose: the dangerous direction is a FALSE
-        // GREEN, a window so short that a mutated build merely LOOKS blocked. A mutated build in fact
-        // needs none of it — with the void's lock released, every fake completes inline and RecordAsync
-        // runs to completion on this very thread, so its task is already finished when it is handed back
-        // (measured: every mutated run has failed here in tens of milliseconds — 5/5 when this test was
-        // written, 3/3 again after the finally below landed — never touching the two seconds). The WhenAny
-        // means only an UNmutated run pays them.
-        await Task.WhenAny(recording, Task.Delay(TimeSpan.FromSeconds(2)));
+        // The only timing in the test. The dangerous direction is a FALSE GREEN — a window so short that a
+        // mutated build merely LOOKS blocked — but a mutated build needs NO window at all: with the void's
+        // lock released, every fake completes inline and RecordAsync runs to completion on this very
+        // thread, so its task is ALREADY finished when it is handed back. Measured under the mutation at
+        // this budget (2026-07-27, 5 runs out of 5 failed): recording.IsCompleted was true BEFORE this
+        // WhenAny was entered in every run, so the WhenAny returned at once and the unused margin is the
+        // whole 500ms, not a fraction of it. The budget was 2s until 2026-07-27; the WhenAny means only an
+        // UNMUTATED run ever pays it, but it pays it on EVERY suite run, and 500ms buys the same detection
+        // for a quarter of the wall clock. Do not cut it to the measured 0ms — the margin is what keeps a
+        // slower machine from turning a real red into a flake.
+        await Task.WhenAny(recording, Task.Delay(TimeSpan.FromMilliseconds(500)));
 
         // The observation is taken BEFORE the gate opens, so the finally cannot weaken it; the finally
         // only guarantees that a FAILING run still releases the parked void instead of abandoning it.

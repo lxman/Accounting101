@@ -22,6 +22,17 @@ public interface IItemWriteLock
 /// insert-only create and <c>NextNumberAsync</c> are the only atomic primitives the engine exposes to
 /// modules, and modules have no database access to take a real lock.
 ///
+/// THE HOLD SPANS A LOOPBACK HTTP CALL, and <see cref="AcquireAsync"/> has no timeout. Both write paths
+/// keep this lock across their <c>ILedgerClient</c> calls — deliberately, since the fold does not move
+/// until the entry exists — so a stalled engine queues later writes TO THAT SAME (client, item) for as
+/// long as the ledger call takes. That is BOUNDED, not a deadlock: the bound is the module ledger
+/// HttpClient's timeout, left at the .NET default of 100s (<c>ModuleLedgerClientServiceExtensions
+/// .AddModuleLedgerClient</c> sets only a BaseAddress), waiters are awaited rather than blocked, the
+/// <c>using</c> releases on every throw path including that timeout, nothing inside either section
+/// re-enters a write path, and an aborted request drops its waiter with no count leak. Deliberately NOT
+/// given an acquire timeout: a caller that gave up waiting would proceed to fold unprotected, which is
+/// the defect this class exists to prevent. Writes to other items are unaffected — the key is per item.
+///
 /// The dictionary is never evicted: one semaphore per item ever written, for the process's lifetime.
 /// Eviction would need reference counting to avoid disposing a semaphore another caller is waiting on,
 /// which is not worth the risk at this scale.
