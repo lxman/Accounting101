@@ -759,6 +759,70 @@ git commit -m "fix(inventory): serialise the void path against concurrent record
 
 ---
 
+## Task 3b: Pin the void path's HOLD property
+
+**Added after Task 3's review.** Task 3's spy test proves `VoidAsync` CALLS `AcquireAsync` with the
+right item key. It does not prove the void HOLDS the lock: it passes unchanged under the plan's
+mandated `(await itemLock.AcquireAsync(...)).Dispose();` mutation, and would pass even if the
+acquisition moved to the method's last line. Holding is the property that actually serialises a void
+against a concurrent record, and no test pins it. Human ruling: close it, do not document-and-accept —
+the same call as the Task-2 torn-read residual.
+
+**Files:**
+- Create: one test double under `Modules/Inventory/Accounting101.Inventory.Tests/`
+- Test: `Modules/Inventory/Accounting101.Inventory.Tests/MovementFoldRaceTests.cs` (append)
+- **No production file changes.** `VoidAsync` is already correct; this task adds coverage only. If you
+  believe production code must change to make this testable, STOP and report — that is a finding, not
+  a licence to edit.
+
+### Why this task deliberately does not hand you the test code
+
+Every one of Task 2's five review rounds was a plan-authored test defect — test code written away from
+the code it tests. This task gives you the requirement, the verified seam facts, and the constraints.
+You design the test against the actual code and you own its validity.
+
+### The requirement
+
+One test that fails under the acquire-but-don't-hold mutation and passes as written. It must
+demonstrate that while `VoidAsync` is mid-body on an item, a concurrent `RecordAsync` on that same item
+cannot proceed.
+
+### Verified seam facts (checked live at 2026-07-27; re-confirm, don't just trust)
+
+- `ILedgerClient.GetEntriesBySourceRefAsync` (SINGULAR) is called by `VoidAsync`, unconditionally,
+  inside the critical section — it is the void's entry lookup. The valuation fold uses the PLURAL
+  `GetEntriesBySourceRefsAsync` instead (see `FoldCompleteRendezvousLedger`'s remarks). Verify that the
+  record path never reaches the singular method before you rely on this.
+- `FoldCompleteRendezvousLedger` is the worked example of an `ILedgerClient` decorator that intercepts
+  exactly one method and delegates the other eight untouched. Follow its shape.
+- `MovementFoldRaceTests.Build` returns a `Rig` with a SEEDER service on the undecorated lock and a
+  RACING service on the decorated one, over one shared set of stores. Setup calls must go through the
+  seeder or they strand. Your test may need its own variant of this rig.
+
+### Constraints, each one paid for by a failed round in Task 2
+
+- **A two-party rendezvous is the wrong shape here.** Only ONE party is ever inside the void's critical
+  section; the other is blocked at the lock and will never arrive. A rendezvous that waits for a second
+  arrival inside that section deadlocks and dies on its timeout. You want a one-sided gate the TEST
+  thread opens.
+- **Nothing that needs the item lock may block inside the section**, for the same reason.
+- **Decide what your assertion can still OBSERVE once the lock is in place** before you write it. An
+  assertion that only holds because the fix destroyed the interleaving it needed proves nothing.
+- **Watch it fail.** Apply the mutation to `VoidAsync`, run the test, record the actual failure output
+  in your report, then revert the mutation. A hold test that has not been seen failing does not count.
+
+- [ ] **Step 1: Design and write the test, watch it fail under the mutation**
+- [ ] **Step 2: Revert the mutation, confirm it passes**
+- [ ] **Step 3: Run the full module suite** (`dotnet test Modules/Inventory/Accounting101.Inventory.Tests`) — 118 currently green, expect 119
+- [ ] **Step 4: Update `MovementFoldRaceTests`' class remarks** — they are a coverage map for the
+  acquire-but-don't-hold mutation, they currently say "the other three tests below" and claim each test
+  names its own mutation, and your test makes both statements false again. Task 3's review round burned
+  on exactly this. Re-read every quantified claim in that block after you add your test.
+- [ ] **Step 5: Commit** with an explicit `git add` file list (never `-A`;
+  `UI/Angular/src/app/core/api/environment.ts` stays uncommitted)
+
+---
+
 ## Task 4: Retire the stale narrowing comments
 
 **Files:**
