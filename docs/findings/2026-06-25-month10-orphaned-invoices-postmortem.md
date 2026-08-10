@@ -42,15 +42,27 @@ collide. "All six failed identically" is systematic, not a race. There is no eng
    `LedgerClientException` (status + reason) and the issue endpoint relays the real 409/422 with the
    message — the clerk sees *why*.
 
-2. **No proactive guard — SPECCED.** `IssueAsync` finalizes the invoice (assigning the number) before
-   posting, so a rejected post orphans it. The fix is to validate the would-be post against the engine's
-   own rules **before** finalizing — see `docs/superpowers/specs/2026-06-25-issue-preflight-validate-entry-design.md`.
-   A predictable closed-period date is then caught while the invoice is still a `Draft`: the clerk fixes
-   the date and re-issues, no orphan. The residual TOCTOU race (period closes between validate and post)
-   is covered by a close-time exception backstop (separate spec).
+2. **No proactive guard — DONE (2026-08-09 review confirmed shipped).** `IssueAsync` used to finalize the
+   invoice (assigning the number) before posting, so a rejected post orphaned it. All three components of
+   `docs/superpowers/specs/2026-06-25-issue-preflight-validate-entry-design.md` are implemented: the engine
+   `POST /clients/{clientId}/entries/validate` primitive (side-effect-free dry run sharing the real
+   post's validation routine — `LedgerEndpoints.ValidateEntry`), `ILedgerClient.ValidateAsync` on both
+   module SDKs, and the pre-flight in `InvoiceService.IssueAsync` **and** `BillService.EnterAsync` (the
+   Payables parity fast-follow) — each validates the composed entry from the *draft* before promoting, so
+   a predictable closed-period date is caught while the document is still a `Draft`. Covered by
+   `ValidateEntryTests` (incl. validate/post parity), `InvoiceServiceTests.Issuing_into_a_closed_period_
+   throws_LedgerClientException_and_leaves_invoice_draft`, and the Payables `BillDraftLifecycleTests`.
+   The residual TOCTOU race (period closes between validate and post) remains covered by a close-time
+   exception backstop (separate spec, still out of scope).
 
-3. **Harness footgun — TODO.** The AR brief's example uses a January date, which invited exactly this
-   slip. Change the example to a neutral placeholder so the sim stops tempting it.
+3. **Harness footgun — FIXED (Accounting101.Simulation `42068f2`, 2026-08-09).** Two causes converged in
+   `briefs/clerk-ar.md`: Step 1 (Issue invoices) gave no issue-date guidance at all, while the work-queue
+   file-shape example was hardcoded to `"month": 1` / January 2024 — so a clerk in a later month
+   improvised a date and reached for the pervasive January example. The brief now (a) tells the clerk in
+   Step 1 to derive the issue date from their own month number N (last day of month N is safe) and never
+   copy a date from the examples, mirroring the date guidance Step 2 already carries for cash receipts,
+   and (b) replaces the example's `"month": 1` with `<N>` placeholders noting the real month comes from
+   the queue file. Brief-only; no harness or product change.
 
 ## Lessons
 

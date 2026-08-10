@@ -18,9 +18,21 @@ non-findings at the bottom. Only the items below survived filtering.
 
 ---
 
-## Finding 1 — approve-after-void is permitted (verified; actionable)
+## Finding 1 — approve-after-void is permitted (verified; FIXED 2026-08-09)
 
-**Sequence:** `Post → Void → Approve` succeeds end to end.
+**Status: RESOLVED.** `JournalEntry.Approve()` now guards `Status == Active` before the
+`Posting` guard, mirroring `Void()` and `Supersede()`. Because the guard keys on the
+lifecycle axis rather than on "voided" specifically, it closes the whole cross-axis family
+in one stroke — a *superseded* pending entry (`Supersede()` likewise leaves
+`Posting == PendingApproval`) was equally approvable before and is now rejected too.
+`LedgerService.ApproveAsync` calls `entry.Approve()` before any persistence, so the domain
+guard protects the service path as well; no separate service-layer check was needed.
+Regressions: `LifecycleTransitionTests.Approve_rejects_a_voided_pending_entry` (Core) and
+`LedgerServiceTests.Approving_a_voided_pending_entry_is_rejected_and_records_no_approval`
+(Mongo, asserts the persisted entry stays Voided/PendingApproval with no `ApprovedBy` and no
+appended `Approved` audit record). Full Core (55) + Mongo (105) suites green.
+
+**Sequence (original defect):** `Post → Void → Approve` succeeded end to end.
 
 - `JournalEntry.Void()` (`Backend/Accounting101.Ledger.Core/Journal/JournalEntry.cs:152-159`)
   requires `Status == Active`, sets `Status = Voided`, and leaves `Posting` untouched —
@@ -47,7 +59,29 @@ the guard `Void()` and `Supersede()` already carry), plus a regression test:
 post → void → approve throws. Belongs to the same family as the deferred freeze-race
 review item — a cross-field guard gap between the two orthogonal status axes.
 
-## Finding 2 — no maker-checker identity check anywhere in the evidence (design decision, not a bug)
+## Finding 2 — no maker-checker identity check anywhere in the evidence (RESOLVED by clarification 2026-08-09)
+
+**Status: NON-ISSUE — the enforcement exists; it was outside the evidence set.** The
+maker≠checker *identity* check lives exactly where the architecture says it should: the host
+approval-policy layer, in `ApproveEntry` at
+`Backend/Accounting101.Ledger.Api/Endpoints/LedgerEndpoints.cs:315-322`. Under
+`ApprovalMode.TwoPerson` it returns 403 when `entry.Audit.CreatedBy == ctx.Actor.UserId`,
+and it covers revisions and reversals too (all approved through that same endpoint). It is
+tested by `ApprovalModeEnforcementTests.Two_person_forbids_the_author_approving_their_own_entry`
+(403) and `Two_person_allows_a_different_approver` (200). The judge concluded "no home" only
+because the evidence subset fed to `specl check` included `ApprovalPolicyEndpoints`,
+`Authorization`, and `Capabilities` but **not** `LedgerEndpoints.cs` — where the check
+actually is. Under `SelfApprove` self-approval is intentional; under `AutoApprove` no human
+approves. Decision (2026-08-09): keep it in host approval policy, gated by `ApprovalMode` —
+which is the current implementation. No code change. Lesson for future `specl` runs: include
+the endpoint that performs the action, not just the policy/capability files, or the adjudicator
+will report a control it cannot see as missing.
+
+Original judge writeup follows (retained for context):
+
+---
+
+
 
 The engine records `ApprovedBy` but never compares it to `CreatedBy`; neither
 `JournalEntry.Approve` nor `LedgerService.ApproveAsync` enforces actor distinctness.

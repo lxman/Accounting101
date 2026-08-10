@@ -41,6 +41,17 @@ public class LifecycleTransitionTests
     }
 
     [Fact]
+    public void Approve_rejects_a_voided_pending_entry()
+    {
+        // Voiding a still-pending entry leaves Posting == PendingApproval. Approve must
+        // reject it on the Status axis, or a dead entry gets an approval event recorded.
+        JournalEntry voidedWhilePending = Pending().Void();
+
+        Assert.Equal(PostingState.PendingApproval, voidedWhilePending.Posting);
+        Assert.Throws<InvalidOperationException>(() => voidedWhilePending.Approve(Guid.NewGuid()));
+    }
+
+    [Fact]
     public void Void_marks_an_active_entry_voided_and_off_the_books()
     {
         JournalEntry voided = Pending().Approve(Guid.NewGuid()).Void();

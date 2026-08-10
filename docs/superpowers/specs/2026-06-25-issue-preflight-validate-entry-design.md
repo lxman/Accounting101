@@ -1,7 +1,13 @@
 # Proactive issue pre-flight via an engine validate-entry primitive — Design
 
 **Date:** 2026-06-25
-**Status:** Spec for review
+**Status:** IMPLEMENTED (confirmed 2026-08-09). All three components shipped, plus the Payables parity
+fast-follow. Engine primitive: `LedgerEndpoints.ValidateEntry` (`POST /clients/{id}/entries/validate`,
+shared no-drift validation routine). Client method: `ILedgerClient.ValidateAsync` on both module SDKs.
+Pre-flight: `InvoiceService.IssueAsync` (Receivables) and `BillService.EnterAsync` (Payables) both
+validate the draft-composed entry before promote. Tests: `ValidateEntryTests` (incl. validate/post
+parity), `InvoiceServiceTests.Issuing_into_a_closed_period_throws_LedgerClientException_and_leaves_invoice_draft`,
+Payables `BillDraftLifecycleTests`. The residual TOCTOU race remains out of scope (close-time backstop).
 **Branch context:** follows `fix(receivables): surface the engine's rejection reason on issue` (step 1).
 
 ## Problem
