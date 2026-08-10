@@ -136,6 +136,14 @@ public sealed record JournalEntry
     /// </summary>
     public JournalEntry Approve(Guid approvedBy)
     {
+        // The two status axes are orthogonal: voiding a still-pending entry leaves
+        // Posting == PendingApproval, so guarding Posting alone would let a voided entry
+        // be "approved" — stamping ApprovedBy and appending an Approved audit record
+        // against a dead entry. Guard Status too, mirroring Void() and Supersede().
+        if (Status != LifecycleStatus.Active)
+            throw new InvalidOperationException(
+                $"Only an {LifecycleStatus.Active} entry can be approved; this one is {Status}.");
+
         if (Posting != PostingState.PendingApproval)
             throw new InvalidOperationException(
                 $"Only a {PostingState.PendingApproval} entry can be approved; this one is {Posting}.");

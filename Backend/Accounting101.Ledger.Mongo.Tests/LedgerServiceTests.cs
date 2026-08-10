@@ -87,6 +87,29 @@ public sealed class LedgerServiceTests(MongoFixture fixture) : IClassFixture<Mon
     }
 
     [Fact]
+    public async Task Approving_a_voided_pending_entry_is_rejected_and_records_no_approval()
+    {
+        (LedgerService service, MongoJournalStore store, _, _, _) = NewLedger();
+        var client = Guid.NewGuid();
+        var cash = Guid.NewGuid();
+        var revenue = Guid.NewGuid();
+
+        // Void the entry while it is still pending — it keeps Posting == PendingApproval.
+        JournalEntry entry = Entry(client, 1, cash, revenue, 100m);
+        await service.PostAsync(entry, User());
+        await service.VoidAsync(entry.Id, User());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => service.ApproveAsync(entry.Id, User(), CancellationToken.None));
+
+        // The guard fired before any mutation: the entry stays voided, unapproved, un-bumped.
+        JournalEntry? persisted = await store.GetAsync(entry.Id);
+        Assert.Equal(LifecycleStatus.Voided, persisted!.Status);
+        Assert.Equal(PostingState.PendingApproval, persisted.Posting);
+        Assert.Null(persisted.Audit.ApprovedBy);
+    }
+
+    [Fact]
     public async Task The_engine_assigns_a_gapless_per_client_sequence_when_unset()
     {
         (LedgerService service, MongoJournalStore store, _, _, _) = NewLedger();
