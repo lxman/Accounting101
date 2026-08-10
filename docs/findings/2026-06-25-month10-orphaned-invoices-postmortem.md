@@ -55,8 +55,14 @@ collide. "All six failed identically" is systematic, not a race. There is no eng
    The residual TOCTOU race (period closes between validate and post) remains covered by a close-time
    exception backstop (separate spec, still out of scope).
 
-3. **Harness footgun — TODO.** The AR brief's example uses a January date, which invited exactly this
-   slip. Change the example to a neutral placeholder so the sim stops tempting it.
+3. **Harness footgun — FIXED (Accounting101.Simulation `42068f2`, 2026-08-09).** Two causes converged in
+   `briefs/clerk-ar.md`: Step 1 (Issue invoices) gave no issue-date guidance at all, while the work-queue
+   file-shape example was hardcoded to `"month": 1` / January 2024 — so a clerk in a later month
+   improvised a date and reached for the pervasive January example. The brief now (a) tells the clerk in
+   Step 1 to derive the issue date from their own month number N (last day of month N is safe) and never
+   copy a date from the examples, mirroring the date guidance Step 2 already carries for cash receipts,
+   and (b) replaces the example's `"month": 1` with `<N>` placeholders noting the real month comes from
+   the queue file. Brief-only; no harness or product change.
 
 ## Lessons
 
