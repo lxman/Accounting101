@@ -34,5 +34,5 @@ export const environment = {
     name: 'Dev Approver',
     claims: [{ type: 'role', value: 'Approver' }, { type: 'admin', value: 'true' }],
   } as DevIdentityConfig,
-  devClientId: '' as string, // set to the seeded demo client's Guid before demoing
+  devClientId: '55f47a46-6b2a-4767-a713-bcd0c7965a93' as string, // set to the seeded demo client's Guid before demoing
 };
